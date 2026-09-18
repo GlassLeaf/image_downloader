@@ -1,0 +1,1 @@
+{"id":"local.image-downloader.csrf-login-gallery","publisher":"local.image-downloader","version":"1.0.0","kind":"site_plugin","capabilities":["html-inspection","csrf-login","secret-credentials"],"match_priority":20,"entry":{"file":"csrf_login_gallery.py","class":"CsrfLoginGalleryPlugin"},"config_file":"plugin.yaml"}

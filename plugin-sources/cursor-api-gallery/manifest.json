@@ -1,0 +1,30 @@
+{
+  "manifest": {
+    "schema_version": 1,
+    "id": "local.image-downloader.cursor-api-gallery",
+    "publisher": "local.image-downloader",
+    "version": "1.0.0",
+    "kind": "site_plugin",
+    "capabilities": [
+      "json-inspection",
+      "cursor-pagination",
+      "secret-api-token"
+    ],
+    "match_priority": 20,
+    "entry": {
+      "file": "cursor_api_gallery.py",
+      "class": "CursorApiGalleryPlugin"
+    },
+    "config_file": "plugin.yaml",
+    "api_version": "3",
+    "public_key": "nXreC2mAtFSh+eqWrRPeKM4Aps7QLf4UUQ7TE3tCCmQ=",
+    "key_id": "6861a70e3992291678e776ca440f0ced984b1e4d43755551c1ff3f5a2773fb41",
+    "file_tree": {
+      "cursor_api_gallery.py": "6e5589f1855f8c50e4a22c65e3741ca8b3eb3f4e607e9d7d1a9a3223223a3f7f",
+      "plugin-metadata.json": "387c2f3ab8e1118f02d048dbc221947ba7e7d6d23dde4cdb513bbc69875ed89c",
+      "plugin.yaml": "009c4672fda30d3313d1e114efe92407bd27fdbf08ca7f85b781afacad87e96a"
+    },
+    "file_tree_sha256": "fb61739857d91abf0d40904ac14d5e83f89e5d76bb86628ba2e00798e0d1b61d"
+  },
+  "signature": "Gq7jmchhNdUgnw9esLcfRjyMXr0fX2974b9EQT9ul7bivlaUHmKLOhpE9a64eo2ttkx/d5O9lLoXsfTMxK14Bg=="
+}

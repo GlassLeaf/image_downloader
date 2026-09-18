@@ -1,0 +1,30 @@
+{
+  "manifest": {
+    "schema_version": 1,
+    "id": "local.image-downloader.oauth-media-api",
+    "publisher": "local.image-downloader",
+    "version": "1.0.0",
+    "kind": "site_plugin",
+    "capabilities": [
+      "json-inspection",
+      "oauth-refresh",
+      "secret-tokens"
+    ],
+    "match_priority": 20,
+    "entry": {
+      "file": "oauth_media_api.py",
+      "class": "OAuthMediaApiPlugin"
+    },
+    "config_file": "plugin.yaml",
+    "api_version": "3",
+    "public_key": "nXreC2mAtFSh+eqWrRPeKM4Aps7QLf4UUQ7TE3tCCmQ=",
+    "key_id": "6861a70e3992291678e776ca440f0ced984b1e4d43755551c1ff3f5a2773fb41",
+    "file_tree": {
+      "oauth_media_api.py": "591c2debe251c151ff5bfcdcc00ce81ea027c3b6c9c36e7c48495394fb4ca376",
+      "plugin-metadata.json": "793a5897bf5cf5be7ef32f551113496516fde7532fc070f7530af649fe0fb2d1",
+      "plugin.yaml": "009c4672fda30d3313d1e114efe92407bd27fdbf08ca7f85b781afacad87e96a"
+    },
+    "file_tree_sha256": "f28fcb074ab9b4104a6131c08fa2264fd6c734ebfa157ff71708c91ecdf449a7"
+  },
+  "signature": "NJ132JLgDCwSnRLQKALs2VdyWoYebjP2YehUNiD66g+mnpG7gn6DL0IZZ4hjXjUKmbYnJZGBUI7dV/QFjF2EAQ=="
+}

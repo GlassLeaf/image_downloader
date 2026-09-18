@@ -1,0 +1,1 @@
+{"id":"local.image-downloader.oauth-media-api","publisher":"local.image-downloader","version":"1.0.0","kind":"site_plugin","capabilities":["json-inspection","oauth-refresh","secret-tokens"],"match_priority":20,"entry":{"file":"oauth_media_api.py","class":"OAuthMediaApiPlugin"},"config_file":"plugin.yaml"}

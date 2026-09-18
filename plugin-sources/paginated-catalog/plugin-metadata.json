@@ -1,0 +1,13 @@
+{
+  "id": "local.image-downloader.paginated-catalog",
+  "publisher": "local.image-downloader",
+  "version": "1.0.1",
+  "kind": "site_plugin",
+  "capabilities": ["html-inspection", "pagination"],
+  "match_priority": 100,
+  "entry": {
+    "file": "plugin.py",
+    "class": "PaginatedCatalogSitePlugin"
+  },
+  "config_file": "plugin.yaml"
+}

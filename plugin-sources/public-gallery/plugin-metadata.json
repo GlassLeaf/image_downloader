@@ -1,0 +1,1 @@
+{"id":"local.image-downloader.public-gallery","publisher":"local.image-downloader","version":"1.0.0","kind":"site_plugin","capabilities":["html-inspection","referer-origin"],"match_priority":10,"entry":{"file":"public_gallery.py","class":"PublicGalleryPlugin"},"config_file":"plugin.yaml"}

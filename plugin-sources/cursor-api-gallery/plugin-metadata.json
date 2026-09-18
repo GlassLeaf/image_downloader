@@ -1,0 +1,1 @@
+{"id":"local.image-downloader.cursor-api-gallery","publisher":"local.image-downloader","version":"1.0.0","kind":"site_plugin","capabilities":["json-inspection","cursor-pagination","secret-api-token"],"match_priority":20,"entry":{"file":"cursor_api_gallery.py","class":"CursorApiGalleryPlugin"},"config_file":"plugin.yaml"}

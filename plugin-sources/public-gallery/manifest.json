@@ -1,0 +1,29 @@
+{
+  "manifest": {
+    "schema_version": 1,
+    "id": "local.image-downloader.public-gallery",
+    "publisher": "local.image-downloader",
+    "version": "1.0.0",
+    "kind": "site_plugin",
+    "capabilities": [
+      "html-inspection",
+      "referer-origin"
+    ],
+    "match_priority": 10,
+    "entry": {
+      "file": "public_gallery.py",
+      "class": "PublicGalleryPlugin"
+    },
+    "config_file": "plugin.yaml",
+    "api_version": "3",
+    "public_key": "nXreC2mAtFSh+eqWrRPeKM4Aps7QLf4UUQ7TE3tCCmQ=",
+    "key_id": "6861a70e3992291678e776ca440f0ced984b1e4d43755551c1ff3f5a2773fb41",
+    "file_tree": {
+      "plugin-metadata.json": "7cec18002e5dd092e1a527e34e7ccd1cb06ae8d6d57d1fd041e0639a5d29f061",
+      "plugin.yaml": "009c4672fda30d3313d1e114efe92407bd27fdbf08ca7f85b781afacad87e96a",
+      "public_gallery.py": "4f72a66f128597ecc33f569d825267fd901b4342dfdffbe43b319ae04f200bbf"
+    },
+    "file_tree_sha256": "cd0c7f1beff185ce1b3df7cca4c244a58140dd99a0f53b34f843276672c923db"
+  },
+  "signature": "Btva3wY+tkwtO/g5l9pjBnZwQ+0nUeqG3O9rVEXH6cU8uY9p/P45n5klGf1Qp8lYlcf7pzj+7Oir7oQPa0cIDA=="
+}

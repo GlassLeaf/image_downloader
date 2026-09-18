@@ -1,0 +1,22 @@
+{
+  "manifest": {
+    "schema_version": 1,
+    "id": "com.example.sample",
+    "publisher": "com.example",
+    "version": "1.0.0",
+    "api_version": "3",
+    "kind": "site_plugin",
+    "capabilities": [],
+    "match_priority": 0,
+    "entry": {"file": "sample_plugin.py", "class": "SamplePlugin"},
+    "config_file": "sample_plugin.yaml",
+    "public_key": "BASE64_RAW_32_BYTE_ED25519_PUBLIC_KEY",
+    "key_id": "SHA256_OF_RAW_PUBLIC_KEY",
+    "file_tree": {
+      "sample_plugin.py": "SHA256_HEX",
+      "sample_plugin.yaml": "SHA256_HEX"
+    },
+    "file_tree_sha256": "SHA256_OF_CANONICAL_FILE_TREE"
+  },
+  "signature": "BASE64_ED25519_SIGNATURE_OF_CANONICAL_MANIFEST"
+}

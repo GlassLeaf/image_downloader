@@ -1,0 +1,94 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "image-downloader"
+version = "0.0.0.1b0"
+description = "Extensible asynchronous image downloader"
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Operating System :: MacOS",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+  "httpx[http2]>=0.27",
+  "Pillow>=10.0",
+  "PyYAML>=6.0",
+  "tenacity>=8.2",
+  "platformdirs>=4.0",
+  "publicsuffix2>=2.20191221",
+  "keyring>=25.0",
+  "cryptography>=42.0",
+  "packaging>=23.0",
+  "pydantic>=2.0",
+]
+
+[project.optional-dependencies]
+notify = ["desktop-notifier>=6.0"]
+browser-cookies = ["browser-cookie3>=0.20"]
+parser = ["selectolax>=0.3"]
+dev = ["mypy>=1.11", "pytest>=8.0", "pytest-cov>=5.0", "ruff>=0.6"]
+
+[project.scripts]
+image-downloader = "image_downloader.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+image_downloader = ["app.yaml"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests/v3"]
+norecursedirs = ["tests/legacy"]
+
+[tool.coverage.run]
+branch = true
+source = ["image_downloader"]
+
+[tool.coverage.report]
+fail_under = 75
+show_missing = true
+skip_covered = true
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+src = ["src", "tests", "examples"]
+extend-exclude = [".runtime", "tests/legacy", "tests/test_*.py", "plugin-sources/*/vendor"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C90"]
+ignore = ["E701", "E702"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
+[tool.ruff.lint.per-file-ignores]
+"plugin-sources/generic-css-selector/plugin.py" = ["E501"]
+"plugin-sources/paginated-catalog/plugin.py" = ["E501"]
+
+[tool.ruff.format]
+exclude = ["plugin-sources/**/*.py"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src/image_downloader"]
+check_untyped_defs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+ignore_missing_imports = true
+
+

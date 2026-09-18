@@ -1,0 +1,13 @@
+{
+  "id": "local.image-downloader.generic-css-selector",
+  "publisher": "local.image-downloader",
+  "version": "1.0.1",
+  "kind": "site_plugin",
+  "capabilities": ["html-inspection", "css-selector"],
+  "match_priority": 0,
+  "entry": {
+    "file": "plugin.py",
+    "class": "GenericCssSelector"
+  },
+  "config_file": "plugin.yaml"
+}

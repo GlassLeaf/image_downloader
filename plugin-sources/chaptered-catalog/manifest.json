@@ -1,0 +1,30 @@
+{
+  "manifest": {
+    "schema_version": 1,
+    "id": "local.image-downloader.chaptered-catalog",
+    "publisher": "local.image-downloader",
+    "version": "1.0.0",
+    "kind": "site_plugin",
+    "capabilities": [
+      "json-inspection",
+      "updates",
+      "chapters"
+    ],
+    "match_priority": 20,
+    "entry": {
+      "file": "chaptered_catalog.py",
+      "class": "ChapteredCatalogPlugin"
+    },
+    "config_file": "plugin.yaml",
+    "api_version": "3",
+    "public_key": "nXreC2mAtFSh+eqWrRPeKM4Aps7QLf4UUQ7TE3tCCmQ=",
+    "key_id": "6861a70e3992291678e776ca440f0ced984b1e4d43755551c1ff3f5a2773fb41",
+    "file_tree": {
+      "chaptered_catalog.py": "de80d91957f63c4d157ef37364579fd6894aeb344cb3db2414970c006f2587a4",
+      "plugin-metadata.json": "3ad4cdea9cf983ce4de519e0da915b32acc585f9f372940542795e3b55071952",
+      "plugin.yaml": "009c4672fda30d3313d1e114efe92407bd27fdbf08ca7f85b781afacad87e96a"
+    },
+    "file_tree_sha256": "f1e357786843825f9b6553c512e623c4da447256ffe195ca08bab9e823235a56"
+  },
+  "signature": "/GHPEbUl2e8rklP5DTXnWdPC+f2neCUq3MVnL5ubFp+J7y3JjoNDaylZbUtzI3MO03gsqR9PAkQbTmp8McLBAg=="
+}

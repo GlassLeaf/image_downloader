@@ -1,0 +1,1 @@
+{"id":"local.image-downloader.signed-cdn-gallery","publisher":"local.image-downloader","version":"1.0.0","kind":"site_plugin","capabilities":["json-inspection","signed-url-recovery"],"match_priority":20,"entry":{"file":"signed_cdn_gallery.py","class":"SignedCdnGalleryPlugin"},"config_file":"plugin.yaml"}

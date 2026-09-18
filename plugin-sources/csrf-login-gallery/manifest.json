@@ -1,0 +1,30 @@
+{
+  "manifest": {
+    "schema_version": 1,
+    "id": "local.image-downloader.csrf-login-gallery",
+    "publisher": "local.image-downloader",
+    "version": "1.0.0",
+    "kind": "site_plugin",
+    "capabilities": [
+      "html-inspection",
+      "csrf-login",
+      "secret-credentials"
+    ],
+    "match_priority": 20,
+    "entry": {
+      "file": "csrf_login_gallery.py",
+      "class": "CsrfLoginGalleryPlugin"
+    },
+    "config_file": "plugin.yaml",
+    "api_version": "3",
+    "public_key": "nXreC2mAtFSh+eqWrRPeKM4Aps7QLf4UUQ7TE3tCCmQ=",
+    "key_id": "6861a70e3992291678e776ca440f0ced984b1e4d43755551c1ff3f5a2773fb41",
+    "file_tree": {
+      "csrf_login_gallery.py": "c65d47082da45c9084bec0435821841247505be8ba68ef69650d9ea82c799aa6",
+      "plugin-metadata.json": "98c78d6361cd7c4052058c673f6fa6b01f99e3d245a68dd86d6e9127d2dee5f7",
+      "plugin.yaml": "009c4672fda30d3313d1e114efe92407bd27fdbf08ca7f85b781afacad87e96a"
+    },
+    "file_tree_sha256": "208dfdb8934e66a3198ab6c7e39f1580271bc62991753dd6b3876d672a9eae4a"
+  },
+  "signature": "ZhXsU88vEMVKbMGPwY4+v0v9k/HoXguQTBGqJB4qa/13qxWHszyh/siM0V//4z5uBPMXPjhlwXzI11uSadwJBg=="
+}

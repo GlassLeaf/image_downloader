@@ -1,0 +1,17 @@
+__pycache__/
+build/
+dist/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.egg-info/
+.venv/
+venv/
+profiles/
+.runtime/
+.local/
+.codex-path-matrix/

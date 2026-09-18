@@ -1,0 +1,10 @@
+{
+  "id": "local.image-downloader.chaptered-catalog",
+  "publisher": "local.image-downloader",
+  "version": "1.0.0",
+  "kind": "site_plugin",
+  "capabilities": ["json-inspection", "updates", "chapters"],
+  "match_priority": 20,
+  "entry": {"file": "chaptered_catalog.py", "class": "ChapteredCatalogPlugin"},
+  "config_file": "plugin.yaml"
+}

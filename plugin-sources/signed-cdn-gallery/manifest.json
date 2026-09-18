@@ -1,0 +1,29 @@
+{
+  "manifest": {
+    "schema_version": 1,
+    "id": "local.image-downloader.signed-cdn-gallery",
+    "publisher": "local.image-downloader",
+    "version": "1.0.0",
+    "kind": "site_plugin",
+    "capabilities": [
+      "json-inspection",
+      "signed-url-recovery"
+    ],
+    "match_priority": 20,
+    "entry": {
+      "file": "signed_cdn_gallery.py",
+      "class": "SignedCdnGalleryPlugin"
+    },
+    "config_file": "plugin.yaml",
+    "api_version": "3",
+    "public_key": "nXreC2mAtFSh+eqWrRPeKM4Aps7QLf4UUQ7TE3tCCmQ=",
+    "key_id": "6861a70e3992291678e776ca440f0ced984b1e4d43755551c1ff3f5a2773fb41",
+    "file_tree": {
+      "plugin-metadata.json": "30d2a3f54338d7f2453a82d12fe6611587deb727317a3b1a7173679595b118bb",
+      "plugin.yaml": "009c4672fda30d3313d1e114efe92407bd27fdbf08ca7f85b781afacad87e96a",
+      "signed_cdn_gallery.py": "60a0f6509b9de1fa692a5fcbddd17e17c991c2f6bac057dd5441a9f55cfa6349"
+    },
+    "file_tree_sha256": "51c3a2c40ebb517e384a609ee48d1658ca812aada43cb5471438f0f05105689b"
+  },
+  "signature": "gpiaH3lW7tbGtvkjr9+HWRjEblUokGxHIDsHfHVmqY+P+SgOooo/4nYJ4djClzOypZ9us4T6UbvxxoYW7TFvAA=="
+}

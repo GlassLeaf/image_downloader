@@ -1,0 +1,50 @@
+{
+  "manifest": {
+    "schema_version": 1,
+    "id": "local.image-downloader.generic-css-selector",
+    "publisher": "local.image-downloader",
+    "version": "1.0.1",
+    "kind": "site_plugin",
+    "capabilities": [
+      "html-inspection",
+      "css-selector"
+    ],
+    "match_priority": 0,
+    "entry": {
+      "file": "plugin.py",
+      "class": "GenericCssSelector"
+    },
+    "config_file": "plugin.yaml",
+    "api_version": "3",
+    "public_key": "nXreC2mAtFSh+eqWrRPeKM4Aps7QLf4UUQ7TE3tCCmQ=",
+    "key_id": "6861a70e3992291678e776ca440f0ced984b1e4d43755551c1ff3f5a2773fb41",
+    "file_tree": {
+      "licenses/AUTHORS": "b9221d6eb05bd6ca1b75797b56b954beebe29b674df64177307e04767d162861",
+      "licenses/LICENSE": "55b4d8d4b1e5bc86d10efac91b74c87bcb77526b0f5b9edaf8b9cd2adc7397b2",
+      "licenses/LICENSE.md": "ceb7b9053b88addffa3102a457302bd840d123925ee9ed9c2ac90cf6548b33bf",
+      "plugin-metadata.json": "918cc3d77f2023fd6d95743c11e83d37657f5308531b3a5d4412be7319e018dd",
+      "plugin.py": "66c637440b474450e5d22f1523f9fa7664bf6839a7d8d4d37c408ffed4606c69",
+      "plugin.yaml": "4533f5c417973181b86864f3e0287208d1e0cf7da1587c650de502c1a229bd0e",
+      "vendor/__init__.py": "6211ef874b6a9af81d70293e8cf17a027fe809c9cbb22b37424091896d12a508",
+      "vendor/bs4/__init__.py": "92adf6702b5088d8e353d5f08c3d1bd637573795840bcee726a4925b73e15643",
+      "vendor/bs4/builder/__init__.py": "2cb5e2818a945c6c6e6d4b0cafe921e9982c7e7218049b4927f3fd77df65cfeb",
+      "vendor/bs4/builder/_html5lib.py": "5e7137d55d453cf7f5e7eeac79d2651a0ef84883cad1d1ea0108a1919dd557b1",
+      "vendor/bs4/builder/_htmlparser.py": "661d5f66be24dea3882bf6ac59f313a760a2b738ddf29afeb25698aefb3cca58",
+      "vendor/bs4/builder/_lxml.py": "e24bf01ff563a8c80dabaee365bfb3c4793f4387685a19ba82a6f9ce77e7ceb9",
+      "vendor/bs4/css.py": "296fb25391505af0041a0c093ac21e92344d95df25b5fc2452b76262cb7be0f5",
+      "vendor/bs4/dammit.py": "1b47107ec12a7f027e14840c917802270487327eedf6f3dea42aee77a7d910a9",
+      "vendor/bs4/element.py": "8c83e5bfa5b4bca6bb2d7e30ba18107693722e5d602e3875e507ffc7268055c5",
+      "vendor/bs4/formatter.py": "fa77f82669323c149a19b41530513d1c9d4d0bda9a4c01806933d372d5ae95b6",
+      "vendor/soupsieve/__init__.py": "718f8463e938f938b227cf2ad2f5b69e9565433ff704345a3a5627fbd55bc527",
+      "vendor/soupsieve/__meta__.py": "67f42bbda4c4b006edc54bf2b373b0024732d4636397752676b74b56ae43f59c",
+      "vendor/soupsieve/css_match.py": "f2608b7129b1da0d0b65cf39e93012df735937e0051a09b263d4a1aac3f80ee2",
+      "vendor/soupsieve/css_parser.py": "3344af465d1c008f91cb7852e15960800d16bacb2f764ad8e12e5327aceddb5a",
+      "vendor/soupsieve/css_types.py": "a82c414565fdb068e02d7814f6a98cf79f8e6421cf67c922c9a1ef9f48a4ffdc",
+      "vendor/soupsieve/pretty.py": "f33f5937291be7b611fa6654ad8e0ef586570cfe818462d2abdf8303963caf0c",
+      "vendor/soupsieve/util.py": "4343151fbedc5015ccb4a5740f67fc4b27fdd2b7a63ded047cba9eebe9ac01e2",
+      "VENDORED-LICENSES.md": "2c13ee20f97f56cd6a93adb59b9421d14facebba1c3ef793c8b9c085efd419ae"
+    },
+    "file_tree_sha256": "d58d23ce9ee7ea60046ff18bd62af7afda16c8e629c45e3a5727204725a6009b"
+  },
+  "signature": "FLd143xlqMv7r22SGDAnx4Jc17yj92vu7ia0Sgv4grgJkG0epLiJKuztuD9cWJTw0cfAZ4bVS6simqD1615QAQ=="
+}
