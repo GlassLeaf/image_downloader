@@ -289,7 +289,9 @@ def test_redirected_host_uses_its_own_concurrency_limit() -> None:
                 await release.wait()
             return httpx.Response(200, content=b"ok", request=request)
 
-        config = AppConfig.model_validate({"network": {"host_max_concurrency": 1, "max_concurrency": 4}})
+        config = AppConfig.model_validate(
+            {"network": {"origin_request_concurrency": 1, "request_concurrency": 4}}
+        )
         gateway = await _gateway(config, handler)
         first = asyncio.create_task(gateway.execute(RequestSpec("https://origin.test/one", auth_required=False)))
         second = asyncio.create_task(gateway.execute(RequestSpec("https://origin.test/two", auth_required=False)))

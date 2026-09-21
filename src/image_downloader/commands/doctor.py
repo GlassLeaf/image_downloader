@@ -17,9 +17,9 @@ from .constants import EXIT_CONFIGURATION, EXIT_PLUGIN, EXIT_SUCCESS
 from .reporting import _application_version, _doctor_plugin_details, _doctor_redact, _print_doctor_report
 from .setup import (
     _app_override,
-    _config_for,
     _fallback,
     _plugin_root,
+    _resolved_config_for,
     _runtime_overrides,
 )
 from .validation import _reject_command_options
@@ -56,7 +56,9 @@ async def doctor(args: argparse.Namespace) -> int:
             else:
                 site, _ = normalize_host(target)
                 selection_url = f"https://{site}/"
-        config, config_root, config_path, config_source = _config_for(args, site, allow_root_setup=True)
+        resolved = _resolved_config_for(args, site)
+        config = resolved.config
+        config_root = resolved.config_root
         paths = resolve_paths(config)
         registry = RuntimeComposer(
             config,
@@ -87,8 +89,9 @@ async def doctor(args: argparse.Namespace) -> int:
             "plugin_root": str(registry.plugin_root),
             "verification": config.security.plugin_verification,
             "configuration": {
-                "config_file": str(config_path),
-                "source": config_source,
+                "config_file": str(resolved.main_config_path) if resolved.main_config_path is not None else None,
+                "source": resolved.source,
+                "main_config_kind": resolved.main_config_kind,
                 "config_root": str(config_root),
                 "selected_profile": config.profile.default,
                 "target_host": site,
@@ -100,6 +103,15 @@ async def doctor(args: argparse.Namespace) -> int:
                     "fallback_generic": args.fallback_generic,
                 },
                 "selection": [dict(item) for item in registry.selection_diagnostics],
+                "layers": [
+                    {
+                        "role": layer.role,
+                        "path": str(layer.path) if layer.path is not None else None,
+                        "status": layer.status,
+                    }
+                    for layer in resolved.layers
+                ],
+                "origins": dict(resolved.origins),
             },
             "paths": {name: str(path) for name, path in paths.items()},
             "loaded_plugins": _doctor_plugin_details(registry, overrides),

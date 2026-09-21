@@ -23,7 +23,7 @@ def _png() -> bytes:
     return output.getvalue()
 
 
-def _service(tmp_path: Path, *, continue_on_error: bool = True) -> DownloadService:
+def _service(tmp_path: Path, *, continue_on_image_error: bool = True) -> DownloadService:
     plugin_root = (tmp_path / "plugins").resolve()
     config = AppConfig.model_validate(
         {
@@ -32,8 +32,8 @@ def _service(tmp_path: Path, *, continue_on_error: bool = True) -> DownloadServi
             "security": {"plugin_verification": "off"},
             "output": {"existing_file": "skip"},
             "logging": {"console": {"enabled": False}},
-            "network": {"max_retries": 1},
-            "continue_on_error": continue_on_error,
+            "network": {"max_attempts": 1},
+            "download": {"continue_on_image_error": continue_on_image_error},
         }
     )
     return RuntimeComposer(config, config_root=tmp_path.resolve(), plugin_root=plugin_root).compose()
@@ -95,13 +95,13 @@ def test_success_emits_image_and_operation_events_in_order(tmp_path: Path) -> No
         ("save", EventName.SAVE_FAILED),
     ],
 )
-@pytest.mark.parametrize("continue_on_error", [True, False])
+@pytest.mark.parametrize("continue_on_image_error", [True, False])
 def test_stage_failure_emitted_once_even_in_fail_fast(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     stage: str,
     failure_event: EventName,
-    continue_on_error: bool,
+    continue_on_image_error: bool,
 ) -> None:
     if stage == "process":
 
@@ -120,11 +120,11 @@ def test_stage_failure_emitted_once_even_in_fail_fast(
         monkeypatch.setattr(FileSystem, "write_bytes_atomic", fail_save)
 
     async def scenario() -> list[EventName]:
-        service = _service(tmp_path, continue_on_error=continue_on_error)
+        service = _service(tmp_path, continue_on_image_error=continue_on_image_error)
         await _mock_gallery(service, ("bad.png",), failing="bad.png" if stage == "fetch" else None)
         observed = _record_events(service)
         try:
-            if continue_on_error:
+            if continue_on_image_error:
                 result = await service.run("https://example.test/gallery")
                 assert len(result.failures) == 1
             else:
@@ -142,7 +142,7 @@ def test_stage_failure_emitted_once_even_in_fail_fast(
         assert EventName.SAVE_FAILED not in observed
     assert observed.index(failure_event) < observed.index(EventName.DOWNLOAD_FAILED)
     assert observed[-1] is EventName.AFTER_DOWNLOAD
-    assert (EventName.DOWNLOAD_COMPLETE in observed) is continue_on_error
+    assert (EventName.DOWNLOAD_COMPLETE in observed) is continue_on_image_error
 
 
 def test_mixed_results_emit_partial_success(tmp_path: Path) -> None:

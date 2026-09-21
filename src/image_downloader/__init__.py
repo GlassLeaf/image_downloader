@@ -1,6 +1,12 @@
 """Public local plugin API v3 for image-downloader."""
 
-from .config import AppConfig, apply_overrides, load_application_config
+from .config import (
+    AppConfig,
+    ResolvedApplicationConfig,
+    apply_overrides,
+    load_application_config,
+    resolve_application_config,
+)
 from .exceptions import (
     AuthenticationError,
     ConfigurationError,
@@ -68,6 +74,8 @@ __all__ = [
     "ImageSaveOptions",
     "InterProcessLockError",
     "load_application_config",
+    "resolve_application_config",
+    "ResolvedApplicationConfig",
     "OriginScopedAuthFlow",
     "PluginError",
     "PluginExecutionContext",

@@ -164,7 +164,7 @@ class DownloadService:
                 manifest = await invoker.inspect(plugin, url, context)
                 manifest = replace(manifest, metadata={**manifest.metadata, "source_url": url})
                 if not manifest.chapters:
-                    if not self.config.allow_empty_manifest:
+                    if not self.config.download.allow_empty_chapter_manifest:
                         raise PluginError("plugin returned an empty manifest")
                     await self._empty_reporter(manifest, record, url)
                     result = DownloadResult(url, manifest, ())
@@ -457,7 +457,7 @@ class DownloadService:
         try:
             return cast(
                 list[ChapterResult],
-                await self._bounded(factories, self.config.network.max_chapter_concurrency),
+                await self._bounded(factories, self.config.download.chapter_concurrency),
             )
         finally:
             await asyncio.gather(
@@ -584,7 +584,7 @@ class DownloadService:
                     _IMAGE_FAILURE_EVENTS[exc.kind],
                     EventPayload(url=image.url, error_class=type(exc.cause).__name__),
                 )
-                if not self.config.continue_on_error:
+                if not self.config.download.continue_on_image_error:
                     raise
                 await best_effort_diagnostic(
                     self.logger.core,
@@ -613,7 +613,9 @@ class DownloadService:
             lambda position=position, image=image: run_one(position, image)
             for position, image in enumerate(chapter.images)
         ]
-        outcomes = tuple(cast(list[ImageOutcome], await self._bounded(factories, self.config.network.max_concurrency)))
+        outcomes = tuple(
+            cast(list[ImageOutcome], await self._bounded(factories, self.config.download.image_concurrency_per_chapter))
+        )
         await reporter.finish(outcomes)
         await best_effort_diagnostic(
             self.logger.core,

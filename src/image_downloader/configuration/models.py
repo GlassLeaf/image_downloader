@@ -4,12 +4,34 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from typing import Any, Literal
+from math import isfinite
+from pathlib import Path
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import (
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    Field,
+    StrictBool,
+    StrictInt,
+    StrictStr,
+    field_validator,
+    model_validator,
+)
 
 from ..immutable import freeze_json
 from ..privacy.sensitive_values import is_sensitive_field_name
+
+
+def _strict_finite_number(value: object) -> float | int:
+    """Accept YAML numeric scalars, but never bools, strings, NaN, or infinity."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not isfinite(value):
+        raise ValueError("must be a finite number")
+    return value
+
+
+FiniteNumber = Annotated[float, BeforeValidator(_strict_finite_number)]
 
 
 class StrictModel(BaseModel):
@@ -17,7 +39,7 @@ class StrictModel(BaseModel):
 
 
 class Profile(StrictModel):
-    default: str = "default"
+    default: StrictStr = "default"
 
     @field_validator("default")
     @classmethod
@@ -28,31 +50,31 @@ class Profile(StrictModel):
 
 
 class Output(StrictModel):
-    directory_format: str = "%NUM%_%TITLE%_%SUBTITLE%"
-    filename_format: str = "%NUM%.%EXT%"
+    directory_format: StrictStr = "%NUM%_%TITLE%_%SUBTITLE%"
+    filename_format: StrictStr = "%NUM%.%EXT%"
     existing_file: Literal["overwrite", "skip", "rename", "error"] = "overwrite"
     image_format: Literal["JPEG", "PNG", "WEBP"] = "JPEG"
-    isolate_by_plugin: bool = False
+    isolate_by_plugin: StrictBool = False
     # Opt-in only: preserve existing names unless an operator selects a limit.
-    max_component_length: int | None = Field(None, ge=16)
-    lock_timeout_seconds: float = Field(30.0, ge=0, allow_inf_nan=False)
+    max_component_length: StrictInt | None = Field(None, ge=16)
+    lock_timeout_seconds: FiniteNumber = Field(30.0, ge=0)
 
 
 class Media(StrictModel):
     input_validation: Literal["content_type", "decode", "both"] = "content_type"
     content_type_mismatch: Literal["accept", "error"] = "accept"
     # Opt-in only: arbitrary image dimensions remain accepted by default.
-    max_image_pixels: int | None = Field(None, ge=1)
+    max_image_pixels: StrictInt | None = Field(None, ge=1)
 
 
 class ConsoleLogging(StrictModel):
-    enabled: bool = True
+    enabled: StrictBool = True
 
 
 class Logging(StrictModel):
     console: ConsoleLogging = Field(default_factory=ConsoleLogging)
-    safe_query_parameters: tuple[str, ...] = ()
-    safe_fragment_parameters: tuple[str, ...] = ()
+    safe_query_parameters: tuple[StrictStr, ...] = ()
+    safe_fragment_parameters: tuple[StrictStr, ...] = ()
 
     @field_validator("safe_query_parameters", "safe_fragment_parameters")
     @classmethod
@@ -71,39 +93,50 @@ class Logging(StrictModel):
 
 
 class Network(StrictModel):
-    max_concurrency: int = Field(8, ge=1)
-    max_chapter_concurrency: int = Field(3, ge=1)
-    host_max_concurrency: int | None = Field(None, ge=1)
-    site_max_concurrency: int | None = Field(None, ge=1)
-    timeout_seconds: float = Field(30, gt=0)
-    connect_timeout_seconds: float | None = Field(None, gt=0)
-    read_timeout_seconds: float | None = Field(None, gt=0)
-    write_timeout_seconds: float | None = Field(None, gt=0)
-    pool_timeout_seconds: float | None = Field(None, gt=0)
-    max_retries: int = Field(3, ge=1)
-    max_retry_wait_seconds: float = Field(30, gt=0)
-    max_auth_retries: int = Field(1, ge=0)
-    request_interval_seconds: float = Field(0, ge=0)
-    max_connections: int = Field(8, ge=1)
-    max_keepalive_connections: int = Field(20, ge=0)
-    max_response_bytes: int = Field(64 * 1024 * 1024, ge=1)
-    http2: bool = True
-    follow_redirects: bool = True
-    proxy: str | None = None
-    headers: Mapping[str, str] = Field(default_factory=lambda: {"User-Agent": "image-downloader/0.0.0.1b0"})
+    request_concurrency: StrictInt = Field(8, ge=1)
+    origin_request_concurrency: StrictInt | None = Field(None, ge=1)
+    registrable_domain_request_concurrency: StrictInt | None = Field(None, ge=1)
+    request_timeout_seconds: FiniteNumber = Field(30, gt=0)
+    connect_timeout_seconds: FiniteNumber | None = Field(None, gt=0)
+    read_timeout_seconds: FiniteNumber | None = Field(None, gt=0)
+    write_timeout_seconds: FiniteNumber | None = Field(None, gt=0)
+    pool_timeout_seconds: FiniteNumber | None = Field(None, gt=0)
+    max_attempts: StrictInt = Field(3, ge=1)
+    retry_max_delay_seconds: FiniteNumber = Field(30, ge=0)
+    auth_refresh_attempts: StrictInt = Field(1, ge=0)
+    global_request_interval_seconds: FiniteNumber = Field(0, ge=0)
+    pool_max_connections: StrictInt = Field(8, ge=1)
+    pool_max_idle_connections: StrictInt = Field(8, ge=0)
+    max_response_bytes: StrictInt = Field(64 * 1024 * 1024, ge=1)
+    http2: StrictBool = True
+    follow_redirects: StrictBool = True
+    proxy: StrictStr | None = None
+    headers: Mapping[StrictStr, StrictStr] = Field(default_factory=lambda: {"User-Agent": "image-downloader/0.0.0.1b0"})
+
+    @model_validator(mode="after")
+    def coherent_limits(self) -> Network:
+        if self.pool_max_idle_connections > self.pool_max_connections:
+            raise ValueError("pool_max_idle_connections must not exceed pool_max_connections")
+        for name, value in (
+            ("origin_request_concurrency", self.origin_request_concurrency),
+            ("registrable_domain_request_concurrency", self.registrable_domain_request_concurrency),
+        ):
+            if value is not None and value > self.request_concurrency:
+                raise ValueError(f"{name} must not exceed request_concurrency")
+        return self
 
     def model_post_init(self, __context: Any) -> None:
         object.__setattr__(self, "headers", freeze_json(self.headers))
 
 
 class Email(StrictModel):
-    smtp_host: str = ""
-    smtp_port: int = Field(465, ge=1, le=65535)
-    use_tls: bool = True
-    from_: str = Field("", alias="from")
-    to: tuple[str, ...] = ()
-    username: str = ""
-    credential_service: str = "image-downloader.smtp"
+    smtp_host: StrictStr = ""
+    smtp_port: StrictInt = Field(465, ge=1, le=65535)
+    use_tls: StrictBool = True
+    from_: StrictStr = Field("", alias="from")
+    to: tuple[StrictStr, ...] = ()
+    username: StrictStr = ""
+    credential_service: StrictStr = "image-downloader.smtp"
 
 
 NotificationMethod = Literal["desktop", "email"]
@@ -126,7 +159,7 @@ NotificationCategory = Literal[
 
 
 class Notification(StrictModel):
-    enabled: bool = False
+    enabled: StrictBool = False
     methods: tuple[NotificationMethod, ...] = ("desktop",)
     notify_on: tuple[NotificationCategory, ...] = ("fetch_error", "process_error", "save_error", "auth_error")
     routes: Mapping[NotificationCategory, tuple[NotificationMethod, ...]] = Field(default_factory=dict)
@@ -143,9 +176,9 @@ def _valid_plugin_id(value: str) -> bool:
 
 
 class PluginSettings(StrictModel):
-    enabled: bool = True
+    enabled: StrictBool = True
     config: Mapping[str, Any] = Field(default_factory=dict)
-    secrets: Mapping[str, str] = Field(default_factory=dict)
+    secrets: Mapping[StrictStr, StrictStr] = Field(default_factory=dict)
 
     @field_validator("secrets")
     @classmethod
@@ -169,17 +202,31 @@ class Security(StrictModel):
 class Storage(StrictModel):
     """The user-controlled, absolute parent directory for profile data."""
 
-    data_root: str | None = None
+    data_root: StrictStr | None = None
+
+    @field_validator("data_root")
+    @classmethod
+    def absolute_or_automatic(cls, value: str | None) -> str | None:
+        if value is not None and (not value or not Path(value).is_absolute()):
+            raise ValueError("must be null or an absolute path")
+        return value
 
 
 class Plugins(StrictModel):
     """The user-controlled, absolute plugin/catalog directory."""
 
-    root: str | None = None
+    root: StrictStr | None = None
+
+    @field_validator("root")
+    @classmethod
+    def absolute_or_automatic(cls, value: str | None) -> str | None:
+        if value is not None and (not value or not Path(value).is_absolute()):
+            raise ValueError("must be null or an absolute path")
+        return value
 
 
 class ImageProcessors(StrictModel):
-    chain: tuple[str, ...] = ()
+    chain: tuple[StrictStr, ...] = ()
 
     @field_validator("chain")
     @classmethod
@@ -190,11 +237,18 @@ class ImageProcessors(StrictModel):
 
 
 class GenericHtmlFallback(StrictModel):
-    enabled: bool = True
+    enabled: StrictBool = True
 
 
 class Fallback(StrictModel):
     generic_html: GenericHtmlFallback = Field(default_factory=GenericHtmlFallback)
+
+
+class Download(StrictModel):
+    chapter_concurrency: StrictInt = Field(3, ge=1)
+    image_concurrency_per_chapter: StrictInt = Field(8, ge=1)
+    continue_on_image_error: StrictBool = True
+    allow_empty_chapter_manifest: StrictBool = False
 
 
 class AppConfig(StrictModel):
@@ -207,11 +261,10 @@ class AppConfig(StrictModel):
     network: Network = Field(default_factory=lambda: Network.model_validate({}))
     notification: Notification = Field(default_factory=Notification)
     security: Security = Field(default_factory=Security)
+    download: Download = Field(default_factory=Download)
     image_processors: ImageProcessors = Field(default_factory=ImageProcessors)
     plugin_settings: Mapping[str, PluginSettings] = Field(default_factory=dict)
     fallback: Fallback = Field(default_factory=Fallback)
-    continue_on_error: bool = True
-    allow_empty_manifest: bool = False
 
     @field_validator("plugin_settings")
     @classmethod

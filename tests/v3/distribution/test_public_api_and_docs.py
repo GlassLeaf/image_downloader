@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from image_downloader import AppConfig, apply_overrides, load_application_config
+from image_downloader import AppConfig, apply_overrides, load_application_config, resolve_application_config
 from image_downloader.cli import build_parser
 from image_downloader.observability.logging import mask_log_text
 from image_downloader.storage import FileSystem
@@ -17,9 +17,11 @@ def test_public_configuration_helpers_are_available_from_package_root(tmp_path: 
     config_path.write_text("storage: {data_root: null}\nplugins: {root: null}\n", encoding="utf-8")
 
     loaded = load_application_config(config_path, require_config=True)
+    resolved = resolve_application_config(config_path, require_config=True)
     overridden = apply_overrides(AppConfig(), {"output": {"image_format": "PNG"}})
 
-    assert loaded.storage.data_root is None
+    assert loaded.storage.data_root is not None
+    assert resolved.config == loaded
     assert overridden.output.image_format == "PNG"
 
 

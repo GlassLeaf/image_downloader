@@ -58,7 +58,7 @@ def test_response_byte_limit_checks_declared_and_streamed_lengths() -> None:
 
 def test_non_idempotent_requests_retry_only_when_explicitly_enabled() -> None:
     async def scenario() -> None:
-        gateway = RequestGateway(_config(max_retries=3, max_retry_wait_seconds=0.001))
+        gateway = RequestGateway(_config(max_attempts=3, retry_max_delay_seconds=0.001))
         calls = 0
 
         async def unavailable(

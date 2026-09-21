@@ -79,16 +79,17 @@ class RequestGateway:
         self.config = config
         network = config.network
         timeout = httpx.Timeout(
-            connect=network.connect_timeout_seconds or network.timeout_seconds,
-            read=network.read_timeout_seconds or network.timeout_seconds,
-            write=network.write_timeout_seconds or network.timeout_seconds,
-            pool=network.pool_timeout_seconds or network.timeout_seconds,
+            connect=network.connect_timeout_seconds or network.request_timeout_seconds,
+            read=network.read_timeout_seconds or network.request_timeout_seconds,
+            write=network.write_timeout_seconds or network.request_timeout_seconds,
+            pool=network.pool_timeout_seconds or network.request_timeout_seconds,
         )
         self.client = httpx.AsyncClient(
             http2=network.http2,
             timeout=timeout,
             limits=httpx.Limits(
-                max_connections=network.max_connections, max_keepalive_connections=network.max_keepalive_connections
+                max_connections=network.pool_max_connections,
+                max_keepalive_connections=network.pool_max_idle_connections,
             ),
             # Redirects are followed by this gateway so every hop is checked first.
             follow_redirects=False,
@@ -96,12 +97,14 @@ class RequestGateway:
             headers=dict(network.headers),
             cookies=cookie_jar,
         )
-        self._global = asyncio.Semaphore(network.max_concurrency)
+        self._global = asyncio.Semaphore(network.request_concurrency)
         self._hosts: defaultdict[str, asyncio.Semaphore] = defaultdict(
-            lambda: asyncio.Semaphore(network.host_max_concurrency or network.max_concurrency)
+            lambda: asyncio.Semaphore(network.origin_request_concurrency or network.request_concurrency)
         )
         self._sites: defaultdict[str, asyncio.Semaphore] = defaultdict(
-            lambda: asyncio.Semaphore(network.site_max_concurrency or network.max_concurrency)
+            lambda: asyncio.Semaphore(
+                network.registrable_domain_request_concurrency or network.request_concurrency
+            )
         )
         self._interval_lock = asyncio.Lock()
         self._last_request = 0.0
@@ -136,7 +139,7 @@ class RequestGateway:
         allowed_redirect_origins: frozenset[str] | None = None,
     ) -> RequestResponse:
         retryable_method = spec.method.upper() in {"GET", "HEAD", "OPTIONS", "TRACE"}
-        attempts = self.config.network.max_retries if retryable_method or spec.retry_non_idempotent else 1
+        attempts = self.config.network.max_attempts if retryable_method or spec.retry_non_idempotent else 1
         retryable_status = {429, 500, 502, 503, 504}
         last_error: Exception | None = None
         retry_after: float | None = None
@@ -180,8 +183,9 @@ class RequestGateway:
                 if attempt + 1 == attempts:
                     raise DownloaderError("HTTP transport failed after configured attempts") from exc
             base = retry_after if retry_after is not None else 0.25 * (2**attempt)
-            capped = min(self.config.network.max_retry_wait_seconds, max(0.0, base))
-            await asyncio.sleep(capped + random.uniform(0.0, min(0.25, capped * 0.25)))
+            capped = min(self.config.network.retry_max_delay_seconds, max(0.0, base))
+            jitter = min(0.25, capped * 0.25)
+            await asyncio.sleep(max(0.0, capped - random.uniform(0.0, jitter)))
         raise DownloaderError("HTTP request failed") from last_error
 
     async def _once(
@@ -223,7 +227,9 @@ class RequestGateway:
         site = normalized_host if is_ip else registrable_domain(normalized_host)
         async with self._global, self._hosts[origin], self._sites[site]:
             async with self._interval_lock:
-                remaining = self.config.network.request_interval_seconds - (time.monotonic() - self._last_request)
+                remaining = self.config.network.global_request_interval_seconds - (
+                    time.monotonic() - self._last_request
+                )
                 if remaining > 0:
                     await asyncio.sleep(remaining)
                 self._last_request = time.monotonic()
@@ -391,7 +397,7 @@ class OperationRequestGateway:
                 allowed_redirect_origins=redirect_origins,
             )
             if current.auth_required and self._is_auth_failure(current, response):
-                if auth_attempts >= self._shared.config.network.max_auth_retries:
+                if auth_attempts >= self._shared.config.network.auth_refresh_attempts:
                     raise AuthenticationError("authentication failed after configured refresh attempts")
                 async with self._auth_lock:
                     if observed_generation == self._auth_generation:

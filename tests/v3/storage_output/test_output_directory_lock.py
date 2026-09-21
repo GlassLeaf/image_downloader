@@ -317,7 +317,7 @@ def test_lock_timeout_fails_entire_download_operation(tmp_path: Path) -> None:
                 "output": {"lock_timeout_seconds": 0},
                 "logging": {"console": {"enabled": False}},
                 "notification": {"enabled": False},
-                "continue_on_error": True,
+                "download": {"continue_on_image_error": True},
             }
         )
         service = RuntimeComposer(config, config_root=tmp_path.resolve(), plugin_root=plugin_root).compose()

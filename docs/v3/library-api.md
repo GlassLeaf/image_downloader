@@ -29,8 +29,9 @@ dict/listへ再帰的に戻すため、呼び出し元のcollectionとも内部�
 
 ## config を compose する
 
-`RuntimeComposer` は app config、config root、plugin root を必要とする。永続 data root と
-plugin root は config の `storage.data_root` / `plugins.root` に絶対 path で指定する。
+`RuntimeComposer` は app config、config root、plugin root を必要とする。`load_application_config()` と
+`resolve_application_config()` が返す有効 config では、`storage.data_root` / `plugins.root` の `null` を
+platformdirs の絶対 path に解決済みである。明示する場合は absolute path を使う。
 `load_application_config()` は package 同梱 baseline も常に統合する。
 
 ```python
@@ -98,7 +99,7 @@ async with RuntimeComposer(
 ```
 
 `run()` は selected site plugin の manifest を inspection し、chapter/image を処理・保存して
-`DownloadResult` を返す。recoverable image failure は `continue_on_error` により `ImageOutcome`
+`DownloadResult` を返す。recoverable image failure は `download.continue_on_image_error` により `ImageOutcome`
 として残り得る。plugin/config/auth/storage contract failure は image failure へ変換せず、
 operation を raise する。
 

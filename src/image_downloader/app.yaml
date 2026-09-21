@@ -1,9 +1,9 @@
 profile:
   default: default
 storage:
-  data_root: 
+  data_root: null
 plugins:
-  root: 
+  root: null
 output:
   directory_format: '%NUM%_%TITLE%_%SUBTITLE%'
   filename_format: '%NUM%.%EXT%'
@@ -22,21 +22,20 @@ logging:
   safe_query_parameters: []
   safe_fragment_parameters: []
 network:
-  max_concurrency: 8
-  max_chapter_concurrency: 3
-  host_max_concurrency: null
-  site_max_concurrency: null
-  timeout_seconds: 30
+  request_concurrency: 8
+  origin_request_concurrency: null
+  registrable_domain_request_concurrency: null
+  request_timeout_seconds: 30
   connect_timeout_seconds: null
   read_timeout_seconds: null
   write_timeout_seconds: null
   pool_timeout_seconds: null
-  max_retries: 3
-  max_retry_wait_seconds: 30
-  max_auth_retries: 1
-  request_interval_seconds: 0
-  max_connections: 8
-  max_keepalive_connections: 20
+  max_attempts: 3
+  retry_max_delay_seconds: 30
+  auth_refresh_attempts: 1
+  global_request_interval_seconds: 0
+  pool_max_connections: 8
+  pool_max_idle_connections: 8
   max_response_bytes: 67108864
   http2: true
   follow_redirects: true
@@ -64,11 +63,14 @@ notification:
     credential_service: image-downloader.smtp
 security:
   plugin_verification: strict
+download:
+  chapter_concurrency: 3
+  image_concurrency_per_chapter: 8
+  continue_on_image_error: true
+  allow_empty_chapter_manifest: false
 image_processors:
   chain: []
 plugin_settings: {}
 fallback:
   generic_html:
     enabled: true
-continue_on_error: true
-allow_empty_manifest: false

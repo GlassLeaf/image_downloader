@@ -13,6 +13,7 @@ from ..storage.cookies import CookieStore
 from .constants import EXIT_SUCCESS
 from .setup import (
     _config_for,
+    _persist_initial_user_config,
 )
 from .validation import _reject_command_options
 
@@ -35,7 +36,8 @@ class CookieCommandHandler:
             "cookie",
         )
         action, value = self._operation(args)
-        config, _, _, _ = _config_for(args, None, allow_root_setup=True)
+        config, _, _, source = _config_for(args, None, allow_root_setup=True, rewrite_user_layers=True)
+        _persist_initial_user_config(source)
         cookie_store = CookieStore(FileSystem(resolve_paths(config)["cookie"]))
         if action == "export":
             await asyncio.to_thread(cookie_store.export_file, Path(value), getpass.getpass("Passphrase: "))

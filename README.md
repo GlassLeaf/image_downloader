@@ -13,10 +13,14 @@ tree は発見・互換読込しません。
 ```powershell
 python -m pip install .
 
-# Optional: persist chosen roots in a user configuration. All paths are absolute.
-image-downloader config init "C:\Users\you\AppData\Local\image-downloader\conf\app.yaml" `
+# 設定ファイルの固定位置、OS 標準 root、現在の有効値を確認
+image-downloader config path
+image-downloader config explain --json
+
+# Optional: create the fixed user configuration before the first state-changing operation.
+image-downloader config init `
   --data-root "D:\Images\image-downloader" `
-  --plugin-root "C:\Users\you\AppData\Local\image-downloader\plugins" --yes
+  --plugin-root "C:\Users\you\AppData\Local\image-downloader\plugins"
 
 image-downloader "https://example.test/gallery"
 
@@ -25,13 +29,16 @@ image-downloader doctor --json
 ```
 
 通常実行は CWD の `app.yaml` を読みません。`--config` を省略すると platformdirs の固定
-user config を読み、未作成なら package 同梱 `app.yaml` を使う。そこに root がない場合は、
-対話端末で data root と plugin root を absolute path として入力する。保存確認で `Y` を選ぶと
-user config に保存し、`N` なら保存せずその実行だけに適用する。`--data-root` と
-`--plugin-root` を両方指定すれば、入力せずその実行だけに absolute root を与えられる。`--config`、
-`storage.data_root`、`plugins.root`、`--data-root`、`--plugin-root` はすべて absolute path
-である。console command と `python -m image_downloader` は同じ user config と plugin root を
-使用する。
+user config だけを読み、未作成でも package 同梱 baseline と OS 標準の data/plugin root で継続します。
+設定がない状態で download/update、cookie 操作、plugin install/trust/revoke を開始すると、主操作の前に
+同梱 `app.yaml` 基準の全設定と OS 標準の absolute data/plugin root を fixed user config へ自動保存します。
+CLI option は保存しませんが、完全 snapshot のため以後の bundled default 更新は自動反映されません。既存の
+user-managed config に旧キーまたは static schema の未知キーがあれば、状態変更操作の開始前に無表示で削除
+します。`doctor`、`config path`、`config explain`、plugin list は read-only で設定 file や directory を
+作成・書換えしません。固定 location は
+`config path`、最終値と各値の由来は `config explain` で確認できます。`storage.data_root` と
+`plugins.root` は `null` または absolute path、CLI の `--data-root` と `--plugin-root` は absolute path
+のみです。
 
 ```powershell
 python -m image_downloader "https://example.test/gallery" `

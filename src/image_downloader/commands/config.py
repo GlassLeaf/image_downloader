@@ -1,106 +1,218 @@
-"""config CLI command implementation."""
+"""Configuration discovery, initialization, and effective-value explanation."""
 
 from __future__ import annotations
 
 import argparse
+import json
 import re
 from pathlib import Path
+from urllib.parse import urlparse
 
-from ..configuration.layers import apply_overrides
-from ..configuration.models import AppConfig
+from ..configuration.hosts import normalize_host
+from ..configuration.paths import default_data_root, default_plugin_root, default_user_config_path
 from ..exceptions import ConfigurationError
 from ..storage.path_safety import canonical_path, existing_directory, existing_regular_file
+from . import setup as cli_setup
 from .constants import EXIT_SUCCESS
+from .reporting import _doctor_redact
 from .setup import (
+    _app_override,
     _bootstrap_override,
-    _collect_root_settings,
-    _config_for,
-    _user_config_path,
-    _user_config_yaml,
+    _resolved_config_for,
     _write_user_config,
 )
 from .validation import _reject_command_options
 
+_EXPLAIN_ALLOWED = frozenset(("host", "no_console_log", "existing_file", "image_format"))
+
 
 class ConfigCommandHandler:
     async def handle(self, args: argparse.Namespace) -> int:
-        _reject_command_options(
-            args,
-            (
-                "selection_priority",
-                "plugin_config",
-                "plugin_config_file",
-                "fallback_generic",
-                "host",
-                "no_console_log",
-                "list_updated_urls",
-                "export_cookies",
-                "import_cookies",
-                "import_browser_cookies",
-                "existing_file",
-                "image_format",
-            ),
-            "config",
-        )
         return config_command(args)
+
+
+def _reject_except(args: argparse.Namespace, allowed: frozenset[str]) -> None:
+    candidates = (
+        "selection_priority",
+        "plugin_config",
+        "plugin_config_file",
+        "fallback_generic",
+        "host",
+        "no_console_log",
+        "list_updated_urls",
+        "export_cookies",
+        "import_cookies",
+        "import_browser_cookies",
+        "existing_file",
+        "image_format",
+    )
+    _reject_command_options(args, tuple(name for name in candidates if name not in allowed), "config")
+
+
+def _reject_configuration_options(args: argparse.Namespace, allowed: frozenset[str]) -> None:
+    supplied = {
+        "config": args.config is not None,
+        "profile": args.profile is not None,
+        "data_root": args.data_root is not None,
+        "plugin_root": args.plugin_root is not None,
+        "yes": args.yes,
+        "allow_unverified_plugins": args.allow_unverified_plugins,
+    }
+    for name, is_supplied in supplied.items():
+        if is_supplied and name not in allowed:
+            raise ConfigurationError(f"--{name.replace('_', '-')} is not valid for this config command")
+
+
+def _path_payload() -> dict[str, object]:
+    user_config = default_user_config_path()
+    return {
+        "user_config": str(user_config),
+        "user_config_exists": existing_regular_file(user_config, "configuration file", required=False) is not None,
+        "package_baseline": str(Path(__file__).parents[1] / "app.yaml"),
+        "default_data_root": str(default_data_root()),
+        "default_plugin_root": str(default_plugin_root()),
+    }
+
+
+def _config_path(args: argparse.Namespace) -> int:
+    _reject_except(args, frozenset())
+    _reject_configuration_options(args, frozenset())
+    payload = _path_payload()
+    if args.json_output:
+        print(json.dumps(payload, ensure_ascii=False))
+    else:
+        print(f"user configuration: {payload['user_config']}")
+        print(f"exists: {payload['user_config_exists']}")
+        print(f"package baseline: {payload['package_baseline']}")
+        print(f"automatic data root: {payload['default_data_root']}")
+        print(f"automatic plugin root: {payload['default_plugin_root']}")
+    return EXIT_SUCCESS
+
+
+def _explain_site(value: str | None) -> str | None:
+    if value is None:
+        return None
+    parsed = urlparse(value)
+    if parsed.scheme:
+        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            raise ConfigurationError("config explain --host must be a bare host or absolute HTTP(S) URL")
+        return parsed.hostname
+    return normalize_host(value)[0]
+
+
+def _config_explain(args: argparse.Namespace) -> int:
+    _reject_except(args, _EXPLAIN_ALLOWED)
+    _reject_configuration_options(
+        args,
+        frozenset(("config", "profile", "data_root", "plugin_root", "allow_unverified_plugins")),
+    )
+    site = _explain_site(args.host)
+    resolved = _resolved_config_for(args, site)
+    payload = {
+        "source": resolved.source,
+        "main_config_kind": resolved.main_config_kind,
+        "main_config": str(resolved.main_config_path) if resolved.main_config_path is not None else None,
+        "config_root": str(resolved.config_root),
+        "selected_profile": resolved.selected_profile,
+        "target_host": site,
+        "layers": [
+            {"role": layer.role, "path": str(layer.path) if layer.path is not None else None, "status": layer.status}
+            for layer in resolved.layers
+        ],
+        "effective": _doctor_redact(resolved.config.model_dump(by_alias=True, warnings=False)),
+        "origins": dict(resolved.origins),
+        "runtime_overrides": _doctor_redact({**_bootstrap_override(args), **_app_override(args)}),
+    }
+    if args.json_output:
+        print(json.dumps(payload, ensure_ascii=False))
+    else:
+        print(f"source: {payload['source']}")
+        print(f"main configuration kind: {payload['main_config_kind']}")
+        print(f"main configuration: {payload['main_config'] or '(none; package defaults only)'}")
+        print(f"profile: {payload['selected_profile']}")
+        print("layers:")
+        for layer in payload["layers"]:
+            print(f"  {layer['status']:14} {layer['role']:16} {layer['path'] or '-'}")
+        print("effective configuration:")
+        print(json.dumps(payload["effective"], ensure_ascii=False, indent=2))
+        print("value origins:")
+        for key, origin in payload["origins"].items():
+            print(f"  {key}: {origin}")
+        print("CLI runtime overrides:")
+        print(json.dumps(payload["runtime_overrides"], ensure_ascii=False, indent=2))
+    return EXIT_SUCCESS
+
+
+def _init_destination(words: list[str]) -> Path:
+    if len(words) == 1:
+        return cli_setup._user_config_path()
+    if len(words) == 2:
+        candidate = Path(words[1])
+        if not candidate.is_absolute():
+            raise ConfigurationError("config init path must be absolute")
+        return canonical_path(candidate, "configuration path")
+    raise ConfigurationError("config init is 'config init [ABSOLUTE_PATH]'")
+
+
+def _config_init(args: argparse.Namespace, words: list[str]) -> int:
+    _reject_except(args, frozenset())
+    _reject_configuration_options(args, frozenset(("data_root", "plugin_root", "yes")))
+    destination = _init_destination(words)
+    if existing_regular_file(destination, "configuration file", required=False) is not None:
+        raise ConfigurationError(f"configuration file already exists: {destination}")
+    bootstrap = _bootstrap_override(args)
+    storage = bootstrap.get("storage", {})
+    plugins = bootstrap.get("plugins", {})
+    data_root = Path(storage["data_root"]) if isinstance(storage, dict) and "data_root" in storage else None
+    plugin_root = Path(plugins["root"]) if isinstance(plugins, dict) and "root" in plugins else None
+    _write_user_config(destination, data_root, plugin_root)
+    print(f"created configuration: {destination}")
+    return EXIT_SUCCESS
+
+
+def _profile_init(args: argparse.Namespace, words: list[str]) -> int:
+    _reject_except(args, frozenset())
+    _reject_configuration_options(args, frozenset(("config", "yes")))
+    if len(words) != 3 or words[:2] != ["profile", "init"]:
+        raise ConfigurationError("config profile init is 'config profile init NAME'")
+    name = words[2]
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", name):
+        raise ConfigurationError("profile name must contain only letters, numbers, '_' or '-'")
+    if args.config is not None:
+        if not args.config.is_absolute():
+            raise ConfigurationError("--config must be an absolute path")
+        main = canonical_path(args.config, "configuration path")
+    else:
+        main = cli_setup._user_config_path()
+    if existing_regular_file(main, "configuration file", required=False) is None:
+        _write_user_config(main, None, None)
+        print(f"created configuration: {main}")
+    config_root = existing_directory(main.parent, "configuration root", required=True)
+    destination = canonical_path(config_root / "profiles" / name / "app.yaml", "profile configuration path")
+    if existing_regular_file(destination, "profile configuration file", required=False) is not None:
+        raise ConfigurationError(f"profile configuration already exists: {destination}")
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    existing_directory(destination.parent, "profile configuration directory", required=True)
+    try:
+        with destination.open("x", encoding="utf-8") as stream:
+            stream.write("# Profile-specific overrides. profile/storage/plugins are not allowed here.\n{}\n")
+    except FileExistsError as exc:
+        raise ConfigurationError(f"profile configuration already exists: {destination}") from exc
+    print(f"created profile configuration: {destination}")
+    return EXIT_SUCCESS
 
 
 def config_command(args: argparse.Namespace) -> int:
     words = list(args.command_args)
-    if len(words) == 3 and words[:2] == ["profile", "init"]:
-        name = words[2]
-        if not re.fullmatch(r"[A-Za-z0-9_-]+", name):
-            raise ConfigurationError("profile name must contain only letters, numbers, '_' or '-'")
-        _, config_root, _, source = _config_for(
-            args,
-            None,
-            allow_root_setup=True,
-            allow_explicit_root_setup=True,
-            require_saved_user_config=True,
-        )
-        if source == "bundled":
-            user_config = _user_config_path()
-            raise ConfigurationError(
-                "cannot create a profile configuration without a saved user app.yaml; "
-                f"run 'config init \"{user_config}\"' first"
-            )
-        destination = config_root / "profiles" / name / "app.yaml"
-        destination = canonical_path(destination, "profile configuration path")
-        if existing_regular_file(destination, "profile configuration file", required=False) is not None:
-            raise ConfigurationError(f"profile configuration already exists: {destination}")
-        existing_directory(config_root, "configuration root", required=True)
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        existing_directory(destination.parent, "profile configuration directory", required=True)
-        try:
-            with destination.open("x", encoding="utf-8") as stream:
-                stream.write("# Profile-specific overrides. profile/storage/plugins are not allowed here.\n{}\n")
-        except FileExistsError as exc:
-            raise ConfigurationError(f"profile configuration already exists: {destination}") from exc
-        print(f"created profile configuration: {destination}")
-        return EXIT_SUCCESS
-    if len(words) != 2 or words[0] != "init":
-        raise ConfigurationError(
-            "config command is 'config init ABSOLUTE_PATH [--data-root ABSOLUTE_PATH] [--plugin-root ABSOLUTE_PATH]' "
-            "or 'config profile init NAME'"
-        )
-    destination = Path(words[1])
-    if not destination.is_absolute():
-        raise ConfigurationError("config init path must be absolute")
-    destination = canonical_path(destination, "configuration path")
-    if existing_regular_file(destination, "configuration file", required=False) is not None:
-        raise ConfigurationError(f"configuration file already exists: {destination}")
-    bootstrap = _bootstrap_override(args)
-    config = apply_overrides(AppConfig(), bootstrap) if bootstrap else AppConfig()
-    data_root, plugins_root, save_roots = _collect_root_settings(
-        args,
-        config,
-        destination,
-        allow_noninteractive_unsaved=True,
-        yes_confirms_save=True,
+    if words == ["path"]:
+        return _config_path(args)
+    if words == ["explain"]:
+        return _config_explain(args)
+    if words and words[0] == "init":
+        return _config_init(args, words)
+    if words[:2] == ["profile", "init"]:
+        return _profile_init(args, words)
+    raise ConfigurationError(
+        "config command is 'config path', 'config explain [--host HOST]', 'config init [ABSOLUTE_PATH]', "
+        "or 'config profile init NAME'"
     )
-    if save_roots:
-        _write_user_config(destination, data_root, plugins_root)
-        print(f"created configuration: {destination}")
-    else:
-        print(_user_config_yaml(data_root, plugins_root), end="")
-    return EXIT_SUCCESS

@@ -11,35 +11,42 @@ python -m image_downloader "https://example.test/gallery"
 ```
 
 通常実行、Cookie 操作、`doctor`、plugin 管理は、`--config` がなければ platformdirs の固定
-user config path を読む。既定 user config が未作成なら package 同梱 `app.yaml` を設定源にする。
-同梱設定または既定 user config の `storage.data_root` / `plugins.root` が未設定・相対 path の
-場合、対話端末では不足した各 root を absolute path として入力する。入力後の保存確認で `Y` を
-選ぶと AppData 側 user config に保存し、`N` なら入力値をその invocation だけに適用する。非対話
-または `--json` では対話せず、必要な `--data-root` / `--plugin-root` を示す設定エラーで終了する。
+user config path だけを読む。CWD の `app.yaml` は候補にしない。固定 path、存在状態、package baseline、
+OS 標準 root は `image-downloader config path` でいつでも確認できる。
+
+既定 user config が未作成でも起動は継続する。package 同梱 baseline の
+`storage.data_root: null` は `PlatformDirs("image-downloader", appauthor=False).user_data_path`、
+`plugins.root: null` はその `plugins` 子 directory を表す。設定がない状態で download/update、cookie
+export/import/browser-import、plugin install/trust/revoke を開始すると、主操作の前に固定 user config を
+作成する。作成 file は同梱 `app.yaml` と schema default から決まる全設定を保存し、automatic root は
+absolute path として実値化する。CLI の profile/root/output/logging/JSON option、plugin override、fallback
+override は保存しない。完全 snapshot のため、その後の bundled default 更新は自動反映されない。主操作が
+全件失敗・例外・中断しても、開始前に作成済みの file は残る。明示 `--config` の欠落では作成しない。
+自動作成に失敗しても root が解決済みなら主操作の exit status は維持し、stderr に警告を出す。`doctor`、
+`config path`／`config explain`、plugin list は設定 file・root directory を作成・書換えしない。`--config`、
+非 null の `storage.data_root` / `plugins.root`、`--data-root`、`--plugin-root` は absolute path でなければ
+ならない。
 
 ```powershell
-image-downloader config init "C:\Users\you\AppData\Local\image-downloader\conf\app.yaml" `
+image-downloader config init `
   --data-root "D:\Images\image-downloader" `
   --plugin-root "C:\Users\you\AppData\Local\image-downloader\plugins"
 ```
 
-`--config`、`storage.data_root`、`plugins.root`、`--data-root`、`--plugin-root` は相対 path を
-受け付けない。明示 `--config` の root が未設定・相対 path の場合はその file を変更せず、
-不足した CLI root option を指定する。
 source checkout は editable install してから使う。
 
 ## 設定 tree
 
 package 同梱の `app.yaml` は immutable baseline であり、CLI と
-`load_application_config()` の両方で必ず最初に読む。`--config` がなく既定 user config も
-ない CLI 実行では、この同梱 file を main 設定としても使う。利用者設定は絶対 `--config`、
-または platformdirs の固定 user config path から読む。
+`load_application_config()` の両方で必ず一度だけ読む。利用者設定は絶対 `--config`、または
+platformdirs の固定 user config path から読む。設定 file がない場合は main layer を適用せず、
+baseline と schema default だけで解決する。
 
-同梱設定を使う run で root が不足していると、対話端末は data root と plugin root を利用者に
-入力させる。保存確認の `Y` は AppData 側に user config を作成し、既存 user config の root を
-修復する場合は他の設定値を維持する。`N` は file を変更せず、入力値を一時 bootstrap override と
-して実行する。`--data-root` と `--plugin-root` の両指定も保存しない invocation 限定 override である。
-同梱 file は変更しない。通常実行の明示 `--config`、非対話、`--json` は root 対話を行わない。
+`config init [ABSOLUTE_PATH]` は path 省略時に固定 user config を作成する。これは明示的な作成操作で
+あり確認を求めない。生成 file は全設定をコメントで示す sparse template で、指定した root だけを
+実値として保存するため、将来の bundled default 更新を固定しない。初回の自動作成はこれとは別に、
+同梱 baseline の完全 snapshot を保存する。`config profile init NAME` は base config がなければ sparse
+file を作成してから overlay を作る。
 
 ```text
 <config-root>/
@@ -57,8 +64,8 @@ package 同梱の `app.yaml` は immutable baseline であり、CLI と
 ```
 
 profile configuration は `<config-root>/profiles/<name>/` に置く。profile data は常に
-`<storage.data_root>/profiles/<name>/` に置く。`use_platformdirs` は廃止され、OS 間の
-保存先差異は利用者が絶対 `storage.data_root` を指定して解決する。
+`<storage.data_root>/profiles/<name>/` に置く。`storage.data_root: null` の場合は platformdirs の
+OS 標準 user-data path がこの root になる。別の場所を使う場合だけ絶対 `storage.data_root` を指定する。
 
 既存の config、overlay、data root、plugin root/source は symbolic link と Windows reparse
 point を含められない。存在する YAML は regular non-link file でなければならず、読込不能・
@@ -97,34 +104,129 @@ mapping は再帰的に merge し、scalar、list、`null` は後の layer が�
 
 ## 設定 schema
 
-top-level と nested model は strict である。未知 key は設定エラーになる。主な設定を
-次に示す。雛形は `image-downloader config init` で明示的に作成する。
+top-level と nested model は strict である。整数に bool や `1.0`、秒数に文字列・`NaN`・
+`Infinity` は使えない。型・値域違反と layer 制約違反は、後続 layer が同じ値を上書きしても無視されず、
+file・layer・dotted key を示す configuration error で起動を停止する。user 管理の main/profile/site
+layer にある削除済み key と static schema の未知 key は最終値へ反映しない。状態変更操作では無表示で
+物理削除し、`doctor`、`config explain`、plugin list など read-only 操作では無表示で無視するだけで
+書換えない。任意 key を許す `network.headers`、`notification.desktop`、plugin private `config` は
+unknown key ではなく、その値は各 schema／plugin が検証する。雛形は `image-downloader config init` で
+作成する。
 
 | key | 用途・既定 |
 |---|---|
 | `profile.default` | profile 名。`default` |
-| `storage.data_root` | 必須の絶対 data root。profile data はこの配下 |
-| `plugins.root` | 必須の絶対 plugin/catalog root |
+| `storage.data_root` | `null` または絶対 data root。`null` は OS 標準 data root。profile data はこの配下 |
+| `plugins.root` | `null` または絶対 plugin/catalog root。`null` は OS 標準 data root の `plugins` |
+| `download.chapter_concurrency` | 同時に処理する chapter 数。厳密な整数 `>= 1`、既定 `3` |
+| `download.image_concurrency_per_chapter` | chapter ごとの fetch/process/save job 数。厳密な整数 `>= 1`、既定 `8` |
+| `download.continue_on_image_error` | recoverable な画像単位エラー後に続行するか。既定 `true` |
+| `download.allow_empty_chapter_manifest` | chapter が一つもない manifest を許可するか。既定 `false` |
 | `output.*` | name format、既存 file 方針、JPEG/PNG/WEBP、plugin 別出力分離 |
 | `output.max_component_length` | path component の任意上限。既定 `null`（切り詰めなし）。指定時は hash suffix 付きで決定的に切り詰める |
 | `output.lock_timeout_seconds` | 同一章ディレクトリの保存ロックを待つ秒数。既定 `30`、`0` は待機なし。負数・非有限値は無効。タイムアウトは画像単位で再試行せず操作全体を失敗させる |
 | `media.*` | input MIME/decode validation と MIME mismatch 方針 |
 | `media.max_image_pixels` | 入力画像と processor 出力の幅×高さの任意上限。既定 `null`（寸法検査なし） |
 | `logging.*` | console と公開してよい URL parameter 名 |
-| `network.*` | concurrency、timeout、retry、HTTP pool、proxy、headers |
+| `network.request_concurrency` | 全 origin 合計の in-flight HTTP request 数。厳密な整数 `>= 1`、既定 `8` |
+| `network.origin_request_concurrency` | scheme/host/port ごとの request 上限。`null` は global を継承、指定時は `1..request_concurrency` |
+| `network.registrable_domain_request_concurrency` | registrable domain ごとの request 上限。`null` は global を継承、指定時は `1..request_concurrency` |
+| `network.request_timeout_seconds` | phase timeout の既定。有限数 `> 0`。個別 phase timeout の `null` はこれを継承 |
+| `network.max_attempts` | 初回を含む総試行回数。厳密な整数 `>= 1`。`1` は retry なし |
+| `network.retry_max_delay_seconds` | retry wait の上限。有限数 `>= 0`。jitter を含めてこの値を超えず、`0` は待機なし |
+| `network.auth_refresh_attempts` | 認証 refresh の追加試行回数。厳密な整数 `>= 0` |
+| `network.global_request_interval_seconds` | 全 origin 共通の request 開始間隔。有限数 `>= 0` |
+| `network.pool_max_connections` / `pool_max_idle_connections` | HTTP pool の総 connection 数／idle 数。整数で、idle は `0..total` |
 | `network.max_response_bytes` | `Content-Length` と実受信量の双方に適用する上限。既定 64 MiB |
 | `notification.*` | desktop/email notification、event category別route、credential service。既定で無効。値は起動時に型検証される |
-| `continue_on_error` | image 単位の recoverable failure 後も続行するか。既定 `true` |
-| `allow_empty_manifest` | chapter が一つもない manifest を許可するか。既定 `false` |
 | `security.plugin_verification` | `strict`、`warn`、`off`。main/profile app layer のみ。`off` は実行時承認も必要 |
 | `fallback.generic_html.enabled` | builtin generic HTML fallback。既定 `true` |
 | `image_processors.chain` | 実行する processor ID の順序。重複はエラー |
 | `plugin_settings` | plugin ごとの利用者設定。後述 |
 
+### 全 key の型と既定値
+
+以下は雛形にある app 設定の完全な値域である。`string` と `integer` は YAML の暗黙変換を
+行わない strict 型であり、`true`/`false` を整数として、`1.0` を整数としては受理しない。
+秒数の `number` は有限値だけであり、`NaN` と `Infinity` は無効である。
+
+| key | 型・値域・既定値 |
+|---|---|
+| `profile.default` | strict string `[A-Za-z0-9_-]+`。`default` |
+| `storage.data_root` | `null` または絶対 path string。`null`（OS 標準 data root） |
+| `plugins.root` | `null` または絶対 path string。`null`（OS 標準 data root の `plugins`） |
+| `download.chapter_concurrency` | strict integer `>= 1`。`3` |
+| `download.image_concurrency_per_chapter` | strict integer `>= 1`。`8` |
+| `download.continue_on_image_error` | strict boolean。`true` |
+| `download.allow_empty_chapter_manifest` | strict boolean。`false` |
+| `output.directory_format` / `output.filename_format` | strict string。`%NUM%_%TITLE%_%SUBTITLE%` / `%NUM%.%EXT%` |
+| `output.existing_file` | `overwrite`、`skip`、`rename`、`error`。`overwrite` |
+| `output.image_format` | `JPEG`、`PNG`、`WEBP`。`JPEG` |
+| `output.isolate_by_plugin` | strict boolean。`false` |
+| `output.max_component_length` | `null`（上限なし）または strict integer `>= 16`。`null` |
+| `output.lock_timeout_seconds` | 有限 number `>= 0`。`30`。`0` は待機なし |
+| `media.input_validation` | `content_type`、`decode`、`both`。`content_type` |
+| `media.content_type_mismatch` | `accept`、`error`。`accept` |
+| `media.max_image_pixels` | `null`（無制限）または strict integer `>= 1`。`null` |
+| `logging.console.enabled` | strict boolean。`true` |
+| `logging.safe_query_parameters` / `safe_fragment_parameters` | URL parameter 名の list。各要素は非機密の正規 identifier、重複不可。`[]` |
+| `network.request_concurrency` | strict integer `>= 1`。`8` |
+| `network.origin_request_concurrency` / `registrable_domain_request_concurrency` | `null`（global を継承）または strict integer `1..request_concurrency`。`null` |
+| `network.request_timeout_seconds` | 有限 number `> 0`。`30` |
+| `network.connect_timeout_seconds` / `read_timeout_seconds` / `write_timeout_seconds` / `pool_timeout_seconds` | `null`（`request_timeout_seconds` を継承）または有限 number `> 0`。`null` |
+| `network.max_attempts` | 初回を含む strict integer `>= 1`。`3` |
+| `network.retry_max_delay_seconds` | 有限 number `>= 0`。`30`。`0` は待機なし |
+| `network.auth_refresh_attempts` | strict integer `>= 0`。`1` |
+| `network.global_request_interval_seconds` | 有限 number `>= 0`。`0`（間隔なし） |
+| `network.pool_max_connections` | strict integer `>= 1`。`8` |
+| `network.pool_max_idle_connections` | strict integer `0..pool_max_connections`。`8` |
+| `network.max_response_bytes` | strict integer `>= 1`。`67108864` |
+| `network.http2` / `follow_redirects` | strict boolean。ともに `true` |
+| `network.proxy` | `null` または strict string。`null` |
+| `network.headers` | `string -> string` mapping。`{User-Agent: image-downloader/0.0.0.1b0}`。表示時は値を伏せる |
+| `notification.enabled` | strict boolean。`false` |
+| `notification.methods` | `desktop` / `email` の list。`[desktop]` |
+| `notification.notify_on` | notification category の list。`[fetch_error, process_error, save_error, auth_error]` |
+| `notification.routes` | `notification category -> [desktop, email]` mapping。`{}` |
+| `notification.desktop` | desktop backend 向け mapping。`{}` |
+| `notification.email.smtp_host` / `from` / `username` | strict string。いずれも `''` |
+| `notification.email.smtp_port` | strict integer `1..65535`。`465` |
+| `notification.email.use_tls` | strict boolean。`true` |
+| `notification.email.to` | strict string の list。`[]` |
+| `notification.email.credential_service` | strict string。`image-downloader.smtp` |
+| `security.plugin_verification` | `strict`、`warn`、`off`。`strict` |
+| `image_processors.chain` | reverse-DNS plugin ID の重複なし list。`[]` |
+| `plugin_settings.<plugin-id>.enabled` | strict boolean。`true` |
+| `plugin_settings.<plugin-id>.config` | plugin author が検証する mapping。`{}` |
+| `plugin_settings.<plugin-id>.secrets` | `lower_snake_case -> UPPERCASE_REFERENCE` mapping。`{}` |
+| `fallback.generic_html.enabled` | strict boolean。`true` |
+
 `storage` と `plugins` は main app layer だけに置ける。`security` は main/profile app
 layer にだけ置け、site overlay には置けない。`profile` は main app layer にだけ置ける。
 `plugin_settings` は全 non-bootstrap layer に置ける。catalog path は常に
 `plugins.root/catalog.json` である。
+
+`null` は generic な削除 marker ではない。mapping は再帰的に merge し、scalar、list、`null` は
+後の layer が置換する。`null` を受け付けるのは schema に明示された optional key だけであり、root は
+OS 標準値、concurrency と phase timeout は継承、画像・path の optional 上限は無制限を意味する。
+最終値、main config の種別、適用された layer、各 key の由来は
+`config explain [--host HOST] [--json]` で確認できる。
+
+次の旧キーは user 管理 layer で無表示に削除する。設定値を置換先へ自動変換・移動しないため、必要な
+値は利用者が新キーへ明示的に設定する。
+
+| 旧キー | 置換先 |
+|---|---|
+| `network.max_retries` | `network.max_attempts` |
+| `network.max_retry_wait_seconds` | `network.retry_max_delay_seconds` |
+| `network.max_auth_retries` | `network.auth_refresh_attempts` |
+| `network.max_concurrency` | `network.request_concurrency` |
+| `network.host_max_concurrency` | `network.origin_request_concurrency` |
+| `network.site_max_concurrency` | `network.registrable_domain_request_concurrency` |
+| `network.request_interval_seconds` | `network.global_request_interval_seconds` |
+| `network.max_connections` / `max_keepalive_connections` | `network.pool_max_connections` / `pool_max_idle_connections` |
+| `network.max_chapter_concurrency` | `download.chapter_concurrency` |
+| `continue_on_error` / `allow_empty_manifest` | `download.continue_on_image_error` / `download.allow_empty_chapter_manifest` |
 
 通知を使う場合は`notification.enabled: true`を指定する。既定の通知対象は`fetch_error`、
 `process_error`、`save_error`、`auth_error`で、既定の配信手段はdesktopである。desktop通知には
@@ -140,8 +242,8 @@ stderrへ出す。画像ファイルそのものの書込み失敗は従来ど�
 以前の`save_error`は画像処理失敗も含んでいたが、現在は保存失敗だけを示す。画像処理失敗の通知を
 継続したい設定では、`notify_on`または`routes`に`process_error`を追加する。
 
-`plugins.root` は v3 の必須 bootstrap setting である。廃止済み v2 の
-`plugins.<id>` configuration tree とは別物で、v3 は後者を読まない。
+`plugins.root` は v3 の bootstrap setting で、`null` なら OS 標準 plugin root を使う。
+廃止済み v2 の `plugins.<id>` configuration tree とは別物で、v3 は後者を読まない。
 
 `output.isolate_by_plugin` は既定 `false`。false は従来の profile 内 output layout を
 維持するため、別host/pluginが同じchapter/file名を生成すると `existing_file` 方針に従う。
@@ -189,7 +291,9 @@ image_processors:
 ```
 
 - ID は reverse-DNS form。存在しない ID は compose error。
-- `config` は mapping。plugin author default と深く統合される。
+- `config` は mapping。plugin author default と深く統合され、値の schema は plugin author が検証する。
+- app layer の最終値と由来は `config explain`、author default を含む最終 plugin config は
+  `doctor --host HOST` で確認する。
 - `enabled: false` の site plugin は URL 選択候補から除外される。
 - chain 内の disabled processor は error ではなく skip され、`doctor`/debug に表示される。
 - processor に `secrets` を置くことはエラー。
@@ -236,7 +340,9 @@ passphrase付きファイルの明示的なimportも別Cookieを保持する。�
 image-downloader download URL [options]
 image-downloader URL [options]
 image-downloader doctor [--host HOST_OR_URL] [options]
-image-downloader config init ABSOLUTE_PATH [--data-root ABSOLUTE_PATH] [--plugin-root ABSOLUTE_PATH]
+image-downloader config path [--json]
+image-downloader config explain [--host HOST_OR_URL] [options]
+image-downloader config init [ABSOLUTE_PATH] [--data-root ABSOLUTE_PATH] [--plugin-root ABSOLUTE_PATH]
 image-downloader config profile init NAME [--config ABSOLUTE_PATH]
 image-downloader plugin install ABSOLUTE_DIRECTORY [options]
 image-downloader plugin trust ABSOLUTE_DIRECTORY [options]
@@ -256,8 +362,8 @@ command固有optionを別commandへ指定した場合はconfiguration errorに�
 |---|---|
 | `--config ABSOLUTE_PATH` | main user config を明示指定 |
 | `--profile NAME` | この invocation の profile を選択 |
-| `--data-root ABSOLUTE_PATH` | profile data root を一時上書き。不足した対話 root は入力対象になる |
-| `--plugin-root ABSOLUTE_PATH` | external plugin/catalog root を一時上書き。不足した対話 root は入力対象になる |
+| `--data-root ABSOLUTE_PATH` | profile data root をこの invocation だけ上書き |
+| `--plugin-root ABSOLUTE_PATH` | external plugin/catalog root をこの invocation だけ上書き |
 | `--existing-file` | `overwrite`/`skip`/`rename`/`error` の一時 override |
 | `--image-format` | `JPEG`/`PNG`/`WEBP` の一時 override |
 | `--no-console-log` | console chapter log を無効化 |
@@ -266,7 +372,7 @@ command固有optionを別commandへ指定した場合はconfiguration errorに�
 
 | `--fallback-generic` | `auto`（YAML）、`enabled`、`disabled` |
 | `--allow-unverified-plugins` | `security.plugin_verification: off` をこの run だけ承認 |
-| `--yes` | plugin 変更の承認に加え、非対話 `config init` の設定保存を承認 |
+| `--yes` | plugin 変更の承認。`config init` は常に明示的な作成操作として保存する |
 | `--plugin-config ID=JSON_OBJECT` | plugin private config の inline override。繰返し可 |
 | `--plugin-config-file ABSOLUTE_PATH` | `{"plugin_id":"…","config":{…}}` file。絶対 regular non-link file のみ。繰返し可 |
 
@@ -275,14 +381,13 @@ command固有optionを別commandへ指定した場合はconfiguration errorに�
 download のJSON出力中、pluginのPython `print()` は標準エラーへ送る。
 native code がOSの標準出力file descriptorへ直接書く場合は制御対象外である。
 
-`config init` は root option が不足していれば対話入力する。保存確認の `Y`、または root option が
-揃った非対話実行での `--yes` だけが destination に `app.yaml` を作成する。`N`、または `--yes`
-なしの非対話実行では、作成予定の完全な YAML を標準出力し、file は作成しない。
+`config path` は fixed user config、存在状態、package baseline、OS 標準 root を read-only で表示する。
+`config explain` は selected profile と host に対し、適用・未存在の全 layer、機密値を伏せた有効設定、
+CLI override、各 key の最終値の由来を表示する。
 
-`config profile init` は既存 user config または明示 `--config` の root が不足していれば同じ入力・
-保存確認を行う。`Y` はその app.yaml の root を保存してから profile overlay を作成する。`N` でも
-基底 app.yaml が既に存在すれば root を一時適用して overlay を作成する。基底 user config がない
-場合の `N` は overlay を作らず、先に `config init` を実行するよう表示して終了する。
+`config init` は root option の有無にかかわらず destination に sparse template を作成する。path を
+省略した場合の destination は fixed user config である。既存 file は上書きしない。`config profile init`
+は base config がなければ同じ sparse template を作成してから profile overlay を作る。
 
 plugin config file は出現順に統合し、全 inline `--plugin-config` はその後に統合する。
 file の既存祖先 component と leaf は symbolic link／Windows reparse point を含められず、

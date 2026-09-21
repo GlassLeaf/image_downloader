@@ -2,16 +2,20 @@
 
 from .configuration.hosts import normalize_host, registrable_domain, site_file_name
 from .configuration.layers import (
+    ConfigurationLayer,
+    ResolvedApplicationConfig,
     apply_overrides,
     deep_merge,
     load_application_config,
     load_yaml,
+    resolve_application_config,
     validate_config,
 )
 from .configuration.models import (
     DEFAULT_CONFIG,
     AppConfig,
     ConsoleLogging,
+    Download,
     Email,
     Fallback,
     GenericHtmlFallback,
@@ -30,7 +34,13 @@ from .configuration.models import (
     Storage,
     StrictModel,
 )
-from .configuration.paths import plugin_root, resolve_paths
+from .configuration.paths import (
+    default_data_root,
+    default_plugin_root,
+    default_user_config_path,
+    plugin_root,
+    resolve_paths,
+)
 
 __all__ = [
     "AppConfig",
@@ -39,6 +49,7 @@ __all__ = [
     "Output",
     "Media",
     "ConsoleLogging",
+    "Download",
     "Logging",
     "Network",
     "Email",
@@ -55,12 +66,18 @@ __all__ = [
     "StrictModel",
     "validate_config",
     "deep_merge",
+    "ConfigurationLayer",
+    "ResolvedApplicationConfig",
     "load_yaml",
     "normalize_host",
     "registrable_domain",
     "site_file_name",
     "load_application_config",
+    "resolve_application_config",
     "apply_overrides",
     "resolve_paths",
     "plugin_root",
+    "default_user_config_path",
+    "default_data_root",
+    "default_plugin_root",
 ]

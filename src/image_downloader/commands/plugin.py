@@ -15,6 +15,7 @@ from ..plugins.runtime import PluginRuntime
 from .constants import EXIT_SUCCESS
 from .setup import (
     _config_for,
+    _persist_initial_user_config,
     _plugin_root,
 )
 from .validation import _reject_command_options
@@ -53,12 +54,12 @@ def plugin_command(args: argparse.Namespace) -> int:
     words = list(args.command_args)
     if not words:
         raise ConfigurationError("plugin command is required: install, trust, revoke, or list")
-    config, _, _, _ = _config_for(args, None, allow_root_setup=True)
-    command, root = words.pop(0), _plugin_root(args, config)
-    yes = args.yes
+    command = words.pop(0)
     if command == "list":
         if words:
             raise ConfigurationError("plugin list takes no arguments")
+        config, _, _, _ = _config_for(args, None, allow_root_setup=True)
+        root = _plugin_root(args, config)
         try:
             catalog = (
                 PluginCatalog.load(root / "catalog.json") if (root / "catalog.json").exists() else PluginCatalog(())
@@ -99,10 +100,10 @@ def plugin_command(args: argparse.Namespace) -> int:
     if command in {"install", "trust"}:
         if len(words) != 1:
             raise ConfigurationError(f"plugin {command} requires one absolute plugin directory")
-        source = Path(words[0])
-        if not source.is_absolute():
+        plugin_source = Path(words[0])
+        if not plugin_source.is_absolute():
             raise ConfigurationError(f"plugin {command} source must be an absolute directory")
-        manifest = read_manifest(source)
+        manifest = read_manifest(plugin_source)
         fingerprint = str(manifest.value["key_id"])
         summary_fields = (
             f"{command} {manifest.id}",
@@ -113,12 +114,20 @@ def plugin_command(args: argparse.Namespace) -> int:
             f"tree={manifest.value['file_tree_sha256']}",
         )
         summary = " ".join(summary_fields)
-        if not yes:
+        if not args.yes:
             _confirm(args, summary)
+        config, _, _, configuration_source = _config_for(
+            args,
+            None,
+            allow_root_setup=True,
+            rewrite_user_layers=True,
+        )
+        root = _plugin_root(args, config)
+        _persist_initial_user_config(configuration_source)
         entry = (
-            install_plugin(root, source, selection_priority=args.selection_priority)
+            install_plugin(root, plugin_source, selection_priority=args.selection_priority)
             if command == "install"
-            else trust_plugin(root, source, selection_priority=args.selection_priority)
+            else trust_plugin(root, plugin_source, selection_priority=args.selection_priority)
         )
         print(
             json.dumps(entry.as_json(), ensure_ascii=False)
@@ -129,8 +138,16 @@ def plugin_command(args: argparse.Namespace) -> int:
     if command == "revoke":
         if len(words) != 1:
             raise ConfigurationError("plugin revoke requires an ID")
-        if not yes:
+        if not args.yes:
             _confirm(args, f"revoke plugin {words[0]}")
+        config, _, _, configuration_source = _config_for(
+            args,
+            None,
+            allow_root_setup=True,
+            rewrite_user_layers=True,
+        )
+        root = _plugin_root(args, config)
+        _persist_initial_user_config(configuration_source)
         entry = revoke_plugin(root, words[0])
         print(json.dumps(entry.as_json(), ensure_ascii=False) if args.json_output else f"revoked {entry.id}")
         return EXIT_SUCCESS

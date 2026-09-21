@@ -282,7 +282,9 @@ def test_typed_plugin_instance_boundaries_reject_incomplete_contracts(tmp_path: 
 
 
 def test_config_tree_profile_is_fixed_and_psl_layers(tmp_path: Path) -> None:
-    (tmp_path / "app.yaml").write_text("profile: {default: alpha}\nnetwork: {timeout_seconds: 1}\n", encoding="utf-8")
+    (tmp_path / "app.yaml").write_text(
+        "profile: {default: alpha}\nnetwork: {request_timeout_seconds: 1}\n", encoding="utf-8"
+    )
     for relative, timeout in (
         ("profiles/alpha/app.yaml", 2),
         ("sites/global.yaml", 3),
@@ -294,13 +296,13 @@ def test_config_tree_profile_is_fixed_and_psl_layers(tmp_path: Path) -> None:
     ):
         path = tmp_path / relative
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(f"network: {{timeout_seconds: {timeout}}}\n", encoding="utf-8")
+        path.write_text(f"network: {{request_timeout_seconds: {timeout}}}\n", encoding="utf-8")
     value = load_application_config(
-        tmp_path / "app.yaml", site="book.example.co.uk", runtime_override={"network": {"max_retries": 4}}
+        tmp_path / "app.yaml", site="book.example.co.uk", runtime_override={"network": {"max_attempts": 4}}
     )
     assert value.profile.default == "alpha"
-    assert value.network.timeout_seconds == 8
-    assert value.network.max_retries == 4
+    assert value.network.request_timeout_seconds == 8
+    assert value.network.max_attempts == 4
     assert site_file_name("2001:db8::1") == "ipv6-20010db8000000000000000000000001.yaml"
 
     (tmp_path / "profiles" / "alpha" / "app.yaml").write_text("profile: {default: beta}\n", encoding="utf-8")
@@ -678,7 +680,7 @@ def test_selected_dynamic_plugin_logging_is_captured_during_run(tmp_path: Path) 
                 "storage": {"data_root": str((tmp_path / "data").resolve())},
                 "plugins": {"root": str(root)},
                 "security": {"plugin_verification": "strict"},
-                "allow_empty_manifest": True,
+                "download": {"allow_empty_chapter_manifest": True},
                 "logging": {"console": {"enabled": False}},
                 "notification": {"enabled": False},
             }

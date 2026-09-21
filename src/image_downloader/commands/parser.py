@@ -190,10 +190,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     config_parser = commands.add_parser(
         "config",
-        help="initialize application or profile configuration",
+        help="locate, explain, or initialize application configuration",
     )
     config_parser.add_argument("command_args", nargs="*")
     _add_configuration_options(config_parser, suppress_defaults=True)
+    _add_download_options(config_parser, suppress_defaults=True)
+    config_parser.add_argument("--host", default=argparse.SUPPRESS)
     config_parser.set_defaults(command_handler="config")
 
     plugin_parser = commands.add_parser(

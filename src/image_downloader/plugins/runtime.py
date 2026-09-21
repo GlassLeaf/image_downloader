@@ -370,8 +370,7 @@ def safe_app_settings(config: AppConfig) -> Mapping[str, Any]:
             {
                 "output": config.output.model_dump(warnings=False),
                 "media": config.media.model_dump(warnings=False),
-                "continue_on_error": config.continue_on_error,
-                "allow_empty_manifest": config.allow_empty_manifest,
+                "download": config.download.model_dump(warnings=False),
                 "network": network,
             }
         ),

@@ -4,20 +4,18 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
-import tempfile
 from collections.abc import Mapping
 from pathlib import Path
 
 import yaml
-from platformdirs import PlatformDirs
 
-from ..configuration.layers import apply_overrides, load_application_config
+from ..configuration.layers import ResolvedApplicationConfig, resolve_application_config
 from ..configuration.models import AppConfig
+from ..configuration.paths import default_user_config_path, resolve_paths
 from ..configuration.paths import plugin_root as configured_plugin_root
-from ..configuration.paths import resolve_paths
 from ..exceptions import ConfigurationError
+from ..immutable import thaw_json
 from ..storage.path_safety import canonical_path, existing_directory, existing_regular_file
 
 
@@ -26,31 +24,41 @@ def _bundled_config_path() -> Path:
 
 
 def _user_config_path() -> Path:
-    return PlatformDirs("image-downloader", appauthor=False).user_config_path / "conf" / "app.yaml"
+    return default_user_config_path()
 
 
-def _yaml_plain(value: object) -> object:
-    if isinstance(value, Mapping):
-        return {str(key): _yaml_plain(item) for key, item in value.items()}
-    if isinstance(value, (list, tuple, set, frozenset)):
-        return [_yaml_plain(item) for item in value]
-    return value
-
-
-def _user_config_payload(data_root: Path, plugins_root: Path) -> dict[str, object]:
-    payload = _yaml_plain(AppConfig().model_dump(by_alias=True, warnings=False))
-    assert isinstance(payload, dict)
-    payload["storage"] = {"data_root": str(data_root.resolve())}
-    payload["plugins"] = {"root": str(plugins_root.resolve())}
-    payload["security"] = {"plugin_verification": "strict"}
+def _user_config_payload(data_root: Path | None = None, plugins_root: Path | None = None) -> dict[str, object]:
+    """Persist only values explicitly chosen by the user, never a stale default snapshot."""
+    payload: dict[str, object] = {}
+    if data_root is not None:
+        payload["storage"] = {"data_root": str(data_root.resolve())}
+    if plugins_root is not None:
+        payload["plugins"] = {"root": str(plugins_root.resolve())}
     return payload
 
 
-def _user_config_yaml(data_root: Path, plugins_root: Path) -> str:
-    return str(yaml.safe_dump(_user_config_payload(data_root, plugins_root), allow_unicode=True, sort_keys=False))
+def _user_config_yaml(data_root: Path | None = None, plugins_root: Path | None = None) -> str:
+    template = Path(__file__).parents[1] / "config-template.yaml"
+    try:
+        header = template.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise ConfigurationError(f"could not read configuration template: {template}") from exc
+    payload = yaml.safe_dump(_user_config_payload(data_root, plugins_root), allow_unicode=True, sort_keys=False)
+    return header + str(payload)
 
 
-def _write_user_config(destination: Path, data_root: Path, plugins_root: Path) -> None:
+def _initial_user_config_yaml(config: AppConfig) -> str:
+    """Render a complete bundled-policy snapshot, never CLI runtime overrides."""
+    payload = thaw_json(config.model_dump(by_alias=True, warnings=False))
+    assert isinstance(payload, dict)
+    return (
+        "# Generated from the bundled app.yaml on the first state-changing run.\n"
+        "# Command-line overrides are intentionally not persisted.\n"
+        + yaml.safe_dump(payload, allow_unicode=True, sort_keys=False)
+    )
+
+
+def _write_new_user_config(destination: Path, content: str) -> None:
     destination = canonical_path(destination, "configuration path")
     if existing_regular_file(destination, "configuration file", required=False) is not None:
         raise ConfigurationError(f"configuration file already exists: {destination}")
@@ -58,131 +66,49 @@ def _write_user_config(destination: Path, data_root: Path, plugins_root: Path) -
     destination.parent.mkdir(parents=True, exist_ok=True)
     try:
         with destination.open("x", encoding="utf-8") as stream:
-            stream.write(_user_config_yaml(data_root, plugins_root))
+            stream.write(content)
     except FileExistsError as exc:
         raise ConfigurationError(f"configuration file already exists: {destination}") from exc
 
 
-def _write_updated_user_config(destination: Path, data_root: Path, plugins_root: Path) -> None:
-    """Create or repair the user-owned root settings without touching bundled data."""
-    destination = canonical_path(destination, "configuration path")
-    existing = existing_regular_file(destination, "configuration file", required=False)
-    if existing is None:
-        _write_user_config(destination, data_root, plugins_root)
+def _write_user_config(destination: Path, data_root: Path | None, plugins_root: Path | None) -> None:
+    """Write the explicit sparse-template form used by ``config init``."""
+    _write_new_user_config(destination, _user_config_yaml(data_root, plugins_root))
+
+
+def _write_initial_user_config(destination: Path, config: AppConfig) -> None:
+    _write_new_user_config(destination, _initial_user_config_yaml(config))
+
+
+def _persist_initial_user_config(source: str) -> None:
+    """Persist bundled policy before a state-changing first run.
+
+    The snapshot deliberately excludes every command-line override.  A
+    concurrent first run may win the create race; its regular file is retained
+    without treating that as a failure.  Persistence is advisory once the
+    operation's roots have been resolved.
+    """
+    if source != "defaults":
         return
+    destination = _user_config_path()
     try:
-        payload = yaml.safe_load(existing.read_text(encoding="utf-8")) or {}
-    except (OSError, yaml.YAMLError) as exc:
-        raise ConfigurationError(f"could not read configuration: {destination}: {exc}") from exc
-    if not isinstance(payload, Mapping):
-        raise ConfigurationError(f"configuration root must be a mapping: {destination}")
-    value = _yaml_plain(payload)
-    assert isinstance(value, dict)
-    storage = value.get("storage", {})
-    plugins = value.get("plugins", {})
-    if not isinstance(storage, dict) or not isinstance(plugins, dict):
-        raise ConfigurationError(f"invalid root settings in configuration: {destination}")
-    storage["data_root"] = str(data_root)
-    plugins["root"] = str(plugins_root)
-    value["storage"] = storage
-    value["plugins"] = plugins
-    descriptor, temporary = tempfile.mkstemp(prefix=f".{destination.name}.", suffix=".tmp", dir=destination.parent)
-    try:
-        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
-            stream.write(yaml.safe_dump(value, allow_unicode=True, sort_keys=False))
-            stream.flush()
-            os.fsync(stream.fileno())
-        Path(temporary).replace(destination)
-    finally:
-        Path(temporary).unlink(missing_ok=True)
-
-
-def _missing_root_names(config: AppConfig) -> tuple[str, ...]:
-    values = (
-        ("storage.data_root", config.storage.data_root),
-        ("plugins.root", config.plugins.root),
-    )
-    return tuple(name for name, value in values if not isinstance(value, str) or not Path(value).is_absolute())
-
-
-def _configured_root(value: str | None, label: str) -> Path | None:
-    if not isinstance(value, str) or not Path(value).is_absolute():
-        return None
-    return existing_directory(Path(value), label)
-
-
-def _missing_root_error(missing: tuple[str, ...], *, explicit: bool) -> ConfigurationError:
-    options = []
-    if "storage.data_root" in missing:
-        options.append("--data-root ABSOLUTE_PATH")
-    if "plugins.root" in missing:
-        options.append("--plugin-root ABSOLUTE_PATH")
-    context = "explicit --config root settings" if explicit else "root settings"
-    return ConfigurationError(f"{context} must be absolute paths; pass {' '.join(options)}")
-
-
-def _read_root(label: str) -> Path:
-    """Prompt until a user provides a safe, absolute root directory."""
-    while True:
+        if existing_regular_file(destination, "configuration file", required=False) is not None:
+            return
+        snapshot = resolve_application_config(None, source="defaults").config
+        if snapshot.storage.data_root is None or snapshot.plugins.root is None:
+            raise ConfigurationError("effective configuration has no absolute storage or plugin root")
+        _write_initial_user_config(destination, snapshot)
+    except (ConfigurationError, OSError) as exc:
+        # Opening with ``x`` is intentionally race-safe.  If another process
+        # won after the check above, preserve its configuration.
         try:
-            print(f"{label} (absolute path): ", end="", file=sys.stderr, flush=True)
-            raw = input().strip()
-        except EOFError as exc:
-            raise ConfigurationError("root input was cancelled") from exc
-        if not raw:
-            print(f"{label} must not be empty", file=sys.stderr)
-            continue
-        try:
-            return existing_directory(Path(raw), label)
-        except ConfigurationError as exc:
-            print(f"Invalid {label}: {exc}", file=sys.stderr)
-
-
-def _confirm_root_save(destination: Path) -> bool:
-    try:
-        print(f"Save root settings to {destination}? [y/N] ", end="", file=sys.stderr, flush=True)
-        answer = input().strip().lower()
-    except EOFError as exc:
-        raise ConfigurationError("root save confirmation was cancelled") from exc
-    return answer in {"y", "yes"}
-
-
-def _collect_root_settings(
-    args: argparse.Namespace,
-    config: AppConfig,
-    destination: Path,
-    *,
-    allow_noninteractive_unsaved: bool = False,
-    yes_confirms_save: bool = False,
-) -> tuple[Path, Path, bool]:
-    """Resolve roots from options/configuration or interactive user input."""
-    data_root = _configured_root(config.storage.data_root, "storage.data_root")
-    plugins_root = _configured_root(config.plugins.root, "plugins.root")
-    missing = _missing_root_names(config)
-    if missing:
-        if args.json_output or not sys.stdin.isatty():
-            raise _missing_root_error(missing, explicit=False)
-        if data_root is None:
-            data_root = _read_root("Data root")
-        if plugins_root is None:
-            plugins_root = _read_root("Plugin root")
-    assert data_root is not None and plugins_root is not None
-    if yes_confirms_save and args.yes:
-        return data_root, plugins_root, True
-    if not sys.stdin.isatty():
-        if allow_noninteractive_unsaved:
-            return data_root, plugins_root, False
-        raise ConfigurationError("root save confirmation requires an interactive terminal")
-    if args.json_output:
-        raise ConfigurationError("root save confirmation is not available with --json")
-    return data_root, plugins_root, _confirm_root_save(destination)
-
-
-def _root_override(data_root: Path, plugins_root: Path) -> Mapping[str, object]:
-    return {
-        "storage": {"data_root": str(data_root)},
-        "plugins": {"root": str(plugins_root)},
-    }
+            if existing_regular_file(destination, "configuration file", required=False) is not None:
+                return
+        except ConfigurationError:
+            pass
+        print(f"warning: could not create initial user configuration: {exc}", file=sys.stderr)
+    else:
+        print(f"Created user configuration: {destination}", file=sys.stderr)
 
 
 def _plugin_root(args: argparse.Namespace, config: AppConfig) -> Path:
@@ -243,14 +169,14 @@ def _deep_merge_json(base: Mapping[str, object], override: Mapping[str, object])
 
 def _app_override(args: argparse.Namespace) -> Mapping[str, object]:
     patch: dict[str, object] = {}
-    if args.existing_file:
+    if getattr(args, "existing_file", None):
         patch["output"] = {"existing_file": args.existing_file}
-    if args.image_format:
+    if getattr(args, "image_format", None):
         existing_output = patch.get("output")
         output = dict(existing_output) if isinstance(existing_output, Mapping) else {}
         output["image_format"] = args.image_format
         patch["output"] = output
-    if args.no_console_log or args.json_output:
+    if getattr(args, "no_console_log", False) or args.json_output:
         patch["logging"] = {"console": {"enabled": False}}
     return patch
 
@@ -266,7 +192,24 @@ def _config_for(
     allow_root_setup: bool = False,
     allow_explicit_root_setup: bool = False,
     require_saved_user_config: bool = False,
+    rewrite_user_layers: bool = False,
 ) -> tuple[AppConfig, Path, Path, str]:
+    resolved = _resolved_config_for(args, site, rewrite_user_layers=rewrite_user_layers)
+    return (
+        resolved.config,
+        resolved.config_root,
+        resolved.main_config_path or _bundled_config_path(),
+        resolved.source,
+    )
+
+
+def _resolved_config_for(
+    args: argparse.Namespace,
+    site: str | None,
+    *,
+    rewrite_user_layers: bool = False,
+) -> ResolvedApplicationConfig:
+    """Choose the single user config location, then resolve without prompting or writing files."""
     if args.config is not None:
         if not args.config.is_absolute():
             raise ConfigurationError("--config must be an absolute path")
@@ -275,59 +218,35 @@ def _config_for(
         user_config = _user_config_path()
         if existing_regular_file(user_config, "configuration file", required=False) is not None:
             raw_config_path, source = user_config, "user"
-        elif allow_root_setup:
-            raw_config_path, source = _bundled_config_path(), "bundled"
         else:
-            raise ConfigurationError(
-                f"configuration file not found: {user_config}; create it with 'config init \"{user_config}\"'"
-            )
-    config_path = canonical_path(raw_config_path, "configuration path")
-    if existing_regular_file(raw_config_path, "configuration file", required=False) is None:
+            raw_config_path, source = None, "defaults"
+    if (
+        raw_config_path is not None
+        and existing_regular_file(raw_config_path, "configuration file", required=False) is None
+    ):
+        config_path = canonical_path(raw_config_path, "configuration path")
         raise ConfigurationError(
             f"configuration file not found: {config_path}; create it with 'config init \"{config_path}\"'"
         )
-    config = load_application_config(
+    patch = dict(_bootstrap_override(args))
+    patch.update(_app_override(args))
+    resolved = resolve_application_config(
         raw_config_path,
         args.profile,
         site,
-        require_config=True,
+        require_config=raw_config_path is not None,
+        runtime_override=patch or None,
+        source=source,
+        rewrite_user_layers=rewrite_user_layers,
     )
-    patch = dict(_bootstrap_override(args))
-    patch.update(_app_override(args))
-    config = apply_overrides(config, patch) if patch else config
-    missing_roots = _missing_root_names(config)
-    collect_roots = bool(missing_roots) or (require_saved_user_config and source == "bundled")
-    if collect_roots:
-        if not allow_root_setup or (source == "explicit" and not allow_explicit_root_setup):
-            raise _missing_root_error(missing_roots, explicit=source == "explicit")
-        if args.json_output:
-            if missing_roots:
-                raise _missing_root_error(missing_roots, explicit=source == "explicit")
-            raise ConfigurationError("root save confirmation is not available with --json")
-        save_destination = raw_config_path if source == "explicit" else _user_config_path()
-        data_root, plugins_root, save_roots = _collect_root_settings(args, config, save_destination)
-        if save_roots:
-            _write_updated_user_config(save_destination, data_root, plugins_root)
-            if source == "bundled":
-                raw_config_path, source = _user_config_path(), "user"
-            config_path = canonical_path(raw_config_path, "configuration path")
-            config = load_application_config(
-                raw_config_path,
-                args.profile,
-                site,
-                require_config=True,
-            )
-            config = apply_overrides(config, patch) if patch else config
-            print(f"Saved configuration roots: {save_destination}", file=sys.stderr)
-        else:
-            config = apply_overrides(config, _root_override(data_root, plugins_root))
-    if config.security.plugin_verification == "off" and not args.allow_unverified_plugins:
+    if resolved.config.security.plugin_verification == "off" and not args.allow_unverified_plugins:
         raise ConfigurationError("plugin verification 'off' requires --allow-unverified-plugins for every run")
-    paths = resolve_paths(config)
-    effective_plugin_root = _plugin_root(args, config)
+    paths = resolve_paths(resolved.config)
+    effective_plugin_root = _plugin_root(args, resolved.config)
     if source == "user":
-        print(f"Using user configuration: {config_path}", file=sys.stderr)
+        assert resolved.main_config_path is not None
+        print(f"Using user configuration: {resolved.main_config_path}", file=sys.stderr)
         print(f"Downloads: {paths['downloads']}", file=sys.stderr)
         print(f"Plugin root: {effective_plugin_root}", file=sys.stderr)
-        print(f"Plugin verification: {config.security.plugin_verification}", file=sys.stderr)
-    return config, config_path.parent, config_path, source
+        print(f"Plugin verification: {resolved.config.security.plugin_verification}", file=sys.stderr)
+    return resolved
