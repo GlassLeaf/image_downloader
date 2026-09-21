@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+import re
 from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -8,7 +9,11 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from ..exceptions import error_reason_for_code
 from .logging import DownloadLogger, safe_exception_name, safe_relative_path, safe_url
+
+_SAFE_FAILURE_STAGE = re.compile(r"image_(?:fetch|processing|save)")
+_SAFE_FAILURE_CODE = re.compile(r"[a-z][a-z0-9_]{0,63}")
 
 
 class EventName(StrEnum):
@@ -58,7 +63,14 @@ EVENTS = tuple(event.value for event in EventName)
 @dataclass(frozen=True, slots=True)
 class EventPayload:
     url: str | None = None
+    response_url: str | None = None
     path: str | None = None
+    stage: str | None = None
+    chapter_id: str | None = None
+    image_index: int | None = None
+    http_status: int | None = None
+    error_code: str | None = None
+    error_reason: str | None = None
     error: str | None = None
     error_class: str | None = None
     channel: str | None = None
@@ -104,7 +116,28 @@ class EventBus:
                 if payload.url is not None
                 else None
             ),
+            response_url=(
+                safe_url(
+                    payload.response_url,
+                    safe_query_parameters=self._safe_query_parameters,
+                    safe_fragment_parameters=self._safe_fragment_parameters,
+                )
+                if payload.response_url is not None
+                else None
+            ),
             path=safe_relative_path(payload.path, self._output_root) if payload.path is not None else None,
+            stage=payload.stage if payload.stage is not None and _SAFE_FAILURE_STAGE.fullmatch(payload.stage) else None,
+            chapter_id=payload.chapter_id if payload.chapter_id is not None and payload.chapter_id.isdigit() else None,
+            image_index=payload.image_index if payload.image_index is not None and payload.image_index >= 1 else None,
+            http_status=(
+                payload.http_status if payload.http_status is not None and 100 <= payload.http_status <= 599 else None
+            ),
+            error_code=(
+                payload.error_code
+                if payload.error_code is not None and _SAFE_FAILURE_CODE.fullmatch(payload.error_code)
+                else None
+            ),
+            error_reason=error_reason_for_code(payload.error_code),
             error="[REDACTED]" if payload.error is not None else None,
             error_class=safe_exception_name(payload.error_class) if payload.error_class is not None else None,
             channel=payload.channel,

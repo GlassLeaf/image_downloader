@@ -60,7 +60,7 @@ image-downloader "https://example.test/gallery" --json --no-console-log
   "failures": [
     {
       "kind": "fetch",
-      "exception": "DownloaderError",
+      "exception": "ImageDownloaderError",
       "message": "HTTP request failed: 404"
     }
   ]
@@ -138,7 +138,7 @@ doctorはprofile/download/log/state/cookie directoryを安全に作成し、cata
 | code | 意味 |
 |---:|---|
 | 0 | 成功。全件skip、空manifest成功、update/doctor成功も含む |
-| 1 | 保存/skipが1件もない画像失敗、一般`DownloaderError`、OS error |
+| 1 | 保存/skipが1件もない画像失敗、一般`ImageDownloaderError`、OS error |
 | 2 | config不正、明示config欠落、CLI引数組合せ不正 |
 | 3 | 認証、秘密値、Cookie暗号鍵・復号の失敗 |
 | 4 | 実行時plugin選択・契約違反等の`PluginError` |
@@ -265,7 +265,7 @@ download: https://cdn.example.test/1.png
 save: 0001_Chapter/0001.jpeg
 error: image fetch error (1)
 download: https://cdn.example.test/2.png
-exception: DownloaderError
+exception: ImageDownloaderError
 detail: HTTP request failed: 404
 done
 ```

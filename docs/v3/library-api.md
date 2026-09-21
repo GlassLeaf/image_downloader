@@ -148,7 +148,23 @@ plugin ID に対して mapping ではない value は `ConfigurationError`。map
 | `PluginError` | manifest/signature/tree/class contract、selection tie、plugin hook contract、未対応 update |
 | `AuthenticationError` / `SecretNotFound` | auth flow または external secret の失敗 |
 | `StorageSafetyError` | output/state path が trusted root を外れる操作 |
-| `DownloaderError` | HTTP、image decode/process、notification などの予期済み実行 failure |
+| `RequestError` | HTTP transport、status、redirect policy、response size の失敗 |
+| `ImageProcessingError` | HTTP応答取得後の画像検証、decode、format、MIME、pixel limit、worker の失敗 |
+| `StorageError` | output allocation、update state、lock、storage safety の失敗 |
+
+`ImageDownloaderError` は上記の予期済み例外群の共通基底である。通常は recovery に対応する具体例外を
+捕捉し、広域のエラーハンドラだけがこの基底を捕捉する。旧一括例外は廃止され、互換名はない。
+`FailureKind.PROCESS` は HTTP取得が成功した後の画像検証・decode・正規化失敗を表し、HTTP取得失敗ではない。
+
+### 画像失敗の診断
+
+章ごとの `log.log` は各失敗について `image_url`、`response_url`、`http_status`、`stage`、
+`reason_code`、具体例外名を記録する。`stage: image_processing` と `transport: completed` は、
+HTTP応答の取得後に画像処理で失敗したことを示す。
+
+デスクトップ／メール通知は `image_fetch_failed`、`image_processing_failed`、`image_save_failed` を
+件数として表示する。これはエラー番号ではない。理由コード別の件数と章・画像番号順の代表5件を表示し、
+全件は章ログで確認する。URLと詳細は通常のログ安全化規則を通る。
 
 `PluginError` が起きた時は「別 plugin へ自動 fallback」しない（ただし external match が
 ゼロで generic fallback が有効な場合を除く）。`matches()` が例外を送出した時も同様に

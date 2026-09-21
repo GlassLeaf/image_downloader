@@ -334,7 +334,7 @@ UpdateResult(
 ## 8. 例外
 
 ```text
-DownloaderError
+ImageDownloaderError
 ├── ConfigurationError (ValueErrorでもある)
 ├── PluginError
 │   └── UnsupportedSiteFeature
@@ -351,7 +351,7 @@ DownloaderError
 | `SecretNotFound` | pluginが宣言名を設定していない、または参照値がenv/keyringにない |
 | `UnsupportedSiteFeature` | WebSocket、SSEなどv2 request contract外の機能 |
 | `StorageSafetyError` | root外path、symlink/reparse point、保存中のpath差替え |
-| `DownloaderError` | transport上限、HTTP error、decode/processor等の一般実行失敗 |
+| `ImageDownloaderError` | transport上限、HTTP error、decode/processor等の一般実行失敗 |
 
 継続可能な画像失敗は`run()`から例外として出ない場合があります。`continue_on_error=true`では必ず`DownloadResult.failures`も確認してください。
 
@@ -365,6 +365,6 @@ DownloaderError
 - download DTO: `PluginDescriptor`, `DownloadManifest`, `Chapter`, `ImageResource`, `ImageSaveOptions`, `ImageArtifact`, `RequestSpec`, `RequestResponse`
 - result DTO: `DownloadResult`, `ChapterResult`, `ImageOutcome`, `ImageOutcomeKind`, `ImageFailure`, `FailureKind`
 - update DTO: `UpdateCandidate`, `UpdateSnapshot`, `UpdateChange`, `UpdateChangeKind`, `UpdateResult`
-- 例外: `DownloaderError`, `ConfigurationError`, `PluginError`, `AuthenticationError`, `UnsupportedSiteFeature`, `SecretNotFound`, `StorageSafetyError`
+- 例外: `ImageDownloaderError`, `ConfigurationError`, `PluginError`, `AuthenticationError`, `UnsupportedSiteFeature`, `SecretNotFound`, `StorageSafetyError`
 
 各plugin protocolとrequest/artifact DTOの詳細は[プラグインAPIリファレンス](plugin-api-reference.md)に続きます。

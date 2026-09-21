@@ -13,7 +13,15 @@ from PIL import Image
 
 from image_downloader import OriginScopedAuthFlow
 from image_downloader.config import AppConfig
-from image_downloader.exceptions import AuthenticationError, DownloaderError, PluginError
+from image_downloader.exceptions import (
+    AuthenticationError,
+    ImageDimensionLimitError,
+    ImageProcessorClosedError,
+    ImageWorkerError,
+    PluginError,
+    ResponseSizeLimitError,
+    UpdateStateError,
+)
 from image_downloader.media import ImageProcessor
 from image_downloader.models import (
     Chapter,
@@ -48,7 +56,7 @@ def test_response_byte_limit_checks_declared_and_streamed_lengths() -> None:
             transport=httpx.MockTransport(lambda request: httpx.Response(200, content=b"12345", request=request))
         )
         try:
-            with pytest.raises(DownloaderError, match="byte limit"):
+            with pytest.raises(ResponseSizeLimitError, match="byte limit"):
                 await gateway.execute(RequestSpec("https://example.test/image.png", auth_required=False))
         finally:
             await gateway.close()
@@ -195,7 +203,7 @@ def test_image_pixel_limit_is_disabled_by_default_and_opt_in() -> None:
         with ImageProcessor() as processor:
             assert processor.inspect(data) == "image/png"
             assert Image.MAX_IMAGE_PIXELS == 1
-            with pytest.raises(DownloaderError, match="pixel limit"):
+            with pytest.raises(ImageDimensionLimitError, match="pixel limit"):
                 processor.inspect(data, max_pixels=399)
             assert Image.MAX_IMAGE_PIXELS == 1
     finally:
@@ -207,11 +215,11 @@ def test_image_processor_close_is_idempotent_and_rejects_new_work() -> None:
     assert processor.inspect(_png(1, 1)) == "image/png"
     processor.close()
     processor.close()
-    with pytest.raises(DownloaderError, match="image processor is closed"):
+    with pytest.raises(ImageProcessorClosedError, match="image processor is closed"):
         processor.inspect(_png(1, 1))
 
 
-def test_image_worker_failure_is_reported_as_downloader_error(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_image_worker_failure_is_reported_as_image_worker_error(monkeypatch: pytest.MonkeyPatch) -> None:
     processor = ImageProcessor()
 
     def fail_submit(*_args: object) -> None:
@@ -219,7 +227,7 @@ def test_image_worker_failure_is_reported_as_downloader_error(monkeypatch: pytes
 
     monkeypatch.setattr(processor._executor, "submit", fail_submit)
     try:
-        with pytest.raises(DownloaderError, match="image worker process failed"):
+        with pytest.raises(ImageWorkerError, match="image worker process failed"):
             processor.inspect(_png(1, 1))
     finally:
         processor.close()
@@ -241,7 +249,7 @@ def test_filename_truncation_is_disabled_by_default_and_opt_in(tmp_path: Path) -
 def test_corrupt_update_state_is_not_silently_discarded(tmp_path: Path) -> None:
     filesystem = FileSystem(tmp_path.resolve())
     filesystem.write_bytes_atomic(Path("updates.json"), b"not-json")
-    with pytest.raises(DownloaderError, match="cannot be read"):
+    with pytest.raises(UpdateStateError, match="cannot be read"):
         UpdateState(filesystem).records()
 
 

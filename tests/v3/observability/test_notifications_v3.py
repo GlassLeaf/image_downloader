@@ -104,6 +104,48 @@ def test_notification_routes_override_default_methods() -> None:
     assert asyncio.run(scenario()) == (0, 1)
 
 
+def test_image_failure_notification_groups_reasons_and_limits_sorted_examples() -> None:
+    async def scenario() -> str:
+        logger = DownloadLogger()
+        events = EventBus(logger)
+        desktop = CapturingSender()
+        service = NotificationService(
+            _notification(enabled=True, methods=["desktop"], notify_on=["process_error"]),
+            logger,
+            events,
+            {"desktop": desktop},
+        )
+        for index in range(6, 0, -1):
+            await events.emit(
+                EventName.IMAGE_PROCESS_FAILED,
+                EventPayload(
+                    url=f"https://images.test/{index}.jpg?token=secret-{index}",
+                    response_url=f"https://cdn.test/{index}.jpg?token=secret-{index}",
+                    stage="image_processing",
+                    chapter_id="2",
+                    image_index=index,
+                    http_status=200,
+                    error_code="image_decode_error" if index < 6 else "image_mime_mismatch",
+                    error_reason="token=reason-secret",
+                    error_class="ImageDecodeError",
+                ),
+            )
+        await service.flush(source_url="https://example.test/gallery")
+        await logger.close()
+        return desktop.messages[0]
+
+    message = asyncio.run(scenario())
+    assert "image_processing_failed: count=6" in message
+    assert "reason_code: image_decode_error count=5" in message
+    assert "reason_code: image_mime_mismatch count=1" in message
+    assert message.count("example ") == 5
+    assert message.index("image=1") < message.index("image=2") < message.index("image=3")
+    assert "transport: completed" in message
+    assert "image data cannot be decoded" in message
+    assert "secret-" not in message
+    assert "reason-secret" not in message
+
+
 def test_authentication_success_notifications_are_opt_in() -> None:
     async def scenario() -> tuple[int, int]:
         logger = DownloadLogger()

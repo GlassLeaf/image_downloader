@@ -201,7 +201,7 @@ async def load_items(context):
     )
 ```
 
-このportを通るrequestにはglobal/host/site同時実行制限、request interval、timeout、transport retry、Cookie jar、AuthFlowが適用されます。4xx/5xxは成功responseとしてpluginへ返らず、最終的に`DownloaderError`になります。画像requestだけに存在する`recover_image_request`は、直接`execute()`したrequestには適用されません。
+このportを通るrequestにはglobal/host/site同時実行制限、request interval、timeout、transport retry、Cookie jar、AuthFlowが適用されます。4xx/5xxは成功responseとしてpluginへ返らず、最終的に`HttpStatusError`になります。画像requestだけに存在する`recover_image_request`は、直接`execute()`したrequestには適用されません。
 
 ## 4. `RequestSpec`と`RequestResponse`
 
@@ -402,7 +402,7 @@ class ImageProcessor(Protocol):
 
 `name`は`AppConfig.image_processors.chain`に書くIDです。空文字、重複name、非callable transformはregistry diagnosticの失敗になります。同一nameを複数distributionが登録した場合、後から検出された側は失敗diagnosticになります。
 
-processorのentry pointにも`image-processor` capabilityを含むv2 sidecarが必要です。processor例外は`DownloaderError("image processor failed: <name>")`へ変換され、`continue_on_error=true`なら画像単位の`PROCESS` outcomeになります。戻り値型違反も同様です。
+processorのentry pointにも`image-processor` capabilityを含むv2 sidecarが必要です。processor例外は`ImageProcessingError("image processor failed: <name>")`へ変換され、`continue_on_error=true`なら画像単位の`PROCESS` outcomeになります。戻り値型違反も同様です。
 
 processorはfilesystem、HTTP、secretを受け取りません。CPU負荷の高い同期処理をevent loop上で長時間行わないでください。
 
@@ -443,7 +443,7 @@ pluginは次の高水準例外を意図に応じて送出できます。
 | `AuthenticationError` / `SecretNotFound` | 認証不能・秘密値不足 | operation停止 |
 | `UnsupportedSiteFeature` | contract外機構が必須 | operation停止 |
 | `PluginError` | site応答がplugin契約上解釈不能、実装契約違反 | operation停止 |
-| `DownloaderError` | 一般の取得・処理失敗 | stageにより画像failureへ変換可能 |
+| `ImageDownloaderError` | 一般の取得・処理失敗 | stageにより画像failureへ変換可能 |
 
 token、Cookie、Authorization header、署名付きURLのquery、response bodyを例外messageへ含めないでください。coreは一般的なcredential-like文字列とURL parameterをmaskしますが、pluginが秘密値を別表現へ加工した文字列まで完全に推定することはできません。
 

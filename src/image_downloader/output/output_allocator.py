@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..configuration.models import AppConfig
-from ..exceptions import ConfigurationError, DownloaderError
+from ..exceptions import ConfigurationError, OutputAllocationError
 from ..models import Chapter, ImageResource
 from ..storage import FileSystem, safe_component
 
@@ -176,7 +176,7 @@ class OutputAllocator:
             key = self.filesystem.collision_key(candidate)
             if key not in self._reserved and self._existing_collision(candidate) is None:
                 return candidate
-        raise DownloaderError("could not allocate a unique output filename")
+        raise OutputAllocationError("could not allocate a unique output filename")
 
     def _renamed_candidate(self, candidate: Path, suffix: int) -> Path:
         tail = f"_{suffix}{candidate.suffix}"

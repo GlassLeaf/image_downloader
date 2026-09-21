@@ -7,9 +7,7 @@ from collections.abc import Mapping
 from dataclasses import replace
 
 from ..configuration.models import AppConfig
-from ..exceptions import (
-    DownloaderError,
-)
+from ..exceptions import ImageContentTypeError, ImageMimeMismatchError
 from ..media.image_processor import ImageProcessor
 from ..media.processor_chain import PreparedProcessor
 from ..models import (
@@ -136,7 +134,7 @@ class ArtifactPipeline:
         if self.config.media.input_validation in {"content_type", "both"} and (
             declared.startswith("text/") or declared in {"application/json", "application/xml"}
         ):
-            raise DownloaderError("image request returned a non-image content type")
+            raise ImageContentTypeError("image request returned a non-image content type")
         if self.config.media.input_validation in {"decode", "both"} or (
             declared.startswith("image/") and self.config.media.content_type_mismatch == "error"
         ):
@@ -146,7 +144,7 @@ class ArtifactPipeline:
                 and declared != detected
                 and self.config.media.content_type_mismatch == "error"
             ):
-                raise DownloaderError("declared image MIME does not match image data")
+                raise ImageMimeMismatchError("declared image MIME does not match image data")
 
     async def _normalize(
         self,

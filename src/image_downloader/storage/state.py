@@ -11,7 +11,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
-from ..exceptions import DownloaderError, PluginError
+from ..exceptions import PluginError, UpdateStateError
 from ..models import UpdateCandidate, UpdateChange, UpdateChangeKind, UpdateSnapshot
 from .filesystem import FileSystem
 from .interprocess_lock import InterProcessFileLock
@@ -157,29 +157,29 @@ class UpdateState:
         try:
             payload = json.loads(self.filesystem.read_text(self.relative))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise DownloaderError("update state cannot be read") from exc
+            raise UpdateStateError("update state cannot be read") from exc
         if not isinstance(payload, dict):
-            raise DownloaderError("update state has an invalid schema")
+            raise UpdateStateError("update state has an invalid schema")
         version = payload.get("schema_version", 1)
         if type(version) is not int or version not in {1, _SCHEMA_VERSION}:
-            raise DownloaderError("update state schema version is unsupported")
+            raise UpdateStateError("update state schema version is unsupported")
         if version == 1:
             return _StateDocument(legacy_records=self._parse_records(payload.get("records")))
         sources = payload.get("sources")
         if not isinstance(sources, dict):
-            raise DownloaderError("update state has an invalid schema")
+            raise UpdateStateError("update state has an invalid schema")
         legacy = self._parse_records(payload.get("legacy_records", {}))
         parsed: dict[str, dict[str, _SourceSnapshot]] = {}
         for plugin_id, source_values in sources.items():
             if not isinstance(plugin_id, str) or not isinstance(source_values, dict):
-                raise DownloaderError("update state has an invalid source")
+                raise UpdateStateError("update state has an invalid source")
             parsed_sources: dict[str, _SourceSnapshot] = {}
             for source_url, source_value in source_values.items():
                 if not isinstance(source_url, str) or not isinstance(source_value, dict):
-                    raise DownloaderError("update state has an invalid source")
+                    raise UpdateStateError("update state has an invalid source")
                 checked_at = source_value.get("checked_at")
                 if not isinstance(checked_at, str):
-                    raise DownloaderError("update state has an invalid source")
+                    raise UpdateStateError("update state has an invalid source")
                 parsed_sources[source_url] = _SourceSnapshot(
                     checked_at,
                     self._parse_records(source_value.get("records")),
@@ -190,14 +190,14 @@ class UpdateState:
     @staticmethod
     def _parse_records(raw: Any) -> dict[str, _Record]:
         if not isinstance(raw, dict):
-            raise DownloaderError("update state has an invalid schema")
+            raise UpdateStateError("update state has an invalid schema")
         records: dict[str, _Record] = {}
         for key, value in raw.items():
             if not isinstance(key, str) or not isinstance(value, dict):
-                raise DownloaderError("update state has an invalid record")
+                raise UpdateStateError("update state has an invalid record")
             fields = {name: value.get(name) for name in ("url", "revision", "content_id")}
             if any(item is not None and not isinstance(item, str) for item in fields.values()):
-                raise DownloaderError("update state has an invalid record")
+                raise UpdateStateError("update state has an invalid record")
             records[key] = fields
         return records
 

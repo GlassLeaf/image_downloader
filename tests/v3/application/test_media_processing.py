@@ -7,9 +7,17 @@ import io
 import pytest
 from PIL import Image
 
-from image_downloader.exceptions import ConfigurationError, DownloaderError
+from image_downloader.config import AppConfig
+from image_downloader.exceptions import (
+    ConfigurationError,
+    ImageContentTypeError,
+    ImageDecodeError,
+    ImageMimeMismatchError,
+    UnsupportedImageFormatError,
+)
 from image_downloader.media import ImageProcessor
-from image_downloader.models import ImageSaveOptions
+from image_downloader.media.artifact_pipeline import ArtifactPipeline
+from image_downloader.models import ImageArtifact, ImageSaveOptions
 
 
 def _image(image_format: str = "PNG", size: tuple[int, int] = (8, 6)) -> bytes:
@@ -55,5 +63,35 @@ def test_image_processor_rejects_invalid_save_options(options: ImageSaveOptions,
 
 
 def test_image_processor_rejects_invalid_bytes() -> None:
-    with ImageProcessor() as processor, pytest.raises(DownloaderError, match="invalid image data"):
+    with ImageProcessor() as processor, pytest.raises(ImageDecodeError, match="invalid image data"):
         processor.inspect(b"not an image")
+
+
+def test_image_processor_reports_unsupported_decoded_format() -> None:
+    with (
+        ImageProcessor() as processor,
+        pytest.raises(UnsupportedImageFormatError, match="unsupported image format: ICO"),
+    ):
+        processor.process(
+            _image("ICO", (16, 16)),
+            source_url="https://example.test/icon.ico",
+            content_type="image/x-icon",
+        )
+
+
+def test_input_validation_uses_specific_content_type_and_mime_errors() -> None:
+    pipeline = ArtifactPipeline.__new__(ArtifactPipeline)
+    pipeline.config = AppConfig.model_validate({"media": {"input_validation": "content_type"}})
+    with pytest.raises(ImageContentTypeError, match="non-image content type"):
+        pipeline._validate_input(ImageArtifact(b"<html>", "text/html", "https://example.test/error"))
+
+    processor = ImageProcessor()
+    pipeline.config = AppConfig.model_validate(
+        {"media": {"input_validation": "decode", "content_type_mismatch": "error"}}
+    )
+    pipeline.core = processor
+    try:
+        with pytest.raises(ImageMimeMismatchError, match="MIME"):
+            pipeline._validate_input(ImageArtifact(_image(), "image/jpeg", "https://example.test/image"))
+    finally:
+        processor.close()

@@ -10,7 +10,14 @@ from types import TracebackType
 from typing import TypeVar
 from urllib.parse import urlparse
 
-from ..exceptions import ConfigurationError, DownloaderError
+from ..exceptions import (
+    ConfigurationError,
+    ImageDecodeError,
+    ImageDimensionLimitError,
+    ImageProcessorClosedError,
+    ImageWorkerError,
+    UnsupportedImageFormatError,
+)
 from ..models import ImageSaveOptions
 
 _EXTENSION_TO_FORMAT = {
@@ -87,15 +94,15 @@ class ImageProcessor:
     def _submit(self, operation: Callable[..., _ResultT], *args: object) -> _ResultT:
         with self._lifecycle_lock:
             if self._closed:
-                raise DownloaderError("image processor is closed")
+                raise ImageProcessorClosedError("image processor is closed")
             try:
                 future = self._executor.submit(operation, *args)
             except BrokenProcessPool as exc:
-                raise DownloaderError("image worker process failed") from exc
+                raise ImageWorkerError("image worker process failed") from exc
         try:
             return future.result()
         except BrokenProcessPool as exc:
-            raise DownloaderError("image worker process failed") from exc
+            raise ImageWorkerError("image worker process failed") from exc
 
 
 def _initialize_worker() -> None:
@@ -128,7 +135,7 @@ def _process_image(
             # Preserve a matching URL/Content-Type format; correct misleading metadata using the decoded format.
             target = requested or (source_format if source_format == detected else detected) or detected
             if target not in _FORMAT_TO_EXTENSION:
-                raise DownloaderError(f"unsupported image format: {target}")
+                raise UnsupportedImageFormatError(target)
             extension = _extension_for(options, target)
             if not requested and target == detected and extension == _FORMAT_TO_EXTENSION[target]:
                 return data, extension
@@ -137,10 +144,10 @@ def _process_image(
             output = io.BytesIO()
             image.save(output, format=target, **_pillow_options(options, target))
             return output.getvalue(), extension
-    except DownloaderError:
+    except (ConfigurationError, ImageDecodeError, ImageDimensionLimitError, UnsupportedImageFormatError):
         raise
     except Exception as exc:
-        raise DownloaderError("invalid image data or unsupported image format") from exc
+        raise ImageDecodeError("invalid image data") from exc
 
 
 def _inspect_image(data: bytes, max_pixels: int | None) -> str:
@@ -153,10 +160,10 @@ def _inspect_image(data: bytes, max_pixels: int | None) -> str:
         with Image.open(io.BytesIO(data)) as image:
             _check_dimensions(image.size, max_pixels)
             return Image.MIME.get(image.format or "", "application/octet-stream").lower()
-    except DownloaderError:
+    except ImageDimensionLimitError:
         raise
     except Exception as exc:
-        raise DownloaderError("invalid image data") from exc
+        raise ImageDecodeError("invalid image data") from exc
 
 
 def _format_from_url(url: str) -> str | None:
@@ -189,7 +196,7 @@ def _validate(options: ImageSaveOptions) -> None:
 
 def _check_dimensions(size: tuple[int, int], max_pixels: int | None) -> None:
     if max_pixels is not None and size[0] * size[1] > max_pixels:
-        raise DownloaderError("image dimensions exceed the configured pixel limit")
+        raise ImageDimensionLimitError("image dimensions exceed the configured pixel limit")
 
 
 def _pillow_options(options: ImageSaveOptions, image_format: str) -> dict[str, object]:

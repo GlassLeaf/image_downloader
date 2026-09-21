@@ -8,7 +8,7 @@ from pathlib import Path
 
 from image_downloader import BaseDownloader, Chapter, Downloader, ImageResource, ParseResult, PluginRegistry
 from image_downloader.cli import build_parser, run
-from image_downloader.exceptions import DownloaderError
+from image_downloader.exceptions import HttpStatusError
 from image_downloader.observability import ChapterFileSink, ConsoleSink, DownloadLogger
 from image_downloader.storage.filesystem import safe_name
 
@@ -94,13 +94,13 @@ def test_chapter_log_records_image_error_context(tmp_path: Path) -> None:
         )
 
         async def failing_fetch(_spec: object) -> object:
-            raise DownloaderError("HTTP request failed: 404")
+            raise HttpStatusError(404)
 
         downloader.fetch = failing_fetch  # type: ignore[method-assign]
         try:
             try:
                 await downloader.download()
-            except DownloaderError:
+            except HttpStatusError:
                 pass
         finally:
             await downloader.close()
@@ -110,7 +110,7 @@ def test_chapter_log_records_image_error_context(tmp_path: Path) -> None:
     assert "---\nurl: failure://page/\ntitle: failure\n---" in log
     assert "download: https://example.test/missing.png" in log
     assert "error: image fetch error (1)" in log
-    assert "exception: DownloaderError" in log
+    assert "exception: HttpStatusError" in log
     assert "detail: HTTP request failed: 404" in log
     assert log.endswith("done\n")
 

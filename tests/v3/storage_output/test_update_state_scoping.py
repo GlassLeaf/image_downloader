@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 from image_downloader.config import AppConfig
-from image_downloader.exceptions import DownloaderError, InterProcessLockError, PluginError
+from image_downloader.exceptions import InterProcessLockError, PluginError, UpdateStateError
 from image_downloader.models import UpdateCandidate, UpdateChangeKind, UpdateSnapshot
 from image_downloader.runtime import RuntimeComposer
 from image_downloader.storage import FileSystem
@@ -237,7 +237,7 @@ def test_future_schema_version_is_rejected_without_overwrite(tmp_path: Path) -> 
     future = '{"schema_version": 3, "sources": {}}'
     state.filesystem.write_bytes_atomic(state.relative, future.encode())
 
-    with pytest.raises(DownloaderError, match="schema version is unsupported"):
+    with pytest.raises(UpdateStateError, match="schema version is unsupported"):
         state.apply_snapshot(PLUGIN_ID, FEED_A, _snapshot(FEED_A))
 
     assert state.filesystem.read_text(state.relative) == future

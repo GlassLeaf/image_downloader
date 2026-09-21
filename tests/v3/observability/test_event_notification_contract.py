@@ -9,7 +9,7 @@ import pytest
 from PIL import Image
 
 from image_downloader.config import AppConfig, Notification
-from image_downloader.exceptions import ConfigurationError, DownloaderError
+from image_downloader.exceptions import ConfigurationError, ImageDownloaderError
 from image_downloader.observability.events import EventBus, EventName, EventPayload
 from image_downloader.observability.logging import DownloadLogger
 from image_downloader.observability.notifications import NotificationService, validate_notification_delivery
@@ -128,7 +128,7 @@ def test_stage_failure_emitted_once_even_in_fail_fast(
                 result = await service.run("https://example.test/gallery")
                 assert len(result.failures) == 1
             else:
-                with pytest.raises(DownloaderError):
+                with pytest.raises(ImageDownloaderError):
                     await service.run("https://example.test/gallery")
             return observed
         finally:
@@ -164,6 +164,66 @@ def test_mixed_results_emit_partial_success(tmp_path: Path) -> None:
     assert observed.count(EventName.SAVE_SUCCESS) == 1
     assert observed.count(EventName.DOWNLOAD_PARTIAL_SUCCESS) == 2
     assert EventName.DOWNLOAD_FAILED not in observed
+
+
+def test_image_decode_failure_has_transport_context_in_events_notifications_and_chapter_log(tmp_path: Path) -> None:
+    class CapturingSender:
+        def __init__(self) -> None:
+            self.messages: list[str] = []
+
+        async def send(self, _title: str, message: str) -> bool:
+            self.messages.append(message)
+            return True
+
+    async def scenario() -> tuple[EventPayload, str, str, object]:
+        service = _service(tmp_path)
+        await service.gateway.client.aclose()
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/gallery":
+                return httpx.Response(200, text="<img src='/bad.png'>", request=request)
+            return httpx.Response(
+                200,
+                headers={"content-type": "image/png"},
+                content=b"not an image",
+                request=request,
+            )
+
+        service.gateway.client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        payloads: list[EventPayload] = []
+        service.events.on(EventName.IMAGE_PROCESS_FAILED, payloads.append)
+        sender = CapturingSender()
+        notifications = NotificationService(
+            Notification(enabled=True, methods=("desktop",), notify_on=("process_error",)),
+            service.logger,
+            service.events,
+            {"desktop": sender},
+        )
+        try:
+            result = await service.run("https://example.test/gallery")
+            await notifications.flush(source_url="https://example.test/gallery")
+            log = next((tmp_path / "data").rglob("log.log")).read_text(encoding="utf-8")
+            return payloads[0], sender.messages[0], log, result.failures[0]
+        finally:
+            await service.close()
+
+    payload, message, log, failure = asyncio.run(scenario())
+    assert payload.stage == "image_processing"
+    assert payload.http_status == 200
+    assert payload.error_code == "image_decode_error"
+    assert payload.error_reason == "image data cannot be decoded"
+    assert payload.error_class == "ImageDecodeError"
+    assert "image_processing_failed: count=1" in message
+    assert "transport: completed" in message
+    assert "reason_code: image_decode_error" in message
+    assert "exception: ImageDecodeError" in message
+    assert "error: image_processing_failed (count=1)" in log
+    assert "image_url: https://example.test/bad.png" in log
+    assert "http_status: 200" in log
+    assert "transport: completed" in log
+    assert "exception: ImageDecodeError" in log
+    assert failure.code == "image_decode_error"
+    assert failure.http_status == 200
 
 
 def test_cancelled_operation_emits_after_but_not_failed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -258,5 +318,5 @@ def test_process_error_route_and_false_sender_result_are_reported() -> None:
 
     observed, messages = asyncio.run(scenario())
     assert observed == [EventName.NOTIFICATION_FAILED]
-    assert "process_error: 1" in messages[0]
+    assert "image_processing_failed: count=1" in messages[0]
     assert "save_error" not in messages[0]

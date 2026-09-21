@@ -9,7 +9,7 @@ from image_downloader import (
     BaseDownloader,
     Chapter,
     Downloader,
-    DownloaderError,
+    ImageDownloaderError,
     ImageResource,
     ParseResult,
     PluginContext,
@@ -149,7 +149,7 @@ def test_chapter_service_passes_public_plugin_context_and_close_delegates(tmp_pa
         downloader.session.close = close_session  # type: ignore[method-assign]
         chapter = Chapter(1, "context", images=[ImageResource("https://example.test/image")])
         try:
-            with pytest.raises(DownloaderError, match="stop after context capture"):
+            with pytest.raises(ImageDownloaderError, match="stop after context capture"):
                 await downloader.chapter_service.download(
                     ContextCapturingPlugin(), ParseResult("context", [chapter]), chapter
                 )

@@ -51,7 +51,15 @@ def test_chapter_reporter_uses_logger_for_ordering_masking_and_sink_lifecycle(tm
         failure = ImageOutcome(
             images[2],
             ImageOutcomeKind.FAILED,
-            failure=ImageFailure(FailureKind.FETCH, "RuntimeError", "token=failure-detail-secret"),
+            failure=ImageFailure(
+                FailureKind.FETCH,
+                "HttpStatusError",
+                "token=failure-detail-secret",
+                code="http_status_error",
+                reason="HTTP server returned an error response",
+                response_url="https://cdn.test/failed?token=response-secret",
+                http_status=404,
+            ),
         )
         await reporter.record(2, failure)
         await reporter.finish(
@@ -66,8 +74,13 @@ def test_chapter_reporter_uses_logger_for_ordering_masking_and_sink_lifecycle(tm
         assert detail == console.getvalue()
         assert detail.index("first?token=[REDACTED]") < detail.index("second?token=[REDACTED]")
         assert "save: chapter/01.jpg" in detail
-        assert "error: image fetch error (1)" in detail
-        assert "exception: RuntimeError" in detail
+        assert "error: image_fetch_failed (count=1)" in detail
+        assert "image_url: https://images.test/failed?token=[REDACTED]" in detail
+        assert "response_url: https://cdn.test/failed?token=[REDACTED]" in detail
+        assert "stage: image_fetch" in detail
+        assert "http_status: 404" in detail
+        assert "reason_code: http_status_error" in detail
+        assert "exception: HttpStatusError" in detail
         assert detail.rstrip().endswith("done")
         assert "secret" not in detail
         assert logger._chapter_sinks == {}

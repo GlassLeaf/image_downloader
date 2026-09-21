@@ -21,7 +21,7 @@ from image_downloader import (
     RequestSpec,
 )
 from image_downloader.config import resolve_paths
-from image_downloader.exceptions import DownloaderError, PluginError
+from image_downloader.exceptions import ImageDownloaderError, PluginError
 from image_downloader.runtime import DownloadService, RequestGateway
 from image_downloader.security import ImageProcessorRegistry, RegisteredPlugin, V2PluginRegistry
 
@@ -243,7 +243,7 @@ def test_terminal_download_error_is_notified_before_run_reraises(tmp_path: Path)
         service.notifications._desktop = desktop  # type: ignore[method-assign]
         await install_transport(service, lambda request: httpx.Response(404))
         try:
-            with pytest.raises(DownloaderError):
+            with pytest.raises(ImageDownloaderError):
                 await service.run("https://test/work")
         finally:
             await service.close()
@@ -286,7 +286,7 @@ def test_existing_file_modes_and_fail_fast_queue(tmp_path: Path) -> None:
         )
         await install_transport(fail, lambda request: httpx.Response(500))
         try:
-            with pytest.raises(DownloaderError):
+            with pytest.raises(ImageDownloaderError):
                 await fail.run("https://test/work")
             assert len(calls) <= 2
         finally:

@@ -74,7 +74,13 @@ class ChapterFailureRecord:
     """Already-classified failure data rendered by the chapter logger."""
 
     url: str
+    response_url: str | None
     path: str | Path | None
+    stage: str
+    image_index: int
+    http_status: int | None
+    code: str
+    reason: str
     exception_type: str
     message: str
 
@@ -341,12 +347,22 @@ class DownloadLogger:
         await self._write_chapter(chapter_id, "save: " + safe_relative_path(path, output_root))
 
     async def chapter_error_group(self, chapter_id: str, category: str, records: list[ChapterFailureRecord]) -> None:
-        lines = [f"error: {_safe_text(mask_log_text(category), 128)} ({len(records)})"]
+        lines = [f"error: {_safe_text(mask_log_text(category), 128)} (count={len(records)})"]
         output_root = self._chapter_output_roots.get(chapter_id, self._output_root)
         for record in records:
-            lines.append("download: " + self.safe_url(record.url))
+            lines.append("image_url: " + self.safe_url(record.url))
+            lines.append(f"image_index: {record.image_index}")
+            lines.append("stage: " + _safe_text(mask_log_text(record.stage), 64))
+            if record.response_url is not None:
+                lines.append("response_url: " + self.safe_url(record.response_url))
+            if record.http_status is not None:
+                lines.append(f"http_status: {record.http_status}")
+                if record.stage in {"image_processing", "image_save"}:
+                    lines.append("transport: completed")
             if record.path is not None:
                 lines.append("save: " + safe_relative_path(record.path, output_root))
+            lines.append("reason_code: " + _safe_text(mask_log_text(record.code), 128))
+            lines.append("reason: " + _safe_text(mask_log_text(record.reason), 1024))
             exception_type = (
                 record.exception_type
                 if re.fullmatch(r"[A-Za-z_][A-Za-z0-9_.]{0,255}", record.exception_type)

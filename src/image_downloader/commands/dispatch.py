@@ -7,7 +7,7 @@ import asyncio
 import sys
 from collections.abc import Mapping
 
-from ..exceptions import AuthenticationError, ConfigurationError, DownloaderError, PluginError
+from ..exceptions import AuthenticationError, ConfigurationError, ImageDownloaderError, PluginError
 from .config import ConfigCommandHandler
 from .constants import EXIT_AUTHENTICATION, EXIT_CONFIGURATION, EXIT_FAILURE, EXIT_PLUGIN
 from .cookie import CookieCommandHandler
@@ -51,6 +51,6 @@ def main() -> int:
     except (ConfigurationError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return EXIT_CONFIGURATION
-    except (DownloaderError, OSError) as exc:
+    except (ImageDownloaderError, OSError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return EXIT_FAILURE

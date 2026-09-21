@@ -7,7 +7,7 @@ import httpx
 import pytest
 
 from image_downloader.config import AppConfig
-from image_downloader.exceptions import AuthenticationError, DownloaderError
+from image_downloader.exceptions import AuthenticationError, RedirectPolicyError, ResponseSizeLimitError
 from image_downloader.models import RequestResponse, RequestSpec
 from image_downloader.transport.gateway import RequestGateway
 
@@ -183,7 +183,7 @@ def test_anonymous_cross_origin_redirect_cannot_forward_post_body() -> None:
 
         gateway = await _gateway(AppConfig(), handler)
         try:
-            with pytest.raises(DownloaderError, match="request body"):
+            with pytest.raises(RedirectPolicyError, match="request body"):
                 await gateway.execute(RequestSpec("https://origin.test/start", method="POST", form={"token": "secret"}))
             assert seen == ["https://origin.test/start"]
         finally:
@@ -222,7 +222,7 @@ def test_redirect_loop_stops_at_configured_client_limit() -> None:
 
         gateway = await _gateway(AppConfig(), handler)
         try:
-            with pytest.raises(DownloaderError, match="redirect limit"):
+            with pytest.raises(RedirectPolicyError, match="redirect limit"):
                 await gateway.execute(RequestSpec("https://origin.test/start"))
             assert seen == gateway.client.max_redirects + 1
         finally:
@@ -265,7 +265,7 @@ def test_redirected_response_still_obeys_the_byte_limit() -> None:
 
         gateway = await _gateway(AppConfig.model_validate({"network": {"max_response_bytes": 4}}), handler)
         try:
-            with pytest.raises(DownloaderError, match="byte limit"):
+            with pytest.raises(ResponseSizeLimitError, match="byte limit"):
                 await gateway.execute(RequestSpec("https://origin.test/start", auth_required=False))
         finally:
             await gateway.close()

@@ -22,8 +22,11 @@ from ..configuration.models import AppConfig
 from ..exceptions import (
     AuthenticationError,
     ConfigurationError,
-    DownloaderError,
+    HttpStatusError,
+    HttpTransportError,
     PluginError,
+    RedirectPolicyError,
+    ResponseSizeLimitError,
     UnsupportedSiteFeature,
 )
 from ..immutable import thaw_json
@@ -181,12 +184,12 @@ class RequestGateway:
                     plugin_id=plugin_id,
                 )
                 if attempt + 1 == attempts:
-                    raise DownloaderError("HTTP transport failed after configured attempts") from exc
+                    raise HttpTransportError("HTTP transport failed after configured attempts") from exc
             base = retry_after if retry_after is not None else 0.25 * (2**attempt)
             capped = min(self.config.network.retry_max_delay_seconds, max(0.0, base))
             jitter = min(0.25, capped * 0.25)
             await asyncio.sleep(max(0.0, capped - random.uniform(0.0, jitter)))
-        raise DownloaderError("HTTP request failed") from last_error
+        raise HttpTransportError("HTTP request failed") from last_error
 
     async def _once(
         self,
@@ -212,7 +215,7 @@ class RequestGateway:
                 next_request = response.next_request if self.config.network.follow_redirects else None
                 if next_request is not None:
                     if redirects >= self.client.max_redirects:
-                        raise DownloaderError("HTTP redirect limit exceeded")
+                        raise RedirectPolicyError("HTTP redirect limit exceeded")
                     request = self._checked_redirect(request, next_request, spec, allowed_redirect_origins)
                     redirects += 1
                     continue
@@ -257,7 +260,7 @@ class RequestGateway:
                 raise AuthenticationError("authenticated redirect is outside the configured origins")
             return next_request
         if next_request.method not in {"GET", "HEAD"} or spec.form or spec.json is not None:
-            raise DownloaderError("cross-origin redirect with a request body is not allowed")
+            raise RedirectPolicyError("cross-origin redirect with a request body is not allowed")
         # Never forward caller-supplied or client-default headers to an anonymous origin.
         host = next_request.headers.get("Host", next_request.url.netloc.decode("ascii"))
         next_request.headers.clear()
@@ -273,14 +276,14 @@ class RequestGateway:
         if declared is not None:
             try:
                 if int(declared) > limit:
-                    raise DownloaderError("HTTP response exceeds the configured byte limit")
+                    raise ResponseSizeLimitError("HTTP response exceeds the configured byte limit")
             except ValueError:
                 pass
         body = bytearray()
         chunk_size = min(64 * 1024, limit + 1)
         async for chunk in response.aiter_bytes(chunk_size=chunk_size):
             if len(chunk) > limit - len(body):
-                raise DownloaderError("HTTP response exceeds the configured byte limit")
+                raise ResponseSizeLimitError("HTTP response exceeds the configured byte limit")
             body.extend(chunk)
         return RequestResponse(str(response.url), response.status_code, dict(response.headers), bytes(body))
 
@@ -422,7 +425,7 @@ class OperationRequestGateway:
                     current = await self._apply_auth(replacement)
                     continue
             if response.status >= 400:
-                raise DownloaderError(f"HTTP request failed: {response.status}")
+                raise HttpStatusError(response.status)
             return response
 
     async def _apply_auth(self, spec: RequestSpec) -> RequestSpec:

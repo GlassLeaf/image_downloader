@@ -131,6 +131,10 @@ class ImageFailure:
     kind: FailureKind
     exception_type: str
     message: str
+    code: str = "unexpected_image_failure"
+    reason: str = "unexpected image failure"
+    response_url: str | None = None
+    http_status: int | None = None
 
 
 class ImageOutcomeKind(StrEnum):

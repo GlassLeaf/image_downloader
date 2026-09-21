@@ -82,13 +82,30 @@ class ChapterReporter:
                 grouped[item.failure.kind].append(
                     ChapterFailureRecord(
                         url=item.image.url,
+                        response_url=item.failure.response_url,
                         path=item.path,
+                        stage={
+                            FailureKind.FETCH: "image_fetch",
+                            FailureKind.PROCESS: "image_processing",
+                            FailureKind.SAVE: "image_save",
+                        }[item.failure.kind],
+                        image_index=item.image.index,
+                        http_status=item.failure.http_status,
+                        code=item.failure.code,
+                        reason=item.failure.reason,
                         exception_type=item.failure.exception_type,
                         message=item.failure.message,
                     )
                 )
             for kind, items in grouped.items():
                 await best_effort_diagnostic(
-                    self.logger.chapter_error_group, self.reporter_id, f"image {kind.value} error", items
+                    self.logger.chapter_error_group,
+                    self.reporter_id,
+                    {
+                        FailureKind.FETCH: "image_fetch_failed",
+                        FailureKind.PROCESS: "image_processing_failed",
+                        FailureKind.SAVE: "image_save_failed",
+                    }[kind],
+                    items,
                 )
         await best_effort_diagnostic(self.logger.chapter_done, self.reporter_id)

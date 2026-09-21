@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import TypeVar
 from urllib.parse import urlparse
 
-from ..exceptions import DownloaderError, PluginError
+from ..exceptions import ImageDownloaderError, PluginError
 from ..models import (
     Chapter,
     DownloadManifest,
@@ -90,7 +90,7 @@ class PluginInvoker:
     async def _invoke_async(self, hook: str, callback: Callable[[], Awaitable[_T]]) -> _T:
         try:
             return await callback()
-        except DownloaderError:
+        except ImageDownloaderError:
             raise
         except Exception as exc:
             raise self._error(hook, "plugin hook failed") from exc
@@ -98,7 +98,7 @@ class PluginInvoker:
     def _invoke_sync(self, hook: str, callback: Callable[[], _T]) -> _T:
         try:
             return callback()
-        except DownloaderError:
+        except ImageDownloaderError:
             raise
         except Exception as exc:
             raise self._error(hook, "plugin hook failed") from exc
@@ -251,7 +251,7 @@ class PluginInvoker:
             result = callback()
             if inspect.isawaitable(result):
                 result = await result
-        except DownloaderError:
+        except ImageDownloaderError:
             raise
         except Exception as exc:
             raise self._error(hook, "plugin hook failed") from exc

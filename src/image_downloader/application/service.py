@@ -16,9 +16,12 @@ from ..credentials.plugin_secrets import RuntimeSecrets
 from ..exceptions import (
     AuthenticationError,
     ConfigurationError,
-    DownloaderError,
+    ImageDownloaderError,
+    ImageProcessingError,
     InterProcessLockError,
     PluginError,
+    RequestError,
+    StorageError,
     StorageSafetyError,
 )
 from ..media.artifact_pipeline import ArtifactPipeline
@@ -62,6 +65,16 @@ _IMAGE_FAILURE_EVENTS = {
     FailureKind.PROCESS: EventName.IMAGE_PROCESS_FAILED,
     FailureKind.SAVE: EventName.SAVE_FAILED,
 }
+_IMAGE_FAILURE_ACTIONS = {
+    FailureKind.FETCH: "image_fetch",
+    FailureKind.PROCESS: "image_process",
+    FailureKind.SAVE: "image_save",
+}
+_IMAGE_FAILURE_STAGES = {
+    FailureKind.FETCH: "image_fetch",
+    FailureKind.PROCESS: "image_processing",
+    FailureKind.SAVE: "image_save",
+}
 
 
 class _PluginRequests:
@@ -76,10 +89,35 @@ class _PluginRequests:
         return await self._gateway.execute(spec)
 
 
-class _ImageJobError(DownloaderError):
-    def __init__(self, kind: FailureKind, cause: Exception) -> None:
-        super().__init__(str(cause))
-        self.kind, self.cause = kind, cause
+class _ImageJobError(Exception):
+    def __init__(self, kind: FailureKind, cause: Exception, response: RequestResponse | None = None) -> None:
+        classified = _classify_image_error(kind, cause)
+        super().__init__(str(classified))
+        self.kind, self.cause, self.response = kind, classified, response
+
+
+def _classify_image_error(kind: FailureKind, cause: Exception) -> ImageDownloaderError:
+    if isinstance(cause, ImageDownloaderError):
+        return cause
+    error: ImageDownloaderError
+    if kind is FailureKind.FETCH:
+        error = RequestError("unexpected image fetch failure")
+    elif kind is FailureKind.PROCESS:
+        error = ImageProcessingError("unexpected image processing failure")
+    else:
+        error = StorageError("unexpected image save failure")
+    error.__cause__ = cause
+    return error
+
+
+def _failure_code(error: Exception) -> str:
+    return error.code if isinstance(error, ImageDownloaderError) else "unexpected_image_failure"
+
+
+def _failure_reason(error: Exception, kind: FailureKind) -> str:
+    if isinstance(error, ImageDownloaderError):
+        return error.reason
+    return f"unexpected image {kind.value} failure"
 
 
 class DownloadService:
@@ -495,6 +533,7 @@ class DownloadService:
         )
 
         async def run_one(position: int, image: ImageResource) -> ImageOutcome:
+            response: RequestResponse | None = None
             try:
                 try:
                     await self.events.emit(EventName.BEFORE_FETCH, EventPayload(url=image.url))
@@ -527,6 +566,7 @@ class DownloadService:
                     raise
                 except Exception as exc:
                     raise _ImageJobError(FailureKind.FETCH, exc) from exc
+                assert response is not None
                 artifact = ImageArtifact(
                     response.body, response.headers.get("content-type", ""), image.url, image.image_id
                 )
@@ -537,7 +577,7 @@ class DownloadService:
                 except (AuthenticationError, ConfigurationError, PluginError, StorageSafetyError):
                     raise
                 except Exception as exc:
-                    raise _ImageJobError(FailureKind.PROCESS, exc) from exc
+                    raise _ImageJobError(FailureKind.PROCESS, exc, response) from exc
                 try:
                     await self.events.emit(EventName.BEFORE_SAVE, EventPayload(url=image.url))
                     async with self.output_locks.hold(allocator.filesystem.path(directory)):
@@ -554,7 +594,7 @@ class DownloadService:
                 except (ConfigurationError, StorageSafetyError, InterProcessLockError):
                     raise
                 except Exception as exc:
-                    raise _ImageJobError(FailureKind.SAVE, exc) from exc
+                    raise _ImageJobError(FailureKind.SAVE, exc, response) from exc
                 if allocation.should_write:
                     await self.events.emit(EventName.SAVE_SUCCESS, EventPayload(url=image.url, path=str(path)))
                     await best_effort_diagnostic(
@@ -582,10 +622,22 @@ class DownloadService:
             except _ImageJobError as exc:
                 await self.events.emit(
                     _IMAGE_FAILURE_EVENTS[exc.kind],
-                    EventPayload(url=image.url, error_class=type(exc.cause).__name__),
+                    EventPayload(
+                        url=image.url,
+                        response_url=exc.response.url if exc.response is not None else None,
+                        http_status=(
+                            exc.response.status if exc.response is not None else getattr(exc.cause, "status", None)
+                        ),
+                        stage=_IMAGE_FAILURE_STAGES[exc.kind],
+                        chapter_id=chapter_id,
+                        image_index=image.index,
+                        error_code=_failure_code(exc.cause),
+                        error_reason=_failure_reason(exc.cause, exc.kind),
+                        error_class=type(exc.cause).__name__,
+                    ),
                 )
                 if not self.config.download.continue_on_image_error:
-                    raise
+                    raise exc.cause from exc.cause.__cause__
                 await best_effort_diagnostic(
                     self.logger.core,
                     "download_failed",
@@ -595,7 +647,7 @@ class DownloadService:
                     count=image.index,
                     error=exc.cause,
                     plugin_id=plugin_id,
-                    action="image_fetch",
+                    action=_IMAGE_FAILURE_ACTIONS[exc.kind],
                     debug=True,
                 )
                 await best_effort_diagnostic(
@@ -604,7 +656,17 @@ class DownloadService:
                 outcome = ImageOutcome(
                     image,
                     ImageOutcomeKind.FAILED,
-                    failure=ImageFailure(exc.kind, type(exc.cause).__name__, mask_log_text(str(exc.cause))),
+                    failure=ImageFailure(
+                        exc.kind,
+                        type(exc.cause).__name__,
+                        mask_log_text(str(exc.cause)),
+                        code=_failure_code(exc.cause),
+                        reason=_failure_reason(exc.cause, exc.kind),
+                        response_url=exc.response.url if exc.response is not None else None,
+                        http_status=(
+                            exc.response.status if exc.response is not None else getattr(exc.cause, "status", None)
+                        ),
+                    ),
                 )
             await reporter.record(position, outcome)
             return outcome
