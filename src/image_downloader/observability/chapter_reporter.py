@@ -42,6 +42,7 @@ class ChapterReporter:
         self._items: dict[int, ImageOutcome] = {}
         self._positions = sorted(range(len(chapter.images)), key=lambda index: (chapter.images[index].index, index))
         self._next = 0
+        self._finished = False
         self._source_url = manifest.metadata.get("source_url", "")
 
     async def start(self) -> None:
@@ -73,7 +74,16 @@ class ChapterReporter:
                 await best_effort_diagnostic(self.logger.chapter_download, self.reporter_id, item.image.url)
                 await best_effort_diagnostic(self.logger.chapter_save, self.reporter_id, item.path or "")
 
-    async def finish(self, outcomes: tuple[ImageOutcome, ...]) -> None:
+    async def finish(self, outcomes: tuple[ImageOutcome, ...] | None = None) -> None:
+        """Render every recorded outcome exactly once, even after fail-fast exits."""
+        async with self._lock:
+            if self._finished:
+                return
+            if outcomes is not None:
+                for position, outcome in enumerate(outcomes):
+                    self._items.setdefault(position, outcome)
+            self._finished = True
+            outcomes = tuple(sorted(self._items.values(), key=lambda item: item.image.index))
         failures = [item for item in outcomes if item.failure is not None]
         if failures:
             grouped: dict[FailureKind, list[ChapterFailureRecord]] = defaultdict(list)
@@ -95,6 +105,7 @@ class ChapterReporter:
                         reason=item.failure.reason,
                         exception_type=item.failure.exception_type,
                         message=item.failure.message,
+                        transport=item.failure.transport,
                     )
                 )
             for kind, items in grouped.items():

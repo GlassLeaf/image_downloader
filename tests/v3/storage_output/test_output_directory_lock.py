@@ -13,7 +13,7 @@ from PIL import Image
 from pydantic import ValidationError
 
 from image_downloader.config import AppConfig
-from image_downloader.exceptions import InterProcessLockError
+from image_downloader.exceptions import ExistingFileConflictError, InterProcessLockError
 from image_downloader.models import Chapter, ImageResource
 from image_downloader.observability.logging import DownloadLogger
 from image_downloader.output.output_allocator import OutputAllocator
@@ -45,7 +45,7 @@ def _worker(root: str, state_root: str, mode: str, ready, start, result, label: 
                     outputs.write_bytes_atomic(allocation.relative_path, label.encode())
                     await allocation.commit()
                 result.put((label, "saved" if allocation.should_write else "skipped", allocation.relative_path.name))
-        except FileExistsError:
+        except ExistingFileConflictError:
             result.put((label, "error", ""))
 
     asyncio.run(run())

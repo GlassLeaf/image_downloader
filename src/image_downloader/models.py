@@ -135,6 +135,8 @@ class ImageFailure:
     reason: str = "unexpected image failure"
     response_url: str | None = None
     http_status: int | None = None
+    output_path: str | None = None
+    transport: str | None = None
 
 
 class ImageOutcomeKind(StrEnum):

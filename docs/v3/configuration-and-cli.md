@@ -186,7 +186,7 @@ unknown key ではなく、その値は各 schema／plugin が検証する。雛
 | `network.headers` | `string -> string` mapping。`{User-Agent: image-downloader/0.0.0.1b0}`。表示時は値を伏せる |
 | `notification.enabled` | strict boolean。`false` |
 | `notification.methods` | `desktop` / `email` の list。`[desktop]` |
-| `notification.notify_on` | notification category の list。`[fetch_error, process_error, save_error, auth_error]` |
+| `notification.notify_on` | notification category の list。`[fetch_error, process_error, save_error, auth_error, config_error, plugin_error, update_error, storage_error, runtime_error]` |
 | `notification.routes` | `notification category -> [desktop, email]` mapping。`{}` |
 | `notification.desktop` | desktop backend 向け mapping。`{}` |
 | `notification.email.smtp_host` / `from` / `username` | strict string。いずれも `''` |
@@ -228,8 +228,11 @@ OS 標準値、concurrency と phase timeout は継承、画像・path の optio
 | `network.max_chapter_concurrency` | `download.chapter_concurrency` |
 | `continue_on_error` / `allow_empty_manifest` | `download.continue_on_image_error` / `download.allow_empty_chapter_manifest` |
 
-通知を使う場合は`notification.enabled: true`を指定する。既定の通知対象は`fetch_error`、
-`process_error`、`save_error`、`auth_error`で、既定の配信手段はdesktopである。desktop通知には
+通知を使う場合は`notification.enabled: true`を指定する。新規設定の既定の通知対象は`fetch_error`、
+`process_error`、`save_error`、`auth_error`、`config_error`、`plugin_error`、`update_error`、
+`storage_error`、`runtime_error`で、既定の配信手段はdesktopである。`save_error`は画像保存段階、
+`storage_error`は画像保存段階外の既知保存失敗、`runtime_error`は既知カテゴリに分類できない失敗だけを表す。
+既存の明示 `notify_on` は自動変更しないため、必要なカテゴリは明示的に追加する。desktop通知には
 `image-downloader[notify]`の追加インストールが必要。emailを選ぶ場合は`smtp_host`、`from`、
 `to`を設定する。実際に使用するrouteの配信手段はservice構築時に検証され、未設定なら
 `ConfigurationError`となる。`routes`で全対象カテゴリをemailへ切り替えた場合、desktop用の
@@ -239,8 +242,8 @@ OS 標準値、concurrency と phase timeout は継承、画像・path の optio
 `SAVE_SUCCESS`を`SAVE_FAILED`へ変更しない。ログ障害は秘密情報を含まない短い警告を
 stderrへ出す。画像ファイルそのものの書込み失敗は従来どおり保存失敗となる。
 
-以前の`save_error`は画像処理失敗も含んでいたが、現在は保存失敗だけを示す。画像処理失敗の通知を
-継続したい設定では、`notify_on`または`routes`に`process_error`を追加する。
+`save_error`は画像保存失敗だけを示し、画像処理失敗は`process_error`で通知する。両方とも新規設定の
+既定対象だが、既存の明示設定では必要なカテゴリを`notify_on`または`routes`へ追加する。
 
 `plugins.root` は v3 の bootstrap setting で、`null` なら OS 標準 plugin root を使う。
 廃止済み v2 の `plugins.<id>` configuration tree とは別物で、v3 は後者を読まない。
@@ -258,6 +261,11 @@ profile単位で共有される。
 完了を待ち、保存成功後だけskipする。先行保存が失敗した場合は、待機中の処理が元の名前を
 引き継ぐ。衝突判定はOSに依存せず、Unicode NFC正規化後の大文字小文字を区別しない名前で
 行う。連番を追加する場合も`output.max_component_length`を超えない。
+
+`existing_file=error` の衝突はディスク書込み障害ではなく、上書き防止のための制御された失敗である。
+各衝突は `ExistingFileConflictError`（`reason_code: existing_file_conflict`）として保存失敗に記録され、
+`download.continue_on_image_error=true` なら他画像を継続する。結果に保存済みまたはskip済みがあれば
+CLI は部分失敗、それ以外は失敗終了となる。通知と章ログには衝突先の安全な相対出力パスを含める。
 
 同じ端末のローカル保存先に対し、協調する本アプリ実行は章ディレクトリ単位のプロセス間ロックを使う。
 画像取得・処理は並列のまま、保存名の再確認から保存の確定／取消までだけを排他する。
@@ -368,7 +376,7 @@ command固有optionを別commandへ指定した場合はconfiguration errorに�
 | `--image-format` | `JPEG`/`PNG`/`WEBP` の一時 override |
 | `--no-console-log` | console chapter log を無効化 |
 | `--list-updated-urls` | download の代わりに update snapshot を比較 |
-| `--json` | result / doctor / plugin command を JSON 表示。download時はconsole logを抑え、標準出力をJSON専用にする |
+| `--json` | JSON結果を持つコマンドの成功結果を JSON 表示し、全対応コマンドの失敗を固定 JSON で返す。download時はconsole logを抑え、標準出力をJSON専用にする |
 
 | `--fallback-generic` | `auto`（YAML）、`enabled`、`disabled` |
 | `--allow-unverified-plugins` | `security.plugin_verification: off` をこの run だけ承認 |
@@ -380,6 +388,16 @@ command固有optionを別commandへ指定した場合はconfiguration errorに�
 単一のJSON objectとして出力する。JSONなしでは従来どおりURLを行ごとに標準出力へ出す。
 download のJSON出力中、pluginのPython `print()` は標準エラーへ送る。
 native code がOSの標準出力file descriptorへ直接書く場合は制御対象外である。
+
+`--json` の実行時・引数・構文エラーは、終了コードを維持したまま、標準出力へ次の単一 object を返す。
+
+```json
+{"error":{"code":"...","reason":"...","exception":"...","message":"...","operation":"..."}}
+```
+
+HTTP status、最終応答 URL、画像段階、画像 URL、出力先は該当時だけ追加される。`message` は固定の安全な
+公開メッセージであり、例外文字列そのものではない。アプリケーション管理下の診断は標準エラーへ送る。
+`--help` とキャンセル（終了 130）はこの error object に変換しない。
 
 `config path` は fixed user config、存在状態、package baseline、OS 標準 root を read-only で表示する。
 `config explain` は selected profile と host に対し、適用・未存在の全 layer、機密値を伏せた有効設定、

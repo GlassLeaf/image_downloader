@@ -99,9 +99,10 @@ async with RuntimeComposer(
 ```
 
 `run()` は selected site plugin の manifest を inspection し、chapter/image を処理・保存して
-`DownloadResult` を返す。recoverable image failure は `download.continue_on_image_error` により `ImageOutcome`
-として残り得る。plugin/config/auth/storage contract failure は image failure へ変換せず、
-operation を raise する。
+`DownloadResult` を返す。画像ジョブ内の失敗は、例外送出前に必ず画像 URL・章番号・画像番号・段階を持つ
+`ImageFailure` として記録される。`continue_on_image_error=true` で継続できる失敗は結果に残り、
+認証、設定、plugin、保存安全性、プロセス間ロック、および fail-fast 設定時の失敗は、記録後に operation を
+raise する。
 
 `check_updates()` は plugin が optional `check_updates()` を実装する場合にだけ使える。snapshot
 を selected profile の state と比較し、`ADDED`、`CHANGED`、`REMOVED` の `UpdateResult` を
@@ -142,29 +143,63 @@ plugin ID に対して mapping ではない value は `ConfigurationError`。map
 
 ## 例外
 
-| 例外 | 意味 |
-|---|---|
-| `ConfigurationError` | 設定 schema、path、profile、unknown plugin setting、runtime override が不正 |
-| `PluginError` | manifest/signature/tree/class contract、selection tie、plugin hook contract、未対応 update |
-| `AuthenticationError` / `SecretNotFound` | auth flow または external secret の失敗 |
-| `StorageSafetyError` | output/state path が trusted root を外れる操作 |
-| `RequestError` | HTTP transport、status、redirect policy、response size の失敗 |
-| `ImageProcessingError` | HTTP応答取得後の画像検証、decode、format、MIME、pixel limit、worker の失敗 |
-| `StorageError` | output allocation、update state、lock、storage safety の失敗 |
+`ImageDownloaderError` は予期済み例外の共通基底である。通常は recovery に対応する具体例外を捕捉し、
+広域のエラーハンドラだけがこの基底を捕捉する。旧一括例外は廃止され、互換名はない。`code` と `reason` は
+安定した公開契約だが、`str(exception)` は詳細診断用であり、機械利用・通知・利用者向け表示の契約ではない。
+分類不能な内部例外は公開例外へ変換せず、診断上だけ `unexpected_runtime_error` と `UnknownError` で表す。
 
-`ImageDownloaderError` は上記の予期済み例外群の共通基底である。通常は recovery に対応する具体例外を
-捕捉し、広域のエラーハンドラだけがこの基底を捕捉する。旧一括例外は廃止され、互換名はない。
-`FailureKind.PROCESS` は HTTP取得が成功した後の画像検証・decode・正規化失敗を表し、HTTP取得失敗ではない。
+<!-- error-catalog:start -->
+| exception | code | reason | public attributes |
+| --- | --- | --- | --- |
+| `ImageDownloaderError` | `image_downloader_error` | image downloader operation failed | — |
+| `ConfigurationError` | `configuration_error` | configuration is invalid | — |
+| `PluginError` | `plugin_error` | plugin operation failed | — |
+| `UnsupportedSiteFeature` | `unsupported_site_feature` | site requires an unsupported feature | — |
+| `AuthenticationError` | `authentication_error` | authentication failed | — |
+| `SecretNotFound` | `secret_not_found` | required secret was not found | — |
+| `RequestError` | `request_error` | HTTP request failed | — |
+| `HttpTransportError` | `http_transport_error` | HTTP transport failed | — |
+| `HttpStatusError` | `http_status_error` | HTTP server returned an error response | `status`, `response_url` |
+| `RedirectPolicyError` | `redirect_policy_error` | HTTP redirect violates the configured policy | `request_url`, `redirect_url`, `response_url`, `http_status` |
+| `ResponseSizeLimitError` | `response_size_limit_error` | HTTP response exceeds the configured byte limit | `response_url`, `http_status`, `limit_bytes` |
+| `ImageProcessingError` | `image_processing_error` | image processing failed | — |
+| `ImageDecodeError` | `image_decode_error` | image data cannot be decoded | — |
+| `UnsupportedImageFormatError` | `unsupported_image_format` | image format is unsupported | `image_format` |
+| `ImageContentTypeError` | `image_content_type_error` | image response has a non-image content type | — |
+| `ImageMimeMismatchError` | `image_mime_mismatch` | declared image MIME does not match image data | — |
+| `ImageDimensionLimitError` | `image_dimension_limit_error` | image dimensions exceed the configured pixel limit | — |
+| `ImageWorkerError` | `image_worker_error` | image worker process failed | — |
+| `ImageProcessorClosedError` | `image_processor_closed` | image processor is closed | — |
+| `StorageError` | `storage_error` | storage operation failed | — |
+| `OutputAllocationError` | `output_allocation_error` | could not allocate a unique output filename | — |
+| `ExistingFileConflictError` | `existing_file_conflict` | output file already exists and existing-file=error prevents overwrite | `relative_path`, `policy` |
+| `UpdateStateError` | `update_state_error` | update state is invalid or cannot be read | — |
+| `StorageSafetyError` | `storage_safety_error` | storage operation would escape its trusted root | — |
+| `InterProcessLockError` | `interprocess_lock_error` | inter-process lock operation failed | — |
+<!-- error-catalog:end -->
+
+`FailureKind.PROCESS` は request gateway が完全な応答本文を返した後の画像検証・decode・正規化失敗を表し、
+HTTP transport 失敗ではない。`ExistingFileConflictError` は `StorageError` の子で、`relative_path` と
+`policy`（常に `error`）を持つ制御された上書き防止失敗であり、ディスク障害ではない。
+
+| 発生場所・例外 | `continue_on_image_error=true` | `false` | CLI 終了 |
+|---|---|---|---|
+| fetch/process/save の通常失敗、`ExistingFileConflictError`、実書込み失敗 | 画像単位の失敗として継続 | 記録後に具体例外を送出 | 部分成功は 5、それ以外は 1 |
+| 画像内の認証・設定・plugin・保存安全性・ロック | 記録後に operation を中断 | 同左 | 3 / 2 / 4 / 1 |
+| 画像外の保存・更新状態失敗 | operation を中断 | 同左 | 1 |
 
 ### 画像失敗の診断
 
 章ごとの `log.log` は各失敗について `image_url`、`response_url`、`http_status`、`stage`、
-`reason_code`、具体例外名を記録する。`stage: image_processing` と `transport: completed` は、
-HTTP応答の取得後に画像処理で失敗したことを示す。
+`transport`、`reason_code`、具体例外名、マスク済み詳細を記録する。`completed` は完全な応答本文の取得後、
+`response_received` は status 拒否後、`response_limit_exceeded` は上限超過、`redirect_rejected` は
+redirect 方針拒否、`failed` は応答未取得を表す。
 
-デスクトップ／メール通知は `image_fetch_failed`、`image_processing_failed`、`image_save_failed` を
-件数として表示する。これはエラー番号ではない。理由コード別の件数と章・画像番号順の代表5件を表示し、
-全件は章ログで確認する。URLと詳細は通常のログ安全化規則を通る。
+画像内の通知カテゴリは段階優先で、fetch/process/save はそれぞれ `fetch_error`、`process_error`、
+`save_error` へ一度だけ送られる。認証等の原因は `reason_code` で区別する。画像外の認証・設定・plugin・
+更新・保存・未知失敗はそれぞれ `auth_error`、`config_error`、`plugin_error`、`update_error`、
+`storage_error`、`runtime_error` へ送られる。通知は理由コード別件数と代表例を表示し、全件は章ログで確認する。
+URL、path、詳細は通常のログ安全化規則を通る。
 
 `PluginError` が起きた時は「別 plugin へ自動 fallback」しない（ただし external match が
 ゼロで generic fallback が有効な場合を除く）。`matches()` が例外を送出した時も同様に

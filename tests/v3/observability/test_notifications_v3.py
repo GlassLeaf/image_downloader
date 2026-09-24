@@ -142,6 +142,38 @@ def test_image_failure_notification_groups_reasons_and_limits_sorted_examples() 
     assert message.index("image=1") < message.index("image=2") < message.index("image=3")
     assert "transport: completed" in message
     assert "image data cannot be decoded" in message
+
+
+def test_runtime_notification_displays_safe_code_reason_and_operation() -> None:
+    async def scenario() -> str:
+        logger = DownloadLogger()
+        events = EventBus(logger)
+        desktop = CapturingSender()
+        service = NotificationService(
+            _notification(enabled=True, methods=["desktop"], notify_on=["runtime_error"]),
+            logger,
+            events,
+            {"desktop": desktop},
+        )
+        await events.emit(
+            EventName.RUNTIME_FAILED,
+            EventPayload(
+                url="https://example.test/gallery?token=secret",
+                error_code="unexpected_runtime_error",
+                error_class="RuntimeError",
+                operation="download",
+            ),
+        )
+        await service.flush(source_url="https://example.test/gallery?token=secret")
+        await logger.close()
+        return desktop.messages[0]
+
+    message = asyncio.run(scenario())
+    assert "runtime_error: count=1" in message
+    assert "reason_code: unexpected_runtime_error count=1" in message
+    assert "operation: download" in message
+    assert "reason: unexpected runtime failure" in message
+    assert "token=secret" not in message
     assert "secret-" not in message
     assert "reason-secret" not in message
 

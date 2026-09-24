@@ -183,9 +183,12 @@ def test_anonymous_cross_origin_redirect_cannot_forward_post_body() -> None:
 
         gateway = await _gateway(AppConfig(), handler)
         try:
-            with pytest.raises(RedirectPolicyError, match="request body"):
+            with pytest.raises(RedirectPolicyError, match="request body") as raised:
                 await gateway.execute(RequestSpec("https://origin.test/start", method="POST", form={"token": "secret"}))
             assert seen == ["https://origin.test/start"]
+            assert raised.value.request_url == "https://origin.test/start"
+            assert raised.value.redirect_url == "https://cdn.test/target"
+            assert raised.value.http_status == 307
         finally:
             await gateway.close()
 
@@ -265,8 +268,11 @@ def test_redirected_response_still_obeys_the_byte_limit() -> None:
 
         gateway = await _gateway(AppConfig.model_validate({"network": {"max_response_bytes": 4}}), handler)
         try:
-            with pytest.raises(ResponseSizeLimitError, match="byte limit"):
+            with pytest.raises(ResponseSizeLimitError, match="byte limit") as raised:
                 await gateway.execute(RequestSpec("https://origin.test/start", auth_required=False))
+            assert raised.value.response_url == "https://cdn.test/image"
+            assert raised.value.http_status == 200
+            assert raised.value.limit_bytes == 4
         finally:
             await gateway.close()
 

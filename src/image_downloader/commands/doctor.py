@@ -38,10 +38,10 @@ class DoctorCommandHandler:
             ),
             "doctor",
         )
-        return await doctor(args)
+        return await doctor(args, raise_errors=True)
 
 
-async def doctor(args: argparse.Namespace) -> int:
+async def doctor(args: argparse.Namespace, *, raise_errors: bool = False) -> int:
     registry: PluginRuntime | None = None
     try:
         target = args.host
@@ -132,9 +132,13 @@ async def doctor(args: argparse.Namespace) -> int:
             _print_doctor_report(payload)
         return EXIT_SUCCESS if healthy else EXIT_PLUGIN
     except ConfigurationError as exc:
+        if raise_errors:
+            raise
         print(f"error: {exc}", file=sys.stderr)
         return EXIT_CONFIGURATION
     except PluginError as exc:
+        if raise_errors:
+            raise
         print(f"error: {exc}", file=sys.stderr)
         return EXIT_PLUGIN
     finally:

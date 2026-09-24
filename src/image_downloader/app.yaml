@@ -51,6 +51,11 @@ notification:
   - process_error
   - save_error
   - auth_error
+  - config_error
+  - plugin_error
+  - update_error
+  - storage_error
+  - runtime_error
   routes: {}
   desktop: {}
   email:

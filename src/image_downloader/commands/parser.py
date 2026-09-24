@@ -4,6 +4,9 @@ import argparse
 import sys
 from collections.abc import Sequence
 from pathlib import Path
+from typing import ClassVar, NoReturn
+
+from ..exceptions import ConfigurationError
 
 
 class _ConfigPath(argparse.Action):
@@ -60,9 +63,22 @@ def _normalize_cli_arguments(arguments: Sequence[str]) -> list[str]:
 
 
 class _CliArgumentParser(argparse.ArgumentParser):
+    _active_json_error_mode: ClassVar[bool] = False
+
     def parse_args(self, args=None, namespace=None):
         source = sys.argv[1:] if args is None else args
-        return super().parse_args(_normalize_cli_arguments(source), namespace)
+        normalized = _normalize_cli_arguments(source)
+        type(self)._active_json_error_mode = "--json" in normalized
+        try:
+            return super().parse_args(normalized, namespace)
+        finally:
+            type(self)._active_json_error_mode = False
+
+    def error(self, message: str) -> NoReturn:
+        """Route syntax errors through the normal safe CLI error boundary."""
+        if getattr(type(self), "_active_json_error_mode", False):
+            raise ConfigurationError(message)
+        super().error(message)
 
 
 def _add_configuration_options(

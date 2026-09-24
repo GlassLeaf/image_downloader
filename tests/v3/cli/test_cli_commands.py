@@ -14,7 +14,7 @@ import image_downloader.commands.setup as cli_setup
 from image_downloader.cli import build_parser
 from image_downloader.config import AppConfig, apply_overrides
 from image_downloader.exceptions import ConfigurationError
-from image_downloader.models import UpdateChangeKind
+from image_downloader.models import FailureKind, ImageFailure, UpdateChangeKind
 
 
 def test_legacy_url_and_explicit_download_use_the_same_handler() -> None:
@@ -185,3 +185,59 @@ def test_download_json_keeps_stdout_machine_readable(monkeypatch, tmp_path: Path
         if list_updates
         else {"saved": ["saved.jpg"], "skipped": [], "failures": []}
     )
+
+
+def test_download_json_includes_structured_existing_file_conflict(monkeypatch, tmp_path: Path, capsys) -> None:
+    config = AppConfig.model_validate(
+        {
+            "storage": {"data_root": str((tmp_path / "data").resolve())},
+            "plugins": {"root": str((tmp_path / "plugins").resolve())},
+        }
+    )
+    failure = ImageFailure(
+        FailureKind.SAVE,
+        "ExistingFileConflictError",
+        "output file already exists and existing-file=error prevents overwrite",
+        code="existing_file_conflict",
+        reason="output file already exists and existing-file=error prevents overwrite",
+        output_path=str(tmp_path / "data" / "chapter" / "0001.jpeg"),
+    )
+
+    class Service:
+        async def run(self, *_args: object, **_kwargs: object) -> object:
+            return SimpleNamespace(saved_files=("saved.jpg",), skipped_files=(), failures=(failure,))
+
+        async def close(self) -> None:
+            return None
+
+    class Composer:
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
+            pass
+
+        def compose(self) -> Service:
+            return Service()
+
+    monkeypatch.setattr(
+        cli_download,
+        "_config_for",
+        lambda *_args, **_kwargs: (config, tmp_path.resolve(), tmp_path.resolve(), "test"),
+    )
+    monkeypatch.setattr(cli_download, "RuntimeComposer", Composer)
+
+    status = asyncio.run(cli.run(build_parser().parse_args(["download", "https://example.test/item", "--json"])))
+    output = json.loads(capsys.readouterr().out)
+
+    assert status == cli.EXIT_PARTIAL
+    assert output["failures"] == [
+        {
+            "kind": "save",
+            "exception": "ExistingFileConflictError",
+            "message": "output file already exists and existing-file=error prevents overwrite",
+            "code": "existing_file_conflict",
+            "reason": "output file already exists and existing-file=error prevents overwrite",
+            "output_path": "[REDACTED]",
+            "response_url": None,
+            "http_status": None,
+            "transport": None,
+        }
+    ]

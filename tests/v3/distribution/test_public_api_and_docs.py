@@ -3,8 +3,16 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from image_downloader import AppConfig, apply_overrides, load_application_config, resolve_application_config
+from image_downloader import (
+    AppConfig,
+    ExistingFileConflictError,
+    StorageError,
+    apply_overrides,
+    load_application_config,
+    resolve_application_config,
+)
 from image_downloader.cli import build_parser
+from image_downloader.exceptions import error_catalog_markdown
 from image_downloader.observability.logging import mask_log_text
 from image_downloader.storage import FileSystem
 from image_downloader.storage.cookies import CookieStore
@@ -23,6 +31,15 @@ def test_public_configuration_helpers_are_available_from_package_root(tmp_path: 
     assert loaded.storage.data_root is not None
     assert resolved.config == loaded
     assert overridden.output.image_format == "PNG"
+
+
+def test_existing_file_conflict_is_a_public_storage_error() -> None:
+    error = ExistingFileConflictError("chapter/0001.jpeg")
+
+    assert isinstance(error, StorageError)
+    assert error.code == "existing_file_conflict"
+    assert error.relative_path == Path("chapter/0001.jpeg")
+    assert error.policy == "error"
 
 
 def test_cookie_store_requires_the_v3_filesystem_boundary(tmp_path: Path) -> None:
@@ -62,3 +79,7 @@ def test_current_documentation_links_and_root_import_example_are_valid(repositor
     library_api = (repository_root / "docs" / "v3" / "library-api.md").read_text(encoding="utf-8")
     assert "from image_downloader import RuntimeComposer, load_application_config" in library_api
     assert "from image_downloader.config import" not in library_api
+    start = "<!-- error-catalog:start -->"
+    end = "<!-- error-catalog:end -->"
+    documented_catalog = library_api.split(start, 1)[1].split(end, 1)[0].strip()
+    assert documented_catalog == error_catalog_markdown()

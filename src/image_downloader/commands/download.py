@@ -6,10 +6,14 @@ import argparse
 import json
 import sys
 from contextlib import nullcontext, redirect_stdout
+from pathlib import Path
 from urllib.parse import urlparse
 
 from ..application.composer import RuntimeComposer
+from ..configuration.paths import resolve_paths
+from ..exceptions import error_reason_for_code
 from ..models import UpdateChangeKind
+from ..privacy.log_safety import safe_exception_name, safe_relative_path, safe_url
 from .constants import EXIT_FAILURE, EXIT_PARTIAL, EXIT_SUCCESS
 from .setup import (
     _config_for,
@@ -38,6 +42,7 @@ class DownloadCommandHandler:
             rewrite_user_layers=True,
         )
         _persist_initial_user_config(source)
+        output_root = resolve_paths(config)["downloads"]
         service = RuntimeComposer(config, config_root=config_root, plugin_root=_plugin_root(args, config)).compose()
         diagnostics_output = redirect_stdout(sys.stderr) if args.json_output else nullcontext()
         status = EXIT_FAILURE
@@ -74,9 +79,19 @@ class DownloadCommandHandler:
                                 "skipped": download_result.skipped_files,
                                 "failures": [
                                     {
-                                        "kind": item.kind,
-                                        "exception": item.exception_type,
-                                        "message": item.message,
+                                "kind": item.kind,
+                                "exception": safe_exception_name(item.exception_type),
+                                "message": error_reason_for_code(item.code) or "image failure",
+                                "code": item.code,
+                                "reason": error_reason_for_code(item.code) or "image failure",
+                                "output_path": (
+                                    safe_relative_path(item.output_path, output_root)
+                                    if item.output_path is not None and Path(item.output_path).is_absolute()
+                                    else item.output_path
+                                ),
+                                "response_url": safe_url(item.response_url) if item.response_url is not None else None,
+                                "http_status": item.http_status,
+                                "transport": item.transport,
                                     }
                                     for item in download_result.failures
                                 ],

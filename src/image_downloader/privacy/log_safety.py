@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 from urllib.parse import parse_qsl, urlsplit
 
+from ..exceptions import PUBLIC_EXCEPTION_NAMES
 from .sensitive_values import SENSITIVE_TERM_PATTERN
 
 _SENSITIVE_TERM = SENSITIVE_TERM_PATTERN
@@ -34,33 +35,7 @@ _SAFE_PARAMETERS = {
     "lang",
     "view",
 }
-_SAFE_EXCEPTION_NAMES = {
-    "AuthenticationError",
-    "ConfigurationError",
-    "HttpStatusError",
-    "HttpTransportError",
-    "ImageContentTypeError",
-    "ImageDecodeError",
-    "ImageDimensionLimitError",
-    "ImageDownloaderError",
-    "ImageMimeMismatchError",
-    "ImageProcessingError",
-    "ImageProcessorClosedError",
-    "ImageWorkerError",
-    "InterProcessLockError",
-    "OutputAllocationError",
-    "PluginError",
-    "RedirectPolicyError",
-    "RequestError",
-    "ResponseSizeLimitError",
-    "SecretNotFound",
-    "StorageError",
-    "StorageSafetyError",
-    "UnsupportedImageFormatError",
-    "UnsupportedSiteFeature",
-    "UpdateStateError",
-    "UpdateCheckNotSupported",
-}
+_SAFE_EXCEPTION_NAMES = PUBLIC_EXCEPTION_NAMES
 
 
 def mask_log_text(

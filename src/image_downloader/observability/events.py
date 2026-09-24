@@ -14,6 +14,10 @@ from .logging import DownloadLogger, safe_exception_name, safe_relative_path, sa
 
 _SAFE_FAILURE_STAGE = re.compile(r"image_(?:fetch|processing|save)")
 _SAFE_FAILURE_CODE = re.compile(r"[a-z][a-z0-9_]{0,63}")
+_SAFE_OPERATION = re.compile(r"(?:download|update|doctor|plugin|config|cookie)")
+_SAFE_TRANSPORT = re.compile(
+    r"(?:completed|response_received|response_limit_exceeded|redirect_rejected|failed)"
+)
 
 
 class EventName(StrEnum):
@@ -49,6 +53,8 @@ class EventName(StrEnum):
     PARSE_FAILED = "on_parse_failed"
     PLUGIN_FAILED = "on_plugin_failed"
     CONFIG_FAILED = "on_config_failed"
+    STORAGE_FAILED = "on_storage_failed"
+    RUNTIME_FAILED = "on_runtime_failed"
     UPDATE_FAILED = "on_update_failed"
     UPDATE_CHECK_STARTED = "on_update_check_started"
     UPDATED_URL_FOUND = "on_updated_url_found"
@@ -73,6 +79,8 @@ class EventPayload:
     error_reason: str | None = None
     error: str | None = None
     error_class: str | None = None
+    operation: str | None = None
+    transport: str | None = None
     channel: str | None = None
 
 
@@ -140,6 +148,16 @@ class EventBus:
             error_reason=error_reason_for_code(payload.error_code),
             error="[REDACTED]" if payload.error is not None else None,
             error_class=safe_exception_name(payload.error_class) if payload.error_class is not None else None,
+            operation=(
+                payload.operation
+                if payload.operation is not None and _SAFE_OPERATION.fullmatch(payload.operation)
+                else None
+            ),
+            transport=(
+                payload.transport
+                if payload.transport is not None and _SAFE_TRANSPORT.fullmatch(payload.transport)
+                else None
+            ),
             channel=payload.channel,
         )
 

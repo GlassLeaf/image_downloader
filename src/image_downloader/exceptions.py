@@ -6,12 +6,18 @@ the smallest exception family that matches the recovery they can perform.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Final
+
 
 class ImageDownloaderError(Exception):
     """Base class for expected application failures."""
 
     code = "image_downloader_error"
     reason = "image downloader operation failed"
+    _image_failure_reported = False
+    _image_failure_context: dict[str, object] | None = None
 
 
 class ConfigurationError(ImageDownloaderError, ValueError):
@@ -57,19 +63,49 @@ class HttpStatusError(RequestError):
     code = "http_status_error"
     reason = "HTTP server returned an error response"
 
-    def __init__(self, status: int) -> None:
+    def __init__(self, status: int, *, response_url: str | None = None) -> None:
         super().__init__(f"HTTP request failed: {status}")
         self.status = status
+        self.response_url = response_url
 
 
 class RedirectPolicyError(RequestError):
     code = "redirect_policy_error"
     reason = "HTTP redirect violates the configured policy"
 
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        request_url: str | None = None,
+        redirect_url: str | None = None,
+        http_status: int | None = None,
+    ) -> None:
+        super().__init__(message or self.reason)
+        self.request_url = request_url
+        self.redirect_url = redirect_url
+        self.http_status = http_status
+        # ``response_url`` is the URL of the response that carried the rejected
+        # redirect, which is the most useful final-response field for diagnostics.
+        self.response_url = request_url
+
 
 class ResponseSizeLimitError(RequestError):
     code = "response_size_limit_error"
     reason = "HTTP response exceeds the configured byte limit"
+
+    def __init__(
+        self,
+        message: str | None = None,
+        *,
+        response_url: str | None = None,
+        http_status: int | None = None,
+        limit_bytes: int | None = None,
+    ) -> None:
+        super().__init__(message or self.reason)
+        self.response_url = response_url
+        self.http_status = http_status
+        self.limit_bytes = limit_bytes
 
 
 class ImageProcessingError(ImageDownloaderError):
@@ -128,6 +164,18 @@ class OutputAllocationError(StorageError):
     reason = "could not allocate a unique output filename"
 
 
+class ExistingFileConflictError(StorageError):
+    """An existing output is protected by the ``existing-file=error`` policy."""
+
+    code = "existing_file_conflict"
+    reason = "output file already exists and existing-file=error prevents overwrite"
+
+    def __init__(self, relative_path: str | Path) -> None:
+        super().__init__(self.reason)
+        self.relative_path = Path(relative_path)
+        self.policy = "error"
+
+
 class UpdateStateError(StorageError):
     code = "update_state_error"
     reason = "update state is invalid or cannot be read"
@@ -147,36 +195,104 @@ class InterProcessLockError(StorageError):
     reason = "inter-process lock operation failed"
 
 
-_ERROR_REASONS = {
-    cls.code: cls.reason
-    for cls in (
-        ImageDownloaderError,
-        ConfigurationError,
-        PluginError,
-        UnsupportedSiteFeature,
-        AuthenticationError,
-        SecretNotFound,
-        RequestError,
-        HttpTransportError,
-        HttpStatusError,
-        RedirectPolicyError,
-        ResponseSizeLimitError,
-        ImageProcessingError,
-        ImageDecodeError,
-        UnsupportedImageFormatError,
-        ImageContentTypeError,
-        ImageMimeMismatchError,
-        ImageDimensionLimitError,
-        ImageWorkerError,
-        ImageProcessorClosedError,
-        StorageError,
-        OutputAllocationError,
-        UpdateStateError,
-        StorageSafetyError,
-        InterProcessLockError,
-    )
-}
-_ERROR_REASONS["unexpected_image_failure"] = "unexpected image failure"
+@dataclass(frozen=True, slots=True)
+class ErrorCatalogEntry:
+    """One stable, user-facing contract entry for a public exception."""
+
+    exception: type[ImageDownloaderError]
+    attributes: tuple[str, ...] = ()
+
+    @property
+    def exception_name(self) -> str:
+        return self.exception.__name__
+
+    @property
+    def code(self) -> str:
+        return self.exception.code
+
+    @property
+    def reason(self) -> str:
+        return self.exception.reason
+
+
+ERROR_CATALOG: Final[tuple[ErrorCatalogEntry, ...]] = (
+    ErrorCatalogEntry(ImageDownloaderError),
+    ErrorCatalogEntry(ConfigurationError),
+    ErrorCatalogEntry(PluginError),
+    ErrorCatalogEntry(UnsupportedSiteFeature),
+    ErrorCatalogEntry(AuthenticationError),
+    ErrorCatalogEntry(SecretNotFound),
+    ErrorCatalogEntry(RequestError),
+    ErrorCatalogEntry(HttpTransportError),
+    ErrorCatalogEntry(HttpStatusError, ("status", "response_url")),
+    ErrorCatalogEntry(RedirectPolicyError, ("request_url", "redirect_url", "response_url", "http_status")),
+    ErrorCatalogEntry(ResponseSizeLimitError, ("response_url", "http_status", "limit_bytes")),
+    ErrorCatalogEntry(ImageProcessingError),
+    ErrorCatalogEntry(ImageDecodeError),
+    ErrorCatalogEntry(UnsupportedImageFormatError, ("image_format",)),
+    ErrorCatalogEntry(ImageContentTypeError),
+    ErrorCatalogEntry(ImageMimeMismatchError),
+    ErrorCatalogEntry(ImageDimensionLimitError),
+    ErrorCatalogEntry(ImageWorkerError),
+    ErrorCatalogEntry(ImageProcessorClosedError),
+    ErrorCatalogEntry(StorageError),
+    ErrorCatalogEntry(OutputAllocationError),
+    ErrorCatalogEntry(ExistingFileConflictError, ("relative_path", "policy")),
+    ErrorCatalogEntry(UpdateStateError),
+    ErrorCatalogEntry(StorageSafetyError),
+    ErrorCatalogEntry(InterProcessLockError),
+)
+
+PUBLIC_EXCEPTION_NAMES: Final[frozenset[str]] = frozenset(entry.exception_name for entry in ERROR_CATALOG)
+_ERROR_REASONS = {entry.code: entry.reason for entry in ERROR_CATALOG}
+_ERROR_REASONS.update(
+    {
+        "unexpected_image_failure": "unexpected image failure",
+        "unexpected_runtime_error": "unexpected runtime failure",
+    }
+)
+
+
+@dataclass(frozen=True, slots=True)
+class ErrorInfo:
+    """Safe diagnostic information shared by events and machine output."""
+
+    code: str
+    reason: str
+    exception: str
+    message: str
+    response_url: str | None = None
+    http_status: int | None = None
+    output_path: str | None = None
+
+
+def error_info_for(error: BaseException) -> ErrorInfo:
+    """Return the stable public view of an error without exposing ``str(error)``."""
+
+    if not isinstance(error, ImageDownloaderError):
+        return ErrorInfo(
+            "unexpected_runtime_error",
+            _ERROR_REASONS["unexpected_runtime_error"],
+            "UnknownError",
+            "an unexpected runtime failure occurred",
+        )
+    code = error.code if error.code in _ERROR_REASONS else ImageDownloaderError.code
+    reason = _ERROR_REASONS[code]
+    exception = type(error).__name__ if type(error).__name__ in PUBLIC_EXCEPTION_NAMES else "ImageDownloaderError"
+    output_path = str(error.relative_path) if isinstance(error, ExistingFileConflictError) else None
+    response_url = getattr(error, "response_url", None)
+    http_status = getattr(error, "http_status", getattr(error, "status", None))
+    return ErrorInfo(code, reason, exception, reason, response_url, http_status, output_path)
+
+
+def error_catalog_markdown() -> str:
+    """Render the checked public exception table embedded in the API document."""
+
+    rows = ["| exception | code | reason | public attributes |", "| --- | --- | --- | --- |"]
+    for entry in ERROR_CATALOG:
+        attributes = ", ".join(f"`{value}`" for value in entry.attributes) or "—"
+        rows.append(f"| `{entry.exception_name}` | `{entry.code}` | {entry.reason} | {attributes} |")
+    return "\n".join(rows)
 
 
 def error_reason_for_code(code: str | None) -> str | None:

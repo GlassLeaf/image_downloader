@@ -148,6 +148,8 @@ NotificationCategory = Literal[
     "parse_error",
     "plugin_error",
     "config_error",
+    "storage_error",
+    "runtime_error",
     "update_error",
     "auth_cookie_store_access",
     "auth_credential_store_access",
@@ -161,7 +163,17 @@ NotificationCategory = Literal[
 class Notification(StrictModel):
     enabled: StrictBool = False
     methods: tuple[NotificationMethod, ...] = ("desktop",)
-    notify_on: tuple[NotificationCategory, ...] = ("fetch_error", "process_error", "save_error", "auth_error")
+    notify_on: tuple[NotificationCategory, ...] = (
+        "fetch_error",
+        "process_error",
+        "save_error",
+        "auth_error",
+        "config_error",
+        "plugin_error",
+        "update_error",
+        "storage_error",
+        "runtime_error",
+    )
     routes: Mapping[NotificationCategory, tuple[NotificationMethod, ...]] = Field(default_factory=dict)
     desktop: Mapping[str, Any] = Field(default_factory=dict)
     email: Email = Field(default_factory=lambda: Email.model_validate({}))

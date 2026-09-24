@@ -10,6 +10,7 @@ from .config import (
 from .exceptions import (
     AuthenticationError,
     ConfigurationError,
+    ExistingFileConflictError,
     HttpStatusError,
     HttpTransportError,
     ImageContentTypeError,
@@ -79,6 +80,7 @@ __all__ = [
     "DownloadManifest",
     "DownloadResult",
     "DownloadService",
+    "ExistingFileConflictError",
     "FailureKind",
     "HttpStatusError",
     "HttpTransportError",

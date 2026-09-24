@@ -26,6 +26,8 @@ NOTIFICATION_SOURCES: Mapping[EventName, NotificationCategory] = {
     EventName.IMAGE_PROCESS_FAILED: "process_error",
     EventName.PLUGIN_FAILED: "plugin_error",
     EventName.CONFIG_FAILED: "config_error",
+    EventName.STORAGE_FAILED: "storage_error",
+    EventName.RUNTIME_FAILED: "runtime_error",
     EventName.UPDATE_FAILED: "update_error",
     EventName.COOKIE_STORE_ACCESS: "auth_cookie_store_access",
     EventName.CREDENTIAL_STORE_ACCESS: "auth_credential_store_access",
@@ -148,9 +150,17 @@ class NotificationService:
                     lines.append(f"reason_code: {code} count={count}")
                 examples.extend(payload for payload in payloads if payload.stage is not None)
             else:
-                error_class = payloads[0].error_class
+                reason_counts = Counter(payload.error_code or "unknown_error" for payload in payloads)
+                for code, count in sorted(reason_counts.items()):
+                    lines.append(f"reason_code: {code} count={count}")
+                first = payloads[0]
+                if first.operation is not None:
+                    lines.append("operation: " + first.operation)
+                if first.error_reason is not None:
+                    lines.append("reason: " + first.error_reason)
+                error_class = first.error_class
                 if error_class:
-                    lines.append(f"Detail: {error_class}")
+                    lines.append(f"exception: {error_class}")
         selected_examples = sorted(examples, key=self._payload_sort_key)[:_NOTIFICATION_EXAMPLE_LIMIT]
         for position, payload in enumerate(selected_examples, start=1):
             lines.extend(self._render_image_example(position, payload))
@@ -189,8 +199,17 @@ class NotificationService:
             lines.append("response_url: " + self._short_url(payload.response_url))
         if payload.http_status is not None:
             lines.append(f"http_status: {payload.http_status}")
-            if payload.stage in {"image_processing", "image_save"}:
-                lines.append("transport: completed")
+        transport = payload.transport
+        if (
+            transport is None
+            and payload.stage in {"image_processing", "image_save"}
+            and payload.http_status is not None
+        ):
+            transport = "completed"
+        if transport is not None:
+            lines.append("transport: " + transport)
+        if payload.path is not None:
+            lines.append("output_path: " + payload.path)
         if payload.error_code is not None:
             lines.append("reason_code: " + payload.error_code)
         if payload.error_reason is not None:

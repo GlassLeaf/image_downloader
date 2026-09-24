@@ -83,6 +83,7 @@ class ChapterFailureRecord:
     reason: str
     exception_type: str
     message: str
+    transport: str | None = None
 
 
 class LogSink:
@@ -357,8 +358,15 @@ class DownloadLogger:
                 lines.append("response_url: " + self.safe_url(record.response_url))
             if record.http_status is not None:
                 lines.append(f"http_status: {record.http_status}")
-                if record.stage in {"image_processing", "image_save"}:
-                    lines.append("transport: completed")
+            transport = record.transport
+            if (
+                transport is None
+                and record.stage in {"image_processing", "image_save"}
+                and record.http_status is not None
+            ):
+                transport = "completed"
+            if transport is not None:
+                lines.append("transport: " + _safe_text(mask_log_text(transport), 64))
             if record.path is not None:
                 lines.append("save: " + safe_relative_path(record.path, output_root))
             lines.append("reason_code: " + _safe_text(mask_log_text(record.code), 128))

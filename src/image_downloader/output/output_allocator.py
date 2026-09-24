@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from ..configuration.models import AppConfig
-from ..exceptions import ConfigurationError, OutputAllocationError
+from ..exceptions import ConfigurationError, ExistingFileConflictError, OutputAllocationError
 from ..models import Chapter, ImageResource
 from ..storage import FileSystem, safe_component
 
@@ -103,7 +103,7 @@ class OutputAllocator:
                     if mode == "skip":
                         pass
                     elif mode == "error":
-                        raise FileExistsError(str(base))
+                        raise ExistingFileConflictError(base)
                     else:
                         return self._reserve(self._unique_candidate(base))
                 else:
@@ -112,7 +112,7 @@ class OutputAllocator:
                         if mode == "skip":
                             return OutputAllocation(existing)
                         if mode == "error":
-                            raise FileExistsError(str(existing))
+                            raise ExistingFileConflictError(existing)
                         if mode == "rename":
                             return self._reserve(self._unique_candidate(base))
                         if key in self._committed_by_operation:

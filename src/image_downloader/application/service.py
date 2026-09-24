@@ -16,6 +16,8 @@ from ..credentials.plugin_secrets import RuntimeSecrets
 from ..exceptions import (
     AuthenticationError,
     ConfigurationError,
+    ErrorInfo,
+    ExistingFileConflictError,
     ImageDownloaderError,
     ImageProcessingError,
     InterProcessLockError,
@@ -23,6 +25,7 @@ from ..exceptions import (
     RequestError,
     StorageError,
     StorageSafetyError,
+    error_info_for,
 )
 from ..media.artifact_pipeline import ArtifactPipeline
 from ..media.processor_chain import OperationProcessorChain
@@ -45,9 +48,6 @@ from ..models import (
 from ..observability.chapter_reporter import ChapterReporter
 from ..observability.diagnostic_safety import best_effort_diagnostic
 from ..observability.events import EventName, EventPayload
-from ..observability.logging import (
-    mask_log_text,
-)
 from ..observability.scope import OperationDiagnosticsScope
 from ..output.output_allocator import OutputAllocation, OutputAllocator
 from ..plugins.lifecycle import PluginRecord
@@ -111,13 +111,45 @@ def _classify_image_error(kind: FailureKind, cause: Exception) -> ImageDownloade
 
 
 def _failure_code(error: Exception) -> str:
-    return error.code if isinstance(error, ImageDownloaderError) else "unexpected_image_failure"
+    return error_info_for(error).code
 
 
-def _failure_reason(error: Exception, kind: FailureKind) -> str:
-    if isinstance(error, ImageDownloaderError):
-        return error.reason
-    return f"unexpected image {kind.value} failure"
+def _failure_output_path(error: Exception, filesystem: FileSystem) -> Path | None:
+    """Return the absolute target path carried by an expected output conflict."""
+
+    if isinstance(error, ExistingFileConflictError):
+        return filesystem.path(error.relative_path)
+    return None
+
+
+def _failure_info(
+    error: Exception,
+    response: RequestResponse | None,
+    filesystem: FileSystem,
+) -> tuple[ErrorInfo, str | None, int | None, Path | None]:
+    info = error_info_for(error)
+    response_url = response.url if response is not None else info.response_url
+    http_status = response.status if response is not None else info.http_status
+    output_path = _failure_output_path(error, filesystem)
+    return info, response_url, http_status, output_path
+
+
+def _failure_transport(kind: FailureKind, error: Exception, response: RequestResponse | None) -> str:
+    if response is not None or kind in {FailureKind.PROCESS, FailureKind.SAVE}:
+        return "completed"
+    code = _failure_code(error)
+    return {
+        "http_status_error": "response_received",
+        "response_size_limit_error": "response_limit_exceeded",
+        "redirect_policy_error": "redirect_rejected",
+    }.get(code, "failed")
+
+
+def _is_fatal_image_error(error: ImageDownloaderError, continue_on_image_error: bool) -> bool:
+    return not continue_on_image_error or isinstance(
+        error,
+        (AuthenticationError, PluginError, ConfigurationError, StorageSafetyError, InterProcessLockError),
+    )
 
 
 class DownloadService:
@@ -325,9 +357,19 @@ class DownloadService:
             )
             raise
         except Exception as exc:
+            info = error_info_for(exc)
             await self.events.emit(
                 EventName.UPDATE_FAILED,
-                EventPayload(url=url, error_class=type(exc).__name__),
+                EventPayload(
+                    url=url,
+                    response_url=info.response_url,
+                    path=info.output_path,
+                    http_status=info.http_status,
+                    error_code=info.code,
+                    error_reason=info.reason,
+                    error_class=info.exception,
+                    operation="update",
+                ),
             )
             await best_effort_diagnostic(
                 self.logger.core,
@@ -399,17 +441,29 @@ class DownloadService:
         return FileSystem(self.outputs.path(relative))
 
     async def _record_operation_failure(self, url: str, error: Exception) -> None:
-        event: EventName | None = (
+        info = error_info_for(error)
+        event = (
             EventName.AUTH_FAILED
             if isinstance(error, AuthenticationError)
             else EventName.PLUGIN_FAILED
             if isinstance(error, PluginError)
             else EventName.CONFIG_FAILED
             if isinstance(error, ConfigurationError)
-            else None
+            else EventName.STORAGE_FAILED
+            if isinstance(error, StorageError)
+            else EventName.RUNTIME_FAILED
         )
-        payload = EventPayload(url=url, error_class=type(error).__name__)
-        if event is not None:
+        payload = EventPayload(
+            url=url,
+            response_url=info.response_url,
+            path=info.output_path,
+            http_status=info.http_status,
+            error_code=info.code,
+            error_reason=info.reason,
+            error_class=info.exception,
+            operation="download",
+        )
+        if not getattr(error, "_image_failure_reported", False):
             await self.events.emit(event, payload)
         await self.events.emit(EventName.DOWNLOAD_FAILED, payload)
         await best_effort_diagnostic(
@@ -562,7 +616,7 @@ class DownloadService:
                         debug=True,
                     )
                     await self.events.emit(EventName.FETCH_SUCCESS, EventPayload(url=image.url))
-                except (AuthenticationError, ConfigurationError, PluginError, StorageSafetyError):
+                except asyncio.CancelledError:
                     raise
                 except Exception as exc:
                     raise _ImageJobError(FailureKind.FETCH, exc) from exc
@@ -574,7 +628,7 @@ class DownloadService:
                     await self.events.emit(EventName.IMAGE_PROCESS_STARTED, EventPayload(url=image.url))
                     processed = await pipeline.process(plugin, artifact, image, manifest, chapter)
                     await self.events.emit(EventName.IMAGE_PROCESS_SUCCESS, EventPayload(url=image.url))
-                except (AuthenticationError, ConfigurationError, PluginError, StorageSafetyError):
+                except asyncio.CancelledError:
                     raise
                 except Exception as exc:
                     raise _ImageJobError(FailureKind.PROCESS, exc, response) from exc
@@ -591,7 +645,7 @@ class DownloadService:
                                 await self._settle_allocation(allocation, success=False)
                                 raise
                             await self._settle_allocation(allocation, success=True)
-                except (ConfigurationError, StorageSafetyError, InterProcessLockError):
+                except asyncio.CancelledError:
                     raise
                 except Exception as exc:
                     raise _ImageJobError(FailureKind.SAVE, exc, response) from exc
@@ -617,27 +671,32 @@ class DownloadService:
                     )
                 else:
                     outcome = ImageOutcome(image, ImageOutcomeKind.SAVED, str(path))
-            except (AuthenticationError, PluginError, ConfigurationError, StorageSafetyError, InterProcessLockError):
+            except asyncio.CancelledError:
                 raise
             except _ImageJobError as exc:
+                info, response_url, http_status, failure_path = _failure_info(
+                    exc.cause,
+                    exc.response,
+                    allocator.filesystem,
+                )
+                transport = _failure_transport(exc.kind, exc.cause, exc.response)
                 await self.events.emit(
                     _IMAGE_FAILURE_EVENTS[exc.kind],
                     EventPayload(
                         url=image.url,
-                        response_url=exc.response.url if exc.response is not None else None,
-                        http_status=(
-                            exc.response.status if exc.response is not None else getattr(exc.cause, "status", None)
-                        ),
+                        response_url=response_url,
+                        path=str(failure_path) if failure_path is not None else None,
+                        http_status=http_status,
                         stage=_IMAGE_FAILURE_STAGES[exc.kind],
                         chapter_id=chapter_id,
                         image_index=image.index,
-                        error_code=_failure_code(exc.cause),
-                        error_reason=_failure_reason(exc.cause, exc.kind),
-                        error_class=type(exc.cause).__name__,
+                        error_code=info.code,
+                        error_reason=info.reason,
+                        error_class=info.exception,
+                        operation="download",
+                        transport=transport,
                     ),
                 )
-                if not self.config.download.continue_on_image_error:
-                    raise exc.cause from exc.cause.__cause__
                 await best_effort_diagnostic(
                     self.logger.core,
                     "download_failed",
@@ -651,23 +710,42 @@ class DownloadService:
                     debug=True,
                 )
                 await best_effort_diagnostic(
-                    self.logger.error_detail, exc.cause, chapter_id=chapter_id, url=image.url, module="image"
+                    self.logger.error_detail,
+                    exc.cause,
+                    chapter_id=chapter_id,
+                    url=image.url,
+                    path=failure_path,
+                    module="image",
                 )
                 outcome = ImageOutcome(
                     image,
                     ImageOutcomeKind.FAILED,
+                    path=str(failure_path) if failure_path is not None else None,
                     failure=ImageFailure(
                         exc.kind,
-                        type(exc.cause).__name__,
-                        mask_log_text(str(exc.cause)),
-                        code=_failure_code(exc.cause),
-                        reason=_failure_reason(exc.cause, exc.kind),
-                        response_url=exc.response.url if exc.response is not None else None,
-                        http_status=(
-                            exc.response.status if exc.response is not None else getattr(exc.cause, "status", None)
-                        ),
+                        info.exception,
+                        info.message,
+                        code=info.code,
+                        reason=info.reason,
+                        response_url=response_url,
+                        http_status=http_status,
+                        output_path=info.output_path,
+                        transport=transport,
                     ),
                 )
+                await reporter.record(position, outcome)
+                if _is_fatal_image_error(exc.cause, self.config.download.continue_on_image_error):
+                    exc.cause._image_failure_reported = True
+                    exc.cause._image_failure_context = {
+                        "stage": _IMAGE_FAILURE_STAGES[exc.kind],
+                        "transport": transport,
+                        "image_url": image.url,
+                        "response_url": response_url,
+                        "http_status": http_status,
+                        "output_path": info.output_path,
+                    }
+                    raise exc.cause from exc.cause.__cause__
+                return outcome
             await reporter.record(position, outcome)
             return outcome
 
@@ -675,10 +753,11 @@ class DownloadService:
             lambda position=position, image=image: run_one(position, image)
             for position, image in enumerate(chapter.images)
         ]
-        outcomes = tuple(
-            cast(list[ImageOutcome], await self._bounded(factories, self.config.download.image_concurrency_per_chapter))
-        )
-        await reporter.finish(outcomes)
+        try:
+            bounded = await self._bounded(factories, self.config.download.image_concurrency_per_chapter)
+            outcomes = tuple(bounded)
+        finally:
+            await reporter.finish()
         await best_effort_diagnostic(
             self.logger.core,
             "chapter_finished",
@@ -714,7 +793,7 @@ class DownloadService:
         reporter = ChapterReporter(outputs, directory, manifest, chapter, self.logger, reporter_id)
         try:
             await reporter.start()
-            await reporter.finish(())
+            await reporter.finish()
         finally:
             await best_effort_diagnostic(self.logger.close_chapter, reporter_id)
 

@@ -215,8 +215,23 @@ class RequestGateway:
                 next_request = response.next_request if self.config.network.follow_redirects else None
                 if next_request is not None:
                     if redirects >= self.client.max_redirects:
-                        raise RedirectPolicyError("HTTP redirect limit exceeded")
-                    request = self._checked_redirect(request, next_request, spec, allowed_redirect_origins)
+                        raise RedirectPolicyError(
+                            "HTTP redirect limit exceeded",
+                            request_url=str(response.url),
+                            redirect_url=str(next_request.url),
+                            http_status=response.status_code,
+                        )
+                    try:
+                        request = self._checked_redirect(request, next_request, spec, allowed_redirect_origins)
+                    except RedirectPolicyError as exc:
+                        if exc.request_url is None:
+                            exc.request_url = str(response.url)
+                            exc.response_url = str(response.url)
+                        if exc.redirect_url is None:
+                            exc.redirect_url = str(next_request.url)
+                        if exc.http_status is None:
+                            exc.http_status = response.status_code
+                        raise
                     redirects += 1
                     continue
                 return await self._read_response(response)
@@ -276,14 +291,24 @@ class RequestGateway:
         if declared is not None:
             try:
                 if int(declared) > limit:
-                    raise ResponseSizeLimitError("HTTP response exceeds the configured byte limit")
+                    raise ResponseSizeLimitError(
+                        "HTTP response exceeds the configured byte limit",
+                        response_url=str(response.url),
+                        http_status=response.status_code,
+                        limit_bytes=limit,
+                    )
             except ValueError:
                 pass
         body = bytearray()
         chunk_size = min(64 * 1024, limit + 1)
         async for chunk in response.aiter_bytes(chunk_size=chunk_size):
             if len(chunk) > limit - len(body):
-                raise ResponseSizeLimitError("HTTP response exceeds the configured byte limit")
+                raise ResponseSizeLimitError(
+                    "HTTP response exceeds the configured byte limit",
+                    response_url=str(response.url),
+                    http_status=response.status_code,
+                    limit_bytes=limit,
+                )
             body.extend(chunk)
         return RequestResponse(str(response.url), response.status_code, dict(response.headers), bytes(body))
 
@@ -425,7 +450,7 @@ class OperationRequestGateway:
                     current = await self._apply_auth(replacement)
                     continue
             if response.status >= 400:
-                raise HttpStatusError(response.status)
+                raise HttpStatusError(response.status, response_url=response.url)
             return response
 
     async def _apply_auth(self, spec: RequestSpec) -> RequestSpec:

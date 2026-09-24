@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from image_downloader.config import AppConfig
+from image_downloader.exceptions import ExistingFileConflictError
 from image_downloader.models import Chapter, ImageResource
 from image_downloader.runtime import OutputAllocator
 from image_downloader.storage import FileSystem
@@ -55,8 +56,12 @@ def test_existing_file_error_mode(tmp_path: Path) -> None:
     async def scenario() -> None:
         filesystem, allocator, directory = _allocator(tmp_path, _config("error"))
         filesystem.write_bytes_atomic(directory / "0001.jpeg", b"existing")
-        with pytest.raises(FileExistsError):
+        with pytest.raises(ExistingFileConflictError) as raised:
             await allocator.allocate(directory, ImageResource("https://example.test/1"), Chapter(1, "one"), ".jpeg")
+        assert raised.value.code == "existing_file_conflict"
+        assert raised.value.reason == "output file already exists and existing-file=error prevents overwrite"
+        assert raised.value.relative_path == directory / "0001.jpeg"
+        assert raised.value.policy == "error"
 
     asyncio.run(scenario())
 
@@ -104,10 +109,12 @@ def test_active_reservation_follows_rename_and_error_modes(tmp_path: Path) -> No
         reserved = await error_allocator.allocate(
             error_directory, ImageResource("https://example.test/1"), Chapter(1, "one"), ".jpeg"
         )
-        with pytest.raises(FileExistsError):
+        with pytest.raises(ExistingFileConflictError) as raised:
             await error_allocator.allocate(
                 error_directory, ImageResource("https://example.test/2"), Chapter(1, "one"), ".jpeg"
             )
+        assert raised.value.relative_path == error_directory / "0001.jpeg"
+        assert raised.value.policy == "error"
         await reserved.abort()
 
     asyncio.run(scenario())
