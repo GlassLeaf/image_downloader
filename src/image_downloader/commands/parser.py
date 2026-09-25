@@ -38,6 +38,7 @@ _OPTIONS_WITH_VALUE = frozenset(
         "--import-browser-cookies",
         "--existing-file",
         "--image-format",
+        "--plugin-verification-override",
     )
 )
 
@@ -94,9 +95,10 @@ def _add_configuration_options(
     parser.add_argument("--data-root", type=Path, default=value_default)
     parser.add_argument("--yes", action="store_true", default=flag_default)
     parser.add_argument(
-        "--allow-unverified-plugins",
-        action="store_true",
-        default=flag_default,
+        "--plugin-verification-override",
+        choices=("bypass-all", "bypass-catalog", "bypass-signature"),
+        default=value_default,
+        metavar="MODE",
     )
     parser.add_argument(
         "--json",
@@ -216,7 +218,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     plugin_parser = commands.add_parser(
         "plugin",
-        help="install, trust, revoke, or list plugins",
+        help="install, trust, revoke, uninstall, or list plugins",
     )
     plugin_parser.add_argument("command_args", nargs="*")
     _add_configuration_options(plugin_parser, suppress_defaults=True)

@@ -40,6 +40,27 @@ def test_each_top_level_subparser_selects_its_own_handler(tmp_path: Path) -> Non
     assert cookie.cookie_action == "export"
 
 
+@pytest.mark.parametrize(
+    "words",
+    (
+        ("download", "https://example.test/gallery"),
+        ("doctor",),
+        ("config", "path"),
+        ("plugin", "list"),
+        ("cookie", "export", "cookies.export"),
+    ),
+)
+def test_verification_override_is_available_to_every_top_level_command(words: tuple[str, ...]) -> None:
+    args = build_parser().parse_args([*words, "--plugin-verification-override", "bypass-signature"])
+
+    assert args.plugin_verification_override == "bypass-signature"
+
+
+def test_legacy_allow_unverified_plugins_flag_is_removed() -> None:
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["doctor", "--allow-unverified-plugins"])
+
+
 def test_command_specific_options_are_rejected_outside_their_command() -> None:
     parser = build_parser()
 

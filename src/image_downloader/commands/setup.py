@@ -239,8 +239,6 @@ def _resolved_config_for(
         source=source,
         rewrite_user_layers=rewrite_user_layers,
     )
-    if resolved.config.security.plugin_verification == "off" and not args.allow_unverified_plugins:
-        raise ConfigurationError("plugin verification 'off' requires --allow-unverified-plugins for every run")
     paths = resolve_paths(resolved.config)
     effective_plugin_root = _plugin_root(args, resolved.config)
     if source == "user":

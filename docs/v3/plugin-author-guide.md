@@ -12,6 +12,9 @@ plugin code は sandbox ではない。同じ process で実行されるため�
 HTTP client、filesystem、logger、output path、scheduler を直接利用しない。追加 dependency
 を core が install することもない。
 
+実サイトの HTTP/API 統合、secret、Cookie、AuthFlow、URL recovery、並列制御、対象外機能は
+[サイト plugin 統合・認証ガイド](site-plugin-integration-guide.md)にまとめている。
+
 ## directory unit
 
 site plugin と image processor は一つの共通 plugin root の別の親 directory に置く。
@@ -21,6 +24,7 @@ site plugin と image processor は一つの共通 plugin root の別の親 dire
   site_plugins/
     gallery-plugin/                 # 任意の directory 名、1 unit
       manifest.json
+      plugin-metadata.json          # 付属 signer を使う場合だけの任意入力
       gallery.source                # 任意拡張子の UTF-8 Python entry source
       gallery.yaml                  # manifest が参照する author config、必須
       helpers/
@@ -36,6 +40,10 @@ site plugin と image processor は一つの共通 plugin root の別の親 dire
 directory 名は ID ではない。manifest ID は全 kind で一意で、publisher を prefix とする
 reverse-DNS ID である。例: publisher `com.example`、ID
 `com.example.gallery`。
+
+`plugin-metadata.json` は付属の `tools/sign_local_site_plugin.py` を使って manifest を生成する
+場合だけの署名入力であり、runtime は読まない。手作業で完全な manifest を生成・署名する場合は
+不要である。正確な schema と再署名時の規則は[信頼・配布・運用](trust-and-operations.md)を参照する。
 
 entry source は隔離された synthetic namespace で load され、plugin root を `sys.path` に
 追加しない。helper は `.py` の relative import（例: `from .helpers.parser import parse`）を

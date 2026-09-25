@@ -1,6 +1,6 @@
 # image-downloader
 
-署名済み local-directory plugin を使う、非同期画像ダウンローダーです。現行拡張仕様は
+local-directory plugin を使う、非同期画像ダウンローダーです。現行拡張仕様は
 **local plugin API v3**。v1/v2 の entry point、class descriptor、wheel sidecar、旧設定
 tree は発見・互換読込しません。
 
@@ -30,7 +30,7 @@ image-downloader doctor --json
 
 通常実行は CWD の `app.yaml` を読みません。`--config` を省略すると platformdirs の固定
 user config だけを読み、未作成でも package 同梱 baseline と OS 標準の data/plugin root で継続します。
-設定がない状態で download/update、cookie 操作、plugin install/trust/revoke を開始すると、主操作の前に
+設定がない状態で download/update、cookie 操作、plugin install/trust/revoke/uninstall を開始すると、主操作の前に
 同梱 `app.yaml` 基準の全設定と OS 標準の absolute data/plugin root を fixed user config へ自動保存します。
 CLI option は保存しませんが、完全 snapshot のため以後の bundled default 更新は自動反映されません。既存の
 user-managed config に旧キーまたは static schema の未知キーがあれば、状態変更操作の開始前に無表示で削除
@@ -56,6 +56,9 @@ image-downloader plugin install "C:\build\gallery-plugin" `
 image-downloader plugin list --plugin-root "C:\ProgramData\image-downloader\plugins" --json
 image-downloader plugin revoke com.example.gallery `
   --plugin-root "C:\ProgramData\image-downloader\plugins"
+
+image-downloader plugin uninstall com.example.gallery `
+  --plugin-root "C:\ProgramData\image-downloader\plugins"
 ```
 
 詳細は [v3 ドキュメント](docs/v3/README.md) を参照する。
@@ -64,6 +67,7 @@ image-downloader plugin revoke com.example.gallery `
 
 - [設定と CLI](docs/v3/configuration-and-cli.md)
 - [plugin 作者ガイド](docs/v3/plugin-author-guide.md)
+- [サイト plugin 統合・認証ガイド](docs/v3/site-plugin-integration-guide.md)
 - [信頼・配布・運用](docs/v3/trust-and-operations.md)
 - [ライブラリ API](docs/v3/library-api.md)
 - [テストと移行](docs/v3/testing-and-migration.md)

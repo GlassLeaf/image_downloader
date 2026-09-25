@@ -375,14 +375,11 @@ def test_filesystem_rejects_an_existing_hard_link(tmp_path: Path) -> None:
         filesystem.open_text_append("linked.log")
 
 
-def test_off_requires_per_run_acknowledgement(tmp_path: Path) -> None:
+def test_off_uses_bypass_all_without_a_per_run_acknowledgement(tmp_path: Path) -> None:
     config = tmp_path / "app.yaml"
     _user_config(config, verification="off")
     args = build_parser().parse_args(["doctor", "--config", str(config)])
-    assert asyncio.run(doctor(args)) == EXIT_CONFIGURATION
-
-    allowed = build_parser().parse_args(["doctor", "--config", str(config), "--allow-unverified-plugins"])
-    assert asyncio.run(doctor(allowed)) == EXIT_SUCCESS
+    assert asyncio.run(doctor(args)) == EXIT_SUCCESS
 
 
 def test_config_init_creates_sparse_explicit_configuration(tmp_path: Path) -> None:

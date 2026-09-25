@@ -43,7 +43,12 @@ class DownloadCommandHandler:
         )
         _persist_initial_user_config(source)
         output_root = resolve_paths(config)["downloads"]
-        service = RuntimeComposer(config, config_root=config_root, plugin_root=_plugin_root(args, config)).compose()
+        service = RuntimeComposer(
+            config,
+            config_root=config_root,
+            plugin_root=_plugin_root(args, config),
+            plugin_verification_override=args.plugin_verification_override,
+        ).compose()
         diagnostics_output = redirect_stdout(sys.stderr) if args.json_output else nullcontext()
         status = EXIT_FAILURE
         try:

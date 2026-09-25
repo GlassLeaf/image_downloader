@@ -23,12 +23,14 @@ from .plugin_manifest import (
     PluginCatalog,
     PluginKind,
     PluginManifest,
+    PluginVerificationMode,
     _is_link,
     _require_regular,
     author_config,
     catalog_path,
     read_manifest,
     verify_manifest,
+    verify_plugin_tree,
 )
 
 _PLUGIN_MODULE_ROOT = "_image_downloader_plugins"
@@ -82,8 +84,9 @@ class PluginDiscoveryResult:
 class PluginDiscovery:
     """Discover structurally valid manifests without making trust decisions."""
 
-    def __init__(self, plugin_root: Path) -> None:
+    def __init__(self, plugin_root: Path, *, mode: PluginVerificationMode = "strict") -> None:
         self.plugin_root = existing_directory(plugin_root, "plugin root")
+        self.mode = mode
 
     def discover(self) -> PluginDiscoveryResult:
         diagnostics: list[PluginDiagnostic] = []
@@ -95,7 +98,7 @@ class PluginDiscovery:
         candidates: list[DiscoveredPlugin] = []
         for kind, directory in self._directories(diagnostics):
             try:
-                manifest = read_manifest(directory)
+                manifest = read_manifest(directory, mode=self.mode)
                 if manifest.kind != kind:
                     raise PluginError("manifest kind does not match containing directory")
                 candidates.append(DiscoveredPlugin(kind, directory, manifest))
@@ -144,7 +147,7 @@ class PluginVerificationResult:
 class PluginManifestVerifier:
     """Apply strict, warn, or off trust policy to discovered manifests."""
 
-    def __init__(self, plugin_root: Path, *, mode: str) -> None:
+    def __init__(self, plugin_root: Path, *, mode: PluginVerificationMode) -> None:
         self.plugin_root = plugin_root
         self.mode = mode
 
@@ -161,7 +164,7 @@ class PluginManifestVerifier:
             except Exception as exc:
                 if self.mode == "warn" and isinstance(exc, PluginError):
                     try:
-                        verify_manifest(manifest, None, mode="off")
+                        verify_plugin_tree(manifest)
                         records.append(PluginRecord(manifest, author_config(manifest), None))
                         diagnostics.append(
                             PluginDiagnostic(manifest.id, str(candidate.directory), True, str(exc), True)
@@ -188,7 +191,7 @@ class PluginManifestVerifier:
         return PluginVerificationResult(tuple(records), catalog, tuple(diagnostics))
 
     def _load_catalog(self, diagnostics: list[PluginDiagnostic]) -> PluginCatalog | None:
-        if self.mode == "off":
+        if self.mode in {"off", "bypass-all", "bypass-catalog"}:
             return None
         path = catalog_path(self.plugin_root)
         if not path.exists():

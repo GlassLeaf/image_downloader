@@ -2,7 +2,7 @@
 
 ## manifest wrapper
 
-各 plugin unit の `manifest.json` は次の wrapper **だけ**を root に持つ。
+通常の検証では、各 plugin unit の `manifest.json` は次の wrapper **だけ**を root に持つ。
 
 ```json
 {"manifest": {"...": "..."}, "signature": "BASE64_ED25519_SIGNATURE"}
@@ -34,6 +34,58 @@ inner manifest の field は完全一致で次だけを持つ。未知 field、�
 `id` と `publisher` は lowercase label を dot で連結した form であり、ID は
 `publisher + "."` で始まる必要がある。`entry.file` と `config_file` は `file_tree` に
 必ず含める。
+
+`--plugin-verification-override bypass-all` または `bypass-signature` の明示時だけ、同じ
+wrapper の `signature` と上記の検証用 field は省略できる。`id`、`kind`、
+`entry.file`、`entry.class` は常に必須で、`match_priority` は `0`、`config_file` 欠落時の
+author config は `{}` になる。wrapper/JSON、ID・kind、relative non-link path、regular file
+の安全性は全 mode で検証する。
+
+## `plugin-metadata.json` と付属署名ツール
+
+`tools/sign_local_site_plugin.py` を使って通常の署名済み manifest を生成する場合、
+`plugin-metadata.json` はその**署名入力**である。runtime はこの file を読まず、plugin
+unit の実行・install・trust に必要なのは生成済みの `manifest.json` だけである。したがって、
+別の手段で完全な `manifest.json` を生成・署名する作者は `plugin-metadata.json` を置く必要が
+ない。一方、付属 signer を使う場合は source directory root に置く必要がある。
+
+付属 signer 用の root JSON object は、未知 field や欠損 field を含めず、次の 8 field **だけ**を
+持つ。個々の値は、前節の通常 manifest と同じ制約を満たさなければならない。
+
+```json
+{
+  "id": "com.example.sample",
+  "publisher": "com.example",
+  "version": "1.0.0",
+  "kind": "site_plugin",
+  "capabilities": [],
+  "match_priority": 0,
+  "entry": {"file": "sample_plugin.py", "class": "SamplePlugin"},
+  "config_file": "sample_plugin.yaml"
+}
+```
+
+| field | 制約と manifest での役割 |
+|---|---|
+| `id` | publisher prefix を持つ一意な reverse-DNS ID。 |
+| `publisher` | lowercase reverse-DNS publisher。 |
+| `version` | PEP 440 version。 |
+| `kind` | `site_plugin` または `image_processor_plugin`。 |
+| `capabilities` | 任意の string の配列。将来の API/schema 拡張用に予約された opaque metadata であり、現行 v3 では空配列も有効である。権限、dependency、実行制御、catalog pin には使わない。 |
+| `match_priority` | integer。site plugin の同時 match 時の選択順位であり、processor では予約 metadata。 |
+| `entry` | `{"file":"relative/path","class":"ClassName"}`。entry source と class を指定する。 |
+| `config_file` | relative lowercase `.yaml` author config path。 |
+
+signer は上の 8 field を inner manifest に転記し、`schema_version: 1`、`api_version: "3"`、
+`public_key`、`key_id`、`file_tree`、`file_tree_sha256` を生成する。その canonical inner manifest を
+Ed25519 で署名して wrapper `signature` を追加し、`manifest.json` を上書きする。生成済み
+manifest を直接編集するのではなく、metadata、entry source、author YAML、helper を更新してから
+signer を再実行する。
+
+`plugin-metadata.json` が存在する場合も通常の regular file なので `file_tree` に入る。これを
+追加、変更、削除すると strict verification は失敗するため、tree を再計算して再署名し、配置済み
+plugin なら trust/install により catalog pin も更新する。metadata に secret、credential、private key
+を置いてはならない。
 
 ## file tree
 
@@ -78,8 +130,12 @@ catalog path は設定では変更できず、常に `<plugin-root>/catalog.json
 
 catalog は ID、kind、publisher、version、public key/fingerprint、manifest digest、tree
 digest、selection priority、revocation を pin する。`capabilities` は catalog に書かない。
+署名を迂回して trust/install した plugin は同じ schema version `1` で
+`id`、`kind`、`manifest_digest`、`content_digest`、`selection_priority`、`revoked` だけを
+持つ content-pinned entry を使う。`content_digest` は manifest を除く全 regular plugin file
+tree の canonical SHA-256 であり、`bypass-signature` 実行時に catalog と照合する。
 catalog は原子的に replace され、最初の trust が存在しない catalog を作成する。
-install/trust/revoke の read-modify-write 全体は `<plugin-root>/.catalog.lock` のprocess間lockで
+install/trust/revoke/uninstall の read-modify-write 全体は `<plugin-root>/.catalog.lock` のprocess間lockで
 直列化される。配置またはcatalog commitに失敗したinstallは、追加・置換したdirectoryをrollbackする。
 installとtrustは同じ署名・file tree検証とcatalog遷移policyを使用する。したがって、同じversionの
 内容変更、publisher/kind変更、署名またはtree不一致は、どちらの操作でも同じ基準で拒否される。
@@ -92,14 +148,19 @@ installとtrustは同じ署名・file tree検証とcatalog遷移policyを使用�
 |---|---|---|---|
 | `strict` | plugin directory がなければ external registry は空。あれば各 plugin を failed/skip | configuration error | failed diagnostic、skip |
 | `warn` | structural に有効な plugin を warning 付きで利用 | warning 付きで catalog を無視 | warning 付きで unpinned load を試行 |
-| `off` | catalog を見ない | catalog を見ない | manifest/path/tree の structural check は継続 |
+| `off` | catalog を見ない | catalog を見ない | `bypass-all` と同じ最小 manifest を許可 |
 
 catalog の active entry に対応する installed directory がない場合は stale warning であり、
 他 plugin の execution を止めない。plugin root 不在かつ catalog 不在は正常な空 registry
 である。builtin generic fallback は別に利用できる。
 
-`security.plugin_verification: off` は `--allow-unverified-plugins` を同じ invocation に
-明示した時だけ使える。これは catalog pin を外すが、manifest/path/tree schema は緩めない。
+`--plugin-verification-override` は YAML より優先し、全 top-level command で受理する。
+
+| override | catalog | 署名・tree | manifest |
+|---|---|---|---|
+| `bypass-all` | 迂回 | 迂回 | 最小 schema を許可 |
+| `bypass-catalog` | 迂回 | 従来どおり必須 | 従来の完全 schema を必須 |
+| `bypass-signature` | content-pinned entry を必須 | 署名のみ迂回、実 file content digest を照合 | 最小 schema を許可 |
 
 ## 管理コマンド
 
@@ -116,9 +177,10 @@ image-downloader plugin trust "C:\build\gallery-plugin" `
 
 image-downloader plugin list --plugin-root "C:\ProgramData\image-downloader\plugins" --json
 image-downloader plugin revoke com.example.gallery --plugin-root "C:\ProgramData\image-downloader\plugins"
+image-downloader plugin uninstall com.example.gallery --plugin-root "C:\ProgramData\image-downloader\plugins"
 ```
 
-install/trust/revoke は confirmation を要求する。non-interactive automation では
+install/trust/revoke/uninstall は confirmation を要求する。non-interactive automation では
 `--yes` を付ける。install/trust 前には ID、publisher、kind、version、key fingerprint、tree
 digest を表示する。`--selection-priority` の既定は `0`。
 
@@ -132,8 +194,9 @@ digest を表示する。`--selection-priority` の既定は `0`。
   変更は confirmation 後に許可。
 - `revoke` は catalog entry を削除せず `revoked: true` にする。再 trust/install は
   confirmation 後に解除できる。
-- uninstall command はない。directory を手動削除する前に catalog/revocation の運用方針を
-  決めること。
+- `uninstall` は directory と catalog entry を削除する。directory がなく stale catalog entry
+  だけの場合も cleanup し、両方ない ID は失敗する。directory と catalog commit の間で失敗した
+  場合は directory を復元する。
 
 ## discovery と運用診断
 

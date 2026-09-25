@@ -240,7 +240,7 @@ def test_cookie_export_creates_initial_user_configuration(
     assert snapshot["plugins"]["root"] != str(plugin_root)
 
 
-@pytest.mark.parametrize("command", ("install", "trust", "revoke"))
+@pytest.mark.parametrize("command", ("install", "trust", "revoke", "uninstall"))
 def test_plugin_mutations_create_initial_user_configuration(
     command: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -263,6 +263,7 @@ def test_plugin_mutations_create_initial_user_configuration(
     monkeypatch.setattr(cli_plugin, "install_plugin", mutate_plugin)
     monkeypatch.setattr(cli_plugin, "trust_plugin", mutate_plugin)
     monkeypatch.setattr(cli_plugin, "revoke_plugin", mutate_plugin)
+    monkeypatch.setattr(cli_plugin, "uninstall_plugin", mutate_plugin)
 
     if command in {"install", "trust"}:
         manifest = SimpleNamespace(
@@ -272,8 +273,10 @@ def test_plugin_mutations_create_initial_user_configuration(
         )
         monkeypatch.setattr(cli_plugin, "read_manifest", lambda _path: manifest)
         words = ["plugin", command, str((tmp_path / "source").resolve()), "--yes"]
-    else:
+    elif command == "revoke":
         words = ["plugin", "revoke", entry.id, "--yes"]
+    else:
+        words = ["plugin", "uninstall", entry.id, "--yes"]
 
     assert asyncio.run(cli.run(build_parser().parse_args(words))) == EXIT_SUCCESS
     assert yaml.safe_load(user_config.read_text(encoding="utf-8")) == _snapshot()

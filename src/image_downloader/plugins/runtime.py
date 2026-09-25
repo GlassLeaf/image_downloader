@@ -26,6 +26,7 @@ from .plugin_manifest import (
     PluginCatalog,
     PluginConfigOverrides,
     PluginManifest,
+    PluginVerificationMode,
     _sha256,
     canonical_jcs,
 )
@@ -135,9 +136,9 @@ class PluginSelector:
 class PluginRuntime:
     """Coordinate plugin configuration, loading and selection around a record snapshot."""
 
-    def __init__(self, config: AppConfig, plugin_root: Path, *, mode: str) -> None:
+    def __init__(self, config: AppConfig, plugin_root: Path, *, mode: PluginVerificationMode) -> None:
         self.config, self.plugin_root, self.mode = config, existing_directory(plugin_root, "plugin root"), mode
-        discovery = PluginDiscovery(self.plugin_root).discover()
+        discovery = PluginDiscovery(self.plugin_root, mode=mode).discover()
         verification = PluginManifestVerifier(self.plugin_root, mode=mode).verify(discovery)
         self.registry = PluginRegistry(verification.records, catalog=verification.catalog)
         self.diagnostics = [*discovery.diagnostics, *verification.diagnostics]

@@ -10,6 +10,7 @@ CLI、library API、テスト、移行は v3 文書だけを基準にしてく�
 | 全体像と仕様の優先順位 | [v3 index](v3/README.md) |
 | 利用者・運用者 | [設定と CLI](v3/configuration-and-cli.md) |
 | plugin 作者 | [plugin 作者ガイド](v3/plugin-author-guide.md) |
+| HTTP/認証を扱う plugin 作者 | [サイト plugin 統合・認証ガイド](v3/site-plugin-integration-guide.md) |
 | 信頼・配布・管理者 | [信頼・配布・運用](v3/trust-and-operations.md) |
 | 組込み利用者 | [ライブラリ API](v3/library-api.md) |
 | 保守・テスト・移行 | [テストと移行](v3/testing-and-migration.md) |

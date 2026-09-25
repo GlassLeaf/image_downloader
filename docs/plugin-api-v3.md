@@ -85,12 +85,22 @@ tree hash.
 `capabilities` is signed opaque metadata in v3.  It is neither interpreted nor
 pinned.  Adding active capability semantics requires a future API/schema.
 
+For a consolidated guide to site-plugin HTTP integration, credentials, Cookie
+import, AuthFlow, request recovery, concurrency, and unsupported features, see
+[サイト plugin 統合・認証ガイド](v3/site-plugin-integration-guide.md).
+
 Use `plugin install <absolute-directory>`, `plugin trust <absolute-directory>`,
-`plugin revoke <id>`, and `plugin list`.  Install stages the copy, validates
+`plugin revoke <id>`, `plugin uninstall <id>`, and `plugin list`.  Install stages the copy, validates
 hash/signature/class contract, then atomically replaces the directory and
 catalog.  Trust/update requires confirmation (or `--yes`).  Same-version hash
 changes and publisher/kind changes are rejected; key rotations, downgrades,
 revocation recovery, and priority changes require confirmation.
+
+`--plugin-verification-override` is available on every CLI command.  Its
+`bypass-all`, `bypass-catalog`, and `bypass-signature` modes respectively skip
+all plugin verification, only catalog verification, or only Ed25519 signature
+verification while retaining catalog content pins.  See the trust and
+operations guide for the minimum-manifest and content-digest rules.
 
 ## Runtime API
 

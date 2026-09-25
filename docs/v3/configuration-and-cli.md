@@ -17,7 +17,7 @@ OS 標準 root は `image-downloader config path` でいつでも確認できる
 既定 user config が未作成でも起動は継続する。package 同梱 baseline の
 `storage.data_root: null` は `PlatformDirs("image-downloader", appauthor=False).user_data_path`、
 `plugins.root: null` はその `plugins` 子 directory を表す。設定がない状態で download/update、cookie
-export/import/browser-import、plugin install/trust/revoke を開始すると、主操作の前に固定 user config を
+export/import/browser-import、plugin install/trust/revoke/uninstall を開始すると、主操作の前に固定 user config を
 作成する。作成 file は同梱 `app.yaml` と schema default から決まる全設定を保存し、automatic root は
 absolute path として実値化する。CLI の profile/root/output/logging/JSON option、plugin override、fallback
 override は保存しない。完全 snapshot のため、その後の bundled default 更新は自動反映されない。主操作が
@@ -139,7 +139,7 @@ unknown key ではなく、その値は各 schema／plugin が検証する。雛
 | `network.pool_max_connections` / `pool_max_idle_connections` | HTTP pool の総 connection 数／idle 数。整数で、idle は `0..total` |
 | `network.max_response_bytes` | `Content-Length` と実受信量の双方に適用する上限。既定 64 MiB |
 | `notification.*` | desktop/email notification、event category別route、credential service。既定で無効。値は起動時に型検証される |
-| `security.plugin_verification` | `strict`、`warn`、`off`。main/profile app layer のみ。`off` は実行時承認も必要 |
+| `security.plugin_verification` | `strict`、`warn`、`off`。main/profile app layer のみ。`off` は `bypass-all` 相当 |
 | `fallback.generic_html.enabled` | builtin generic HTML fallback。既定 `true` |
 | `image_processors.chain` | 実行する processor ID の順序。重複はエラー |
 | `plugin_settings` | plugin ごとの利用者設定。後述 |
@@ -355,6 +355,7 @@ image-downloader config profile init NAME [--config ABSOLUTE_PATH]
 image-downloader plugin install ABSOLUTE_DIRECTORY [options]
 image-downloader plugin trust ABSOLUTE_DIRECTORY [options]
 image-downloader plugin revoke PLUGIN_ID [options]
+image-downloader plugin uninstall PLUGIN_ID [options]
 image-downloader plugin list [options]
 image-downloader cookie export PATH [options]
 image-downloader cookie import PATH [options]
@@ -379,7 +380,7 @@ command固有optionを別commandへ指定した場合はconfiguration errorに�
 | `--json` | JSON結果を持つコマンドの成功結果を JSON 表示し、全対応コマンドの失敗を固定 JSON で返す。download時はconsole logを抑え、標準出力をJSON専用にする |
 
 | `--fallback-generic` | `auto`（YAML）、`enabled`、`disabled` |
-| `--allow-unverified-plugins` | `security.plugin_verification: off` をこの run だけ承認 |
+| `--plugin-verification-override MODE` | `bypass-all`、`bypass-catalog`、`bypass-signature` の一時検証ポリシー。全 top-level command で受理 |
 | `--yes` | plugin 変更の承認。`config init` は常に明示的な作成操作として保存する |
 | `--plugin-config ID=JSON_OBJECT` | plugin private config の inline override。繰返し可 |
 | `--plugin-config-file ABSOLUTE_PATH` | `{"plugin_id":"…","config":{…}}` file。絶対 regular non-link file のみ。繰返し可 |

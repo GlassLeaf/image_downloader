@@ -63,6 +63,7 @@ def test_current_documentation_links_and_root_import_example_are_valid(repositor
         repository_root / "docs" / "plugin-api-v3.md",
         *(repository_root / "docs" / "v3").glob("*.md"),
         *(repository_root / "archive" / "docs" / "legacy").rglob("*.md"),
+        repository_root / "plugin-sources" / "README.md",
         repository_root / "examples" / "plugin-v3-template" / "README.md",
         repository_root / "examples" / "legacy" / "v2" / "README.md",
     )
@@ -79,6 +80,17 @@ def test_current_documentation_links_and_root_import_example_are_valid(repositor
     library_api = (repository_root / "docs" / "v3" / "library-api.md").read_text(encoding="utf-8")
     assert "from image_downloader import RuntimeComposer, load_application_config" in library_api
     assert "from image_downloader.config import" not in library_api
+    integration_guide = (repository_root / "docs" / "v3" / "site-plugin-integration-guide.md").read_text(
+        encoding="utf-8"
+    )
+    for required_topic in (
+        "RequestSpec",
+        "AuthFlow",
+        "cookie browser-import",
+        "network.origin_request_concurrency",
+        "UnsupportedSiteFeature",
+    ):
+        assert required_topic in integration_guide
     start = "<!-- error-catalog:start -->"
     end = "<!-- error-catalog:end -->"
     documented_catalog = library_api.split(start, 1)[1].split(end, 1)[0].strip()

@@ -21,6 +21,7 @@ from ..observability.notifications import (
 )
 from ..output.output_lock import OutputDirectoryLocks
 from ..plugins.builtin import GenericHtmlPlugin
+from ..plugins.plugin_manifest import PluginVerificationOverride, effective_verification_mode
 from ..plugins.runtime import PluginRuntime
 from ..storage import FileSystem
 from ..storage.cookies import CookieStore
@@ -38,10 +39,12 @@ class RuntimeComposer:
         *,
         config_root: Path,
         plugin_root: Path,
+        plugin_verification_override: PluginVerificationOverride | None = None,
     ) -> None:
         config_root = existing_directory(config_root, "configuration root", required=True)
         plugin_root = existing_directory(plugin_root, "plugin root")
         self.config, self.config_root, self.plugin_root = config, config_root, plugin_root
+        self.plugin_verification_override = plugin_verification_override
 
     def compose(self) -> DownloadService:
         validate_notification_delivery(self.config.notification)
@@ -93,7 +96,7 @@ class RuntimeComposer:
 
     def compose_registry(self) -> PluginRuntime:
         """Build the local plugin snapshot without opening runtime data stores."""
-        mode = self.config.security.plugin_verification
+        mode = effective_verification_mode(self.config.security.plugin_verification, self.plugin_verification_override)
         registry = PluginRuntime(self.config, self.plugin_root, mode=mode)
         registry.register_builtin(GenericHtmlPlugin)
         registry.prepare()

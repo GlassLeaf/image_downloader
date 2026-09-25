@@ -12,6 +12,7 @@ from ..application.composer import RuntimeComposer
 from ..configuration.hosts import normalize_host
 from ..configuration.paths import resolve_paths
 from ..exceptions import ConfigurationError, PluginError
+from ..plugins.plugin_manifest import effective_verification_mode
 from ..plugins.runtime import PluginRuntime
 from .constants import EXIT_CONFIGURATION, EXIT_PLUGIN, EXIT_SUCCESS
 from .reporting import _application_version, _doctor_plugin_details, _doctor_redact, _print_doctor_report
@@ -64,6 +65,7 @@ async def doctor(args: argparse.Namespace, *, raise_errors: bool = False) -> int
             config,
             config_root=config_root,
             plugin_root=_plugin_root(args, config),
+            plugin_verification_override=args.plugin_verification_override,
         ).compose_registry()
         overrides = _runtime_overrides(args)
         registry.doctor_validate(overrides)
@@ -87,7 +89,10 @@ async def doctor(args: argparse.Namespace, *, raise_errors: bool = False) -> int
                 "root_directory": str(library_root),
             },
             "plugin_root": str(registry.plugin_root),
-            "verification": config.security.plugin_verification,
+            "verification": effective_verification_mode(
+                config.security.plugin_verification,
+                args.plugin_verification_override,
+            ),
             "configuration": {
                 "config_file": str(resolved.main_config_path) if resolved.main_config_path is not None else None,
                 "source": resolved.source,
@@ -101,6 +106,7 @@ async def doctor(args: argparse.Namespace, *, raise_errors: bool = False) -> int
                     "application_overrides": _doctor_redact(_app_override(args)),
                     "plugin_overrides": _doctor_redact(overrides),
                     "fallback_generic": args.fallback_generic,
+                    "plugin_verification_override": args.plugin_verification_override,
                 },
                 "selection": [dict(item) for item in registry.selection_diagnostics],
                 "layers": [

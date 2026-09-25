@@ -10,6 +10,7 @@ tree を検索・読込しません。
 |---|---|---|
 | 利用者・運用者 | [設定と CLI](configuration-and-cli.md) | 設定 tree、優先順位、`doctor`、日常の実行 |
 | plugin 作者 | [plugin 作者ガイド](plugin-author-guide.md) | directory 構造、Python contract、設定・secret・context |
+| HTTP/認証を扱う plugin 作者 | [サイト plugin 統合・認証ガイド](site-plugin-integration-guide.md) | secret、request、AuthFlow、Cookie、回復、並列制御、対象外機能 |
 | 管理者 | [信頼・配布・運用](trust-and-operations.md) | manifest、署名、catalog、install/trust/revoke、診断 |
 | 組込み利用者 | [ライブラリ API](library-api.md) | `RuntimeComposer`、service、operation override |
 | 保守・移行担当 | [テストと移行](testing-and-migration.md) | v3 の受入基準、v2 からの手動移行 |

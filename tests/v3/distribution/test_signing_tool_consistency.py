@@ -45,3 +45,21 @@ def test_signer_and_verifier_cover_the_same_plugin_files(tmp_path: Path) -> None
 
     sign(tmp_path, Ed25519PrivateKey.generate())
     verify_signed_plugin_source(read_manifest(tmp_path))
+
+
+def test_metadata_template_matches_manifest_template_and_signs(tmp_path: Path, repository_root: Path) -> None:
+    template = repository_root / "examples" / "plugin-v3-template"
+    metadata = json.loads((template / "plugin-metadata.json.example").read_text(encoding="utf-8"))
+    wrapper = json.loads((template / "manifest.json.example").read_text(encoding="utf-8"))
+    manifest = wrapper["manifest"]
+    expected = {"id", "publisher", "version", "kind", "capabilities", "match_priority", "entry", "config_file"}
+
+    assert set(metadata) == expected
+    assert metadata == {field: manifest[field] for field in expected}
+
+    for name in ("sample_plugin.py", "sample_plugin.yaml"):
+        (tmp_path / name).write_bytes((template / name).read_bytes())
+    (tmp_path / "plugin-metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
+
+    sign(tmp_path, Ed25519PrivateKey.generate())
+    verify_signed_plugin_source(read_manifest(tmp_path))

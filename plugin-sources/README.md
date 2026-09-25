@@ -5,6 +5,13 @@ configured in `.runtime/config/app.yaml`; do not copy files into the runtime
 root by hand. Re-sign a changed unit, then use `image-downloader plugin install`
 so the catalog pin is updated atomically.
 
+Each included unit uses `plugin-metadata.json` as input to the bundled signer.
+It is not read by runtime; the signer transfers it into `manifest.json` together
+with the generated key, file-tree, and signature fields. Change metadata, entry
+source, author YAML, or helpers before running the signer again; do not edit a
+generated manifest directly. The exact schema, optional-runtime status, and
+file-tree rules are documented in [trust and operations](../docs/v3/trust-and-operations.md).
+
 ```powershell
 python tools/sign_local_site_plugin.py `
   --key "$env:LOCALAPPDATA\image-downloader\keys\local-site-plugins-ed25519.pem" `

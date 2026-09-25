@@ -1,0 +1,10 @@
+{
+  "id": "com.example.sample",
+  "publisher": "com.example",
+  "version": "1.0.0",
+  "kind": "site_plugin",
+  "capabilities": [],
+  "match_priority": 0,
+  "entry": {"file": "sample_plugin.py", "class": "SamplePlugin"},
+  "config_file": "sample_plugin.yaml"
+}

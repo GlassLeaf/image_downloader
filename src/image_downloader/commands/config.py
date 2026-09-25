@@ -56,7 +56,6 @@ def _reject_configuration_options(args: argparse.Namespace, allowed: frozenset[s
         "data_root": args.data_root is not None,
         "plugin_root": args.plugin_root is not None,
         "yes": args.yes,
-        "allow_unverified_plugins": args.allow_unverified_plugins,
     }
     for name, is_supplied in supplied.items():
         if is_supplied and name not in allowed:
@@ -104,10 +103,15 @@ def _config_explain(args: argparse.Namespace) -> int:
     _reject_except(args, _EXPLAIN_ALLOWED)
     _reject_configuration_options(
         args,
-        frozenset(("config", "profile", "data_root", "plugin_root", "allow_unverified_plugins")),
+        frozenset(("config", "profile", "data_root", "plugin_root")),
     )
     site = _explain_site(args.host)
     resolved = _resolved_config_for(args, site)
+    runtime_overrides: dict[str, object] = {
+        **_bootstrap_override(args),
+        **_app_override(args),
+        "plugin_verification_override": args.plugin_verification_override,
+    }
     payload = {
         "source": resolved.source,
         "main_config_kind": resolved.main_config_kind,
@@ -121,7 +125,7 @@ def _config_explain(args: argparse.Namespace) -> int:
         ],
         "effective": _doctor_redact(resolved.config.model_dump(by_alias=True, warnings=False)),
         "origins": dict(resolved.origins),
-        "runtime_overrides": _doctor_redact({**_bootstrap_override(args), **_app_override(args)}),
+        "runtime_overrides": _doctor_redact(runtime_overrides),
     }
     if args.json_output:
         print(json.dumps(payload, ensure_ascii=False))

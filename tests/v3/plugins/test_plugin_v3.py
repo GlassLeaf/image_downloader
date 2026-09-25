@@ -32,6 +32,7 @@ from image_downloader.security import (
     install_plugin,
     read_manifest,
     trust_plugin,
+    uninstall_plugin,
 )
 
 
@@ -106,6 +107,23 @@ def make_plugin(
     }
     wrapper = {"manifest": manifest, "signature": base64.b64encode(private.sign(canonical_jcs(manifest))).decode()}
     (directory / "manifest.json").write_text(json.dumps(wrapper), encoding="utf-8")
+    return directory
+
+
+def make_minimal_plugin(root: Path, *, plugin_id: str = "com.example.minimal") -> Path:
+    directory = make_plugin(root, plugin_id=plugin_id)
+    (directory / "manifest.json").write_text(
+        json.dumps(
+            {
+                "manifest": {
+                    "id": plugin_id,
+                    "kind": "site_plugin",
+                    "entry": {"file": "entry.source", "class": "Entry"},
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
     return directory
 
 
@@ -510,6 +528,103 @@ def test_install_stages_then_creates_catalog_and_target(tmp_path: Path) -> None:
     assert entry.id == "com.example.gallery"
     assert (root / "site_plugins" / source.name / "manifest.json").is_file()
     assert PluginCatalog.load(root / "catalog.json").find(entry.id) == entry
+
+
+def test_bypass_all_loads_a_minimal_unsigned_manifest(tmp_path: Path) -> None:
+    root = (tmp_path / "plugins").resolve()
+    make_minimal_plugin(root)
+
+    with pytest.raises(PluginError, match="wrapper"):
+        read_manifest(root / "site_plugins" / "minimal")
+
+    runtime = PluginRuntime(AppConfig(), root, mode="bypass-all")
+    try:
+        record = runtime.records["com.example.minimal"]
+        assert record.manifest.value["match_priority"] == 0
+        assert record.author_defaults == {}
+    finally:
+        runtime.close()
+
+
+def test_bypass_catalog_keeps_signature_and_tree_requirements(tmp_path: Path) -> None:
+    root = (tmp_path / "plugins").resolve()
+    signed = make_plugin(root)
+    make_minimal_plugin(root)
+
+    runtime = PluginRuntime(AppConfig(), root, mode="bypass-catalog")
+    try:
+        assert signed.name
+        assert "com.example.gallery" in runtime.records
+        assert "com.example.minimal" not in runtime.records
+    finally:
+        runtime.close()
+
+
+def test_bypass_signature_requires_content_pinned_catalog_entry(tmp_path: Path) -> None:
+    source = make_minimal_plugin((tmp_path / "source").resolve())
+    root = (tmp_path / "plugins").resolve()
+    entry = install_plugin(root, source, mode="bypass-signature")
+
+    assert entry.content_pinned
+    runtime = PluginRuntime(AppConfig(), root, mode="bypass-signature")
+    try:
+        assert "com.example.minimal" in runtime.records
+    finally:
+        runtime.close()
+
+    installed = root / "site_plugins" / source.name / "entry.source"
+    installed.write_text("tampered", encoding="utf-8")
+    runtime = PluginRuntime(AppConfig(), root, mode="bypass-signature")
+    try:
+        assert "com.example.minimal" not in runtime.records
+        assert any("catalog pin" in item.detail for item in runtime.diagnostics)
+    finally:
+        runtime.close()
+
+
+def test_uninstall_removes_installed_directory_and_catalog_entry(tmp_path: Path) -> None:
+    source = make_plugin((tmp_path / "source").resolve())
+    root = (tmp_path / "plugins").resolve()
+    install_plugin(root, source)
+
+    result = uninstall_plugin(root, "com.example.gallery")
+
+    assert result.as_json() == {
+        "id": "com.example.gallery",
+        "removed_directory": True,
+        "removed_catalog_entry": True,
+    }
+    assert not (root / "site_plugins" / source.name).exists()
+    assert PluginCatalog.load(root / "catalog.json").find("com.example.gallery") is None
+
+
+def test_uninstall_cleans_up_a_stale_catalog_entry(tmp_path: Path) -> None:
+    source = make_plugin((tmp_path / "source").resolve())
+    root = (tmp_path / "plugins").resolve()
+    trust_plugin(root, source)
+
+    result = uninstall_plugin(root, "com.example.gallery")
+
+    assert not result.removed_directory
+    assert result.removed_catalog_entry
+    assert PluginCatalog.load(root / "catalog.json").entries == ()
+
+
+def test_uninstall_restores_directory_when_catalog_commit_fails(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = make_plugin((tmp_path / "source").resolve())
+    root = (tmp_path / "plugins").resolve()
+    install_plugin(root, source)
+
+    def fail_catalog(*_args: object, **_kwargs: object) -> None:
+        raise OSError("catalog unavailable")
+
+    monkeypatch.setattr(plugin_management, "_write_catalog_unlocked", fail_catalog)
+    with pytest.raises(OSError, match="catalog unavailable"):
+        uninstall_plugin(root, "com.example.gallery")
+
+    assert (root / "site_plugins" / source.name).exists()
 
 
 @pytest.mark.parametrize("operation", ("trust", "install"))
