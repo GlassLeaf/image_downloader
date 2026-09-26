@@ -1,0 +1,29 @@
+{
+  "manifest": {
+    "schema_version": 1,
+    "id": "local.image-downloader.resize-processor",
+    "publisher": "local.image-downloader",
+    "version": "1.0.0",
+    "kind": "image_processor_plugin",
+    "capabilities": [
+      "pillow-resize",
+      "png-output"
+    ],
+    "match_priority": 0,
+    "entry": {
+      "file": "resize_processor.py",
+      "class": "ResizeProcessor"
+    },
+    "config_file": "plugin.yaml",
+    "api_version": "3",
+    "public_key": "kEQaaw+aesWwb07ZCfCPsqaf887rV0l5VlL+sskt8y8=",
+    "key_id": "eb9db2fa6d03c5f8143545c8937664ad73388006f5461695f666a0238630b324",
+    "file_tree": {
+      "plugin-metadata.json": "690f0f3c3f892dae8080d3cb737b893f7378478834117057f26a4c122455f231",
+      "plugin.yaml": "3e1bd1ed757a43e41d4ad275dba4af28a7ac44925286ca0ec57b76182aae0d4b",
+      "resize_processor.py": "425bea3f64945435ddb9d3b03056de008c43898d98a76287108278034e729d45"
+    },
+    "file_tree_sha256": "c4937ae021fc44283529729b1501306631e714248bc9c4184f6bb3f176900d71"
+  },
+  "signature": "EjdJHsNcj5uNLqhMUaNgbRJa9rn2Admb5mkv0Ey0mb9X9I7G8wl7thP8GSgQfmMv2jw7Oc/E4d3TB7ijCK4DBg=="
+}

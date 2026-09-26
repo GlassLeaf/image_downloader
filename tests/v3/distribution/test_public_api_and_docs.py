@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import importlib
 import re
 from dataclasses import fields
@@ -14,6 +15,8 @@ from image_downloader import (
     load_application_config,
     resolve_application_config,
 )
+from image_downloader.config import plugin_root
+import image_downloader.configuration.paths as configuration_paths
 from image_downloader.exceptions import ERROR_CATALOG
 from image_downloader.runtime import DownloadService, RuntimeComposer
 from image_downloader.storage import FileSystem
@@ -83,7 +86,9 @@ EXPECTED_EXPORTS = {
 
 
 def _documented_inventory(repository_root: Path) -> dict[str, tuple[str, ...]]:
-    reference = (repository_root / "docs" / "v3" / "api-contract-inventory.md").read_text(encoding="utf-8")
+    reference = (
+        repository_root / "docs" / "v3" / "reference" / "api-contract-inventory.md"
+    ).read_text(encoding="utf-8")
     return {
         match.group("module"): tuple(
             line.strip() for line in match.group("names").splitlines() if line.strip()
@@ -103,6 +108,45 @@ def test_public_configuration_helpers_are_available_from_package_root(tmp_path: 
     assert loaded.storage.data_root is not None
     assert resolved.config == loaded
     assert overridden.output.image_format == "PNG"
+
+
+def test_embedded_tutorial_composes_with_an_uncreated_platform_plugin_root(monkeypatch, tmp_path: Path) -> None:
+    platform_plugin_root = (tmp_path / "platform" / "plugins").resolve()
+    config_root = (tmp_path / "config").resolve()
+    config_root.mkdir()
+    config = AppConfig.model_validate({"storage": {"data_root": str((tmp_path / "data").resolve())}})
+    monkeypatch.setattr(configuration_paths, "default_plugin_root", lambda: platform_plugin_root)
+
+    resolved_plugin_root = plugin_root(config)
+    assert resolved_plugin_root == platform_plugin_root
+    assert not resolved_plugin_root.exists()
+
+    async def scenario() -> None:
+        composer = RuntimeComposer(config, config_root=config_root, plugin_root=resolved_plugin_root)
+        async with composer.compose() as service:
+            assert not service._closed
+        assert service._closed
+
+    asyncio.run(scenario())
+    assert not platform_plugin_root.exists()
+
+
+def test_embedded_registry_only_example_closes_an_isolated_registry(monkeypatch, tmp_path: Path) -> None:
+    platform_plugin_root = (tmp_path / "platform" / "plugins").resolve()
+    config_root = (tmp_path / "config").resolve()
+    config_root.mkdir()
+    config = AppConfig.model_validate({"storage": {"data_root": str((tmp_path / "data").resolve())}})
+    monkeypatch.setattr(configuration_paths, "default_plugin_root", lambda: platform_plugin_root)
+
+    composer = RuntimeComposer(config, config_root=config_root, plugin_root=plugin_root(config))
+    registry = composer.compose_registry()
+    try:
+        registry.doctor_validate()
+        assert "core.generic-html" in registry.records
+    finally:
+        registry.close()
+
+    assert not platform_plugin_root.exists()
 
 
 def test_existing_file_conflict_is_a_public_storage_error() -> None:
@@ -199,7 +243,7 @@ def test_current_documentation_links_and_contracts_are_valid(repository_root: Pa
     documents = (
         repository_root / "README.md",
         repository_root / "docs" / "README.md",
-        *(repository_root / "docs" / "v3").glob("*.md"),
+        *(repository_root / "docs" / "v3").rglob("*.md"),
         repository_root / "plugin-sources" / "README.md",
         repository_root / "examples" / "plugin-v3-template" / "README.md",
         repository_root / "examples" / "legacy" / "v2" / "README.md",
@@ -208,6 +252,7 @@ def test_current_documentation_links_and_contracts_are_valid(repository_root: Pa
     assert (repository_root / "archive" / "docs" / "legacy" / "v1" / "README.md").is_file()
     assert (repository_root / "archive" / "docs" / "legacy" / "v2" / "README.md").is_file()
     assert (repository_root / "archive" / "docs" / "legacy" / "v3-pre-reorg" / "README.md").is_file()
+    assert (repository_root / "archive" / "docs" / "legacy" / "v3-pre-taxonomy" / "README.md").is_file()
     for document in documents:
         for match in LINK.finditer(document.read_text(encoding="utf-8")):
             target = match.group("target")
@@ -215,10 +260,14 @@ def test_current_documentation_links_and_contracts_are_valid(repository_root: Pa
                 continue
             assert (document.parent / target).exists(), f"broken link in {document}: {target}"
 
-    library_api = (repository_root / "docs" / "v3" / "library-api.md").read_text(encoding="utf-8")
-    assert "from image_downloader import RuntimeComposer, load_application_config" in library_api
+    library_api = (
+        repository_root / "docs" / "v3" / "reference" / "library-api.md"
+    ).read_text(encoding="utf-8")
+    assert "RuntimeComposer" in library_api
     assert "from image_downloader.config import" not in library_api
-    lifecycle = (repository_root / "docs" / "v3" / "execution-lifecycle.md").read_text(encoding="utf-8")
+    lifecycle = (
+        repository_root / "docs" / "v3" / "explanation" / "execution-lifecycle.md"
+    ).read_text(encoding="utf-8")
     for required_topic in (
         "create_image_request",
         "recover_image_request",
@@ -228,6 +277,6 @@ def test_current_documentation_links_and_contracts_are_valid(repository_root: Pa
     ):
         assert required_topic in lifecycle
 
-    reference = (repository_root / "docs" / "v3" / "api-reference.md").read_text(encoding="utf-8")
+    reference = library_api
     for entry in ERROR_CATALOG:
-        assert f"| {entry.exception_name} | {entry.code} | {entry.reason} |" in reference
+        assert f"| `{entry.exception_name}` | `{entry.code}` | {entry.reason} |" in reference

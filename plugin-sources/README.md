@@ -1,4 +1,4 @@
-# Local site plugin sources
+# Local plugin sources
 
 These are signed local-plugin API v3 source units. Their runtime destination is
 configured in `.runtime/config/app.yaml`; do not copy files into the runtime
@@ -10,7 +10,9 @@ It is not read by runtime; the signer transfers it into `manifest.json` together
 with the generated key, file-tree, and signature fields. Change metadata, entry
 source, author YAML, or helpers before running the signer again; do not edit a
 generated manifest directly. The exact schema, optional-runtime status, and
-file-tree rules are documented in [distribution and operations](../docs/v3/distribution-and-operations.md).
+file-tree rules are documented in [plugin package reference](../docs/v3/reference/plugin-package.md#plugin-package).
+Hook implementation is documented in [plugin hook reference](../docs/v3/reference/plugin-hooks.md).
+The bundled signer supports both `site_plugin` and `image_processor_plugin`; the unit metadata chooses the kind.
 
 ```powershell
 python tools/sign_local_site_plugin.py `
@@ -33,6 +35,40 @@ image-downloader URL --plugin-config 'local.image-downloader.generic-css-selecto
 `https://catalog.example.test/collections/<slug>` and has higher match priority.
 It is selected before the generic plugin for that URL shape.
 
+## Image processor reference units
+
+`artifact-history-processor` is the smallest executable processor contract: it
+validates `config.label` and immutably appends that label to `ImageArtifact.history`.
+`resize-processor` validates positive `max_width`/`max_height`, uses Pillow to
+resize within those bounds, and emits a PNG while retaining the source URL and
+image ID. They are not active merely because they are in this repository.
+
+```powershell
+python tools/sign_local_site_plugin.py `
+  --key "$env:LOCALAPPDATA\image-downloader\keys\local-processors-ed25519.pem" `
+  plugin-sources/artifact-history-processor plugin-sources/resize-processor
+
+$env:PYTHONPATH = 'src'
+python -m image_downloader plugin install "${PWD}/plugin-sources/artifact-history-processor" `
+  --config "${PWD}/.runtime/config/app.yaml" --plugin-root "${PWD}/.runtime/plugin-root" --yes
+python -m image_downloader plugin install "${PWD}/plugin-sources/resize-processor" `
+  --config "${PWD}/.runtime/config/app.yaml" --plugin-root "${PWD}/.runtime/plugin-root" --yes
+```
+
+Enable either or both explicitly in application YAML:
+
+```yaml
+image_processors:
+  chain:
+    - local.image-downloader.artifact-history-processor
+    - local.image-downloader.resize-processor
+plugin_settings:
+  local.image-downloader.artifact-history-processor:
+    config: {label: processed}
+  local.image-downloader.resize-processor:
+    config: {max_width: 1600, max_height: 1600}
+```
+
 ## Migrated v2 pattern samples
 
 The following independent v3 units retain the v2 entry source filenames and
@@ -41,7 +77,7 @@ real services.
 
 | Category | Unit | Pattern |
 | --- | --- | --- |
-| Catalog | `chaptered-catalog` | JSON catalog, chapters, and update snapshots |
+| Catalog | `chaptered-catalog` | JSON catalog, chapters, and update snapshots; completed update-provider example |
 | HTML | `public-gallery` | Public HTML image discovery with Origin/Referer |
 | API | `cursor-api-gallery` | Cursor pagination with an API-token secret |
 | Authentication | `csrf-login-gallery` | CSRF form login with username/password secrets |

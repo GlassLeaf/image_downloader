@@ -1,7 +1,7 @@
 # v2 plugin 参考構成（履歴資料）
 
 > 現行の新規 plugin は [`plugin-v3-template`](../../plugin-v3-template) と
-> [v3 plugin 作者ガイド](../../../docs/v3/plugin-author-guide.md) を使用してください。この directory
+> [v3 plugin 開発参照](../../../docs/v3/reference/plugin-hooks.md) を使用してください。この directory
 > 内の entry point/descriptor 例は v3 では読み込まれず、現在の checkout での実行も保証しません。
 
 `plugins/` には通常の entry point へ登録しない、6 種類の v2 `SitePlugin` 参考実装がある。

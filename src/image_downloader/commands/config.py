@@ -170,7 +170,10 @@ def _config_init(args: argparse.Namespace, words: list[str]) -> int:
     data_root = Path(storage["data_root"]) if isinstance(storage, dict) and "data_root" in storage else None
     plugin_root = Path(plugins["root"]) if isinstance(plugins, dict) and "root" in plugins else None
     _write_user_config(destination, data_root, plugin_root)
-    print(f"created configuration: {destination}")
+    if args.json_output:
+        print(json.dumps({"created_config": str(destination)}, ensure_ascii=False))
+    else:
+        print(f"created configuration: {destination}")
     return EXIT_SUCCESS
 
 
@@ -188,9 +191,9 @@ def _profile_init(args: argparse.Namespace, words: list[str]) -> int:
         main = canonical_path(args.config, "configuration path")
     else:
         main = cli_setup._user_config_path()
-    if existing_regular_file(main, "configuration file", required=False) is None:
+    created_main_config = existing_regular_file(main, "configuration file", required=False) is None
+    if created_main_config:
         _write_user_config(main, None, None)
-        print(f"created configuration: {main}")
     config_root = existing_directory(main.parent, "configuration root", required=True)
     destination = canonical_path(config_root / "profiles" / name / "app.yaml", "profile configuration path")
     if existing_regular_file(destination, "profile configuration file", required=False) is not None:
@@ -202,7 +205,21 @@ def _profile_init(args: argparse.Namespace, words: list[str]) -> int:
             stream.write("# Profile-specific overrides. profile/storage/plugins are not allowed here.\n{}\n")
     except FileExistsError as exc:
         raise ConfigurationError(f"profile configuration already exists: {destination}") from exc
-    print(f"created profile configuration: {destination}")
+    if args.json_output:
+        print(
+            json.dumps(
+                {
+                    "main_config": str(main),
+                    "created_main_config": created_main_config,
+                    "profile_config": str(destination),
+                },
+                ensure_ascii=False,
+            )
+        )
+    else:
+        if created_main_config:
+            print(f"created configuration: {main}")
+        print(f"created profile configuration: {destination}")
     return EXIT_SUCCESS
 
 

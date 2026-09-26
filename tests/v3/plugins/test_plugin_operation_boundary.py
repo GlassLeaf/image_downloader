@@ -9,7 +9,7 @@ from typing import cast
 import pytest
 
 from image_downloader.config import AppConfig
-from image_downloader.exceptions import PluginError
+from image_downloader.exceptions import HttpTransportError, PluginError
 from image_downloader.models import (
     Chapter,
     DownloadManifest,
@@ -84,6 +84,84 @@ def test_invoker_rejects_invalid_nested_manifest_values(manifest: DownloadManife
                 "https://example.test/gallery",
                 _context(),
             )
+
+    asyncio.run(scenario())
+
+
+def test_image_resource_constructor_defers_url_validation_to_the_hook_boundary() -> None:
+    invalid = ImageResource("not-an-http-url")
+
+    class ManifestPlugin:
+        async def inspect(self, _url: str, _context: object) -> DownloadManifest:
+            return DownloadManifest("Book", (Chapter(1, "One", images=(invalid,)),))
+
+    async def scenario() -> None:
+        with pytest.raises(PluginError, match=r"invalid image URL at chapters\[0\]\.images\[0\]"):
+            await PluginInvoker("com.example.invalid-url").inspect(
+                cast(SitePlugin, ManifestPlugin()),
+                "https://example.test/gallery",
+                _context(),
+            )
+
+    asyncio.run(scenario())
+
+
+def test_recovery_is_called_once_for_http_status_but_never_for_transport_failure() -> None:
+    class RecoveringPlugin:
+        def __init__(self) -> None:
+            self.created = 0
+            self.recovered = 0
+
+        async def create_image_request(self, _image: ImageResource, _context: object) -> RequestSpec:
+            self.created += 1
+            return RequestSpec("https://example.test/original.jpg")
+
+        async def recover_image_request(
+            self,
+            _image: ImageResource,
+            _failed: RequestSpec,
+            _response: RequestResponse,
+            _context: object,
+        ) -> RequestSpec:
+            self.recovered += 1
+            return RequestSpec("https://example.test/reissued.jpg")
+
+    async def scenario() -> None:
+        gateway = RequestGateway(AppConfig())
+        plugin = RecoveringPlugin()
+        responses = [
+            RequestResponse("https://example.test/original.jpg", 500, {}, b""),
+            RequestResponse("https://example.test/reissued.jpg", 200, {}, b"ok"),
+        ]
+
+        async def status_transport(_spec: RequestSpec, **_kwargs: object) -> RequestResponse:
+            return responses.pop(0)
+
+        gateway._transport = status_transport  # type: ignore[method-assign]
+        try:
+            response = await gateway.operation(
+                plugin_id="com.example.recovery", operation_url="https://example.test/gallery"
+            ).execute_image(
+                cast(SitePlugin, plugin), ImageResource("https://example.test/canonical.jpg"), _context()
+            )
+            assert response.status == 200
+            assert plugin.created == 1
+            assert plugin.recovered == 1
+
+            async def failed_transport(_spec: RequestSpec, **_kwargs: object) -> RequestResponse:
+                raise HttpTransportError("offline")
+
+            gateway._transport = failed_transport  # type: ignore[method-assign]
+            with pytest.raises(HttpTransportError):
+                await gateway.operation(
+                    plugin_id="com.example.recovery", operation_url="https://example.test/gallery"
+                ).execute_image(
+                    cast(SitePlugin, plugin), ImageResource("https://example.test/canonical-2.jpg"), _context()
+                )
+            assert plugin.created == 2
+            assert plugin.recovered == 1
+        finally:
+            await gateway.close()
 
     asyncio.run(scenario())
 

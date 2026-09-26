@@ -1,0 +1,10 @@
+{
+  "id": "local.image-downloader.resize-processor",
+  "publisher": "local.image-downloader",
+  "version": "1.0.0",
+  "kind": "image_processor_plugin",
+  "capabilities": ["pillow-resize", "png-output"],
+  "match_priority": 0,
+  "entry": {"file": "resize_processor.py", "class": "ResizeProcessor"},
+  "config_file": "plugin.yaml"
+}

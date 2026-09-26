@@ -66,6 +66,38 @@ def test_existing_file_error_mode(tmp_path: Path) -> None:
     asyncio.run(scenario())
 
 
+def test_skip_allocation_has_no_terminal_reservation(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        filesystem, allocator, directory = _allocator(tmp_path, _config("skip"))
+        filesystem.write_bytes_atomic(directory / "0001.jpeg", b"existing")
+        skipped = await allocator.allocate(
+            directory, ImageResource("https://example.test/1"), Chapter(1, "one"), ".jpeg"
+        )
+
+        assert not skipped.should_write
+        await skipped.commit()
+        await skipped.abort()
+        await skipped.commit()
+        await skipped.abort()
+
+    asyncio.run(scenario())
+
+
+def test_reserved_allocation_requires_exactly_one_terminal_action(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        _, allocator, directory = _allocator(tmp_path, _config("overwrite"))
+        reserved = await allocator.allocate(
+            directory, ImageResource("https://example.test/1"), Chapter(1, "one"), ".jpeg"
+        )
+
+        assert reserved.should_write
+        await reserved.abort()
+        with pytest.raises(RuntimeError, match="already been completed"):
+            await reserved.commit()
+
+    asyncio.run(scenario())
+
+
 def test_concurrent_overwrite_allocations_are_renamed_instead_of_overwritten(tmp_path: Path) -> None:
     async def scenario() -> None:
         filesystem, allocator, directory = _allocator(tmp_path, _config("overwrite"))

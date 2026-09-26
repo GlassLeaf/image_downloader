@@ -1,0 +1,10 @@
+{
+  "id": "local.image-downloader.artifact-history-processor",
+  "publisher": "local.image-downloader",
+  "version": "1.0.0",
+  "kind": "image_processor_plugin",
+  "capabilities": ["artifact-history"],
+  "match_priority": 0,
+  "entry": {"file": "artifact_history_processor.py", "class": "ArtifactHistoryProcessor"},
+  "config_file": "plugin.yaml"
+}

@@ -1,43 +1,31 @@
-# image-downloader API v3
+# image-downloader API v3 documentation
 
-この directory が API v3 の唯一の正本である。履歴資料は [v3 pre-reorg snapshot](../../archive/docs/legacy/v3-pre-reorg/README.md) にあり、現行仕様としては使用しない。
+<a id="docs-entry"></a>
 
-| 読者 | 最初に読む文書 | 目的 |
-| --- | --- | --- |
-| 利用者・運用者 | [CLI と設定](configuration-and-cli.md) | 実行、設定 layer、JSON 出力、終了コード |
-| plugin 作者 | [plugin 作者ガイド](plugin-author-guide.md) | plugin package、型、設定、実装範囲 |
-| HTTP/API を扱う plugin 作者 | [実行ライフサイクル](execution-lifecycle.md) | hook の順序、動的 URL、認証、並行性 |
-| 組込み利用者 | [ライブラリ API](library-api.md) | compose、run、結果、例外、resource lifetime |
-| API 利用者・保守者 | [完全 API 参照](api-reference.md) | 全 stable export、DTO field、署名、例外 |
-| 配布・管理者 | [配布・信頼・運用](distribution-and-operations.md) | manifest、署名、catalog、ログ、診断 |
-| 保守・公開担当 | [検証・移行・リリース](testing-migration-and-release.md) | 契約テスト、移行、公開判定 |
+この directory は API v3 の現行正本である。文書は目的別に分かれる。設定値、型、入出力、例外は **Reference**、hook の順序・回数・並行性は **Execution lifecycle explanation** だけを正本とする。tutorial/how-to は規則を再定義せず、その anchor を参照する。
 
-## 読み方
+| 読者・目的 | 読み始める場所 |
+| --- | --- |
+| 初めて CLI を実行する | [CLI tutorial](tutorials/first-download.md) |
+| 初めて plugin を作る | [Plugin tutorial](tutorials/first-plugin.md) |
+| Python から組み込む | [Library tutorial](tutorials/embedded-download.md) |
+| 設定・profile を運用する | [Configuration how-to](how-to/configure-profiles.md) |
+| cookie、secret、plugin を管理する | [Operations how-to](how-to/operate-securely.md) |
+| 認証、pagination、短命 URL を実装する | [Dynamic URL how-to](how-to/dynamic-urls-and-auth.md) |
+| CLI と JSON を自動化する | [CLI reference](reference/cli.md) |
+| YAML、HTTP、cookie、update state を確認する | [Configuration reference](reference/configuration.md) と [runtime behavior reference](reference/runtime-behavior.md) |
+| plugin package と hook を実装する | [Plugin package reference](reference/plugin-package.md) と [hook reference](reference/plugin-hooks.md) |
+| stable Python API を使う | [Library API reference](reference/library-api.md)、[signature index](reference/api-signatures.md)、[API inventory](reference/api-contract-inventory.md) |
+| logging を組み込む | [Logging reference](reference/logging.md) |
+| ライフサイクルと設計境界を理解する | [Execution lifecycle](explanation/execution-lifecycle.md) |
+| 移行、release、文書保全、未決の運用方針を担当する | [Maintenance index](maintenance/README.md) |
 
-実行時の hook の順序、回数、失敗処理は [実行ライフサイクル](execution-lifecycle.md) が唯一の正本である。各 hook の型定義、設定 schema、公開 class の引数と戻り値は [完全 API 参照](api-reference.md) が正本である。ほかの文書は同じ仕様を複写せず、用途と実例に集中する。
+## Stability and implementation truth
 
-## 安定性
+`image_downloader`、`image_downloader.config`、`image_downloader.runtime`、`image_downloader.security`、`image_downloader.cli`、`image_downloader.observability.logging` の `__all__` は API v3 の stable contract である。その他の module は内部実装であり、直接 import は互換性対象ではない。
 
-<code>image_downloader</code>、<code>image_downloader.config</code>、<code>image_downloader.runtime</code>、<code>image_downloader.security</code>、<code>image_downloader.cli</code>、<code>image_downloader.observability.logging</code> の <code>__all__</code> は API v3 の stable contract である。内部 module を直接 import する利用は互換性対象ではない。
+Reference の signature、DTO field、default、async 性、例外は実装照合テストで検証する。挙動を reflection だけで判断できない claim は、対応する behavior test と [coverage ledger](maintenance/legacy-coverage.md) で追跡する。
 
-## 最小の組込み例
+## Historical material
 
-~~~python
-from pathlib import Path
-
-from image_downloader import RuntimeComposer, load_application_config
-
-config = load_application_config(Path("app.yaml"), require_config=True)
-service = RuntimeComposer(
-    config,
-    config_root=Path(".").resolve(),
-    plugin_root=Path("plugins").resolve(),
-).compose()
-
-try:
-    result = await service.run("https://example.invalid/work/1")
-finally:
-    await service.close()
-~~~
-
-<code>DownloadService</code> は一 instance 内で operation を直列化する。必ず <code>close()</code> するか async context manager として使用する。
+[v3 pre-reorg snapshot](../../archive/docs/legacy/v3-pre-reorg/README.md) と [v3 pre-taxonomy snapshot](../../archive/docs/legacy/v3-pre-taxonomy/README.md) は移管監査用の履歴資料である。現在の仕様や実装方法には引用せず、この index からリンクした正本を使用する。

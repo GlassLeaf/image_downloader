@@ -1,0 +1,28 @@
+{
+  "manifest": {
+    "schema_version": 1,
+    "id": "local.image-downloader.artifact-history-processor",
+    "publisher": "local.image-downloader",
+    "version": "1.0.0",
+    "kind": "image_processor_plugin",
+    "capabilities": [
+      "artifact-history"
+    ],
+    "match_priority": 0,
+    "entry": {
+      "file": "artifact_history_processor.py",
+      "class": "ArtifactHistoryProcessor"
+    },
+    "config_file": "plugin.yaml",
+    "api_version": "3",
+    "public_key": "kEQaaw+aesWwb07ZCfCPsqaf887rV0l5VlL+sskt8y8=",
+    "key_id": "eb9db2fa6d03c5f8143545c8937664ad73388006f5461695f666a0238630b324",
+    "file_tree": {
+      "artifact_history_processor.py": "70dae8d03035f577d25425ed3ef8d6c20a2091a6bb8aef934e4055b8dd5e1158",
+      "plugin-metadata.json": "cea4596e131b350404e32c57ea78c116500110e0e5877a395b09ea25eef95ab1",
+      "plugin.yaml": "3b2c54e5cb1dac755398eb102359420137c938d47036f2cf56c01955bd40e18d"
+    },
+    "file_tree_sha256": "a3317b4cf93d2561e58bbc7dec38e5d92c7377b191a06d9bd24737e8447785e1"
+  },
+  "signature": "moPcy1dasXafnVrmNOHaM4KwlCD67cAHGcB0c2sQvllhZrkg7XrIwOJ8aUOt4UIHSApfD4SDquOwygkvPPI5BA=="
+}

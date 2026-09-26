@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import getpass
+import json
 from pathlib import Path
 
 from ..configuration.paths import resolve_paths
@@ -45,6 +46,10 @@ class CookieCommandHandler:
             await asyncio.to_thread(cookie_store.import_file, Path(value), getpass.getpass("Passphrase: "))
         else:
             await asyncio.to_thread(cookie_store.import_browser, str(value))
+        if args.json_output:
+            # Report only the requested target. Cookies, passphrases, and browser
+            # records are intentionally never part of machine-readable output.
+            print(json.dumps({"operation": "cookie", "action": action, "target": str(value)}, ensure_ascii=False))
         return EXIT_SUCCESS
 
     @staticmethod
