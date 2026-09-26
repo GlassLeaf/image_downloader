@@ -22,6 +22,21 @@ from ..privacy.log_safety import (
 from ..privacy.log_safety import safe_log_text as safe_log_text
 from .diagnostic_safety import warn_diagnostic_failure
 
+__all__ = [
+    "LogRecord",
+    "ChapterFailureRecord",
+    "LogSink",
+    "ChapterFileSink",
+    "DebugFileSink",
+    "ConsoleSink",
+    "DownloadLogger",
+    "safe_log_text",
+    "mask_log_text",
+    "safe_exception_name",
+    "safe_relative_path",
+    "safe_url",
+]
+
 if TYPE_CHECKING:
     from ..storage import FileSystem
 

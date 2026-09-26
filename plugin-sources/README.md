@@ -10,7 +10,7 @@ It is not read by runtime; the signer transfers it into `manifest.json` together
 with the generated key, file-tree, and signature fields. Change metadata, entry
 source, author YAML, or helpers before running the signer again; do not edit a
 generated manifest directly. The exact schema, optional-runtime status, and
-file-tree rules are documented in [trust and operations](../docs/v3/trust-and-operations.md).
+file-tree rules are documented in [distribution and operations](../docs/v3/distribution-and-operations.md).
 
 ```powershell
 python tools/sign_local_site_plugin.py `

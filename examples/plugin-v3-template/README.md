@@ -43,4 +43,9 @@ config を同期的・副作用なしで検証し、成功時は `None` を返�
 
 signer 経路では生成済み `manifest.json` を直接編集しない。metadata、source、author YAML、helper
 を更新して signer を再実行する。`plugin-metadata.json` の schema と再署名規則の詳細は
-[v3 信頼・配布・運用](../../docs/v3/trust-and-operations.md)を参照する。
+[v3 配布・信頼・運用](../../docs/v3/distribution-and-operations.md)を参照する。
+
+この template は package layout と最低限の protocol を示す skeleton であり、完全な
+<code>DownloadManifest</code>、API cursor pagination、短命 URL の直前解決・再発行は実装していない。
+実装判断は [実行ライフサイクル](../../docs/v3/execution-lifecycle.md) と
+[plugin 作者ガイド](../../docs/v3/plugin-author-guide.md) を正本とする。

@@ -1,30 +1,30 @@
 # ドキュメント索引
 
-## 現行仕様: local plugin API v3
+## 現行仕様: API v3
 
-現行の正本は [`docs/v3/`](v3/README.md) です。設定、plugin directory、signature/catalog、
-CLI、library API、テスト、移行は v3 文書だけを基準にしてください。
+現行の正本は [API v3](v3/README.md) です。利用、plugin authoring、HTTP lifecycle、
+library API、配布・運用、テスト・公開の入口を用途別に整理しています。
 
 | 読者・目的 | 文書 |
 |---|---|
-| 全体像と仕様の優先順位 | [v3 index](v3/README.md) |
-| 利用者・運用者 | [設定と CLI](v3/configuration-and-cli.md) |
+| 全体像と仕様の優先順位 | [API v3 index](v3/README.md) |
+| 利用者・運用者 | [CLI と設定](v3/configuration-and-cli.md) |
 | plugin 作者 | [plugin 作者ガイド](v3/plugin-author-guide.md) |
-| HTTP/認証を扱う plugin 作者 | [サイト plugin 統合・認証ガイド](v3/site-plugin-integration-guide.md) |
-| 信頼・配布・管理者 | [信頼・配布・運用](v3/trust-and-operations.md) |
+| hook と動的 URL を扱う plugin 作者 | [実行ライフサイクル](v3/execution-lifecycle.md) |
 | 組込み利用者 | [ライブラリ API](v3/library-api.md) |
-| 保守・テスト・移行 | [テストと移行](v3/testing-and-migration.md) |
-| 公開担当 | [公開ベータ確認事項](v3/release-checklist.md) |
+| 全 stable export | [完全 API 参照](v3/api-reference.md) と [contract inventory](v3/api-contract-inventory.md) |
+| 信頼・配布・管理者 | [配布・信頼・運用](v3/distribution-and-operations.md) |
+| 保守・公開担当 | [検証・移行・リリース](v3/testing-migration-and-release.md) |
 | 雛形 | [examples/plugin-v3-template](../examples/plugin-v3-template) |
 
-短い仕様概要は [plugin-api-v3.md](plugin-api-v3.md) に残しているが、具体的な操作と
-受入条件は上の分割文書を参照する。
-
 ## 履歴資料
+
+[v3 pre-reorg snapshot](../archive/docs/legacy/v3-pre-reorg/README.md) は、再編前の v3 文書を比較用に保存している。
+現行仕様ではない。
 
 [v2 archive](../archive/docs/legacy/v2/README.md) には v2 の文書、サンプル、fixture、非現行 test を保存している。
 これらは現在の checkout で実行可能であることを保証しない。v3 は v2 entry point、descriptor、
 wheel sidecar、旧 config tree を読まないため、新規 plugin や運用には
-[テストと移行](v3/testing-and-migration.md) を使用する。
+[検証・移行・リリース](v3/testing-migration-and-release.md) を使用する。
 
 [v1 archive](../archive/docs/legacy/v1/README.md) は削除済み API の境界だけを記録する。
