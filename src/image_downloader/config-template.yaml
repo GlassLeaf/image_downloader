@@ -81,6 +81,11 @@
 #     enabled: true
 #     config: {}                     # plugin-defined; validate with doctor --host
 #     secrets: {}                    # lower_snake_case -> UPPERCASE_REFERENCE
+#     download_policy:               # core-owned limits for this selected site plugin
+#       request_concurrency: null    # null or integer >= 1; capped by network.request_concurrency
+#       chapter_concurrency: null    # null or integer >= 1; capped by download.chapter_concurrency
+#       image_concurrency_per_chapter: null # null or integer >= 1; capped by download setting
+#       preserve_image_start_order: false # force chapter/image concurrency to 1
 # fallback:
 #   generic_html:
 #     enabled: true

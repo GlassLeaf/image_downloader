@@ -12,7 +12,8 @@ import pytest
 from PIL import Image
 
 from image_downloader import OriginScopedAuthFlow
-from image_downloader.config import AppConfig
+from image_downloader.application.service import _effective_download_policy
+from image_downloader.config import AppConfig, PluginDownloadPolicy
 from image_downloader.exceptions import (
     AuthenticationError,
     ImageDimensionLimitError,
@@ -39,6 +40,30 @@ from image_downloader.storage import FileSystem, safe_component
 
 def _config(**network: object) -> AppConfig:
     return AppConfig.model_validate({"network": network})
+
+
+def test_plugin_download_policy_only_lowers_global_limits_and_can_preserve_order() -> None:
+    config = AppConfig.model_validate(
+        {
+            "network": {"request_concurrency": 4},
+            "download": {"chapter_concurrency": 3, "image_concurrency_per_chapter": 2},
+        }
+    )
+    effective = _effective_download_policy(
+        config,
+        PluginDownloadPolicy(
+            request_concurrency=9,
+            chapter_concurrency=1,
+            image_concurrency_per_chapter=9,
+        ),
+    )
+    assert (effective.request_concurrency, effective.chapter_concurrency, effective.image_concurrency_per_chapter) == (
+        4,
+        1,
+        2,
+    )
+    ordered = _effective_download_policy(config, PluginDownloadPolicy(preserve_image_start_order=True))
+    assert (ordered.chapter_concurrency, ordered.image_concurrency_per_chapter) == (1, 1)
 
 
 def _png(width: int, height: int) -> bytes:

@@ -31,6 +31,10 @@ _OPTIONS_WITH_VALUE = frozenset(
         "--selection-priority",
         "--plugin-config",
         "--plugin-config-file",
+        "--plugin",
+        "--force-plugin",
+        "--plugin-download-policy",
+        "--plugin-download-policy-file",
         "--fallback-generic",
         "--host",
         "--export-cookies",
@@ -160,10 +164,36 @@ def _add_download_options(
     )
 
 
+def _add_plugin_selection_options(
+    parser: argparse.ArgumentParser,
+    *,
+    suppress_defaults: bool,
+) -> None:
+    value_default: object = argparse.SUPPRESS if suppress_defaults else None
+    repeat_default: object = argparse.SUPPRESS if suppress_defaults else []
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument("--plugin", dest="plugin_id", metavar="ID", default=value_default)
+    selection.add_argument("--force-plugin", dest="force_plugin_id", metavar="ID", default=value_default)
+    parser.add_argument(
+        "--plugin-download-policy",
+        action="append",
+        metavar="ID=JSON",
+        default=repeat_default,
+    )
+    parser.add_argument(
+        "--plugin-download-policy-file",
+        action="append",
+        type=Path,
+        metavar="ABSOLUTE_PATH",
+        default=repeat_default,
+    )
+
+
 def _add_legacy_options(parser: argparse.ArgumentParser) -> None:
     _add_configuration_options(parser, suppress_defaults=False)
     _add_plugin_override_options(parser, suppress_defaults=False)
     _add_download_options(parser, suppress_defaults=False)
+    _add_plugin_selection_options(parser, suppress_defaults=False)
     parser.add_argument(
         "--selection-priority",
         type=int,
@@ -194,6 +224,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_configuration_options(download_parser, suppress_defaults=True)
     _add_plugin_override_options(download_parser, suppress_defaults=True)
     _add_download_options(download_parser, suppress_defaults=True)
+    _add_plugin_selection_options(download_parser, suppress_defaults=True)
     download_parser.set_defaults(command_handler="download")
 
     doctor_parser = commands.add_parser(

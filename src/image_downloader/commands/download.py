@@ -17,6 +17,7 @@ from ..privacy.log_safety import safe_exception_name, safe_relative_path, safe_u
 from .constants import EXIT_FAILURE, EXIT_PARTIAL, EXIT_SUCCESS
 from .setup import (
     _config_for,
+    _download_policy_overrides,
     _fallback,
     _persist_initial_user_config,
     _plugin_root,
@@ -35,6 +36,9 @@ class DownloadCommandHandler:
             raise ValueError("cookie import or export cannot be combined with URL")
         hostname = urlparse(args.url).hostname
         overrides = _runtime_overrides(args)
+        download_policy_overrides = _download_policy_overrides(args)
+        plugin_id = args.plugin_id or args.force_plugin_id
+        force_plugin = args.force_plugin_id is not None
         config, config_root, _, source = _config_for(
             args,
             hostname,
@@ -58,6 +62,9 @@ class DownloadCommandHandler:
                         args.url,
                         plugin_overrides=overrides,
                         fallback_override=_fallback(args),
+                        plugin_id=plugin_id,
+                        force_plugin=force_plugin,
+                        plugin_download_policy_overrides=download_policy_overrides,
                     )
                 visible = [change for change in update_result.changes if change.kind is not UpdateChangeKind.REMOVED]
                 removed = sum(change.kind is UpdateChangeKind.REMOVED for change in update_result.changes)
@@ -75,6 +82,9 @@ class DownloadCommandHandler:
                         args.url,
                         plugin_overrides=overrides,
                         fallback_override=_fallback(args),
+                        plugin_id=plugin_id,
+                        force_plugin=force_plugin,
+                        plugin_download_policy_overrides=download_policy_overrides,
                     )
                 if args.json_output:
                     print(

@@ -14,7 +14,7 @@ selection は enabled site unit の `matches_with_config()`（ある場合）と
 | optional selection | `matches_with_config(self, url: str, config: Mapping[str, object], app_settings: Mapping[str, object]) -> bool` | synchronous、side-effect free、invalid private config に耐える。request/secret/filesystem を使わない。 |
 | selection | `matches(self, url: str) -> bool` | synchronous bool。exception/non-bool は mismatch でなく `PluginError`。 |
 | inspection | `async inspect(self, url: str, context: PluginExecutionContext) -> DownloadManifest` | operation ごとに一回、有限で完全な manifest。pagination はここで完結し、JS/DOM/browser execution はない。 |
-| image request | `async create_image_request(self, image: ImageResource, context: PluginExecutionContext) -> RequestSpec` | image fetch 直前に一回。canonical image URL から header/referer/直前 API 解決を行う。 |
+| image request | `async create_image_request(self, image: ImageResource, context: PluginExecutionContext) -> RequestSpec` | image fetch 直前に一回。`image.url` の locator（canonical URL、ID、placeholder のいずれでもよい）と `image_id` から header/referer/直前 API 解決を行い、実際に送信する absolute HTTP(S) `RequestSpec.url` を返す。locator 自体は transport に送られない。 |
 | recovery | `async recover_image_request(self, image: ImageResource, failed: RequestSpec, response: RequestResponse, context: PluginExecutionContext) -> RequestSpec | None` | AuthFlow refresh 後にも HTTP `status >=400` が残るときだけ最大一回。transport failure には呼ばれない。short-lived URL を再発行するか `None`。 |
 | authentication | `auth_flow(self, context: PluginExecutionContext) -> AuthFlow | None` | `is_auth_failure(request: RequestSpec, response: RequestResponse) -> bool`、async `apply(request: RequestSpec) -> RequestSpec`、async `refresh(failed: RequestSpec, response: RequestResponse) -> RequestSpec | None` を実装する。secret 欠落は `SecretNotFound`、login failure は `AuthenticationError`。 |
 | site transform | `async transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact` | network/secret capability なし。 |
@@ -39,6 +39,7 @@ must return a new DTO rather than mutate a context object.
 | `.requests` | `RequestPort` | `await execute(RequestSpec) -> RequestResponse`; this is the only supplied network capability |
 | `TransformContext.image_id` | `str | None` | source `ImageResource.image_id` |
 | `.index` | `int` | source image index |
+| `.image_metadata` | `Mapping[str, str]` | source `ImageResource.metadata` の immutable、非秘密な inspection-time metadata |
 | `.config`, `.app_settings`, `.plugin_manifest`, `.catalog` | same mapping types as above | processor/site-transform metadata for the current unit |
 | `.site_manifest`, `.site_catalog` | `Mapping[str, object] | None` | selected site metadata; nullable when no separate site metadata is available |
 | `.manifest` | `DownloadManifest` | the inspected operation manifest |
@@ -59,7 +60,7 @@ HTTP status `>=400`. A refresh which returns `None`, no auth flow for an auth
 response, or exhausted refresh attempts raises `AuthenticationError`; recovery
 does not receive a transport exception.
 
-invoker は manifest、chapter/image index、plugin-returned `ImageResource.url` と `RequestSpec.url` の absolute HTTP(S) **構文**、string mapping、hook return class、nested DTO、cleanup return を検証する。`ImageResource` constructor 自体は URL を検査しないため、syntactically valid な dummy URL を返さないことは plugin author の責務である。予期しない hook exception と contract violation は plugin ID と hook 名を持つ `PluginError` に変換し、`asyncio.CancelledError` は再送出する。core fetch/process/save failure を plugin 内で握りつぶしてはならない。
+invoker は manifest、chapter/image index、plugin-returned `ImageResource.url` と `ImageArtifact.source_url` の **non-empty string locator**、`ImageResource.metadata` の string mapping、`RequestSpec.url` と referer の absolute HTTP(S) **構文**、hook return class、nested DTO、cleanup return を検証する。`ImageResource` constructor 自体は URL を検査しない。locator は plugin が `create_image_request` で実 request を組み立てるのに十分に安定していなければならない。`image_id`、image metadata、manifest metadata は inspection-time の非秘密値だけにし、token、cookie、署名 URL、鍵などを含めてはならない。core は locator の意味を解釈せず、`RequestSpec(url=image.url)` が HTTP(S) でなければ fetch 前に失敗する。予期しない hook exception と contract violation は plugin ID と hook 名を持つ `PluginError` に変換し、`asyncio.CancelledError` は再送出する。core fetch/process/save failure を plugin 内で握りつぶしてはならない。
 
 <a id="plugin-hook-errors"></a>
 
@@ -74,10 +75,10 @@ is never converted and is re-raised so cancellation reaches the caller.
 | hook group | allowed successful return | author-side validation/error | invoker result and operation effect |
 | --- | --- | --- | --- |
 | `validate_config`, `matches_with_config`, `matches` | `None`, `bool`, `bool` | use `ValueError` for invalid private config in `validate_config`; match hooks must not use network/secrets/filesystem | invalid return/ordinary exception becomes `PluginError`; validation/selection fails the operation or diagnostic rather than silently treating it as a mismatch |
-| `inspect`, `check_updates` | complete `DownloadManifest`, complete `UpdateSnapshot` | no partial pagination/delta; nested DTO/HTTP URL fields must be valid | invalid return/ordinary exception becomes `PluginError`; no result is returned for that operation |
+| `inspect`, `check_updates` | complete `DownloadManifest`, complete `UpdateSnapshot` | no partial pagination/delta; image/source locators must be non-empty, request/update URL fields must be HTTP(S) | invalid return/ordinary exception becomes `PluginError`; no result is returned for that operation |
 | `auth_flow`, `is_auth_failure`, `apply`, `refresh` | `AuthFlow|None`, `bool`, `RequestSpec`, `RequestSpec|None` | secret absence: `SecretNotFound`; login/refresh refusal: `AuthenticationError` | invalid return/ordinary exception becomes `PluginError`; declared authentication failure ends the operation, not an image outcome |
 | `create_image_request`, `recover_image_request` | `RequestSpec`, `RequestSpec|None` | return valid absolute HTTP(S) request DTOs | invalid return/ordinary exception becomes `PluginError`; request/auth/status failures follow the lifecycle and can become a per-image fetch outcome only when normal continuation applies |
-| `transform_image`, processor `transform` | `ImageArtifact` | preserve valid bytes/content type/source URL; processor has no secret/network context | invalid return/ordinary exception becomes `PluginError`; normal image processing failures can be recorded as an image outcome when `continue_on_image_error=true`, whereas `PluginError` remains operation-level |
+| `transform_image`, processor `transform` | `ImageArtifact` | preserve valid bytes/content type/source locator; processor has no secret/network context | invalid return/ordinary exception becomes `PluginError`; normal image processing failures can be recorded as an image outcome when `continue_on_image_error=true`, whereas `PluginError` remains operation-level |
 | `aclose` / `close` | `None` | cleanup must not return a value; `aclose` wins if both exist | ordinary exception/invalid return becomes `PluginError`; cleanup still runs on success, failure, cancellation, and partial construction paths |
 
 The result boundary is defined in [execution lifecycle](../explanation/execution-lifecycle.md#result-boundary): callers find image-level failures through `ImageOutcome.failure`, not by catching a flattened plugin exception.

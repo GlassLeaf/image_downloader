@@ -5,13 +5,13 @@ from __future__ import annotations
 import asyncio
 import uuid
 from collections.abc import Awaitable, Callable, Sequence
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TypeVar, cast
 from urllib.parse import urlparse
 
 from ..configuration.hosts import normalize_host, site_file_name
-from ..configuration.models import AppConfig
+from ..configuration.models import AppConfig, PluginDownloadPolicy
 from ..credentials.plugin_secrets import RuntimeSecrets
 from ..exceptions import (
     AuthenticationError,
@@ -52,7 +52,7 @@ from ..observability.scope import OperationDiagnosticsScope
 from ..output.output_allocator import OutputAllocation, OutputAllocator
 from ..plugins.lifecycle import PluginRecord
 from ..plugins.plugin_invoker import PluginInvoker
-from ..plugins.plugin_manifest import PluginConfigOverrides
+from ..plugins.plugin_manifest import PluginConfigOverrides, PluginDownloadPolicyOverrides
 from ..plugins.runtime import PluginRuntime, safe_app_settings
 from ..ports import PluginExecutionContext, SitePlugin, UpdateProvider
 from ..storage import FileSystem, safe_component
@@ -75,6 +75,31 @@ _IMAGE_FAILURE_STAGES = {
     FailureKind.PROCESS: "image_processing",
     FailureKind.SAVE: "image_save",
 }
+
+
+@dataclass(frozen=True, slots=True)
+class _OperationDownloadPolicy:
+    request_concurrency: int
+    chapter_concurrency: int
+    image_concurrency_per_chapter: int
+
+
+def _effective_download_policy(config: AppConfig, policy: PluginDownloadPolicy) -> _OperationDownloadPolicy:
+    request_concurrency = min(
+        config.network.request_concurrency,
+        policy.request_concurrency or config.network.request_concurrency,
+    )
+    chapter_concurrency = min(
+        config.download.chapter_concurrency,
+        policy.chapter_concurrency or config.download.chapter_concurrency,
+    )
+    image_concurrency = min(
+        config.download.image_concurrency_per_chapter,
+        policy.image_concurrency_per_chapter or config.download.image_concurrency_per_chapter,
+    )
+    if policy.preserve_image_start_order:
+        chapter_concurrency = image_concurrency = 1
+    return _OperationDownloadPolicy(request_concurrency, chapter_concurrency, image_concurrency)
 
 
 class _PluginRequests:
@@ -186,6 +211,9 @@ class DownloadService:
         *,
         plugin_overrides: PluginConfigOverrides | None = None,
         fallback_override: bool | None = None,
+        plugin_id: str | None = None,
+        force_plugin: bool = False,
+        plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None,
     ) -> DownloadResult:
         async with self._operation_lock:
             self._ensure_open()
@@ -199,6 +227,9 @@ class DownloadService:
                         url,
                         plugin_overrides,
                         fallback_override,
+                        plugin_id,
+                        force_plugin,
+                        plugin_download_policy_overrides,
                         diagnostics,
                     )
                 finally:
@@ -209,13 +240,19 @@ class DownloadService:
         url: str,
         plugin_overrides: PluginConfigOverrides | None,
         fallback_override: bool | None,
+        plugin_id: str | None,
+        force_plugin: bool,
+        plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None,
         diagnostics: OperationDiagnosticsScope,
     ) -> DownloadResult:
         try:
-            record, plugin, context, operation_gateway = self._operation(
+            record, plugin, context, operation_gateway, policy = self._operation(
                 url,
                 plugin_overrides,
                 fallback_override,
+                plugin_id,
+                force_plugin,
+                plugin_download_policy_overrides,
             )
             invoker = PluginInvoker(record.id, self.logger)
             diagnostics.capture(self._python_log_namespaces(record, include_processors=True))
@@ -258,6 +295,7 @@ class DownloadService:
                         pipeline,
                         operation_gateway,
                         record.id,
+                        policy,
                     )
                     result = DownloadResult(url, manifest, tuple(results))
             outcome = (
@@ -287,6 +325,9 @@ class DownloadService:
         *,
         plugin_overrides: PluginConfigOverrides | None = None,
         fallback_override: bool | None = None,
+        plugin_id: str | None = None,
+        force_plugin: bool = False,
+        plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None,
     ) -> UpdateResult:
         async with self._operation_lock:
             self._ensure_open()
@@ -300,6 +341,9 @@ class DownloadService:
                         url,
                         plugin_overrides,
                         fallback_override,
+                        plugin_id,
+                        force_plugin,
+                        plugin_download_policy_overrides,
                         diagnostics,
                     )
                 finally:
@@ -310,10 +354,20 @@ class DownloadService:
         url: str,
         plugin_overrides: PluginConfigOverrides | None,
         fallback_override: bool | None,
+        plugin_id: str | None,
+        force_plugin: bool,
+        plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None,
         diagnostics: OperationDiagnosticsScope,
     ) -> UpdateResult:
         try:
-            record, plugin, context, _ = self._operation(url, plugin_overrides, fallback_override)
+            record, plugin, context, _, _ = self._operation(
+                url,
+                plugin_overrides,
+                fallback_override,
+                plugin_id,
+                force_plugin,
+                plugin_download_policy_overrides,
+            )
             invoker = PluginInvoker(record.id, self.logger)
             diagnostics.capture(self._python_log_namespaces(record, include_processors=False))
             await best_effort_diagnostic(
@@ -383,10 +437,26 @@ class DownloadService:
         url: str,
         overrides: PluginConfigOverrides | None = None,
         fallback_override: bool | None = None,
-    ) -> tuple[PluginRecord, SitePlugin, PluginExecutionContext, OperationRequestGateway]:
+        plugin_id: str | None = None,
+        force_plugin: bool = False,
+        download_policy_overrides: PluginDownloadPolicyOverrides | None = None,
+    ) -> tuple[PluginRecord, SitePlugin, PluginExecutionContext, OperationRequestGateway, _OperationDownloadPolicy]:
+        if plugin_id is not None and fallback_override is not None:
+            raise ConfigurationError("explicit plugin selection cannot be combined with fallback_override")
         fallback_enabled = self.config.fallback.generic_html.enabled if fallback_override is None else fallback_override
-        record, plugin = self.registry.resolve(url, fallback_enabled=fallback_enabled, overrides=overrides)
+        record, plugin = self.registry.resolve(
+            url,
+            fallback_enabled=fallback_enabled,
+            overrides=overrides,
+            plugin_id=plugin_id,
+            force_plugin=force_plugin,
+        )
         self.registry.validate_operation_overrides(record, overrides)
+        self.registry.validate_download_policy_overrides(record, download_policy_overrides)
+        policy = _effective_download_policy(
+            self.config,
+            self.registry.effective_download_policy(record, download_policy_overrides),
+        )
         settings = self.config.plugin_settings.get(record.id)
         secrets = RuntimeSecrets(record.id, settings.secrets if settings else {})
         invoker = PluginInvoker(record.id, self.logger)
@@ -409,10 +479,11 @@ class DownloadService:
             operation_url=url,
             auth_flow_factory=auth_flow_factory,
             invoker=invoker,
+            request_concurrency=policy.request_concurrency,
         )
         if context is None:
             raise RuntimeError("operation context was not initialized")
-        return record, plugin, context, operation_gateway
+        return record, plugin, context, operation_gateway, policy
 
     def _python_log_namespaces(self, site_record: PluginRecord, *, include_processors: bool) -> tuple[str, ...]:
         records = [site_record]
@@ -526,6 +597,7 @@ class DownloadService:
         pipeline: ArtifactPipeline,
         operation_gateway: OperationRequestGateway,
         plugin_id: str,
+        policy: _OperationDownloadPolicy,
     ) -> list[ChapterResult]:
         operation_id = uuid.uuid4().hex
 
@@ -540,6 +612,7 @@ class DownloadService:
                 operation_gateway,
                 plugin_id,
                 f"{operation_id}-chapter-{position}",
+                policy,
             )
 
         factories = [
@@ -549,7 +622,7 @@ class DownloadService:
         try:
             return cast(
                 list[ChapterResult],
-                await self._bounded(factories, self.config.download.chapter_concurrency),
+                await self._bounded(factories, policy.chapter_concurrency),
             )
         finally:
             await asyncio.gather(
@@ -570,6 +643,7 @@ class DownloadService:
         operation_gateway: OperationRequestGateway,
         plugin_id: str,
         reporter_id: str,
+        policy: _OperationDownloadPolicy,
     ) -> ChapterResult:
         directory = allocator.chapter_directory(chapter)
         reporter = ChapterReporter(allocator.filesystem, directory, manifest, chapter, self.logger, reporter_id)
@@ -600,6 +674,7 @@ class DownloadService:
                         count=image.index,
                         plugin_id=plugin_id,
                         action="image_fetch",
+                        url_is_locator=True,
                         debug=True,
                     )
                     response = await operation_gateway.execute_image(plugin, image, context)
@@ -661,6 +736,7 @@ class DownloadService:
                         bytes_count=len(processed.data),
                         count=image.index,
                         plugin_id=plugin_id,
+                        url_is_locator=True,
                         debug=True,
                     )
                 if not allocation.should_write:
@@ -707,6 +783,7 @@ class DownloadService:
                     error=exc.cause,
                     plugin_id=plugin_id,
                     action=_IMAGE_FAILURE_ACTIONS[exc.kind],
+                    url_is_locator=True,
                     debug=True,
                 )
                 await best_effort_diagnostic(
@@ -716,6 +793,7 @@ class DownloadService:
                     url=image.url,
                     path=failure_path,
                     module="image",
+                    url_is_locator=True,
                 )
                 outcome = ImageOutcome(
                     image,
@@ -754,7 +832,7 @@ class DownloadService:
             for position, image in enumerate(chapter.images)
         ]
         try:
-            bounded = await self._bounded(factories, self.config.download.image_concurrency_per_chapter)
+            bounded = await self._bounded(factories, policy.image_concurrency_per_chapter)
             outcomes = tuple(bounded)
         finally:
             await reporter.finish()

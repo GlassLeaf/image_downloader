@@ -120,12 +120,14 @@ class RequestGateway:
         operation_url: str,
         auth_flow_factory: Callable[[OperationRequestGateway], object | None] | None = None,
         invoker: PluginInvoker | None = None,
+        request_concurrency: int | None = None,
     ) -> OperationRequestGateway:
         session = OperationRequestGateway(
             self,
             plugin_id=plugin_id,
             operation_url=operation_url,
             invoker=invoker,
+            request_concurrency=request_concurrency,
         )
         flow = auth_flow_factory(session) if auth_flow_factory is not None else None
         session._configure_auth_flow(flow)
@@ -361,6 +363,7 @@ class OperationRequestGateway:
         plugin_id: str | None,
         operation_url: str,
         invoker: PluginInvoker | None = None,
+        request_concurrency: int | None = None,
     ) -> None:
         self._shared = shared
         self.plugin_id = plugin_id
@@ -369,6 +372,7 @@ class OperationRequestGateway:
         self._auth_origins = frozenset((_request_origin(operation_url),))
         self._auth_lock = asyncio.Lock()
         self._auth_generation = 0
+        self._request_limit = asyncio.Semaphore(request_concurrency) if request_concurrency is not None else None
 
     def _configure_auth_flow(self, flow: object | None) -> None:
         if flow is not None and not is_auth_flow(flow):
@@ -419,11 +423,19 @@ class OperationRequestGateway:
         while True:
             observed_generation = self._auth_generation
             redirect_origins = self._auth_origins if current.auth_required and self._auth_flow is not None else None
-            response = await self._shared._transport(
-                current,
-                plugin_id=self.plugin_id,
-                allowed_redirect_origins=redirect_origins,
-            )
+            if self._request_limit is None:
+                response = await self._shared._transport(
+                    current,
+                    plugin_id=self.plugin_id,
+                    allowed_redirect_origins=redirect_origins,
+                )
+            else:
+                async with self._request_limit:
+                    response = await self._shared._transport(
+                        current,
+                        plugin_id=self.plugin_id,
+                        allowed_redirect_origins=redirect_origins,
+                    )
             if current.auth_required and self._is_auth_failure(current, response):
                 if auth_attempts >= self._shared.config.network.auth_refresh_attempts:
                     raise AuthenticationError("authentication failed after configured refresh attempts")

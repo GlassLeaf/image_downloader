@@ -65,6 +65,7 @@ image-downloader plugin uninstall com.example.gallery `
 
 ## Documentation
 
+- [CLI・ライブラリ・plugin FAQ](docs/v3/how-to/faq.md)
 - [CLI 参照](docs/v3/reference/cli.md)
 - [設定参照](docs/v3/reference/configuration.md)
 - [実行ライフサイクル](docs/v3/explanation/execution-lifecycle.md)

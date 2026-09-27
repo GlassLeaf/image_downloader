@@ -101,6 +101,33 @@ def safe_url(
         return "[REDACTED]"
 
 
+def safe_locator(
+    value: str,
+    *,
+    safe_query_parameters: set[str] | None = None,
+    safe_fragment_parameters: set[str] | None = None,
+) -> str:
+    """Render an image locator without treating non-URL values as URLs."""
+    try:
+        parsed = urlsplit(value)
+        if parsed.scheme.lower() in {"http", "https"} and parsed.hostname:
+            return safe_url(
+                value,
+                safe_query_parameters=safe_query_parameters,
+                safe_fragment_parameters=safe_fragment_parameters,
+            )
+        return "locator:" + _safe_text(
+            mask_log_text(
+                value,
+                safe_query_parameters=safe_query_parameters,
+                safe_fragment_parameters=safe_fragment_parameters,
+            ),
+            1024,
+        )
+    except Exception:
+        return "locator:[REDACTED]"
+
+
 def safe_relative_path(value: str | Path, output_root: Path | None) -> str:
     if output_root is None:
         return "[REDACTED]"

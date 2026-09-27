@@ -178,6 +178,57 @@ def test_idr_025_loader_and_selector_preserve_priority_and_fallback(tmp_path: Pa
     assert fallback.id == "core.generic-html"
 
 
+def test_explicit_plugin_selection_and_download_policy_are_scoped_to_the_selected_site(tmp_path: Path) -> None:
+    root = (tmp_path / "plugins").resolve()
+    make_plugin(root)
+    config = AppConfig.model_validate(
+        {
+            "plugin_settings": {
+                "com.example.gallery": {
+                    "download_policy": {
+                        "request_concurrency": 2,
+                        "preserve_image_start_order": True,
+                    }
+                }
+            }
+        }
+    )
+    runtime = PluginRuntime(config, root, mode="off")
+    runtime.prepare()
+
+    selected, _ = runtime.resolve(
+        "https://example.test/item",
+        fallback_enabled=False,
+        plugin_id="com.example.gallery",
+    )
+    assert selected.id == "com.example.gallery"
+    assert runtime.selection_diagnostics == ({"id": "com.example.gallery", "matcher": "matches", "matched": True},)
+    policy = runtime.effective_download_policy(selected, {"com.example.gallery": {"chapter_concurrency": 1}})
+    assert policy.request_concurrency == 2
+    assert policy.chapter_concurrency == 1
+    assert policy.preserve_image_start_order is True
+
+    forced, _ = runtime.resolve(
+        "https://unmatched.test/item",
+        fallback_enabled=False,
+        plugin_id="com.example.gallery",
+        force_plugin=True,
+    )
+    assert forced.id == "com.example.gallery"
+    assert runtime.selection_diagnostics == ({"id": "com.example.gallery", "matcher": "forced", "matched": True},)
+    with pytest.raises(PluginError, match="requested plugin did not match"):
+        runtime.resolve(
+            "https://unmatched.test/item",
+            fallback_enabled=False,
+            plugin_id="com.example.gallery",
+        )
+    with pytest.raises(ConfigurationError, match="unselected plugin"):
+        runtime.validate_download_policy_overrides(
+            selected,
+            {"com.example.other": {"request_concurrency": 1}},
+        )
+
+
 def test_idr_040_049_plugin_records_are_immutable_runtime_descriptions(tmp_path: Path) -> None:
     root = (tmp_path / "plugins").resolve()
     make_plugin(root)
@@ -354,7 +405,7 @@ def test_signed_directory_plugin_is_pinned_and_merges_private_config(tmp_path: P
 
     service = RuntimeComposer(config, config_root=tmp_path.resolve(), plugin_root=root).compose()
     try:
-        selected, _, context, _ = service._operation(
+        selected, _, context, _, _ = service._operation(
             "https://example.test/a",
             {"com.example.gallery": {"inline": 1}},
         )
@@ -828,7 +879,7 @@ def test_download_log_capture_includes_enabled_processor_namespace(tmp_path: Pat
     )
     service = RuntimeComposer(config, config_root=tmp_path.resolve(), plugin_root=root).compose()
     try:
-        selected, _, _, _ = service._operation("https://example.test/a")
+        selected, _, _, _, _ = service._operation("https://example.test/a")
         namespaces = service._python_log_namespaces(selected, include_processors=True)
         processor = service.registry.records["com.example.resize"]
         assert namespaces == (

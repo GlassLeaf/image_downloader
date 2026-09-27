@@ -34,6 +34,7 @@ config 作成・rewrite の command ごとの副作用は [configuration referen
 | `--yes` | plugin install/trust/revoke/uninstall confirmation | config init/profile init accept it but do not require or use confirmation; other parsed uses do not approve a mutation |
 | `--plugin-verification-override MODE` | download, doctor, plugin | config commands may report the parsed value but do not perform verification; cookie has no verification effect |
 | `--plugin-config ID=JSON`, `--plugin-config-file PATH`, `--fallback-generic` | download, doctor | rejected by config, plugin, cookie |
+| `--plugin ID`, `--force-plugin ID`, `--plugin-download-policy ID=JSON`, `--plugin-download-policy-file PATH` | download（`--list-updated-urls` を含む） | rejected by doctor, config, plugin, cookie |
 | `--no-console-log`, `--existing-file`, `--image-format` | download, doctor, config explain where handler permits them | rejected by cookie and other config/plugin operations |
 | `--list-updated-urls` | download | rejected elsewhere |
 | `--host` | doctor, config explain | rejected elsewhere |
@@ -41,9 +42,11 @@ config 作成・rewrite の command ごとの副作用は [configuration referen
 
 `--plugin-config` is repeatable `ID=<JSON-object>`. `--plugin-config-file` is repeatable, absolute, existing regular non-link JSON file whose exact object is `{"plugin_id": "…", "config": {…}}`. File mappings are deep-merged in command-line file order; inline `--plugin-config` mappings are then deep-merged in their appearance order. YAML is not accepted for this option.
 
+`--plugin-download-policy` is repeatable `ID=<JSON-object>`. `--plugin-download-policy-file` is repeatable, absolute, existing regular non-link JSON file whose exact object is `{"plugin_id": "…", "download_policy": {…}}`. These mappings are field-wise merged for the selected site plugin only, are validated against the core-owned `download_policy` schema, and are never persisted. `request_concurrency`, `chapter_concurrency`, `image_concurrency_per_chapter`, and `preserve_image_start_order` are defined in [configuration](configuration.md#config-plugin-settings).
+
 `--plugin-verification-override` accepts `bypass-all`, `bypass-catalog`, or `bypass-signature`. It is an ephemeral override, not a persisted `security.plugin_verification` value; the persisted choices are `strict`, `warn`, and `off`. `plugin list` **does apply** the override while it discovers and verifies source units for `diagnostics`; it does not alter the catalog-entry `plugins` list or write persistent configuration/catalog state.
 
-`--fallback-generic` accepts `auto` (the parser default), `enabled`, or `disabled`; `auto` preserves the resolved configuration. `--existing-file` accepts `overwrite`, `skip`, `rename`, or `error`, and `--image-format` accepts `JPEG`, `PNG`, or `WEBP`. Omission of the latter two preserves the resolved configuration values.
+`--plugin ID` requires that enabled non-builtin site plugin's normal matcher to accept the URL. `--force-plugin ID` bypasses that matcher only after the plugin is confirmed to be an enabled non-builtin site plugin; the two options are exclusive. Neither can be combined with an explicit `--fallback-generic=enabled|disabled`. `--fallback-generic` accepts `auto` (the parser default), `enabled`, or `disabled`; `auto` preserves the resolved configuration. `--existing-file` accepts `overwrite`, `skip`, `rename`, or `error`, and `--image-format` accepts `JPEG`, `PNG`, or `WEBP`. Omission of the latter two preserves the resolved configuration values.
 
 <a id="cli-exit-status"></a>
 
@@ -122,6 +125,10 @@ image-downloader config explain --profile comics --host example.test --json
 
 # Supply an ephemeral plugin config object.  It is not persisted to YAML.
 image-downloader download https://example.test/gallery --plugin-config com.example.site='{"page_size": 50}'
+
+# Select one matching plugin and serialise its image request starts for this operation only.
+image-downloader download https://example.test/gallery --plugin com.example.site \
+  --plugin-download-policy com.example.site='{"preserve_image_start_order": true}'
 ```
 
 For a non-interactive plugin mutation add `--yes`; it does not make `config
@@ -184,6 +191,6 @@ values but does not promise a fixed replacement literal. `null` is used only
 for the explicitly nullable fields above; handled error fields are omitted when
 unknown as described below.
 
-Handled JSON failure uses an `error` wrapper with required `operation`, `exception`, `code`, `reason`, `message`. `response_url`, `http_status`, `output_path`, `stage`, `transport` are present only when known; absence differs from `null`. URL query/fragment secrets, cookie contents, passphrases, browser records, and raw credential references never appear in success or failure output.
+Handled JSON failure uses an `error` wrapper with required `operation`, `exception`, `code`, `reason`, `message`. `response_url`, `http_status`, `output_path`, `stage`, `transport` are present only when known; absence differs from `null`. An image failure may additionally carry `image_url`; it is a safely rendered manifest locator, not necessarily an HTTP URL. URL query/fragment secrets, cookie contents, passphrases, browser records, and raw credential references never appear in success or failure output.
 
 <a id="cli-errors"></a>

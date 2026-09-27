@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from ..configuration.layers import deep_merge
-from ..configuration.models import AppConfig, PluginSettings
+from ..configuration.models import AppConfig, PluginDownloadPolicy, PluginSettings
 from ..exceptions import ConfigurationError, PluginError
 from ..immutable import freeze_json
 from ..ports import ImageProcessor, SitePlugin
@@ -25,6 +25,7 @@ from .plugin_invoker import PluginInvoker
 from .plugin_manifest import (
     PluginCatalog,
     PluginConfigOverrides,
+    PluginDownloadPolicyOverrides,
     PluginManifest,
     PluginVerificationMode,
     _sha256,
@@ -202,6 +203,39 @@ class PluginRuntime:
             result = deep_merge(result, incoming)
         return cast(Mapping[str, Any], freeze_json(result))
 
+    def effective_download_policy(
+        self,
+        record: PluginRecord,
+        overrides: PluginDownloadPolicyOverrides | None = None,
+    ) -> PluginDownloadPolicy:
+        setting = self._setting(record.id)
+        base = setting.download_policy.model_dump() if setting is not None else {}
+        if overrides and record.id in overrides:
+            incoming = overrides[record.id]
+            if not isinstance(incoming, Mapping):
+                raise ConfigurationError(f"runtime download policy override for {record.id} must be a mapping")
+            base = deep_merge(base, incoming)
+        try:
+            return PluginDownloadPolicy.model_validate(base)
+        except ValueError as exc:
+            raise ConfigurationError(f"runtime download policy override for {record.id} is invalid") from exc
+
+    def validate_download_policy_overrides(
+        self,
+        site_record: PluginRecord,
+        overrides: PluginDownloadPolicyOverrides | None,
+    ) -> None:
+        if not overrides:
+            return
+        unexpected = set(overrides) - {site_record.id}
+        if unexpected:
+            raise ConfigurationError(
+                f"runtime download policy targets an unselected plugin: {sorted(unexpected)[0]}"
+            )
+        if any(not isinstance(value, Mapping) for value in overrides.values()):
+            raise ConfigurationError("runtime download policy override must be a mapping")
+        self.effective_download_policy(site_record, overrides)
+
     def validate_operation_overrides(
         self,
         site_record: PluginRecord,
@@ -324,18 +358,41 @@ class PluginRuntime:
         *,
         fallback_enabled: bool,
         overrides: PluginConfigOverrides | None = None,
+        plugin_id: str | None = None,
+        force_plugin: bool = False,
     ) -> tuple[PluginRecord, SitePlugin]:
+        if force_plugin and plugin_id is None:
+            raise ConfigurationError("force_plugin requires plugin_id")
         self.validate_candidate_overrides(overrides)
         app_settings = safe_app_settings(self.config)
-        record, instance, diagnostics = self.selector.select(
-            self.records,
-            url,
-            fallback_enabled=fallback_enabled,
-            overrides=overrides,
-            enabled=self.enabled,
-            effective_config=self.effective_config,
-            app_settings=app_settings,
-        )
+        if plugin_id is None:
+            record, instance, diagnostics = self.selector.select(
+                self.records,
+                url,
+                fallback_enabled=fallback_enabled,
+                overrides=overrides,
+                enabled=self.enabled,
+                effective_config=self.effective_config,
+                app_settings=app_settings,
+            )
+        else:
+            record = self.records.get(plugin_id)
+            if record is None or record.kind != "site_plugin" or record.builtin or not self.enabled(record):
+                raise ConfigurationError(f"requested site plugin is unavailable: {plugin_id}")
+            instance = self.loader.site_instance(record)
+            if force_plugin:
+                diagnostics = ({"id": record.id, "matcher": "forced", "matched": True},)
+            else:
+                matched, matcher = PluginInvoker(record.id).matches(
+                    instance,
+                    url,
+                    config=self.effective_config(record, overrides),
+                    app_settings=app_settings,
+                )
+                diagnostics = ({"id": record.id, "matcher": matcher, "matched": matched},)
+                if not matched:
+                    self.selection_diagnostics = diagnostics
+                    raise PluginError("requested plugin did not match URL")
         self.selection_diagnostics = diagnostics
         _validate_plugin_config(record.id, instance, self.effective_config(record, overrides), app_settings)
         return record, instance

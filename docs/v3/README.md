@@ -9,6 +9,7 @@
 | 初めて CLI を実行する | [CLI tutorial](tutorials/first-download.md) |
 | 初めて plugin を作る | [Plugin tutorial](tutorials/first-plugin.md) |
 | Python から組み込む | [Library tutorial](tutorials/embedded-download.md) |
+| よくある運用・実装判断を確認する | [CLI、library、plugin FAQ](how-to/faq.md) |
 | 設定・profile を運用する | [Configuration how-to](how-to/configure-profiles.md) |
 | cookie、secret、plugin を管理する | [Operations how-to](how-to/operate-securely.md) |
 | 認証、pagination、短命 URL を実装する | [Dynamic URL how-to](how-to/dynamic-urls-and-auth.md) |

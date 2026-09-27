@@ -16,6 +16,7 @@ from ..privacy.log_safety import (
     _safe_text,
     mask_log_text,
     safe_exception_name,
+    safe_locator,
     safe_relative_path,
     safe_url,
 )
@@ -33,6 +34,7 @@ __all__ = [
     "safe_log_text",
     "mask_log_text",
     "safe_exception_name",
+    "safe_locator",
     "safe_relative_path",
     "safe_url",
 ]
@@ -229,6 +231,13 @@ class DownloadLogger:
             safe_fragment_parameters=self._safe_fragment_parameters,
         )
 
+    def safe_locator(self, value: str) -> str:
+        return safe_locator(
+            value,
+            safe_query_parameters=self._safe_query_parameters,
+            safe_fragment_parameters=self._safe_fragment_parameters,
+        )
+
     def set_chapter_summary_console(self, enabled: bool) -> None:
         """Mirror chapter ``log.log`` records to ConsoleSink during a download run."""
         self._chapter_summary_console = enabled
@@ -290,6 +299,7 @@ class DownloadLogger:
         attempt: int | None = None,
         action: str | None = None,
         error: Exception | None = None,
+        url_is_locator: bool = False,
         debug: bool = False,
         include_chapter: bool = False,
     ) -> None:
@@ -314,14 +324,7 @@ class DownloadLogger:
         if action is not None and re.fullmatch(r"[a-z][a-z0-9_]{0,63}", action):
             parts.append(f"action={action}")
         if url is not None:
-            parts.append(
-                "url="
-                + safe_url(
-                    url,
-                    safe_query_parameters=self._safe_query_parameters,
-                    safe_fragment_parameters=self._safe_fragment_parameters,
-                )
-            )
+            parts.append("url=" + (self.safe_locator(url) if url_is_locator else self.safe_url(url)))
         if path is not None:
             parts.append("path=" + safe_relative_path(path, self._output_root))
         if error is not None:
@@ -356,7 +359,7 @@ class DownloadLogger:
         await self._write_chapter(chapter_id, "\n".join(lines))
 
     async def chapter_download(self, chapter_id: str, url: str) -> None:
-        await self._write_chapter(chapter_id, "download: " + self.safe_url(url))
+        await self._write_chapter(chapter_id, "download: " + self.safe_locator(url))
 
     async def chapter_save(self, chapter_id: str, path: str | Path) -> None:
         output_root = self._chapter_output_roots.get(chapter_id, self._output_root)
@@ -366,7 +369,7 @@ class DownloadLogger:
         lines = [f"error: {_safe_text(mask_log_text(category), 128)} (count={len(records)})"]
         output_root = self._chapter_output_roots.get(chapter_id, self._output_root)
         for record in records:
-            lines.append("image_url: " + self.safe_url(record.url))
+            lines.append("image_url: " + self.safe_locator(record.url))
             lines.append(f"image_index: {record.image_index}")
             lines.append("stage: " + _safe_text(mask_log_text(record.stage), 64))
             if record.response_url is not None:
@@ -420,11 +423,12 @@ class DownloadLogger:
         url: str | None = None,
         path: str | Path | None = None,
         module: str = "download",
+        url_is_locator: bool = False,
     ) -> None:
         """Write a masked error body to chapter and debug files, never to console/events."""
         parts = [f"error={safe_exception_name(error)}"]
         if url is not None:
-            parts.append("url=" + self.safe_url(url))
+            parts.append("url=" + (self.safe_locator(url) if url_is_locator else self.safe_url(url)))
         if path is not None:
             parts.append("path=" + safe_relative_path(path, self._output_root))
         detail = mask_log_text(

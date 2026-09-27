@@ -7,6 +7,7 @@ from dataclasses import fields
 from inspect import signature
 from pathlib import Path
 
+import image_downloader.configuration.paths as configuration_paths
 from image_downloader import (
     AppConfig,
     ExistingFileConflictError,
@@ -16,7 +17,6 @@ from image_downloader import (
     resolve_application_config,
 )
 from image_downloader.config import plugin_root
-import image_downloader.configuration.paths as configuration_paths
 from image_downloader.exceptions import ERROR_CATALOG
 from image_downloader.runtime import DownloadService, RuntimeComposer
 from image_downloader.storage import FileSystem
@@ -47,7 +47,8 @@ EXPECTED_EXPORTS = {
     "image_downloader.config": tuple(
         """
         AppConfig DEFAULT_CONFIG Profile Output Media ConsoleLogging Download Logging Network Email Notification
-        NotificationMethod NotificationCategory PluginSettings Security Storage Plugins ImageProcessors
+        NotificationMethod NotificationCategory PluginSettings Security Storage Plugins PluginDownloadPolicy
+        ImageProcessors
         GenericHtmlFallback Fallback StrictModel validate_config deep_merge ConfigurationLayer
         ResolvedApplicationConfig load_yaml normalize_host registrable_domain site_file_name
         load_application_config resolve_application_config apply_overrides resolve_paths plugin_root
@@ -62,7 +63,8 @@ EXPECTED_EXPORTS = {
     ),
     "image_downloader.security": tuple(
         """
-        CatalogEntry PluginCatalog PluginConfigOverrides PluginKind PluginManifest PluginVerificationMode
+        CatalogEntry PluginCatalog PluginConfigOverrides PluginDownloadPolicyOverrides PluginKind PluginManifest
+        PluginVerificationMode
         PluginVerificationOverride PluginClassLoader PluginDiagnostic PluginDiscovery PluginDiscoveryResult
         PluginManifestVerifier PluginRecord PluginRegistry PluginVerificationResult PluginRuntime PluginSelector
         safe_app_settings catalog_entry_for install_plugin revoke_plugin trust_plugin uninstall_plugin
@@ -79,7 +81,7 @@ EXPECTED_EXPORTS = {
     "image_downloader.observability.logging": tuple(
         """
         LogRecord ChapterFailureRecord LogSink ChapterFileSink DebugFileSink ConsoleSink DownloadLogger
-        safe_log_text mask_log_text safe_exception_name safe_relative_path safe_url
+        safe_log_text mask_log_text safe_exception_name safe_locator safe_relative_path safe_url
         """.split()
     ),
 }
@@ -203,12 +205,18 @@ def test_representative_signatures_and_result_dtos_are_stable() -> None:
         "url",
         "plugin_overrides",
         "fallback_override",
+        "plugin_id",
+        "force_plugin",
+        "plugin_download_policy_overrides",
     )
     assert tuple(signature(DownloadService.check_updates).parameters) == (
         "self",
         "url",
         "plugin_overrides",
         "fallback_override",
+        "plugin_id",
+        "force_plugin",
+        "plugin_download_policy_overrides",
     )
     assert tuple(signature(DownloadService.close).parameters) == ("self",)
     assert tuple(field.name for field in fields(ImageFailure)) == (

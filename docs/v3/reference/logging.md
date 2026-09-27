@@ -18,11 +18,13 @@ This page defines their delivery and failure semantics.
 | `ConsoleSink(stream=None)` | `async write(record) -> None`。 |
 | `DownloadLogger(sinks=None)` | safety/capture/chapter registration と、下記 record/close method を所有する。 |
 
-`DownloadLogger.configure_safety(logging, output_root=None)`、`safe_url(value)`、`set_chapter_summary_console(enabled)`、`begin_python_log_capture(namespaces)`、`end_python_log_capture()` は synchronous configuration method である。`flush_python_log_capture()`、`core(...)`、`log(...)`、`chapter_header(...)`、`chapter_download(...)`、`chapter_save(...)`、`chapter_error_group(...)`、`chapter_done(...)`、`close_chapter(...)`、`error_detail(...)`、`debug(...)`、`close()` は **async** で await が必要である。
+`DownloadLogger.configure_safety(logging, output_root=None)`、`safe_url(value)`、`safe_locator(value)`、`set_chapter_summary_console(enabled)`、`begin_python_log_capture(namespaces)`、`end_python_log_capture()` は synchronous configuration method である。`flush_python_log_capture()`、`core(...)`、`log(...)`、`chapter_header(...)`、`chapter_download(...)`、`chapter_save(...)`、`chapter_error_group(...)`、`chapter_done(...)`、`close_chapter(...)`、`error_detail(...)`、`debug(...)`、`close()` は **async** で await が必要である。
 
-`core(event, *, module, chapter_id=None, url=None, path=None, method=None, status=None, bytes_count=None, count=None, plugin_id=None, attempt=None, action=None, error=None, debug=False, include_chapter=False)` は event/module allowlist に限定し、任意 raw message は受け取らない。duplicate chapter registration と duplicate capture start は `RuntimeError`。caller は close と write を race させてはならない。
+`core(event, *, module, chapter_id=None, url=None, path=None, method=None, status=None, bytes_count=None, count=None, plugin_id=None, attempt=None, action=None, error=None, url_is_locator=False, debug=False, include_chapter=False)` は event/module allowlist に限定し、任意 raw message は受け取らない。`url_is_locator=True` は画像 locator を URL として再構文解析せず安全に表示する内部 runtime 指定である。duplicate chapter registration と duplicate capture start は `RuntimeError`。caller は close と write を race させてはならない。
 
-`safe_log_text(value, *, maximum=4096)`、`mask_log_text(value, *, safe_query_parameters=None, safe_fragment_parameters=None)`、`safe_url(value, *, safe_query_parameters=None, safe_fragment_parameters=None)`、`safe_relative_path(value, output_root)`、`safe_exception_name(value)` は secret、URL、path、exception name を安全に整形する。これらは raw secret を保存してよい値に変換するものではない。
+`safe_log_text(value, *, maximum=4096)`、`mask_log_text(value, *, safe_query_parameters=None, safe_fragment_parameters=None)`、`safe_url(value, *, safe_query_parameters=None, safe_fragment_parameters=None)`、`safe_locator(value, *, safe_query_parameters=None, safe_fragment_parameters=None)`、`safe_relative_path(value, output_root)`、`safe_exception_name(value)` は secret、URL、locator、path、exception name を安全に整形する。`safe_locator` は HTTP(S) URL を `safe_url` と同じ規則で処理し、それ以外を `locator:` 付きの masked text として表示する。これらは raw secret を保存してよい値に変換するものではない。
+
+画像 event/log の `url` は `ImageResource.url` の locator を元にするため、absolute HTTP(S) URL とは限らない。observer が受ける値は safety renderer 済みで、実際の fetch URL や再利用可能な locator を表すとは限らない。plugin は locator に秘密値を置かない。
 
 sink/observer/capture cleanup の failure は safe diagnostic warning として抑制され得る。主 download result、exception、exit status は変更しない。
 

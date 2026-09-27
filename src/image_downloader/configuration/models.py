@@ -187,10 +187,20 @@ def _valid_plugin_id(value: str) -> bool:
     return bool(re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+", value))
 
 
+class PluginDownloadPolicy(StrictModel):
+    """Core-owned limits and ordering for one selected site plugin operation."""
+
+    request_concurrency: StrictInt | None = Field(None, ge=1)
+    chapter_concurrency: StrictInt | None = Field(None, ge=1)
+    image_concurrency_per_chapter: StrictInt | None = Field(None, ge=1)
+    preserve_image_start_order: StrictBool = False
+
+
 class PluginSettings(StrictModel):
     enabled: StrictBool = True
     config: Mapping[str, Any] = Field(default_factory=dict)
     secrets: Mapping[StrictStr, StrictStr] = Field(default_factory=dict)
+    download_policy: PluginDownloadPolicy = Field(default_factory=PluginDownloadPolicy)
 
     @field_validator("secrets")
     @classmethod
@@ -205,7 +215,6 @@ class PluginSettings(StrictModel):
     def model_post_init(self, __context: Any) -> None:
         object.__setattr__(self, "config", freeze_json(self.config))
         object.__setattr__(self, "secrets", freeze_json(self.secrets))
-
 
 class Security(StrictModel):
     plugin_verification: Literal["strict", "warn", "off"] = "strict"

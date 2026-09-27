@@ -16,6 +16,7 @@ from ..exceptions import (
     PluginError,
     error_info_for,
 )
+from ..observability.logging import safe_locator
 from ..privacy.log_safety import safe_url
 from .config import ConfigCommandHandler
 from .constants import EXIT_AUTHENTICATION, EXIT_CONFIGURATION, EXIT_FAILURE, EXIT_PLUGIN
@@ -84,9 +85,10 @@ def _error_payload(error: Exception, *, operation: str) -> dict[str, object]:
         for field in ("stage", "transport"):
             if isinstance(context.get(field), str):
                 payload[field] = context[field]
-        for field in ("image_url", "response_url"):
-            if isinstance(context.get(field), str):
-                payload[field] = safe_url(context[field])
+        if isinstance(context.get("image_url"), str):
+            payload["image_url"] = safe_locator(context["image_url"])
+        if isinstance(context.get("response_url"), str):
+            payload["response_url"] = safe_url(context["response_url"])
         if isinstance(context.get("http_status"), int):
             payload["http_status"] = context["http_status"]
         if isinstance(context.get("output_path"), str):

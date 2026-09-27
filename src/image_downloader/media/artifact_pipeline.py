@@ -125,6 +125,7 @@ class ArtifactPipeline:
             url=final.source_url,
             bytes_count=len(final.data),
             plugin_id=self.site_record.id,
+            url_is_locator=True,
             debug=True,
         )
         return final

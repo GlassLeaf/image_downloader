@@ -88,6 +88,7 @@ PluginSettings
 Security
 Storage
 Plugins
+PluginDownloadPolicy
 ImageProcessors
 GenericHtmlFallback
 Fallback
@@ -133,6 +134,7 @@ _RuntimeDependencies
 CatalogEntry
 PluginCatalog
 PluginConfigOverrides
+PluginDownloadPolicyOverrides
 PluginKind
 PluginManifest
 PluginVerificationMode
@@ -195,6 +197,7 @@ DownloadLogger
 safe_log_text
 mask_log_text
 safe_exception_name
+safe_locator
 safe_relative_path
 safe_url
 <!-- api-inventory:end -->

@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from ..exceptions import error_reason_for_code
-from .logging import DownloadLogger, safe_exception_name, safe_relative_path, safe_url
+from .logging import DownloadLogger, safe_exception_name, safe_locator, safe_relative_path, safe_url
 
 _SAFE_FAILURE_STAGE = re.compile(r"image_(?:fetch|processing|save)")
 _SAFE_FAILURE_CODE = re.compile(r"[a-z][a-z0-9_]{0,63}")
@@ -64,10 +64,25 @@ class EventName(StrEnum):
 
 
 EVENTS = tuple(event.value for event in EventName)
+_IMAGE_LOCATOR_EVENTS = frozenset(
+    {
+        EventName.BEFORE_FETCH,
+        EventName.FETCH_SUCCESS,
+        EventName.FETCH_FAILED,
+        EventName.IMAGE_PROCESS,
+        EventName.IMAGE_PROCESS_STARTED,
+        EventName.IMAGE_PROCESS_SUCCESS,
+        EventName.IMAGE_PROCESS_FAILED,
+        EventName.BEFORE_SAVE,
+        EventName.SAVE_SUCCESS,
+        EventName.SAVE_FAILED,
+    }
+)
 
 
 @dataclass(frozen=True, slots=True)
 class EventPayload:
+    """Sanitized event data; image lifecycle ``url`` may be an opaque locator."""
     url: str | None = None
     response_url: str | None = None
     path: str | None = None
@@ -104,7 +119,7 @@ class EventBus:
         self._handlers[event].append(handler)
 
     async def emit(self, event: EventName, payload: EventPayload | None = None) -> None:
-        safe = self._sanitize(payload or EventPayload())
+        safe = self._sanitize(payload or EventPayload(), url_is_locator=event in _IMAGE_LOCATOR_EVENTS)
         for handler in tuple(self._handlers.get(event, ())):
             try:
                 result = handler(safe)
@@ -113,10 +128,10 @@ class EventBus:
             except Exception as exc:
                 await self._log_observer_failure(event, exc)
 
-    def _sanitize(self, payload: EventPayload) -> EventPayload:
+    def _sanitize(self, payload: EventPayload, *, url_is_locator: bool = False) -> EventPayload:
         return EventPayload(
             url=(
-                safe_url(
+                (safe_locator if url_is_locator else safe_url)(
                     payload.url,
                     safe_query_parameters=self._safe_query_parameters,
                     safe_fragment_parameters=self._safe_fragment_parameters,

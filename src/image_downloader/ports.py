@@ -79,6 +79,7 @@ class TransformContext:
     __slots__ = (
         "_image_id",
         "_index",
+        "_image_metadata",
         "_config",
         "_app_settings",
         "_plugin_manifest",
@@ -101,9 +102,11 @@ class TransformContext:
         *,
         site_manifest: Mapping[str, object] | None = None,
         site_catalog: Mapping[str, object] | None = None,
+        image_metadata: Mapping[str, str] | None = None,
     ) -> None:
         self._image_id = image.image_id
         self._index = image.index
+        self._image_metadata = _readonly_mapping(image.metadata if image_metadata is None else image_metadata)
         self._config = _readonly_mapping(config)
         self._app_settings = _readonly_mapping(app_settings)
         self._plugin_manifest = _readonly_mapping(plugin_manifest)
@@ -120,6 +123,11 @@ class TransformContext:
     @property
     def index(self) -> int:
         return self._index
+
+    @property
+    def image_metadata(self) -> Mapping[str, str]:
+        """Non-secret per-image metadata supplied by ``inspect()``."""
+        return cast(Mapping[str, str], self._image_metadata)
 
     @property
     def config(self) -> Mapping[str, object]:

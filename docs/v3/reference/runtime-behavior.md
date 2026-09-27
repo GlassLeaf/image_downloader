@@ -9,6 +9,8 @@
 
 plugin は raw HTTP client を作らず `await context.requests.execute(RequestSpec(...))` を使う。core が timeout、pool、cookie、redirect、authentication、origin/domain concurrency、rate limit を管理する。`RequestSpec`、`RequestResponse`、`ImageResource` は immutable DTO であり、header/query を変える場合は新しい value を返す。
 
+`ImageResource.url` は opaque locator であり transport に直接渡されない。実際の network destination は `create_image_request` または recovery hook が返す absolute HTTP(S) `RequestSpec.url` だけである。
+
 GET、HEAD、OPTIONS、TRACE は retry 対象である。429、500、502、503、504 は `Retry-After` を尊重し、`network.retry_max_delay_seconds` 以下の jitter を加える。POST 等の non-idempotent request は `retry_non_idempotent=True` を plugin が安全性を保証するときだけ retry する。
 
 redirect は hop ごとに policy を検査する。anonymous cross-origin redirect には Cookie、Referer、plugin-specific header、application header を引き継がない。response body は streaming で読み、宣言済みサイズと受信済みサイズのいずれも `network.max_response_bytes` を超えると `ResponseSizeLimitError` で止める。

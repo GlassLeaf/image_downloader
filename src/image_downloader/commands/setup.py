@@ -157,6 +157,38 @@ def _runtime_overrides(args: argparse.Namespace) -> dict[str, Mapping[str, objec
     return result
 
 
+def _download_policy_overrides(args: argparse.Namespace) -> dict[str, Mapping[str, object]]:
+    result: dict[str, Mapping[str, object]] = {}
+    for path in args.plugin_download_policy_file:
+        safe_path = existing_regular_file(path, "--plugin-download-policy-file", required=True)
+        assert safe_path is not None
+        try:
+            raw = json.loads(safe_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ConfigurationError(f"plugin download policy file is invalid: {path}") from exc
+        if (
+            not isinstance(raw, dict)
+            or set(raw) != {"plugin_id", "download_policy"}
+            or not isinstance(raw["plugin_id"], str)
+            or not isinstance(raw["download_policy"], dict)
+        ):
+            raise ConfigurationError(f"plugin download policy file has invalid schema: {path}")
+        current = result.get(raw["plugin_id"], {})
+        result[raw["plugin_id"]] = _deep_merge_json(current, raw["download_policy"])
+    for item in args.plugin_download_policy:
+        if "=" not in item:
+            raise ConfigurationError("--plugin-download-policy must have ID=<JSON-object> form")
+        plugin_id, text = item.split("=", 1)
+        try:
+            value = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise ConfigurationError("--plugin-download-policy JSON is invalid") from exc
+        if not plugin_id or not isinstance(value, dict):
+            raise ConfigurationError("--plugin-download-policy value must be a JSON object")
+        result[plugin_id] = _deep_merge_json(result.get(plugin_id, {}), value)
+    return result
+
+
 def _deep_merge_json(base: Mapping[str, object], override: Mapping[str, object]) -> dict[str, object]:
     value = dict(base)
     for key, item in override.items():

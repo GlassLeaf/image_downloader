@@ -54,6 +54,7 @@ class PluginInvoker:
         module: str = "plugin",
         url: str | None = None,
         chapter_id: str | None = None,
+        url_is_locator: bool = False,
     ) -> None:
         if self.logger is not None:
             await self.logger.core(
@@ -61,6 +62,7 @@ class PluginInvoker:
                 module=module,
                 chapter_id=chapter_id,
                 url=url,
+                url_is_locator=url_is_locator,
                 plugin_id=self.plugin_id,
                 action=hook,
                 debug=True,
@@ -74,6 +76,7 @@ class PluginInvoker:
         url: str | None = None,
         chapter_id: str | None = None,
         bytes_count: int | None = None,
+        url_is_locator: bool = False,
     ) -> None:
         if self.logger is not None:
             await self.logger.core(
@@ -81,6 +84,7 @@ class PluginInvoker:
                 module=module,
                 chapter_id=chapter_id,
                 url=url,
+                url_is_locator=url_is_locator,
                 bytes_count=bytes_count,
                 plugin_id=self.plugin_id,
                 action=hook,
@@ -173,7 +177,7 @@ class PluginInvoker:
         context: PluginExecutionContext,
     ) -> RequestSpec:
         hook = "create_image_request"
-        await self._start(hook, url=image.url)
+        await self._start(hook, url=image.url, url_is_locator=True)
         value = await self._invoke_async(hook, lambda: plugin.create_image_request(image, context))
         self._validate_request(hook, value, allow_none=False)
         assert isinstance(value, RequestSpec)
@@ -207,7 +211,7 @@ class PluginInvoker:
         chapter_id: str,
     ) -> ImageArtifact:
         hook = "transform_image"
-        await self._start(hook, url=artifact.source_url, chapter_id=chapter_id)
+        await self._start(hook, url=artifact.source_url, chapter_id=chapter_id, url_is_locator=True)
         value = await self._invoke_async(hook, lambda: plugin.transform_image(artifact, context))
         self._validate_artifact(hook, value)
         await self._finish(
@@ -215,6 +219,7 @@ class PluginInvoker:
             url=value.source_url,
             chapter_id=chapter_id,
             bytes_count=len(value.data),
+            url_is_locator=True,
         )
         return value
 
@@ -227,7 +232,13 @@ class PluginInvoker:
         chapter_id: str,
     ) -> ImageArtifact:
         hook = "transform"
-        await self._start(hook, module="processor", url=artifact.source_url, chapter_id=chapter_id)
+        await self._start(
+            hook,
+            module="processor",
+            url=artifact.source_url,
+            chapter_id=chapter_id,
+            url_is_locator=True,
+        )
         value = await self._invoke_async(hook, lambda: processor.transform(artifact, context))
         self._validate_artifact(hook, value)
         await self._finish(
@@ -236,6 +247,7 @@ class PluginInvoker:
             url=value.source_url,
             chapter_id=chapter_id,
             bytes_count=len(value.data),
+            url_is_locator=True,
         )
         return value
 
@@ -313,12 +325,13 @@ class PluginInvoker:
 
     def _validate_image(self, hook: str, image: ImageResource, chapter_index: int, image_index: int) -> None:
         path = f"chapters[{chapter_index}].images[{image_index}]"
-        self._validate_http_url(hook, image.url, f"inspect returned an invalid image URL at {path}")
+        self._validate_locator(hook, image.url, f"inspect returned an invalid image locator at {path}")
         if isinstance(image.index, bool) or not isinstance(image.index, int) or image.index < 0:
             raise self._error(hook, f"inspect returned an invalid image index at {path}")
         if image.referer is not None:
             self._validate_http_url(hook, image.referer, f"inspect returned an invalid referer at {path}")
         self._validate_string_mapping(hook, image.headers, f"inspect returned invalid image headers at {path}")
+        self._validate_string_mapping(hook, image.metadata, f"inspect returned invalid image metadata at {path}")
         if not isinstance(image.save_options, ImageSaveOptions):
             raise self._error(hook, f"inspect returned invalid save options at {path}")
         self._validate_save_options(hook, image.save_options, path)
@@ -367,7 +380,7 @@ class PluginInvoker:
             raise self._error(hook, f"{hook} must return ImageArtifact")
         if not isinstance(value.data, bytes) or not isinstance(value.content_type, str):
             raise self._error(hook, f"{hook} returned invalid image data")
-        self._validate_http_url(hook, value.source_url, f"{hook} returned an invalid source URL")
+        self._validate_locator(hook, value.source_url, f"{hook} returned an invalid source locator")
         if value.image_id is not None and not isinstance(value.image_id, str):
             raise self._error(hook, f"{hook} returned an invalid image ID")
         if value.extension is not None and not isinstance(value.extension, str):
@@ -394,6 +407,10 @@ class PluginInvoker:
             raise self._error(hook, message)
         parsed = urlparse(value)
         if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+            raise self._error(hook, message)
+
+    def _validate_locator(self, hook: str, value: object, message: str) -> None:
+        if not isinstance(value, str) or not value.strip():
             raise self._error(hook, message)
 
     def _validate_string_mapping(self, hook: str, value: object, message: str) -> None:

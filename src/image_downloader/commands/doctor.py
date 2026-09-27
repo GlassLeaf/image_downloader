@@ -32,6 +32,10 @@ class DoctorCommandHandler:
             args,
             (
                 "selection_priority",
+                "plugin_id",
+                "force_plugin_id",
+                "plugin_download_policy",
+                "plugin_download_policy_file",
                 "list_updated_urls",
                 "export_cookies",
                 "import_cookies",

@@ -33,6 +33,10 @@ class PluginCommandHandler:
             (
                 "plugin_config",
                 "plugin_config_file",
+                "plugin_id",
+                "force_plugin_id",
+                "plugin_download_policy",
+                "plugin_download_policy_file",
                 "fallback_generic",
                 "host",
                 "no_console_log",

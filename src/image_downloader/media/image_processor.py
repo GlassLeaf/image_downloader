@@ -131,8 +131,8 @@ def _process_image(
             _check_dimensions(image.size, max_pixels)
             detected = (image.format or "").upper()
             requested = options.format.upper() if options.format else None
-            source_format = _format_from_url(source_url) or _format_from_content_type(content_type)
-            # Preserve a matching URL/Content-Type format; correct misleading metadata using the decoded format.
+            source_format = _format_from_locator(source_url) or _format_from_content_type(content_type)
+            # A locator suffix and Content-Type are hints; decoded bytes decide the final format.
             target = requested or (source_format if source_format == detected else detected) or detected
             if target not in _FORMAT_TO_EXTENSION:
                 raise UnsupportedImageFormatError(target)
@@ -166,8 +166,9 @@ def _inspect_image(data: bytes, max_pixels: int | None) -> str:
         raise ImageDecodeError("invalid image data") from exc
 
 
-def _format_from_url(url: str) -> str | None:
-    return _EXTENSION_TO_FORMAT.get(PurePosixPath(urlparse(url).path).suffix.lower())
+def _format_from_locator(locator: str) -> str | None:
+    """Use a locator suffix as a format hint without requiring an HTTP URL."""
+    return _EXTENSION_TO_FORMAT.get(PurePosixPath(urlparse(locator).path).suffix.lower())
 
 
 def _format_from_content_type(content_type: str) -> str | None:

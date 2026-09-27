@@ -26,6 +26,7 @@ from ..storage.path_safety import existing_directory
 
 PluginKind = Literal["site_plugin", "image_processor_plugin"]
 PluginConfigOverrides = Mapping[str, Mapping[str, Any]]
+PluginDownloadPolicyOverrides = Mapping[str, Mapping[str, Any]]
 PluginVerificationMode = Literal[
     "strict",
     "warn",

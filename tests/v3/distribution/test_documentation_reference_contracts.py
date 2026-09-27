@@ -13,8 +13,8 @@ from types import ModuleType, SimpleNamespace
 
 from image_downloader.cli import build_parser
 from image_downloader.exceptions import ERROR_CATALOG
-from image_downloader.plugins.plugin_manifest import _MANIFEST_FIELDS, _validate_relaxed_manifest
 from image_downloader.models import UpdateChangeKind
+from image_downloader.plugins.plugin_manifest import _MANIFEST_FIELDS, _validate_relaxed_manifest
 
 LINK = re.compile(r"\[[^\]]*\]\((?P<target>[^)#]+)(?:#(?P<fragment>[^)]+))?\)")
 DESTINATION_LINK = re.compile(r"\[[^\]]*\]\((?P<file>[^)#]+)#(?P<anchor>[^)]+)\)")
@@ -245,7 +245,13 @@ def test_plugin_package_schema_and_signer_metadata_match_implementation(reposito
         assert f'"{field}"' in template
 
     relaxed = _validate_relaxed_manifest(
-        {"manifest": {"id": "com.example.relaxed", "kind": "site_plugin", "entry": {"file": "plugin.py", "class": "Plugin"}}},
+        {
+            "manifest": {
+                "id": "com.example.relaxed",
+                "kind": "site_plugin",
+                "entry": {"file": "plugin.py", "class": "Plugin"},
+            }
+        },
         Path("unit"),
     )
     assert relaxed.value["match_priority"] == 0
@@ -263,7 +269,8 @@ def test_reference_documents_state_the_correct_validation_and_lifecycle_boundari
     assert "does apply" in cli
     assert "does not alter the catalog-entry" in cli
     assert "constructor 自体は URL を検査しない" in library
-    assert "syntactically valid な dummy URL" in hooks
+    assert "non-empty string locator" in hooks
+    assert "RequestSpec(url=image.url)" in hooks
     assert "transport failure には recovery hook は呼ばれない" in lifecycle
     assert "HTTP response の status が `>=400`" in lifecycle
     assert "skip allocation" in library
@@ -627,7 +634,14 @@ def test_coverage_ledger_quotes_snapshots_and_keeps_visible_destination_proof(
     for claim_id, citation in citations.items():
         locator = citation.group("source")
         if locator.startswith("pre-reorg/"):
-            source = repository_root / "archive" / "docs" / "legacy" / "v3-pre-reorg" / locator.removeprefix("pre-reorg/")
+            source = (
+                repository_root
+                / "archive"
+                / "docs"
+                / "legacy"
+                / "v3-pre-reorg"
+                / locator.removeprefix("pre-reorg/")
+            )
         else:
             assert locator.startswith("pre-taxonomy/"), claim_id
             source = (

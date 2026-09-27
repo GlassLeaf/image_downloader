@@ -67,15 +67,28 @@ class ImageSaveOptions:
 
 @dataclass(frozen=True, slots=True)
 class ImageResource:
+    """A manifest image identified by an opaque, non-empty string locator.
+
+    ``url`` is retained as the public field name for compatibility, but it is
+    not necessarily a network URL.  A plugin resolves it to the actual
+    absolute HTTP(S) ``RequestSpec.url`` in ``create_image_request``.
+    """
+
     url: str
     index: int = 1
     referer: str | None = None
     headers: Mapping[str, str] = field(default_factory=freeze_mapping)
     save_options: ImageSaveOptions = field(default_factory=ImageSaveOptions)
     image_id: str | None = None
+    metadata: Mapping[str, str] = field(default_factory=freeze_mapping)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "headers", freeze_mapping(self.headers))
+        if not isinstance(self.metadata, Mapping) or any(
+            not isinstance(key, str) or not isinstance(value, str) for key, value in self.metadata.items()
+        ):
+            raise TypeError("ImageResource.metadata must map strings to strings")
+        object.__setattr__(self, "metadata", freeze_mapping(self.metadata))
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,6 +122,13 @@ class DownloadManifest:
 
 @dataclass(frozen=True, slots=True)
 class ImageArtifact:
+    """Image bytes with the manifest locator that identified their source.
+
+    ``source_url`` preserves the source ``ImageResource.url`` locator rather
+    than the final response URL, so transforms can keep using the stable
+    per-image value supplied by the manifest.
+    """
+
     data: bytes
     content_type: str
     source_url: str
