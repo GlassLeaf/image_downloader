@@ -7,23 +7,26 @@ from collections.abc import Mapping
 from urllib.parse import urlparse
 
 from image_downloader import (
+    AuthFlow,
     Chapter,
     DownloadManifest,
     ImageArtifact,
     ImageResource,
     PluginError,
+    PluginExecutionContext,
+    RequestResponse,
     RequestSpec,
     TransformContext,
 )
 
 
-def _text(value, message):
+def _text(value: object, message: str) -> str:
     if not isinstance(value, str) or not value:
         raise PluginError(message)
     return value
 
 
-def _json(body):
+def _json(body: bytes) -> Mapping[str, object]:
     try:
         value = json.loads(body)
     except (TypeError, ValueError, json.JSONDecodeError) as exc:
@@ -39,11 +42,11 @@ class CursorApiGalleryPlugin:
         if config:
             raise ValueError("cursor API gallery does not accept configuration")
 
-    def matches(self, url):
+    def matches(self, url: str) -> bool:
         p = urlparse(url)
         return p.scheme in {"http", "https"} and p.hostname == "cursor-api.example.test"
 
-    async def inspect(self, url, context):
+    async def inspect(self, url: str, context: PluginExecutionContext) -> DownloadManifest:
         p = urlparse(url)
         item = p.path.rstrip("/").rsplit("/", 1)[-1]
         if not item:
@@ -88,15 +91,21 @@ class CursorApiGalleryPlugin:
             cursor = _text(gallery.get("next_cursor"), "cursor is invalid")
         return DownloadManifest(title, (Chapter(1, title, images=tuple(images)),), content_id=content_id)
 
-    async def create_image_request(self, image, context):
+    async def create_image_request(self, image: ImageResource, context: PluginExecutionContext) -> RequestSpec:
         del context
         return RequestSpec(image.url, referer=image.referer)
 
-    async def recover_image_request(self, image, failed, response, context):
+    async def recover_image_request(
+        self,
+        image: ImageResource,
+        failed: RequestSpec,
+        response: RequestResponse,
+        context: PluginExecutionContext,
+    ) -> RequestSpec | None:
         del image, failed, response, context
         return None
 
-    def auth_flow(self, context):
+    def auth_flow(self, context: PluginExecutionContext) -> AuthFlow | None:
         del context
         return None
 

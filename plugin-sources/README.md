@@ -11,7 +11,10 @@ with the generated key, file-tree, and signature fields. Change metadata, entry
 source, author YAML, or helpers before running the signer again; do not edit a
 generated manifest directly. The exact schema, optional-runtime status, and
 file-tree rules are documented in [plugin package reference](../docs/v3/reference/plugin-package.md#plugin-package).
-Hook implementation is documented in [plugin hook reference](../docs/v3/reference/plugin-hooks.md).
+All authored Python definitions in these source units are type-annotated; use the
+unit matching the desired pattern as an input/output example. Vendored code is
+third-party material and is intentionally outside that guarantee. Hook meaning,
+validation, lifecycle, and exception behavior are documented in [plugin hook reference](../docs/v3/reference/plugin-hooks.md).
 The bundled signer supports both `site_plugin` and `image_processor_plugin`; the unit metadata chooses the kind.
 
 ```powershell

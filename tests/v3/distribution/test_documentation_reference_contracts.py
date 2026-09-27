@@ -333,6 +333,8 @@ def test_embedded_tutorial_snippets_execute_in_an_isolated_facade(
     blocks = re.findall(r"```python\n(.*?)\n```", tutorial, flags=re.DOTALL)
     package = ModuleType("image_downloader")
     config_module = ModuleType("image_downloader.config")
+    runtime_module = ModuleType("image_downloader.runtime")
+    security_module = ModuleType("image_downloader.security")
     created_composers: list[object] = []
 
     class FakeService:
@@ -395,6 +397,16 @@ def test_embedded_tutorial_snippets_execute_in_an_isolated_facade(
     class FakeImageDownloaderError(Exception):
         pass
 
+    class FakeAppConfig:
+        pass
+
+    class FakePluginRuntime:
+        pass
+
+    class FakeRuntimeDependencies:
+        pass
+
+    package.AppConfig = FakeAppConfig
     package.RuntimeComposer = FakeComposer
     package.DownloadService = FakeDownloadService
     package.load_application_config = lambda path, **kwargs: SimpleNamespace()
@@ -402,8 +414,12 @@ def test_embedded_tutorial_snippets_execute_in_an_isolated_facade(
     package.ImageDownloaderError = FakeImageDownloaderError
     package.PluginError = FakeImageDownloaderError
     config_module.plugin_root = lambda config: tmp_path / "platform" / "plugins"
+    runtime_module._RuntimeDependencies = FakeRuntimeDependencies
+    security_module.PluginRuntime = FakePluginRuntime
     monkeypatch.setitem(sys.modules, "image_downloader", package)
     monkeypatch.setitem(sys.modules, "image_downloader.config", config_module)
+    monkeypatch.setitem(sys.modules, "image_downloader.runtime", runtime_module)
+    monkeypatch.setitem(sys.modules, "image_downloader.security", security_module)
     monkeypatch.chdir(tmp_path)
 
     namespace: dict[str, object] = {"__name__": "documentation_example"}

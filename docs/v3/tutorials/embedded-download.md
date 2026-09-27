@@ -36,7 +36,13 @@ on import.
 ### Check a complete update snapshot
 
 ```python
-async def check_for_updates(config, config_root) -> list[str]:
+from pathlib import Path
+
+from image_downloader import AppConfig, RuntimeComposer
+from image_downloader.config import plugin_root
+
+
+async def check_for_updates(config: AppConfig, config_root: Path) -> list[str]:
     async with RuntimeComposer(config, config_root=config_root, plugin_root=plugin_root(config)).compose() as service:
         update = await service.check_updates("https://example.test/gallery")
         return [item.url for item in update.changes if item.kind.value != "removed"]
@@ -49,7 +55,13 @@ list. For the CLI equivalent use `download URL --list-updated-urls`.
 ### Use a one-operation plugin override
 
 ```python
-async def download_with_override(config, config_root) -> None:
+from pathlib import Path
+
+from image_downloader import AppConfig, RuntimeComposer
+from image_downloader.config import plugin_root
+
+
+async def download_with_override(config: AppConfig, config_root: Path) -> None:
     overrides = {"com.example.gallery": {"page_size": 50}}
     async with RuntimeComposer(config, config_root=config_root, plugin_root=plugin_root(config)).compose() as service:
         await service.run("https://example.test/gallery", plugin_overrides=overrides)
@@ -62,7 +74,13 @@ validated for the selected candidate and is not written to the YAML layer.
 ### Registry-only inspection
 
 ```python
-def inspect_registry(config, config_root) -> None:
+from pathlib import Path
+
+from image_downloader import AppConfig, RuntimeComposer
+from image_downloader.config import plugin_root
+
+
+def inspect_registry(config: AppConfig, config_root: Path) -> None:
     composer = RuntimeComposer(config, config_root=config_root, plugin_root=plugin_root(config))
     registry = composer.compose_registry()
     try:
@@ -79,9 +97,13 @@ namespaces, so the caller must close it even if validation or selection fails.
 ### Handle result failures and operation failures separately
 
 ```python
-from image_downloader import AuthenticationError, ImageDownloaderError, PluginError
+from pathlib import Path
 
-async def download_with_handling(config, config_root) -> None:
+from image_downloader import AppConfig, AuthenticationError, ImageDownloaderError, PluginError, RuntimeComposer
+from image_downloader.config import plugin_root
+
+
+async def download_with_handling(config: AppConfig, config_root: Path) -> None:
     try:
         async with RuntimeComposer(config, config_root=config_root, plugin_root=plugin_root(config)).compose() as service:
             result = await service.run("https://example.test/gallery")
@@ -106,10 +128,14 @@ partial result. The complete exception matrix is in [library API](../reference/l
 ### Advanced dependency injection
 
 ```python
-from image_downloader import DownloadService
+from image_downloader import AppConfig, DownloadService
 from image_downloader.runtime import _RuntimeDependencies
+from image_downloader.security import PluginRuntime
 
-def build_service(config, registry, dependencies: _RuntimeDependencies) -> DownloadService:
+
+def build_service(
+    config: AppConfig, registry: PluginRuntime, dependencies: _RuntimeDependencies
+) -> DownloadService:
     # The caller owns construction of a complete, compatible dependency bundle.
     return DownloadService(config, registry, dependencies)
 ```

@@ -19,11 +19,12 @@
     "public_key": "nXreC2mAtFSh+eqWrRPeKM4Aps7QLf4UUQ7TE3tCCmQ=",
     "key_id": "6861a70e3992291678e776ca440f0ced984b1e4d43755551c1ff3f5a2773fb41",
     "file_tree": {
+      "VENDORED-LICENSES.md": "2c13ee20f97f56cd6a93adb59b9421d14facebba1c3ef793c8b9c085efd419ae",
       "licenses/AUTHORS": "b9221d6eb05bd6ca1b75797b56b954beebe29b674df64177307e04767d162861",
       "licenses/LICENSE": "55b4d8d4b1e5bc86d10efac91b74c87bcb77526b0f5b9edaf8b9cd2adc7397b2",
       "licenses/LICENSE.md": "ceb7b9053b88addffa3102a457302bd840d123925ee9ed9c2ac90cf6548b33bf",
       "plugin-metadata.json": "918cc3d77f2023fd6d95743c11e83d37657f5308531b3a5d4412be7319e018dd",
-      "plugin.py": "66c637440b474450e5d22f1523f9fa7664bf6839a7d8d4d37c408ffed4606c69",
+      "plugin.py": "7d3cb6e03453e5692e6c8814cbd1efee535b002a7ece0c884355c67e9d529b5b",
       "plugin.yaml": "4533f5c417973181b86864f3e0287208d1e0cf7da1587c650de502c1a229bd0e",
       "vendor/__init__.py": "6211ef874b6a9af81d70293e8cf17a027fe809c9cbb22b37424091896d12a508",
       "vendor/bs4/__init__.py": "92adf6702b5088d8e353d5f08c3d1bd637573795840bcee726a4925b73e15643",
@@ -41,10 +42,9 @@
       "vendor/soupsieve/css_parser.py": "3344af465d1c008f91cb7852e15960800d16bacb2f764ad8e12e5327aceddb5a",
       "vendor/soupsieve/css_types.py": "a82c414565fdb068e02d7814f6a98cf79f8e6421cf67c922c9a1ef9f48a4ffdc",
       "vendor/soupsieve/pretty.py": "f33f5937291be7b611fa6654ad8e0ef586570cfe818462d2abdf8303963caf0c",
-      "vendor/soupsieve/util.py": "4343151fbedc5015ccb4a5740f67fc4b27fdd2b7a63ded047cba9eebe9ac01e2",
-      "VENDORED-LICENSES.md": "2c13ee20f97f56cd6a93adb59b9421d14facebba1c3ef793c8b9c085efd419ae"
+      "vendor/soupsieve/util.py": "4343151fbedc5015ccb4a5740f67fc4b27fdd2b7a63ded047cba9eebe9ac01e2"
     },
-    "file_tree_sha256": "d58d23ce9ee7ea60046ff18bd62af7afda16c8e629c45e3a5727204725a6009b"
+    "file_tree_sha256": "b92464ac8b33bf442fd65543c5f71acd9dcab7a7f2c8a4daa0cd35b0f3a35c22"
   },
-  "signature": "FLd143xlqMv7r22SGDAnx4Jc17yj92vu7ia0Sgv4grgJkG0epLiJKuztuD9cWJTw0cfAZ4bVS6simqD1615QAQ=="
+  "signature": "OhCV9TDqtqkCDHL76Zsxs+GM9q81ncqsPsOCQf3pwkChHdOkT+ZP3ExVVMhxzNH4ZlAmDEmwQsJalpxynufQDg=="
 }

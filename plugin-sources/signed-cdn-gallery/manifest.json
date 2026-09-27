@@ -21,9 +21,9 @@
     "file_tree": {
       "plugin-metadata.json": "30d2a3f54338d7f2453a82d12fe6611587deb727317a3b1a7173679595b118bb",
       "plugin.yaml": "009c4672fda30d3313d1e114efe92407bd27fdbf08ca7f85b781afacad87e96a",
-      "signed_cdn_gallery.py": "60a0f6509b9de1fa692a5fcbddd17e17c991c2f6bac057dd5441a9f55cfa6349"
+      "signed_cdn_gallery.py": "88fc843af5e895d51e4e4c136d470fbb5636f5f721ff88d95a0e5f82b458b00e"
     },
-    "file_tree_sha256": "51c3a2c40ebb517e384a609ee48d1658ca812aada43cb5471438f0f05105689b"
+    "file_tree_sha256": "c1c2e1828bc56aefc4f083a9b774504d1de3934cfa6a8a15c534669aeac838e7"
   },
-  "signature": "gpiaH3lW7tbGtvkjr9+HWRjEblUokGxHIDsHfHVmqY+P+SgOooo/4nYJ4djClzOypZ9us4T6UbvxxoYW7TFvAA=="
+  "signature": "ewhe+RvqqFLDwS0G8bWDolxzm7c3nic2NdFHBEw8n9GyYsVwRiaKG0CBoom3hxaapYwOCeEM+b1n29vyqjNgBw=="
 }

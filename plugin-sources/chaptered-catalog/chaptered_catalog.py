@@ -8,11 +8,13 @@ from datetime import UTC, datetime
 from urllib.parse import urlparse
 
 from image_downloader import (
+    AuthFlow,
     Chapter,
     DownloadManifest,
     ImageArtifact,
     ImageResource,
     PluginError,
+    PluginExecutionContext,
     RequestResponse,
     RequestSpec,
     TransformContext,
@@ -61,7 +63,7 @@ class ChapteredCatalogPlugin:
         parsed = urlparse(url)
         return parsed.scheme in {"http", "https"} and parsed.hostname == "catalog.example.test"
 
-    async def inspect(self, url: str, context) -> DownloadManifest:
+    async def inspect(self, url: str, context: PluginExecutionContext) -> DownloadManifest:
         response = await context.requests.execute(
             RequestSpec(f"{_origin(url)}/api/works/{_path_id(url)}", headers={"Accept": "application/json"})
         )
@@ -101,15 +103,21 @@ class ChapteredCatalogPlugin:
             metadata={"pattern": "chaptered-catalog"},
         )
 
-    async def create_image_request(self, image: ImageResource, context) -> RequestSpec:
+    async def create_image_request(self, image: ImageResource, context: PluginExecutionContext) -> RequestSpec:
         del context
         return RequestSpec(image.url, referer=image.referer)
 
-    async def recover_image_request(self, image, failed, response, context) -> RequestSpec | None:
+    async def recover_image_request(
+        self,
+        image: ImageResource,
+        failed: RequestSpec,
+        response: RequestResponse,
+        context: PluginExecutionContext,
+    ) -> RequestSpec | None:
         del image, failed, response, context
         return None
 
-    def auth_flow(self, context):
+    def auth_flow(self, context: PluginExecutionContext) -> AuthFlow | None:
         del context
         return None
 
@@ -117,7 +125,7 @@ class ChapteredCatalogPlugin:
         del context
         return artifact
 
-    async def check_updates(self, url: str, context) -> UpdateSnapshot:
+    async def check_updates(self, url: str, context: PluginExecutionContext) -> UpdateSnapshot:
         response = await context.requests.execute(
             RequestSpec(f"{_origin(url)}/api/updates", headers={"Accept": "application/json"})
         )

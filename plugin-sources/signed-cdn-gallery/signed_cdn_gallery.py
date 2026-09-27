@@ -7,23 +7,26 @@ from collections.abc import Mapping
 from urllib.parse import urlparse
 
 from image_downloader import (
+    AuthFlow,
     Chapter,
     DownloadManifest,
     ImageArtifact,
     ImageResource,
     PluginError,
+    PluginExecutionContext,
+    RequestResponse,
     RequestSpec,
     TransformContext,
 )
 
 
-def _text(value, message):
+def _text(value: object, message: str) -> str:
     if not isinstance(value, str) or not value:
         raise PluginError(message)
     return value
 
 
-def _json(body, message):
+def _json(body: bytes, message: str) -> Mapping[str, object]:
     try:
         value = json.loads(body)
     except (TypeError, ValueError, json.JSONDecodeError) as exc:
@@ -39,11 +42,11 @@ class SignedCdnGalleryPlugin:
         if config:
             raise ValueError("signed CDN gallery does not accept configuration")
 
-    def matches(self, url):
+    def matches(self, url: str) -> bool:
         p = urlparse(url)
         return p.scheme in {"http", "https"} and p.hostname == "signed-cdn.example.test"
 
-    async def inspect(self, url, context):
+    async def inspect(self, url: str, context: PluginExecutionContext) -> DownloadManifest:
         p = urlparse(url)
         origin = f"{p.scheme}://{p.netloc}"
         work = p.path.rstrip("/").rsplit("/", 1)[-1]
@@ -73,7 +76,7 @@ class SignedCdnGalleryPlugin:
             content_id=_text(payload.get("id"), "signed CDN work ID is missing"),
         )
 
-    async def _signed_request(self, image, context):
+    async def _signed_request(self, image: ImageResource, context: PluginExecutionContext) -> RequestSpec:
         if image.image_id is None:
             raise ValueError("signed CDN image ID is missing")
         p = urlparse(image.referer or image.url)
@@ -87,10 +90,16 @@ class SignedCdnGalleryPlugin:
             referer=image.referer,
         )
 
-    async def create_image_request(self, image, context):
+    async def create_image_request(self, image: ImageResource, context: PluginExecutionContext) -> RequestSpec:
         return await self._signed_request(image, context)
 
-    async def recover_image_request(self, image, failed, response, context):
+    async def recover_image_request(
+        self,
+        image: ImageResource,
+        failed: RequestSpec,
+        response: RequestResponse,
+        context: PluginExecutionContext,
+    ) -> RequestSpec | None:
         del failed
         return (
             await self._signed_request(image, context)
@@ -98,7 +107,7 @@ class SignedCdnGalleryPlugin:
             else None
         )
 
-    def auth_flow(self, context):
+    def auth_flow(self, context: PluginExecutionContext) -> AuthFlow | None:
         del context
         return None
 

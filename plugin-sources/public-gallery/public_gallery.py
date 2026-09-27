@@ -7,7 +7,17 @@ from collections.abc import Mapping
 from html import unescape
 from urllib.parse import urljoin, urlparse
 
-from image_downloader import Chapter, DownloadManifest, ImageArtifact, ImageResource, RequestSpec, TransformContext
+from image_downloader import (
+    AuthFlow,
+    Chapter,
+    DownloadManifest,
+    ImageArtifact,
+    ImageResource,
+    PluginExecutionContext,
+    RequestResponse,
+    RequestSpec,
+    TransformContext,
+)
 
 
 class PublicGalleryPlugin:
@@ -20,7 +30,7 @@ class PublicGalleryPlugin:
         p = urlparse(url)
         return p.scheme in {"http", "https"} and p.hostname == "public-gallery.example.test"
 
-    async def inspect(self, url, context):
+    async def inspect(self, url: str, context: PluginExecutionContext) -> DownloadManifest:
         html = (await context.requests.execute(RequestSpec(url, headers={"Accept": "text/html"}))).body.decode(
             "utf-8", "replace"
         )
@@ -38,18 +48,24 @@ class PublicGalleryPlugin:
                 )
         return DownloadManifest(title, (Chapter(1, title, images=tuple(images)),), metadata={"pattern": "public-html"})
 
-    async def create_image_request(self, image, context):
+    async def create_image_request(self, image: ImageResource, context: PluginExecutionContext) -> RequestSpec:
         del context
         p = urlparse(image.referer or image.url)
         return RequestSpec(
             image.url, headers={**image.headers, "Origin": f"{p.scheme}://{p.netloc}"}, referer=image.referer
         )
 
-    async def recover_image_request(self, image, failed, response, context):
+    async def recover_image_request(
+        self,
+        image: ImageResource,
+        failed: RequestSpec,
+        response: RequestResponse,
+        context: PluginExecutionContext,
+    ) -> RequestSpec | None:
         del image, failed, response, context
         return None
 
-    def auth_flow(self, context):
+    def auth_flow(self, context: PluginExecutionContext) -> AuthFlow | None:
         del context
         return None
 
@@ -58,11 +74,11 @@ class PublicGalleryPlugin:
         return artifact
 
 
-def _first(pattern, text, fallback):
+def _first(pattern: str, text: str, fallback: str) -> str:
     match = re.search(pattern, text, flags=re.I | re.S)
     return match.group(1) if match else fallback
 
 
-def _attribute(tag, name):
+def _attribute(tag: str, name: str) -> str | None:
     match = re.search(rf"\b{re.escape(name)}=['\"]([^'\"]+)['\"]", tag, flags=re.I)
     return match.group(1) if match else None

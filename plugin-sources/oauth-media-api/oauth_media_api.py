@@ -8,23 +8,26 @@ from dataclasses import replace
 from urllib.parse import urlparse
 
 from image_downloader import (
+    AuthFlow,
     Chapter,
     DownloadManifest,
     ImageArtifact,
     ImageResource,
     PluginError,
+    PluginExecutionContext,
+    RequestResponse,
     RequestSpec,
     TransformContext,
 )
 
 
-def _text(value, message):
+def _text(value: object, message: str) -> str:
     if not isinstance(value, str) or not value:
         raise PluginError(message)
     return value
 
 
-def _json(body, message):
+def _json(body: bytes, message: str) -> Mapping[str, object]:
     try:
         value = json.loads(body)
     except (TypeError, ValueError, json.JSONDecodeError) as exc:
@@ -35,17 +38,17 @@ def _json(body, message):
 
 
 class _OAuthFlow:
-    def __init__(self, context):
+    def __init__(self, context: PluginExecutionContext) -> None:
         self.context = context
         self.access_token = context.secrets.get("access_token")
 
-    def is_auth_failure(self, request, response):
+    def is_auth_failure(self, request: RequestSpec, response: RequestResponse) -> bool:
         return response.status == 200 and b'"error":"expired_token"' in response.body.replace(b" ", b"")
 
-    async def apply(self, request):
+    async def apply(self, request: RequestSpec) -> RequestSpec:
         return replace(request, headers={**request.headers, "Authorization": f"Bearer {self.access_token}"})
 
-    async def refresh(self, failed, response):
+    async def refresh(self, failed: RequestSpec, response: RequestResponse) -> RequestSpec | None:
         p = urlparse(failed.url)
         token = await self.context.requests.execute(
             RequestSpec(
@@ -67,11 +70,11 @@ class OAuthMediaApiPlugin:
         if config:
             raise ValueError("OAuth media API does not accept configuration")
 
-    def matches(self, url):
+    def matches(self, url: str) -> bool:
         p = urlparse(url)
         return p.scheme in {"http", "https"} and p.hostname == "oauth-media.example.test"
 
-    async def inspect(self, url, context):
+    async def inspect(self, url: str, context: PluginExecutionContext) -> DownloadManifest:
         p = urlparse(url)
         response = await context.requests.execute(
             RequestSpec(
@@ -99,15 +102,21 @@ class OAuthMediaApiPlugin:
             title, (Chapter(1, title, images=images),), content_id=_text(media.get("id"), "OAuth media ID is missing")
         )
 
-    async def create_image_request(self, image, context):
+    async def create_image_request(self, image: ImageResource, context: PluginExecutionContext) -> RequestSpec:
         del context
         return RequestSpec(image.url, referer=image.referer)
 
-    async def recover_image_request(self, image, failed, response, context):
+    async def recover_image_request(
+        self,
+        image: ImageResource,
+        failed: RequestSpec,
+        response: RequestResponse,
+        context: PluginExecutionContext,
+    ) -> RequestSpec | None:
         del image, failed, response, context
         return None
 
-    def auth_flow(self, context):
+    def auth_flow(self, context: PluginExecutionContext) -> AuthFlow | None:
         return _OAuthFlow(context)
 
     async def transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:

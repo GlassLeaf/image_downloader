@@ -44,7 +44,9 @@ config を同期的・副作用なしで検証し、成功時は `None` を返�
 signer 経路では生成済み `manifest.json` を直接編集しない。metadata、source、author YAML、helper
 を更新して signer を再実行する。`plugin-metadata.json` の schema と再署名規則の詳細は
 [plugin package reference](../../docs/v3/reference/plugin-package.md#plugin-signer-metadata)を参照する。hook 実装は
-[plugin hook reference](../../docs/v3/reference/plugin-hooks.md)を参照する。bundled signer は
+[plugin hook reference](../../docs/v3/reference/plugin-hooks.md)を参照する。`sample_plugin.py` の型注釈は
+各 hook の input/output を実装開始時に確認するための即時参照であり、hook の意味、検証、例外は同 reference
+を正本とする。bundled signer は
 `site_plugin` と `image_processor_plugin` の両方を metadata の `kind` に従って署名できる。
 
 この template は package layout と最低限の protocol を示す skeleton であり、完全な

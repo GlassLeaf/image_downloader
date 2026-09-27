@@ -8,6 +8,7 @@ from html.parser import HTMLParser
 from urllib.parse import urljoin, urlparse
 
 from image_downloader import (
+    AuthFlow,
     Chapter,
     DownloadManifest,
     ImageArtifact,
@@ -174,7 +175,7 @@ class PaginatedCatalogSitePlugin:
         del image, failed, response, context
         return None
 
-    def auth_flow(self, context: PluginExecutionContext):
+    def auth_flow(self, context: PluginExecutionContext) -> AuthFlow | None:
         del context
         return None
 

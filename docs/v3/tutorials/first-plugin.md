@@ -1,6 +1,6 @@
 # Tutorial: first plugin
 
-plugin template は directory layout と最小 class contract の skeleton である。署名済みの完成 package にする手順は [plugin package reference](../reference/plugin-package.md)、hook の正確な型は [plugin hook reference](../reference/plugin-hooks.md) を使用する。
+plugin template は directory layout と最小 class contract の skeleton である。entry source には全 hook の stable 型注釈があるため、実装開始時の input/output の即時参照になる。署名済みの完成 package にする手順は [plugin package reference](../reference/plugin-package.md)、hook の意味、検証、例外は [plugin hook reference](../reference/plugin-hooks.md) を使用する。
 
 1. [plugin template](../../../examples/plugin-v3-template) から unit を作る。
 2. manifest の `config_file` が指す author-default YAML（template では `sample_plugin.yaml`）の root を `config:` だけにする。

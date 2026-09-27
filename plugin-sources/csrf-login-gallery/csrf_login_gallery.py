@@ -9,26 +9,29 @@ from urllib.parse import urlparse
 
 from image_downloader import (
     AuthenticationError,
+    AuthFlow,
     Chapter,
     DownloadManifest,
     ImageArtifact,
     ImageResource,
+    PluginExecutionContext,
+    RequestResponse,
     RequestSpec,
     TransformContext,
 )
 
 
 class _CsrfFlow:
-    def __init__(self, context):
+    def __init__(self, context: PluginExecutionContext) -> None:
         self.context = context
 
-    def is_auth_failure(self, request, response):
+    def is_auth_failure(self, request: RequestSpec, response: RequestResponse) -> bool:
         return response.status == 200 and b"login-required" in response.body.lower()
 
-    async def apply(self, request):
+    async def apply(self, request: RequestSpec) -> RequestSpec:
         return request
 
-    async def refresh(self, failed, response):
+    async def refresh(self, failed: RequestSpec, response: RequestResponse) -> RequestSpec | None:
         p = urlparse(failed.url)
         origin = f"{p.scheme}://{p.netloc}"
         page = await self.context.requests.execute(RequestSpec(f"{origin}/login", auth_required=False))
@@ -58,11 +61,11 @@ class CsrfLoginGalleryPlugin:
         if config:
             raise ValueError("CSRF login gallery does not accept configuration")
 
-    def matches(self, url):
+    def matches(self, url: str) -> bool:
         p = urlparse(url)
         return p.scheme in {"http", "https"} and p.hostname == "csrf-login.example.test"
 
-    async def inspect(self, url, context):
+    async def inspect(self, url: str, context: PluginExecutionContext) -> DownloadManifest:
         html = (await context.requests.execute(RequestSpec(url, headers={"Accept": "text/html"}))).body.decode(
             "utf-8", "replace"
         )
@@ -78,15 +81,21 @@ class CsrfLoginGalleryPlugin:
             title, (Chapter(1, title, images=images),), content_id=urlparse(url).path.rstrip("/").rsplit("/", 1)[-1]
         )
 
-    async def create_image_request(self, image, context):
+    async def create_image_request(self, image: ImageResource, context: PluginExecutionContext) -> RequestSpec:
         del context
         return RequestSpec(image.url, referer=image.referer)
 
-    async def recover_image_request(self, image, failed, response, context):
+    async def recover_image_request(
+        self,
+        image: ImageResource,
+        failed: RequestSpec,
+        response: RequestResponse,
+        context: PluginExecutionContext,
+    ) -> RequestSpec | None:
         del image, failed, response, context
         return None
 
-    def auth_flow(self, context):
+    def auth_flow(self, context: PluginExecutionContext) -> AuthFlow | None:
         return _CsrfFlow(context)
 
     async def transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:

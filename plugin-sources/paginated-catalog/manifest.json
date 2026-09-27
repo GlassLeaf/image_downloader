@@ -20,10 +20,10 @@
     "key_id": "6861a70e3992291678e776ca440f0ced984b1e4d43755551c1ff3f5a2773fb41",
     "file_tree": {
       "plugin-metadata.json": "8ee3b8bde91d9ad4544a0d88ed5389bdc0edcfa71aa91c4313056793b37876fa",
-      "plugin.py": "982df6cc1eb1e9a45635c5d25ada8e98ffaa8f44e2c55fadd56ad5b63088f488",
+      "plugin.py": "5bac616bb446dd43f899ea16f710c0387bcda1c02e1ed02e508f92743e3cd905",
       "plugin.yaml": "7acfca81db4254a575863a8ca3c434b3ec8daa5176b47e140299ea12e4702db8"
     },
-    "file_tree_sha256": "e842e4ab519924fb1b00b0c3b34e4114763befe24f50229b6b9faa760476a6b8"
+    "file_tree_sha256": "373a67b7d0fe64b9b6f1609f536f0bd52c48410ab9f26ea5cd0c46977009d703"
   },
-  "signature": "MQyT8SU4kjk9tYt/CjgoBtqw5aGxWEby5Uz7nmN3b87tx4yRe6f1ikm169DiN5zjhcU2K1HrAGdgxJYu42wFBA=="
+  "signature": "XsY5bb47tUmZLn+aQTkdL02iqE86GnKWZIeicabTbIrslOtorA22jWKQqqd2+4Z12BaQ2BZztq5+do3ZuxM5Aw=="
 }
