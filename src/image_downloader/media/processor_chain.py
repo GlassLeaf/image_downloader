@@ -28,7 +28,7 @@ class PreparedProcessor:
 
 
 class OperationProcessorChain:
-    """Prepare once per download, then close every constructed processor."""
+    """Prepare once per download, then clean up every constructed processor."""
 
     def __init__(
         self,
@@ -87,7 +87,7 @@ class OperationProcessorChain:
         first_error: BaseException | None = None
         for binding in reversed(constructed):
             try:
-                await PluginInvoker(binding.plugin_id, self.logger).close_processor(binding.instance)
+                await PluginInvoker(binding.plugin_id, self.logger).cleanup_after_use(binding.instance)
             except BaseException as exc:
                 if first_error is None:
                     first_error = exc

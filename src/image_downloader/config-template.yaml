@@ -76,6 +76,8 @@
 #   plugin_verification: strict      # strict, warn, off
 # image_processors:
 #   chain: []
+#   # processor ID -> selected site plugin IDs allowed to see raw image transport metadata
+#   transport_metadata_access: {}
 # plugin_settings:
 #   com.example.plugin:
 #     enabled: true

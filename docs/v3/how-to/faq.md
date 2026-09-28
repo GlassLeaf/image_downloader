@@ -80,9 +80,36 @@ plugin_settings:
 
 ### Q12. 変換時に、鍵ファイルなど画像取得時の別情報が必要なら？
 
-`TransformContext` には network と secret capability がないが、`inspect()` 時点で確定した非秘密な画像補助情報は `ImageResource.metadata` に置き、`TransformContext.image_metadata` から読める。鍵・token のような秘密または request 時に変わる値は metadata に置かない。静的鍵は `inspect()` または `auth_flow()` で取得して、選択済み plugin instance の operation 内・不変 state として保持する。画像ごとの鍵は `create_image_request()` で取得し、`image_id` で引ける並列安全な operation 内 cache に保存して同画像の transform で参照する。`ImageArtifact.source_url` は manifest locator を保持するため、最終 response URL を transform/result DTO から取得することはできない。鍵を header/cookie として使うだけなら、transform ではなく request hook または `AuthFlow` で完結させる。
+`TransformContext` には network と secret capability がないが、`inspect()` 時点で確定した非秘密な画像補助情報は `ImageResource.metadata` に置き、`TransformContext.image_metadata` から読める。画像 request 時に取得した鍵・token・nonce など、transform だけに渡す値は `create_image_request()`／recovery が `ImageFetchRequest(request, plugin_data)` を返して渡す。成功後、site transform は `TransformContext.transport_metadata.plugin_data` と実際の response URL/header を読める。processor は利用者が processor/site の組を明示許可した場合だけ raw 値を読め、未許可なら redacted snapshot になる。`ImageArtifact.source_url` は manifest locator を保持し、結果 DTO には最終 response URL は出ない。鍵を header/cookie として使うだけなら、transform ではなく request hook または `AuthFlow` で完結させる。
 
 複数画像の変換結果を集約する処理は現行 hook 契約の外であり、application 側に集約 hook を追加する設計が必要である。[capability contexts](../reference/plugin-hooks.md#plugin-contexts) を参照する。
+
+### Q13. `ImageResource.metadata` と `ImageFetchRequest.plugin_data` はどう使い分けるか？
+
+両者は immutable な `Mapping[str, str]` だが、決定時点と公開範囲が異なる。`ImageResource.metadata` は `inspect()` が manifest を作る時点で確定する**非秘密・安定した画像属性**であり、`DownloadResult.manifest` の画像にも含まれる。`ImageFetchRequest.plugin_data` は `create_image_request()` または `recover_image_request()` が画像 fetch 直前に得た**transform 専用の request-time data**であり、artifact、result、event、log、CLI JSON には自動コピーされない。
+
+| 観点 | `ImageResource.metadata` | `ImageFetchRequest.plugin_data` |
+| --- | --- | --- |
+| 設定する hook | `inspect()` | `create_image_request()` / `recover_image_request()` |
+| 適した値 | `variant`、page 番号、stable ID に付随する非秘密属性 | 復号用の一時値、nonce、request 時に取得した派生値 |
+| secret | 入れてはならない | raw access は transform に限定されるが、必要最小限にし永続化・出力しない |
+| recovery | manifest の値として不変 | bare `RequestSpec` を返すと前の data を継承し、`ImageFetchRequest` を返すと置換 |
+
+したがって、「画像が何であるか」を表す情報は `metadata`、「今回の画像取得で得られ transform にだけ必要な情報」は `plugin_data` に置く。locator、`image_id`、manifest metadata に鍵・cookie・token・署名 URL を置く代替手段として `plugin_data` を使う。[value objects](../reference/library-api.md#value-objects-results-and-protocols) を参照する。
+
+### Q14. `TransformContext.image_metadata` と `TransformContext.transport_metadata` の役割は？
+
+`image_metadata` は `ImageResource.metadata` の読み取り専用 view であり、`inspect()` 時点の非秘密情報を site transform と configured processor に伝える。`transport_metadata` は成功した画像 fetch の実行時 snapshot であり、AuthFlow 適用後 initial request、redirect 後 final request、response URL/header、実際に送信された Cookie、`plugin_data` を持つ。cookie jar 全体は渡さず、同名 response header の複数値は tuple のまま保持する。
+
+| 観点 | `image_metadata` | `transport_metadata` |
+| --- | --- | --- |
+| 情報源 | `inspect()` の `ImageResource.metadata` | 実画像 fetch と `ImageFetchRequest.plugin_data` |
+| 値の性質 | 非秘密・安定 | request/response に依存する一時 snapshot |
+| site transform | raw 値 | raw 値 |
+| processor transform | raw 値（非秘密契約） | 明示許可時だけ raw、未許可時は `is_redacted=True` の同型 snapshot |
+| public result への自動伝播 | manifest の画像 metadata として残る | 残らない |
+
+processor へ raw transport data を渡す組は、`image_processors.transport_metadata_access` で永続設定する。processor が transport 情報を必要としないなら、この allow-list を追加せず site transform 内で処理を完結させる。[transport metadata access](../reference/configuration.md#config-plugin-settings) と [capability contexts](../reference/plugin-hooks.md#plugin-contexts) を参照する。
 
 ## CLI 利用者向け Q&A
 
@@ -194,7 +221,7 @@ await service.run(
 
 ### 10. `ImageArtifact` から最終 response URL や response header を読めるか？
 
-読めない。`ImageArtifact.source_url` は manifest の locator であり、HTTP response URL ではない。artifact には data、content type、locator、image ID、extension、history だけが public に渡る。transform に response header や redirect 後 URL が必要な仕様では、plugin が request-capable hook で必要な**非秘密**派生情報を operation-local state に保存して参照するか、変換を request hook 側で完結させる。生の response header や URL を artifact metadata にコピーしてはならない。[value objects](../reference/library-api.md#value-objects-results-and-protocols) を参照する。
+`ImageArtifact`、`DownloadResult`、`--json` からは読めない。`source_url` は manifest の locator であり、HTTP response URL ではない。ただし plugin の site transform は `TransformContext.transport_metadata` から、実送信された initial/final request、最終 response URL/header を読める。image processor は `image_processors.transport_metadata_access` でその site plugin を明示許可されている場合だけ raw 値を読み、それ以外は redacted snapshot を受ける。raw 値を artifact、結果、log へコピーしてはならない。[value objects](../reference/library-api.md#value-objects-results-and-protocols) を参照する。
 
 ### 11. 大きな manifest を逐次処理または逐次通知できるか？
 
@@ -232,7 +259,7 @@ manifest には解決可能な locator と必要なら識別子を置く。canon
 
 ### 7. 鍵を使う変換と package 配布で注意する点は？
 
-変換に必要な鍵は request-capable な早い hook で取得し、operation 内の並列安全な state として transform へ参照させる。secret は外部 reference とし、artifact や log、例外、manifest、YAML に混ぜない。配布時は author-default YAML、entry source、helper を含む source tree を署名し、変更後は file-tree hash と signature を再生成する。`manifest.json` を手編集しない。[plugin settings and secrets](../reference/configuration.md#config-plugin-settings) と [signing workflow](../reference/plugin-package.md#plugin-signing-workflow) を参照する。
+変換に必要な鍵や response 由来の値を request-capable hook で取得したら、画像単位の request-time data は `ImageFetchRequest.plugin_data` で site transform に渡せる。これは transform-only で artifact や log、例外、manifest、YAML には自動コピーされない。processor に raw 値を渡すには利用者が processor/site の組を明示許可する必要があるため、processor が本当に必要としない限り site transform 内で完結させる。複数画像で共有する遅延取得値は operation 内で lock/Future により並列安全に管理する。secret は外部 reference とし、長期保存しない。配布時は author-default YAML、entry source、helper を含む source tree を署名し、変更後は file-tree hash と signature を再生成する。`manifest.json` を手編集しない。[plugin settings and secrets](../reference/configuration.md#config-plugin-settings) と [signing workflow](../reference/plugin-package.md#plugin-signing-workflow) を参照する。
 
 ### 8. `create_image_request()` の補助 API 呼出と画像取得を一連で直列化するには？
 
@@ -240,15 +267,15 @@ manifest には解決可能な locator と必要なら識別子を置く。canon
 
 ### 9. response header や最終 URL が transform に必要な場合は？
 
-`TransformContext` と `ImageArtifact` は成功 response の URL/header を公開しない。必要な値が request hook の補助 API から得られるなら、秘密でない最小の派生値だけを operation-local state に image ID ごとに保存し、site transform から読む。最終 response 自体の header が不可欠な変換は現行 hook 契約では実装できないため、response を直接解釈する処理を request-capable な段階へ移すか、API 拡張を検討する。header、signed URL、token を manifest metadata、artifact、log に出してはならない。[capability contexts](../reference/plugin-hooks.md#capability-contexts) を参照する。
+site `transform_image()` は `context.transport_metadata` から成功した最後の physical response の URL/header、AuthFlow 後 initial request、redirect 後 final request を読む。`ImageArtifact.source_url` は locator のままである。processor の raw access は default deny であり、利用者が `image_processors.transport_metadata_access` に processor ID と selected site ID の組を明示した場合だけ許可される。未許可 processor は query、header/cookie 値、plugin data が mask された同型 DTO を受ける。raw URL/header を artifact、manifest、result、event、log にコピーしてはならない。[capability contexts](../reference/plugin-hooks.md#capability-contexts) を参照する。
 
 ### 10. `metadata` に構造化データや秘密値を置けるか？
 
-置けない。`ImageResource.metadata` は immutable な `Mapping[str, str]` であり、`inspect()` 時点で確定する画像単位の**非秘密**情報だけを表す。構造化データが必要でも value を JSON 文字列へ無制限に詰め込むのではなく、stable な ID と小さな文字列属性に正規化し、operation-local state を使う。token、cookie、鍵、署名 URL、raw response header は metadata に置かない。[capability contexts](../reference/plugin-hooks.md#capability-contexts) を参照する。
+`ImageResource.metadata` には置けない。これは `inspect()` 時点で確定する immutable `Mapping[str, str]` の**非秘密**情報だけである。構造化データは stable ID と小さな文字列属性に正規化する。request 時にだけ transform へ渡す必要がある値は `create_image_request()` / recovery が `ImageFetchRequest(request, plugin_data)` を返して渡せる。`plugin_data` は transform-only で raw access は site と明示許可 processor に限られ、artifact、result、event、log へ自動コピーされない。それでも無制限の payload や長期保存先ではない。token、cookie、鍵、署名 URL、raw response header を `ImageResource.metadata`、manifest metadata、artifact に置かない。[capability contexts](../reference/plugin-hooks.md#capability-contexts) を参照する。
 
-### 11. site plugin の operation ごとの cache／resource はいつ破棄されるか？
+### 11. plugin の runtime 利用ごとの cache／resource はいつ破棄されるか？
 
-selected site plugin instance は一 operation の hook 群で共有されるが、site plugin には processor の `aclose()`／`close()` のような public cleanup hook はない。cache は operation 内だけに閉じ、ネットワーク client、file handle、長寿命 task を site instance に所有させない。確実な cleanup が必要な resource は core が所有する capability を使うか、processor に処理を分離する。site plugin の明示 cleanup は現行 API の未提供機能である。[plugin hooks](../reference/plugin-hooks.md) を参照する。
+selected site plugin instance は一回の `run()` または `check_updates()` の hook 群で共有され、configured image processor instance は一回の download で共有される。いずれも runtime が使い終えたとき、任意の `cleanup_after_use()` を一回だけ呼ぶ。通常の `def` と `async def` のどちらでも実装でき、async の戻り値は await される。完了後、runtime は同じ instance の plugin hook を再び呼ばないが、object の破棄や外部コードからの利用禁止を意味しない。success、inspect/auth/image failure、cancellation、update check のいずれでも対象で、processor cleanup が先、site cleanup が後である。temporary matcher instance には cleanup は呼ばれない。`aclose()`、`close()`、`aclose_operation()`、`close_operation()` は cleanup hook として呼ばれないため、既存 plugin は移行する。正常終了時の cleanup failure は `PluginError`、すでに失敗/cancellation があるなら主原因を維持して diagnostic に残る。[plugin hooks](../reference/plugin-hooks.md#cleanup-after-runtime-use) を参照する。
 
 ### 12. plugin 自身が scheduler や origin ごとの rate limit を指定できるか？
 

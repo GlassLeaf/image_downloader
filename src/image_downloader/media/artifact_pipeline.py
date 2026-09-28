@@ -16,6 +16,9 @@ from ..models import (
     ImageArtifact,
     ImageResource,
     ImageSaveOptions,
+    ImageTransportMetadata,
+    TransportCookie,
+    TransportRequestMetadata,
 )
 from ..observability.diagnostic_safety import best_effort_diagnostic
 from ..observability.logging import (
@@ -26,6 +29,7 @@ from ..plugins.plugin_invoker import PluginInvoker
 from ..plugins.plugin_manifest import PluginConfigOverrides
 from ..plugins.runtime import PluginRuntime, safe_app_settings
 from ..ports import SitePlugin, TransformContext
+from ..privacy.log_safety import safe_url
 
 
 class ArtifactPipeline:
@@ -53,6 +57,34 @@ class ArtifactPipeline:
     def _catalog(record: PluginRecord) -> Mapping[str, object] | None:
         return record.catalog.as_json() if record.catalog is not None else None
 
+    @staticmethod
+    def _redacted_transport_metadata(value: ImageTransportMetadata) -> ImageTransportMetadata:
+        def redact_request(request: TransportRequestMetadata) -> TransportRequestMetadata:
+            return TransportRequestMetadata(
+                safe_url(request.url),
+                {name: tuple("[REDACTED]" for _ in values) for name, values in request.headers.items()},
+                tuple(TransportCookie(cookie.name, "[REDACTED]") for cookie in request.cookies),
+            )
+
+        return ImageTransportMetadata(
+            redact_request(value.initial_request),
+            redact_request(value.final_request),
+            safe_url(value.response_url),
+            {name: tuple("[REDACTED]" for _ in values) for name, values in value.response_headers.items()},
+            {key: "[REDACTED]" for key in value.plugin_data},
+            is_redacted=True,
+        )
+
+    def _processor_transport_metadata(
+        self,
+        processor_id: str,
+        value: ImageTransportMetadata | None,
+    ) -> ImageTransportMetadata | None:
+        if value is None:
+            return None
+        permitted_sites = self.config.image_processors.transport_metadata_access.get(processor_id, ())
+        return value if self.site_record.id in permitted_sites else self._redacted_transport_metadata(value)
+
     async def process(
         self,
         plugin: SitePlugin,
@@ -60,6 +92,8 @@ class ArtifactPipeline:
         image: ImageResource,
         manifest: DownloadManifest,
         chapter: Chapter,
+        *,
+        transport_metadata: ImageTransportMetadata | None = None,
     ) -> ImageArtifact:
         context = TransformContext(
             image,
@@ -69,6 +103,7 @@ class ArtifactPipeline:
             self._catalog(self.site_record),
             manifest,
             chapter,
+            transport_metadata=transport_metadata,
         )
         chapter_id = str(chapter.number)
         transformed = await self.invoker.transform_image(
@@ -102,6 +137,7 @@ class ArtifactPipeline:
                 chapter,
                 site_manifest=self.site_record.manifest.value,
                 site_catalog=self._catalog(self.site_record),
+                transport_metadata=self._processor_transport_metadata(binding.plugin_id, transport_metadata),
             )
             previous = current
             async with binding.lock:

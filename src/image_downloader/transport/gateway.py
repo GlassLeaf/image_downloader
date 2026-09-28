@@ -6,8 +6,9 @@ import asyncio
 import random
 import time
 from collections import defaultdict
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from http.cookiejar import CookieJar
@@ -30,7 +31,15 @@ from ..exceptions import (
     UnsupportedSiteFeature,
 )
 from ..immutable import thaw_json
-from ..models import ImageResource, RequestResponse, RequestSpec
+from ..models import (
+    ImageFetchRequest,
+    ImageResource,
+    ImageTransportMetadata,
+    RequestResponse,
+    RequestSpec,
+    TransportCookie,
+    TransportRequestMetadata,
+)
 from ..observability.logging import DownloadLogger
 from ..plugins.plugin_invoker import PluginInvoker
 from ..ports import (
@@ -67,6 +76,80 @@ def _request_origin(url: str) -> str:
         raise ConfigurationError("request URL contains an invalid port") from exc
     default_port = 443 if parsed.scheme == "https" else 80
     return f"{parsed.scheme}://{host}:{port or default_port}"
+
+
+def _header_values(headers: httpx.Headers) -> dict[str, tuple[str, ...]]:
+    values: dict[str, list[str]] = {}
+    for name, value in headers.multi_items():
+        values.setdefault(name.lower(), []).append(value)
+    return {name: tuple(items) for name, items in values.items()}
+
+
+def _request_cookies(headers: httpx.Headers) -> tuple[TransportCookie, ...]:
+    cookies: list[TransportCookie] = []
+    for value in headers.get_list("cookie"):
+        for item in value.split(";"):
+            name, separator, cookie_value = item.strip().partition("=")
+            if separator and name:
+                cookies.append(TransportCookie(name, cookie_value))
+    return tuple(cookies)
+
+
+def _request_metadata(request: httpx.Request) -> TransportRequestMetadata:
+    return TransportRequestMetadata(
+        str(request.url),
+        _header_values(request.headers),
+        _request_cookies(request.headers),
+    )
+
+
+def _response_header_values(headers: Mapping[str, str]) -> dict[str, tuple[str, ...]]:
+    values: dict[str, list[str]] = {}
+    for name, value in headers.items():
+        values.setdefault(name.lower(), []).append(value)
+    return {name: tuple(items) for name, items in values.items()}
+
+
+def _spec_metadata(spec: RequestSpec) -> TransportRequestMetadata:
+    headers = _response_header_values(spec.headers)
+    if spec.referer and "referer" not in headers:
+        headers["referer"] = (spec.referer,)
+    return TransportRequestMetadata(
+        spec.url,
+        headers,
+        tuple(TransportCookie(name, value) for name, value in spec.cookies.items()),
+    )
+
+
+@dataclass(slots=True)
+class _TransportTrace:
+    initial_request: TransportRequestMetadata | None = None
+    final_request: TransportRequestMetadata | None = None
+    response_url: str | None = None
+    response_headers: dict[str, tuple[str, ...]] | None = None
+
+    def clear(self) -> None:
+        self.initial_request = None
+        self.final_request = None
+        self.response_url = None
+        self.response_headers = None
+
+    def capture(
+        self,
+        initial_request: TransportRequestMetadata,
+        final_request: TransportRequestMetadata,
+        response: httpx.Response,
+    ) -> None:
+        self.initial_request = initial_request
+        self.final_request = final_request
+        self.response_url = str(response.url)
+        self.response_headers = _header_values(response.headers)
+
+
+@dataclass(frozen=True, slots=True)
+class _ImageFetchResult:
+    response: RequestResponse
+    transport_metadata: ImageTransportMetadata
 
 
 class RequestGateway:
@@ -142,6 +225,7 @@ class RequestGateway:
         *,
         plugin_id: str | None = None,
         allowed_redirect_origins: frozenset[str] | None = None,
+        trace: _TransportTrace | None = None,
     ) -> RequestResponse:
         retryable_method = spec.method.upper() in {"GET", "HEAD", "OPTIONS", "TRACE"}
         attempts = self.config.network.max_attempts if retryable_method or spec.retry_non_idempotent else 1
@@ -151,7 +235,11 @@ class RequestGateway:
         for attempt in range(attempts):
             retry_after = None
             try:
-                response = await self._once(spec, allowed_redirect_origins=allowed_redirect_origins)
+                if trace is not None:
+                    trace.clear()
+                    response = await self._once(spec, allowed_redirect_origins=allowed_redirect_origins, trace=trace)
+                else:
+                    response = await self._once(spec, allowed_redirect_origins=allowed_redirect_origins)
                 await self._log(
                     "response_received",
                     module="http",
@@ -198,6 +286,7 @@ class RequestGateway:
         spec: RequestSpec,
         *,
         allowed_redirect_origins: frozenset[str] | None = None,
+        trace: _TransportTrace | None = None,
     ) -> RequestResponse:
         headers = dict(spec.headers)
         if spec.referer and not any(key.lower() == "referer" for key in headers):
@@ -207,10 +296,11 @@ class RequestGateway:
             spec.url,
             headers=headers,
             cookies=dict(spec.cookies) or None,
-            params=dict(spec.query),
+            params=dict(spec.query) or None,
             data=dict(spec.form) or None,
             json=thaw_json(spec.json),
         )
+        initial_request = _request_metadata(request)
         redirects = 0
         while True:
             async with self._send_one_hop(request) as response:
@@ -236,7 +326,10 @@ class RequestGateway:
                         raise
                     redirects += 1
                     continue
-                return await self._read_response(response)
+                result = await self._read_response(response)
+                if trace is not None:
+                    trace.capture(initial_request, _request_metadata(request), response)
+                return result
 
     @asynccontextmanager
     async def _send_one_hop(self, request: httpx.Request) -> AsyncIterator[httpx.Response]:
@@ -397,23 +490,77 @@ class OperationRequestGateway:
         image: ImageResource,
         context: PluginExecutionContext,
     ) -> RequestResponse:
-        request = await self._invoker.create_image_request(plugin, image, context)
+        """Compatibility image-fetch API without transform-only metadata."""
+        return (await self.execute_image_with_metadata(plugin, image, context)).response
+
+    async def execute_image_with_metadata(
+        self,
+        plugin: SitePlugin,
+        image: ImageResource,
+        context: PluginExecutionContext,
+    ) -> _ImageFetchResult:
+        # ``execute_image`` predates the transform-only metadata path. Keep a
+        # patched/subclassed compatibility implementation observable rather
+        # than silently bypassing it. Such a legacy override cannot provide a
+        # physical trace, so expose only an empty, response-derived snapshot.
+        implementation = getattr(self.execute_image, "__func__", self.execute_image)
+        if implementation is not _DEFAULT_EXECUTE_IMAGE:
+            response = await self.execute_image(plugin, image, context)
+            if not isinstance(response, RequestResponse):
+                raise TypeError("execute_image must return RequestResponse")
+            request = TransportRequestMetadata(response.url, {}, ())
+            return _ImageFetchResult(
+                response,
+                ImageTransportMetadata(request, request, response.url, _response_header_values(response.headers)),
+            )
+        resolution = self._image_fetch_request(await self._invoker.create_image_request(plugin, image, context))
+        trace = _TransportTrace()
 
         async def recover(failed: RequestSpec, response: RequestResponse) -> RequestSpec | None:
-            return await self._invoker.recover_image_request(
+            nonlocal resolution
+            replacement = await self._invoker.recover_image_request(
                 plugin,
                 image,
                 failed,
                 response,
                 context,
             )
+            if replacement is None:
+                return None
+            resolution = self._image_fetch_request(replacement, previous_data=resolution.plugin_data)
+            return resolution.request
 
-        return await self._execute(request, recover=recover)
+        response = await self._execute(resolution.request, recover=recover, trace=trace)
+        initial_request = trace.initial_request or _spec_metadata(resolution.request)
+        final_request = trace.final_request or initial_request
+        response_url = trace.response_url or response.url
+        response_headers = trace.response_headers or _response_header_values(response.headers)
+        return _ImageFetchResult(
+            response,
+            ImageTransportMetadata(
+                initial_request,
+                final_request,
+                response_url,
+                response_headers,
+                resolution.plugin_data,
+            ),
+        )
+
+    @staticmethod
+    def _image_fetch_request(
+        value: RequestSpec | ImageFetchRequest,
+        *,
+        previous_data: Mapping[str, str] | None = None,
+    ) -> ImageFetchRequest:
+        if isinstance(value, ImageFetchRequest):
+            return value
+        return ImageFetchRequest(value, previous_data or {})
 
     async def _execute(
         self,
         spec: RequestSpec,
         recover: Callable[[RequestSpec, RequestResponse], Awaitable[RequestSpec | None]] | None = None,
+        trace: _TransportTrace | None = None,
     ) -> RequestResponse:
         self._shared._validate_protocol(spec)
         await self._log("request_started", module="http", url=spec.url, method=spec.method)
@@ -424,18 +571,34 @@ class OperationRequestGateway:
             observed_generation = self._auth_generation
             redirect_origins = self._auth_origins if current.auth_required and self._auth_flow is not None else None
             if self._request_limit is None:
-                response = await self._shared._transport(
-                    current,
-                    plugin_id=self.plugin_id,
-                    allowed_redirect_origins=redirect_origins,
-                )
-            else:
-                async with self._request_limit:
+                if trace is None:
                     response = await self._shared._transport(
                         current,
                         plugin_id=self.plugin_id,
                         allowed_redirect_origins=redirect_origins,
                     )
+                else:
+                    response = await self._shared._transport(
+                        current,
+                        plugin_id=self.plugin_id,
+                        allowed_redirect_origins=redirect_origins,
+                        trace=trace,
+                    )
+            else:
+                async with self._request_limit:
+                    if trace is None:
+                        response = await self._shared._transport(
+                            current,
+                            plugin_id=self.plugin_id,
+                            allowed_redirect_origins=redirect_origins,
+                        )
+                    else:
+                        response = await self._shared._transport(
+                            current,
+                            plugin_id=self.plugin_id,
+                            allowed_redirect_origins=redirect_origins,
+                            trace=trace,
+                        )
             if current.auth_required and self._is_auth_failure(current, response):
                 if auth_attempts >= self._shared.config.network.auth_refresh_attempts:
                     raise AuthenticationError("authentication failed after configured refresh attempts")
@@ -484,3 +647,6 @@ class OperationRequestGateway:
 
     async def _log(self, event: str, *, module: str, **fields: Unpack[_GatewayLogFields]) -> None:
         await self._shared._log(event, module=module, plugin_id=self.plugin_id, **fields)
+
+
+_DEFAULT_EXECUTE_IMAGE = OperationRequestGateway.execute_image

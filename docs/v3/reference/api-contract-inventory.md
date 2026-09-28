@@ -23,6 +23,7 @@ FailureKind
 HttpStatusError
 HttpTransportError
 ImageArtifact
+ImageFetchRequest
 ImageContentTypeError
 ImageDecodeError
 ImageDimensionLimitError
@@ -36,6 +37,7 @@ ImageProcessorClosedError
 ImageProcessor
 ImageResource
 ImageSaveOptions
+ImageTransportMetadata
 ImageWorkerError
 InterProcessLockError
 load_application_config
@@ -58,6 +60,8 @@ SitePlugin
 StorageError
 StorageSafetyError
 TransformContext
+TransportCookie
+TransportRequestMetadata
 UnsupportedImageFormatError
 UnsupportedSiteFeature
 UpdateCandidate

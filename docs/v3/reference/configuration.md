@@ -89,6 +89,7 @@ mapping は再帰 merge、scalar/list/`null` は高い layer が置換する。I
 | `notification.email.credential_service` | string; `image-downloader.smtp` |
 | `security.plugin_verification` | `strict|warn|off`; `strict`; main/profile app layer only |
 | `image_processors.chain` | unique reverse-DNS processor IDs; `[]` |
+| `image_processors.transport_metadata_access` | processor ID -> non-empty, duplicate-free enabled non-builtin site plugin ID list mapping; `{}`。chain に含まれる processor と列挙された site の組だけが raw image transport metadata を受け取る |
 | `plugin_settings.<id>.enabled` | strict boolean; `true` |
 | `plugin_settings.<id>.config` | mapping; `{}` |
 | `plugin_settings.<id>.secrets` | `lower_snake_case -> UPPERCASE_REFERENCE` mapping; `{}` |
@@ -172,6 +173,17 @@ are applied after the layers for that operation and are not written back. Use
 manifest `config_file` が指す author-default YAML（固定名ではない）、persistent `plugin_settings.<id>.config`、operation override はこの順に deep merge する。author-default file の root key は `config` のみである。disabled site plugin は selection candidate ではない。chain 上の disabled processor は error でなく skip される。processor に `secrets` を置くことは configuration error である。
 
 `plugin_settings.<id>.download_policy` は plugin private `config` と別の、core 所有の operation 制御である。`request_concurrency` は selected operation 内の transport/retry を、chapter/image concurrency は image job scheduler を制限する。いずれも resolved global/host setting と最小値を採用する。`preserve_image_start_order: true` は chapter と image concurrency をともに `1` にする。plugin は `config.network.request_concurrency` を読めるが、それだけでは core scheduler を変更できない。CLI の一回限りの policy override は [CLI options](cli.md#cli-options) を参照する。
+
+`image_processors.transport_metadata_access` は、selected site plugin の画像 fetch に関する raw request/response metadata を processor へ渡すための明示 allow-list である。key は enabled な `image_processors.chain` の processor ID、value は enabled かつ non-builtin な site plugin ID の重複なし配列にする。wildcard は使えない。未登録の processor/site、chain 外 processor、builtin/disabled site は configuration error である。許可されない processor も transform ごとに同型の metadata を受けるが、URL query、header/cookie 値、plugin data は redacted される。これは persistent config だけで指定でき、CLI/runtime の一時 override はない。
+
+```yaml
+image_processors:
+  chain:
+    - com.example.watermark
+  transport_metadata_access:
+    com.example.watermark:
+      - com.example.gallery
+```
 
 <!-- claim: TAX-CONFIG-SECRETS -->
 raw credential を YAML、manifest、catalog、plugin source、log、exception に書かない。logical secret `name` の reference はまず `IMAGE_DOWNLOADER_PLUGIN_<NORMALIZED_ID>_<REFERENCE>` environment variable、次に keyring service `image-downloader.plugin.<plugin-id>` の username `<REFERENCE>` から解決する。どちらにもなければ `SecretNotFound` を送出する。

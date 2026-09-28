@@ -75,6 +75,7 @@ download:
   allow_empty_chapter_manifest: false
 image_processors:
   chain: []
+  transport_metadata_access: {}
 plugin_settings: {}
 fallback:
   generic_html:

@@ -213,7 +213,7 @@ def test_configuration_plugin_and_runtime_references_cover_high_risk_semantics(
     assert "Relaxed manifest used by bypass modes" in package
     assert "match_priority` がなければ runtime は `0` を補完" in package
     assert "exact object" in package
-    for hook in ("matches_with_config", "recover_image_request", "async aclose()", "inspect"):
+    for hook in ("matches_with_config", "recover_image_request", "cleanup_after_use()", "inspect"):
         assert hook in hooks
     for topic in ("AES-256-GCM", "legacy_records", "cross-origin", "max_response_bytes"):
         assert topic in runtime

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from collections.abc import Awaitable, Callable, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import TypeVar, cast
@@ -246,58 +247,62 @@ class DownloadService:
         diagnostics: OperationDiagnosticsScope,
     ) -> DownloadResult:
         try:
-            record, plugin, context, operation_gateway, policy = self._operation(
+            async with self._site_operation(
                 url,
                 plugin_overrides,
                 fallback_override,
                 plugin_id,
                 force_plugin,
                 plugin_download_policy_overrides,
-            )
-            invoker = PluginInvoker(record.id, self.logger)
-            diagnostics.capture(self._python_log_namespaces(record, include_processors=True))
-            async with OperationProcessorChain(
-                self.registry,
-                self.config.image_processors.chain,
-                plugin_overrides,
-                self.logger,
-            ) as processors:
-                await best_effort_diagnostic(
-                    self.logger.core, "operation_started", module="runtime", url=url, plugin_id=record.id, debug=True
-                )
-                await best_effort_diagnostic(
-                    self.logger.core, "plugin_selected", module="plugin", url=url, plugin_id=record.id, debug=True
-                )
-                manifest = await invoker.inspect(plugin, url, context)
-                manifest = replace(manifest, metadata={**manifest.metadata, "source_url": url})
-                if not manifest.chapters:
-                    if not self.config.download.allow_empty_chapter_manifest:
-                        raise PluginError("plugin returned an empty manifest")
-                    await self._empty_reporter(manifest, record, url)
-                    result = DownloadResult(url, manifest, ())
-                else:
-                    allocator = OutputAllocator(self._output_filesystem(record, url), self.config)
-                    pipeline = ArtifactPipeline(
-                        self.config,
-                        self.registry,
-                        record,
-                        plugin_overrides,
-                        self.image_processor,
-                        self.logger,
-                        invoker,
-                        processors.bindings,
+            ) as (record, plugin, context, operation_gateway, policy, invoker):
+                diagnostics.capture(self._python_log_namespaces(record, include_processors=True))
+                async with OperationProcessorChain(
+                    self.registry,
+                    self.config.image_processors.chain,
+                    plugin_overrides,
+                    self.logger,
+                ) as processors:
+                    await best_effort_diagnostic(
+                        self.logger.core,
+                        "operation_started",
+                        module="runtime",
+                        url=url,
+                        plugin_id=record.id,
+                        debug=True,
                     )
-                    results = await self._run_chapters(
-                        plugin,
-                        context,
-                        manifest,
-                        allocator,
-                        pipeline,
-                        operation_gateway,
-                        record.id,
-                        policy,
+                    await best_effort_diagnostic(
+                        self.logger.core, "plugin_selected", module="plugin", url=url, plugin_id=record.id, debug=True
                     )
-                    result = DownloadResult(url, manifest, tuple(results))
+                    manifest = await invoker.inspect(plugin, url, context)
+                    manifest = replace(manifest, metadata={**manifest.metadata, "source_url": url})
+                    if not manifest.chapters:
+                        if not self.config.download.allow_empty_chapter_manifest:
+                            raise PluginError("plugin returned an empty manifest")
+                        await self._empty_reporter(manifest, record, url)
+                        result = DownloadResult(url, manifest, ())
+                    else:
+                        allocator = OutputAllocator(self._output_filesystem(record, url), self.config)
+                        pipeline = ArtifactPipeline(
+                            self.config,
+                            self.registry,
+                            record,
+                            plugin_overrides,
+                            self.image_processor,
+                            self.logger,
+                            invoker,
+                            processors.bindings,
+                        )
+                        results = await self._run_chapters(
+                            plugin,
+                            context,
+                            manifest,
+                            allocator,
+                            pipeline,
+                            operation_gateway,
+                            record.id,
+                            policy,
+                        )
+                        result = DownloadResult(url, manifest, tuple(results))
             outcome = (
                 EventName.DOWNLOAD_SUCCESS
                 if not result.failures
@@ -360,51 +365,50 @@ class DownloadService:
         diagnostics: OperationDiagnosticsScope,
     ) -> UpdateResult:
         try:
-            record, plugin, context, _, _ = self._operation(
+            async with self._site_operation(
                 url,
                 plugin_overrides,
                 fallback_override,
                 plugin_id,
                 force_plugin,
                 plugin_download_policy_overrides,
-            )
-            invoker = PluginInvoker(record.id, self.logger)
-            diagnostics.capture(self._python_log_namespaces(record, include_processors=False))
-            await best_effort_diagnostic(
-                self.logger.core,
-                "operation_started",
-                module="runtime",
-                url=url,
-                plugin_id=record.id,
-                action="check_updates",
-                debug=True,
-            )
-            await best_effort_diagnostic(
-                self.logger.core,
-                "plugin_selected",
-                module="plugin",
-                url=url,
-                plugin_id=record.id,
-                action="check_updates",
-                debug=True,
-            )
-            if not isinstance(plugin, UpdateProvider):
-                raise PluginError("update check is not supported by this plugin")
-            snapshot = await invoker.check_updates(plugin, url, context)
-            changes = await self.state.apply_snapshot_async(record.id, url, snapshot)
-            for change in changes:
-                if change.kind in {UpdateChangeKind.ADDED, UpdateChangeKind.CHANGED}:
-                    await self.events.emit(EventName.UPDATED_URL_FOUND, EventPayload(url=change.url))
-            await best_effort_diagnostic(
-                self.logger.core,
-                "response_received",
-                module="download",
-                url=url,
-                count=len(changes),
-                plugin_id=record.id,
-                debug=True,
-            )
-            return UpdateResult(url, record.id, changes, snapshot.checked_at)
+            ) as (record, plugin, context, _, _, invoker):
+                diagnostics.capture(self._python_log_namespaces(record, include_processors=False))
+                await best_effort_diagnostic(
+                    self.logger.core,
+                    "operation_started",
+                    module="runtime",
+                    url=url,
+                    plugin_id=record.id,
+                    action="check_updates",
+                    debug=True,
+                )
+                await best_effort_diagnostic(
+                    self.logger.core,
+                    "plugin_selected",
+                    module="plugin",
+                    url=url,
+                    plugin_id=record.id,
+                    action="check_updates",
+                    debug=True,
+                )
+                if not isinstance(plugin, UpdateProvider):
+                    raise PluginError("update check is not supported by this plugin")
+                snapshot = await invoker.check_updates(plugin, url, context)
+                changes = await self.state.apply_snapshot_async(record.id, url, snapshot)
+                for change in changes:
+                    if change.kind in {UpdateChangeKind.ADDED, UpdateChangeKind.CHANGED}:
+                        await self.events.emit(EventName.UPDATED_URL_FOUND, EventPayload(url=change.url))
+                await best_effort_diagnostic(
+                    self.logger.core,
+                    "response_received",
+                    module="download",
+                    url=url,
+                    count=len(changes),
+                    plugin_id=record.id,
+                    debug=True,
+                )
+                return UpdateResult(url, record.id, changes, snapshot.checked_at)
         except asyncio.CancelledError:
             await best_effort_diagnostic(
                 self.logger.core, "download_cancelled", module="runtime", url=url, action="check_updates", debug=True
@@ -441,16 +445,46 @@ class DownloadService:
         force_plugin: bool = False,
         download_policy_overrides: PluginDownloadPolicyOverrides | None = None,
     ) -> tuple[PluginRecord, SitePlugin, PluginExecutionContext, OperationRequestGateway, _OperationDownloadPolicy]:
+        record, plugin = self._select_site_plugin(url, overrides, fallback_override, plugin_id, force_plugin)
+        invoker = PluginInvoker(record.id, self.logger)
+        context, gateway, policy = self._build_selected_operation(
+            url,
+            record,
+            plugin,
+            invoker,
+            overrides,
+            download_policy_overrides,
+        )
+        return record, plugin, context, gateway, policy
+
+    def _select_site_plugin(
+        self,
+        url: str,
+        overrides: PluginConfigOverrides | None,
+        fallback_override: bool | None,
+        plugin_id: str | None,
+        force_plugin: bool,
+    ) -> tuple[PluginRecord, SitePlugin]:
         if plugin_id is not None and fallback_override is not None:
             raise ConfigurationError("explicit plugin selection cannot be combined with fallback_override")
         fallback_enabled = self.config.fallback.generic_html.enabled if fallback_override is None else fallback_override
-        record, plugin = self.registry.resolve(
+        return self.registry.resolve(
             url,
             fallback_enabled=fallback_enabled,
             overrides=overrides,
             plugin_id=plugin_id,
             force_plugin=force_plugin,
         )
+
+    def _build_selected_operation(
+        self,
+        url: str,
+        record: PluginRecord,
+        plugin: SitePlugin,
+        invoker: PluginInvoker,
+        overrides: PluginConfigOverrides | None,
+        download_policy_overrides: PluginDownloadPolicyOverrides | None,
+    ) -> tuple[PluginExecutionContext, OperationRequestGateway, _OperationDownloadPolicy]:
         self.registry.validate_operation_overrides(record, overrides)
         self.registry.validate_download_policy_overrides(record, download_policy_overrides)
         policy = _effective_download_policy(
@@ -459,7 +493,6 @@ class DownloadService:
         )
         settings = self.config.plugin_settings.get(record.id)
         secrets = RuntimeSecrets(record.id, settings.secrets if settings else {})
-        invoker = PluginInvoker(record.id, self.logger)
         context: PluginExecutionContext | None = None
 
         def auth_flow_factory(session: OperationRequestGateway) -> object | None:
@@ -483,7 +516,67 @@ class DownloadService:
         )
         if context is None:
             raise RuntimeError("operation context was not initialized")
-        return record, plugin, context, operation_gateway, policy
+        return context, operation_gateway, policy
+
+    @asynccontextmanager
+    async def _site_operation(
+        self,
+        url: str,
+        overrides: PluginConfigOverrides | None = None,
+        fallback_override: bool | None = None,
+        plugin_id: str | None = None,
+        force_plugin: bool = False,
+        download_policy_overrides: PluginDownloadPolicyOverrides | None = None,
+    ) -> AsyncIterator[
+        tuple[
+            PluginRecord,
+            SitePlugin,
+            PluginExecutionContext,
+            OperationRequestGateway,
+            _OperationDownloadPolicy,
+            PluginInvoker,
+        ]
+    ]:
+        record, plugin = self._select_site_plugin(url, overrides, fallback_override, plugin_id, force_plugin)
+        invoker = PluginInvoker(record.id, self.logger)
+        try:
+            context, operation_gateway, policy = self._build_selected_operation(
+                url,
+                record,
+                plugin,
+                invoker,
+                overrides,
+                download_policy_overrides,
+            )
+        except BaseException as primary:
+            await self._cleanup_site_after_failure(invoker, plugin, primary)
+            raise
+        try:
+            yield record, plugin, context, operation_gateway, policy, invoker
+        except BaseException as primary:
+            await self._cleanup_site_after_failure(invoker, plugin, primary)
+            raise
+        else:
+            await invoker.cleanup_after_use(plugin)
+
+    async def _cleanup_site_after_failure(
+        self,
+        invoker: PluginInvoker,
+        plugin: SitePlugin,
+        _primary: BaseException,
+    ) -> None:
+        try:
+            await invoker.cleanup_after_use(plugin)
+        except BaseException as cleanup_error:
+            if isinstance(cleanup_error, Exception):
+                await best_effort_diagnostic(
+                    self.logger.core,
+                    "site_operation_close_failed",
+                    module="plugin",
+                    plugin_id=invoker.plugin_id,
+                    error=cleanup_error,
+                    debug=True,
+                )
 
     def _python_log_namespaces(self, site_record: PluginRecord, *, include_processors: bool) -> tuple[str, ...]:
         records = [site_record]
@@ -662,6 +755,7 @@ class DownloadService:
 
         async def run_one(position: int, image: ImageResource) -> ImageOutcome:
             response: RequestResponse | None = None
+            transport_metadata = None
             try:
                 try:
                     await self.events.emit(EventName.BEFORE_FETCH, EventPayload(url=image.url))
@@ -677,7 +771,9 @@ class DownloadService:
                         url_is_locator=True,
                         debug=True,
                     )
-                    response = await operation_gateway.execute_image(plugin, image, context)
+                    fetched = await operation_gateway.execute_image_with_metadata(plugin, image, context)
+                    response = fetched.response
+                    transport_metadata = fetched.transport_metadata
                     await best_effort_diagnostic(
                         self.logger.core,
                         "download_finished",
@@ -701,7 +797,14 @@ class DownloadService:
                 )
                 try:
                     await self.events.emit(EventName.IMAGE_PROCESS_STARTED, EventPayload(url=image.url))
-                    processed = await pipeline.process(plugin, artifact, image, manifest, chapter)
+                    processed = await pipeline.process(
+                        plugin,
+                        artifact,
+                        image,
+                        manifest,
+                        chapter,
+                        transport_metadata=transport_metadata,
+                    )
                     await self.events.emit(EventName.IMAGE_PROCESS_SUCCESS, EventPayload(url=image.url))
                 except asyncio.CancelledError:
                     raise

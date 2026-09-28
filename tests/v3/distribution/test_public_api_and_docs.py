@@ -33,13 +33,15 @@ EXPECTED_EXPORTS = {
         """
         AppConfig apply_overrides AuthFlow AuthenticationError Chapter ChapterResult ConfigurableSitePlugin
         ConfigurationError DownloadManifest DownloadResult DownloadService ExistingFileConflictError FailureKind
-        HttpStatusError HttpTransportError ImageArtifact ImageContentTypeError ImageDecodeError
+        HttpStatusError HttpTransportError ImageArtifact ImageFetchRequest ImageContentTypeError ImageDecodeError
         ImageDimensionLimitError ImageDownloaderError ImageFailure ImageMimeMismatchError ImageOutcome
         ImageOutcomeKind ImageProcessingError ImageProcessorClosedError ImageProcessor ImageResource
-        ImageSaveOptions ImageWorkerError InterProcessLockError load_application_config OutputAllocationError
+        ImageSaveOptions ImageTransportMetadata ImageWorkerError InterProcessLockError
+        load_application_config OutputAllocationError
         resolve_application_config RedirectPolicyError ResolvedApplicationConfig OriginScopedAuthFlow PluginError
         PluginExecutionContext RequestPort RequestError RequestResponse RequestSpec ResponseSizeLimitError
-        RuntimeComposer SecretNotFound SecretProvider SitePlugin StorageError StorageSafetyError TransformContext
+        RuntimeComposer SecretNotFound SecretProvider SitePlugin StorageError StorageSafetyError
+        TransformContext TransportCookie TransportRequestMetadata
         UnsupportedImageFormatError UnsupportedSiteFeature UpdateCandidate UpdateChange UpdateChangeKind
         UpdateProvider UpdateResult UpdateSnapshot UpdateStateError
         """.split()

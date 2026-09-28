@@ -54,25 +54,29 @@ This is the signature-level reference for the stable facades in the [API invento
 | `DownloadManifest` | `DownloadManifest(title: str, chapters: tuple[Chapter, ...], content_id: str | None = None, author: str | None = None, access: str | None = None, revision: str | None = None, metadata: Mapping[str, str] = <factory: freeze_mapping>)` |
 | `DownloadResult` | `DownloadResult(source_url: str, manifest: DownloadManifest, chapters: tuple[ChapterResult, ...])` |
 | `ImageArtifact` | `ImageArtifact(data: bytes, content_type: str, source_url: str, image_id: str | None = None, extension: str | None = None, history: tuple[str, ...] = ())` |
+| `ImageFetchRequest` | `ImageFetchRequest(request: RequestSpec, plugin_data: Mapping[str, str] = <factory: freeze_mapping>)` |
 | `ImageFailure` | `ImageFailure(kind: FailureKind, exception_type: str, message: str, code: str = "unexpected_image_failure", reason: str = "unexpected image failure", response_url: str | None = None, http_status: int | None = None, output_path: str | None = None, transport: str | None = None)` |
 | `ImageOutcome` | `ImageOutcome(image: ImageResource, kind: ImageOutcomeKind, path: str | None = None, failure: ImageFailure | None = None)` |
 | `ImageResource` | `ImageResource(url: str, index: int = 1, referer: str | None = None, headers: Mapping[str, str] = <factory: freeze_mapping>, save_options: ImageSaveOptions = <factory: ImageSaveOptions>, image_id: str | None = None, metadata: Mapping[str, str] = <factory: freeze_mapping>)` |
 | `ImageSaveOptions` | `ImageSaveOptions(format: str | None = None, extension: str | None = None, quality: int | None = None, optimize: bool | None = None, progressive: bool | None = None, lossless: bool | None = None, compress_level: int | None = None, exif: bool = False)` |
+| `ImageTransportMetadata` | `ImageTransportMetadata(initial_request: TransportRequestMetadata, final_request: TransportRequestMetadata, response_url: str, response_headers: Mapping[str, tuple[str, ...]], plugin_data: Mapping[str, str] = <factory: freeze_mapping>, is_redacted: bool = False)` |
 | `RequestSpec` | `RequestSpec(url: str, method: str = "GET", headers: Mapping[str, str] = <factory: freeze_mapping>, cookies: Mapping[str, str] = <factory: freeze_mapping>, referer: str | None = None, query: Mapping[str, str] = <factory: freeze_mapping>, form: Mapping[str, str] = <factory: freeze_mapping>, json: object | None = None, auth_required: bool = True, retry_non_idempotent: bool = False)` |
 | `RequestResponse` | `RequestResponse(url: str, status: int, headers: Mapping[str, str], body: bytes)` |
+| `TransportCookie` | `TransportCookie(name: str, value: str)` |
+| `TransportRequestMetadata` | `TransportRequestMetadata(url: str, headers: Mapping[str, tuple[str, ...]], cookies: tuple[TransportCookie, ...] = ())` |
 | `UpdateCandidate` | `UpdateCandidate(url: str, content_id: str | None = None, revision: str | None = None)` |
 | `UpdateSnapshot` | `UpdateSnapshot(source_url: str, candidates: tuple[UpdateCandidate, ...], checked_at: datetime)` |
 | `UpdateChange` | `UpdateChange(kind: UpdateChangeKind, url: str, content_id: str | None = None, revision: str | None = None)` |
 | `UpdateResult` | `UpdateResult(source_url: str, plugin_id: str, changes: tuple[UpdateChange, ...], checked_at: datetime)` |
 
-`<factory: name>` is the dataclass default-factory spelling: a new value is built for every construction, not a shared mutable default. `RequestPort`, `SecretProvider`, `AuthFlow`, `OriginScopedAuthFlow`, `SitePlugin`, `ConfigurableSitePlugin`, `ImageProcessor`, and `UpdateProvider` are Protocols; their exact signatures and capability boundaries are in [plugin hooks](plugin-hooks.md). `FailureKind`, `ImageOutcomeKind`, and `UpdateChangeKind` are enum contracts in [library API](library-api.md#api-download-result).
+`<factory: name>` is the dataclass default-factory spelling: a new value is built for every construction, not a shared mutable default. `RequestPort`, `SecretProvider`, `AuthFlow`, `OriginScopedAuthFlow`, `SitePlugin`, `ConfigurableSitePlugin`, `ImageProcessor`, and `UpdateProvider` are Protocols; their exact signatures and capability boundaries are in [plugin hooks](plugin-hooks.md). Site/processor の任意 lifecycle extension は `cleanup_after_use() -> Awaitable[None] | None` だけであり、runtime はその完了後に同じ instance の plugin hook を呼ばない。`FailureKind`, `ImageOutcomeKind`, and `UpdateChangeKind` are enum contracts in [library API](library-api.md#api-download-result).
 
 ## Runtime concrete classes
 
 | constructor, method, or property | visible signature |
 | --- | --- |
 | `ArtifactPipeline` <!-- api-contract: image_downloader.runtime.ArtifactPipeline --> | `ArtifactPipeline(config: AppConfig, registry: PluginRuntime, site_record: PluginRecord, overrides: PluginConfigOverrides | None, image_processor: ImageProcessor, logger: DownloadLogger, invoker: PluginInvoker, processors: tuple[PreparedProcessor | str, ...])` |
-| `ArtifactPipeline.process` <!-- api-contract: image_downloader.runtime.ArtifactPipeline.process --> | `async process(self, plugin: SitePlugin, artifact: ImageArtifact, image: ImageResource, manifest: DownloadManifest, chapter: Chapter) -> ImageArtifact` |
+| `ArtifactPipeline.process` <!-- api-contract: image_downloader.runtime.ArtifactPipeline.process --> | `async process(self, plugin: SitePlugin, artifact: ImageArtifact, image: ImageResource, manifest: DownloadManifest, chapter: Chapter, *, transport_metadata: ImageTransportMetadata | None = None) -> ImageArtifact` |
 | `ChapterReporter` <!-- api-contract: image_downloader.runtime.ChapterReporter --> | `ChapterReporter(filesystem: FileSystem, chapter_directory: Path, manifest: DownloadManifest, chapter: Chapter, logger: DownloadLogger, reporter_id: str)` |
 | `ChapterReporter.start` <!-- api-contract: image_downloader.runtime.ChapterReporter.start --> | `async start(self) -> None` |
 | `ChapterReporter.record` <!-- api-contract: image_downloader.runtime.ChapterReporter.record --> | `async record(self, position: int, outcome: ImageOutcome) -> None` |

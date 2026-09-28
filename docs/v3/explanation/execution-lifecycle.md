@@ -15,10 +15,12 @@ URL
        -> auth apply / configured refresh retries
        -> HTTP request and normal retry
        -> recover_image_request(...)            [auth refresh 後の HTTP status >=400 に最大 1 回]
-       -> site transform_image
+       -> site transform_image                 [raw ImageTransportMetadata]
        -> core validation/normalisation
-       -> configured processor transforms
+       -> configured processor transforms       [allow-list により raw/redacted metadata]
        -> allocation and save
+  -> processor cleanup_after_use
+  -> selected site cleanup_after_use
   -> reports/events; cookie delta on service.close()
 ```
 
@@ -42,7 +44,9 @@ selected site plugin の `download_policy` はこれらの上限を下げられ�
 
 `create_image_request` は各 image ごとに一度だけ呼ばれる。auth failure response は `network.auth_refresh_attempts` の範囲で configured `AuthFlow.refresh` が先に試行される。refresh 後にも残った **HTTP response の status が `>=400` のときだけ** recovery hook が最大一度呼ばれる。DNS/connect/read timeout など transport failure には recovery hook は呼ばれない。recovery request にも通常の auth/validation が適用されるが、recovery を再帰的に呼ばない。
 
-`ImageResource` の constructor は URL を検査せず、hook invoker は plugin が返した `ImageResource.url` を non-empty string locator として検査する。locator は canonical URL、ID、placeholder のいずれでもよいが、`inspect` が決定した完全な画像集合の各画像を `create_image_request` で解決するのに十分に安定していなければならない。`ImageResource.metadata` は各画像の inspection-time 非秘密情報を immutable に保持し、request hook と transform context に渡る。core は locator を解釈・送信しない。直前署名 URL は `create_image_request` が actual absolute HTTP(S) `RequestSpec.url` として発行し、失効後の一回限りの再発行は `recover_image_request` で解決する。locator、`image_id`、image/manifest metadata に token、cookie、署名 URL、鍵などの秘密値を置かないことは plugin author の責務である。`ImageArtifact.source_url` は実際の response URL ではなく manifest locator を保持し、成功時の最終 HTTP URL を public result DTO から取得する契約はない。browser/interactive feature が必要な site は manifest を偽装せず `UnsupportedSiteFeature` または明示的な authentication error として終了する。
+`ImageResource` の constructor は URL を検査せず、hook invoker は plugin が返した `ImageResource.url` を non-empty string locator として検査する。locator は canonical URL、ID、placeholder のいずれでもよいが、`inspect` が決定した完全な画像集合の各画像を `create_image_request` で解決するのに十分に安定していなければならない。`ImageResource.metadata` は各画像の inspection-time 非秘密情報を immutable に保持し、request hook と transform context に渡る。core は locator を解釈・送信しない。直前署名 URL は `create_image_request` が actual absolute HTTP(S) `RequestSpec.url` として発行し、失効後の一回限りの再発行は `recover_image_request` で解決する。hook は `ImageFetchRequest` を返して request-time の `plugin_data` を transform に渡せる。成功した最後の physical response について core は AuthFlow 適用後の initial request、redirect 後の final request、response URL/header を `TransformContext.transport_metadata` に限定して渡す。site transform は raw 値を受け、processor は selected site ID を明示許可したときだけ raw、それ以外では redacted snapshot を受ける。`plugin_data` を含む raw metadata は artifact/result/event/log/CLI JSON に自動コピーされない。locator、`image_id`、image/manifest metadata に token、cookie、署名 URL、鍵などの秘密値を置かないことは plugin author の責務である。`ImageArtifact.source_url` は実際の response URL ではなく manifest locator を保持し、成功時の最終 HTTP URL を public result DTO から取得する契約はない。browser/interactive feature が必要な site は manifest を偽装せず `UnsupportedSiteFeature` または明示的な authentication error として終了する。
+
+selected site instance は `run()` / `check_updates()` の runtime 利用区間で所有される。site plugin と configured processor は任意の `cleanup_after_use()` を実装でき、通常の戻り値または awaitable を返せる。runtime は instance を使い終えたときに一回だけこれを実行し、awaitable を await する。完了後に同じ instance の plugin hook を runtime が再び呼ぶことはないが、object の破棄や外部コードによる利用禁止を意味しない。temporary matcher instance には cleanup を呼ばず、`aclose()`、`close()`、`aclose_operation()`、`close_operation()` は cleanup hook として呼ばれない。processor cleanup が先、site cleanup が後である。正常終了時の cleanup error は `PluginError`、既存 error/cancellation があるときは主原因を保持し diagnostic に記録する。
 
 ## Result boundary
 

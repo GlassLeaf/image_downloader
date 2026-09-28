@@ -184,6 +184,19 @@ class PluginRuntime:
             configured_record = self.records.get(plugin_id)
             if configured_record is None or configured_record.kind != "image_processor_plugin":
                 raise ConfigurationError(f"configured image processor is unavailable: {plugin_id}")
+        for processor_id, site_ids in self.config.image_processors.transport_metadata_access.items():
+            processor = self.records.get(processor_id)
+            if (
+                processor_id not in self.config.image_processors.chain
+                or processor is None
+                or processor.kind != "image_processor_plugin"
+                or not self.enabled(processor)
+            ):
+                raise ConfigurationError(f"transport metadata processor is unavailable: {processor_id}")
+            for site_id in site_ids:
+                site = self.records.get(site_id)
+                if site is None or site.kind != "site_plugin" or site.builtin or not self.enabled(site):
+                    raise ConfigurationError(f"transport metadata site plugin is unavailable: {site_id}")
 
     def enabled(self, record: PluginRecord) -> bool:
         setting = self._setting(record.id)

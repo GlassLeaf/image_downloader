@@ -54,6 +54,7 @@ _SAFE_EVENTS = {
     "request_started",
     "request_retry",
     "response_received",
+    "site_operation_close_failed",
     "image_processed",
     "file_saved",
     "download_failed",

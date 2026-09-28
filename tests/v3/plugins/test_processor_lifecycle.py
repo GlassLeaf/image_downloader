@@ -12,6 +12,7 @@ from test_plugin_v3 import make_plugin
 from image_downloader.config import AppConfig
 from image_downloader.exceptions import PluginError
 from image_downloader.models import ImageArtifact
+from image_downloader.plugins.plugin_invoker import PluginInvoker
 from image_downloader.runtime import DownloadService, RuntimeComposer
 
 
@@ -67,7 +68,7 @@ def test_processor_is_constructed_and_validated_once_per_operation_and_serialize
             def __init__(self) -> None:
                 self.validations = 0
                 self.transforms = 0
-                self.closes = 0
+                self.cleanups = 0
                 self.active = 0
                 self.max_active = 0
                 instances.append(self)
@@ -83,21 +84,21 @@ def test_processor_is_constructed_and_validated_once_per_operation_and_serialize
                 self.transforms += 1
                 return artifact
 
-            def close(self) -> None:
-                self.closes += 1
+            def cleanup_after_use(self) -> None:
+                self.cleanups += 1
 
         service.registry.loader.register_class(service.registry.records[plugin_id], StatefulProcessor)
         try:
             first = await service.run("https://example.test/gallery")
             assert len(first.saved_files) == 2
             assert len(instances) == 1
-            assert (instances[0].validations, instances[0].transforms, instances[0].closes) == (1, 2, 1)
+            assert (instances[0].validations, instances[0].transforms, instances[0].cleanups) == (1, 2, 1)
             assert instances[0].max_active == 1
 
             second = await service.run("https://example.test/gallery")
             assert len(second.saved_files) == 2
             assert len(instances) == 2
-            assert (instances[1].validations, instances[1].transforms, instances[1].closes) == (1, 2, 1)
+            assert (instances[1].validations, instances[1].transforms, instances[1].cleanups) == (1, 2, 1)
             assert requests.count("/gallery") == 2
         finally:
             await service.close()
@@ -105,7 +106,7 @@ def test_processor_is_constructed_and_validated_once_per_operation_and_serialize
     asyncio.run(scenario())
 
 
-def test_processor_validation_fails_before_any_request_and_closes_instance(tmp_path: Path) -> None:
+def test_processor_validation_fails_before_any_request_and_cleans_up_instance(tmp_path: Path) -> None:
     async def scenario() -> None:
         plugin_id = "com.example.invalid"
         service = _service(tmp_path, plugin_id)
@@ -119,7 +120,7 @@ def test_processor_validation_fails_before_any_request_and_closes_instance(tmp_p
             async def transform(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
                 return artifact
 
-            def close(self) -> None:
+            def cleanup_after_use(self) -> None:
                 closed.append(True)
 
         service.registry.loader.register_class(service.registry.records[plugin_id], InvalidProcessor)
@@ -134,7 +135,7 @@ def test_processor_validation_fails_before_any_request_and_closes_instance(tmp_p
     asyncio.run(scenario())
 
 
-def test_partial_chain_initialization_closes_every_constructed_instance_in_reverse_order(tmp_path: Path) -> None:
+def test_partial_chain_initialization_cleans_up_every_constructed_instance_in_reverse_order(tmp_path: Path) -> None:
     async def scenario() -> None:
         first_id, second_id = "com.example.first", "com.example.second"
         service = _service(tmp_path, first_id, second_id)
@@ -148,14 +149,14 @@ def test_partial_chain_initialization_closes_every_constructed_instance_in_rever
             async def transform(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
                 return artifact
 
-            def close(self) -> None:
+            def cleanup_after_use(self) -> None:
                 closed.append(first_id)
 
         class SecondProcessor(FirstProcessor):
             def validate_config(self, _config: object, _app_settings: object) -> None:
                 raise ValueError("invalid second processor")
 
-            def close(self) -> None:
+            def cleanup_after_use(self) -> None:
                 closed.append(second_id)
 
         service.registry.loader.register_class(service.registry.records[first_id], FirstProcessor)
@@ -171,7 +172,7 @@ def test_partial_chain_initialization_closes_every_constructed_instance_in_rever
     asyncio.run(scenario())
 
 
-def test_async_cleanup_failure_becomes_plugin_error_after_successful_processing(tmp_path: Path) -> None:
+def test_async_cleanup_after_use_failure_becomes_plugin_error_after_successful_processing(tmp_path: Path) -> None:
     async def scenario() -> None:
         plugin_id = "com.example.async-close"
         service = _service(tmp_path, plugin_id)
@@ -185,18 +186,15 @@ def test_async_cleanup_failure_becomes_plugin_error_after_successful_processing(
             async def transform(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
                 return artifact
 
-            async def aclose(self) -> None:
-                calls.append("aclose")
+            async def cleanup_after_use(self) -> None:
+                calls.append("cleanup")
                 raise RuntimeError("close failed")
-
-            def close(self) -> None:
-                calls.append("close")
 
         service.registry.loader.register_class(service.registry.records[plugin_id], AsyncCloseProcessor)
         try:
-            with pytest.raises(PluginError, match="hook=aclose"):
+            with pytest.raises(PluginError, match="hook=cleanup_after_use"):
                 await service.run("https://example.test/gallery")
-            assert calls == ["aclose"]
+            assert calls == ["cleanup"]
         finally:
             await service.close()
 
@@ -217,7 +215,7 @@ def test_cleanup_failure_does_not_replace_transform_failure(tmp_path: Path) -> N
             async def transform(self, _artifact: ImageArtifact, _context: object) -> ImageArtifact:
                 raise RuntimeError("transform failed")
 
-            def close(self) -> None:
+            def cleanup_after_use(self) -> None:
                 closed.append(True)
                 raise RuntimeError("close failed")
 
@@ -232,7 +230,7 @@ def test_cleanup_failure_does_not_replace_transform_failure(tmp_path: Path) -> N
     asyncio.run(scenario())
 
 
-def test_cancelled_operation_closes_prepared_processor(tmp_path: Path) -> None:
+def test_cancelled_operation_cleans_up_prepared_processor(tmp_path: Path) -> None:
     async def scenario() -> None:
         plugin_id = "com.example.cancelled"
         service = _service(tmp_path, plugin_id)
@@ -249,7 +247,7 @@ def test_cancelled_operation_closes_prepared_processor(tmp_path: Path) -> None:
                 await asyncio.Future()
                 raise AssertionError("unreachable")
 
-            def close(self) -> None:
+            def cleanup_after_use(self) -> None:
                 closed.append(True)
 
         service.registry.loader.register_class(service.registry.records[plugin_id], WaitingProcessor)
@@ -262,5 +260,36 @@ def test_cancelled_operation_closes_prepared_processor(tmp_path: Path) -> None:
             assert closed == [True]
         finally:
             await service.close()
+
+    asyncio.run(scenario())
+
+
+def test_cleanup_after_use_accepts_sync_or_async_and_rejects_invalid_implementations() -> None:
+    async def scenario() -> None:
+        calls: list[str] = []
+
+        class SyncCleanup:
+            def cleanup_after_use(self) -> None:
+                calls.append("sync")
+
+        class AsyncCleanup:
+            async def cleanup_after_use(self) -> None:
+                calls.append("async")
+
+        class InvalidAttribute:
+            cleanup_after_use = "not callable"
+
+        class InvalidReturn:
+            def cleanup_after_use(self) -> str:
+                return "not none"
+
+        invoker = PluginInvoker("com.example.cleanup")
+        await invoker.cleanup_after_use(SyncCleanup())
+        await invoker.cleanup_after_use(AsyncCleanup())
+        assert calls == ["sync", "async"]
+        with pytest.raises(PluginError, match="cleanup hook must be callable"):
+            await invoker.cleanup_after_use(InvalidAttribute())
+        with pytest.raises(PluginError, match="cleanup hook must return None"):
+            await invoker.cleanup_after_use(InvalidReturn())
 
     asyncio.run(scenario())

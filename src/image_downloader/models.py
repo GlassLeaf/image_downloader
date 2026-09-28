@@ -19,6 +19,27 @@ def freeze_mapping(value: Mapping[str, T] | None = None) -> Mapping[str, T]:
     return MappingProxyType(dict(value or {}))
 
 
+def _freeze_string_mapping(value: Mapping[str, str], *, field_name: str) -> Mapping[str, str]:
+    if not isinstance(value, Mapping) or any(
+        not isinstance(key, str) or not isinstance(item, str) for key, item in value.items()
+    ):
+        raise TypeError(f"{field_name} must map strings to strings")
+    return freeze_mapping(value)
+
+
+def _freeze_header_values(
+    value: Mapping[str, tuple[str, ...]], *, field_name: str
+) -> Mapping[str, tuple[str, ...]]:
+    if not isinstance(value, Mapping):
+        raise TypeError(f"{field_name} must be a mapping")
+    frozen: dict[str, tuple[str, ...]] = {}
+    for key, items in value.items():
+        if not isinstance(key, str) or not isinstance(items, tuple) or any(not isinstance(item, str) for item in items):
+            raise TypeError(f"{field_name} must map strings to tuples of strings")
+        frozen[key] = tuple(items)
+    return freeze_mapping(frozen)
+
+
 @dataclass(frozen=True, slots=True)
 class RequestSpec:
     url: str
@@ -54,6 +75,81 @@ class RequestResponse:
 
 
 @dataclass(frozen=True, slots=True)
+class ImageFetchRequest:
+    """A resolved image request plus plugin-defined transform data.
+
+    ``RequestSpec`` remains valid as a return value from the image request and
+    recovery hooks.  Plugins opt in to this DTO only when request-time data is
+    needed by image transforms.
+    """
+
+    request: RequestSpec
+    plugin_data: Mapping[str, str] = field(default_factory=freeze_mapping)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.request, RequestSpec):
+            raise TypeError("ImageFetchRequest.request must be RequestSpec")
+        object.__setattr__(self, "plugin_data", _freeze_string_mapping(self.plugin_data, field_name="plugin_data"))
+
+
+@dataclass(frozen=True, slots=True)
+class TransportCookie:
+    """One name/value pair actually sent in an HTTP Cookie header."""
+
+    name: str
+    value: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or not isinstance(self.value, str):
+            raise TypeError("TransportCookie fields must be strings")
+
+
+@dataclass(frozen=True, slots=True)
+class TransportRequestMetadata:
+    """A snapshot of one actual HTTP request hop for an image fetch."""
+
+    url: str
+    headers: Mapping[str, tuple[str, ...]]
+    cookies: tuple[TransportCookie, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.url, str):
+            raise TypeError("TransportRequestMetadata.url must be a string")
+        object.__setattr__(self, "headers", _freeze_header_values(self.headers, field_name="headers"))
+        if any(not isinstance(cookie, TransportCookie) for cookie in self.cookies):
+            raise TypeError("TransportRequestMetadata.cookies must contain TransportCookie values")
+        object.__setattr__(self, "cookies", tuple(self.cookies))
+
+
+@dataclass(frozen=True, slots=True)
+class ImageTransportMetadata:
+    """Successful image-fetch transport data exposed only to transforms."""
+
+    initial_request: TransportRequestMetadata
+    final_request: TransportRequestMetadata
+    response_url: str
+    response_headers: Mapping[str, tuple[str, ...]]
+    plugin_data: Mapping[str, str] = field(default_factory=freeze_mapping)
+    is_redacted: bool = False
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.initial_request, TransportRequestMetadata) or not isinstance(
+            self.final_request, TransportRequestMetadata
+        ):
+            raise TypeError("ImageTransportMetadata request fields must be TransportRequestMetadata")
+        if not isinstance(self.response_url, str):
+            raise TypeError("ImageTransportMetadata.response_url must be a string")
+        object.__setattr__(
+            self,
+            "response_headers",
+            _freeze_header_values(self.response_headers, field_name="response_headers"),
+        )
+        object.__setattr__(self, "plugin_data", _freeze_string_mapping(self.plugin_data, field_name="plugin_data"))
+        if not isinstance(self.is_redacted, bool):
+            raise TypeError("ImageTransportMetadata.is_redacted must be bool")
+
+
+@dataclass(frozen=True, slots=True)
 class ImageSaveOptions:
     format: str | None = None
     extension: str | None = None
@@ -84,11 +180,7 @@ class ImageResource:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "headers", freeze_mapping(self.headers))
-        if not isinstance(self.metadata, Mapping) or any(
-            not isinstance(key, str) or not isinstance(value, str) for key, value in self.metadata.items()
-        ):
-            raise TypeError("ImageResource.metadata must map strings to strings")
-        object.__setattr__(self, "metadata", freeze_mapping(self.metadata))
+        object.__setattr__(self, "metadata", _freeze_string_mapping(self.metadata, field_name="ImageResource.metadata"))
 
 
 @dataclass(frozen=True, slots=True)
@@ -115,9 +207,11 @@ class DownloadManifest:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "chapters", tuple(self.chapters))
-        if any(not isinstance(key, str) or not isinstance(value, str) for key, value in self.metadata.items()):
-            raise TypeError("DownloadManifest.metadata must map strings to strings")
-        object.__setattr__(self, "metadata", freeze_mapping(self.metadata))
+        object.__setattr__(
+            self,
+            "metadata",
+            _freeze_string_mapping(self.metadata, field_name="DownloadManifest.metadata"),
+        )
 
 
 @dataclass(frozen=True, slots=True)

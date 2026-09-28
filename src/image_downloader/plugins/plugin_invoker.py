@@ -14,6 +14,7 @@ from ..models import (
     Chapter,
     DownloadManifest,
     ImageArtifact,
+    ImageFetchRequest,
     ImageResource,
     ImageSaveOptions,
     RequestResponse,
@@ -175,13 +176,14 @@ class PluginInvoker:
         plugin: SitePlugin,
         image: ImageResource,
         context: PluginExecutionContext,
-    ) -> RequestSpec:
+    ) -> RequestSpec | ImageFetchRequest:
         hook = "create_image_request"
         await self._start(hook, url=image.url, url_is_locator=True)
         value = await self._invoke_async(hook, lambda: plugin.create_image_request(image, context))
-        self._validate_request(hook, value, allow_none=False)
-        assert isinstance(value, RequestSpec)
-        await self._finish(hook, url=value.url)
+        self._validate_image_fetch_request(hook, value, allow_none=False)
+        assert isinstance(value, (RequestSpec, ImageFetchRequest))
+        request = value.request if isinstance(value, ImageFetchRequest) else value
+        await self._finish(hook, url=request.url)
         return value
 
     async def recover_image_request(
@@ -191,15 +193,16 @@ class PluginInvoker:
         failed: RequestSpec,
         response: RequestResponse,
         context: PluginExecutionContext,
-    ) -> RequestSpec | None:
+    ) -> RequestSpec | ImageFetchRequest | None:
         hook = "recover_image_request"
         await self._start(hook, url=failed.url)
         value = await self._invoke_async(
             hook,
             lambda: plugin.recover_image_request(image, failed, response, context),
         )
-        self._validate_request(hook, value, allow_none=True)
-        await self._finish(hook, url=value.url if value is not None else failed.url)
+        self._validate_image_fetch_request(hook, value, allow_none=True)
+        request = value.request if isinstance(value, ImageFetchRequest) else value
+        await self._finish(hook, url=request.url if request is not None else failed.url)
         return value
 
     async def transform_image(
@@ -251,24 +254,24 @@ class PluginInvoker:
         )
         return value
 
-    async def close_processor(self, processor: ImageProcessor) -> None:
-        """Invoke an optional synchronous or asynchronous processor cleanup hook."""
-        async_close = getattr(processor, "aclose", None)
-        sync_close = getattr(processor, "close", None)
-        callback = async_close if callable(async_close) else sync_close
-        if not callable(callback):
+    async def cleanup_after_use(self, plugin: object) -> None:
+        """Run an optional hook after runtime has finished using one plugin instance."""
+        hook = "cleanup_after_use"
+        callback = getattr(plugin, hook, None)
+        if callback is None:
             return
-        hook = "aclose" if callback is async_close else "close"
+        if not callable(callback):
+            raise self._error(hook, "cleanup hook must be callable")
         try:
             result = callback()
             if inspect.isawaitable(result):
                 result = await result
-        except ImageDownloaderError:
-            raise
+        except ImageDownloaderError as exc:
+            raise self._error(hook, "plugin hook failed") from exc
         except Exception as exc:
             raise self._error(hook, "plugin hook failed") from exc
         if result is not None:
-            raise self._error(hook, "processor cleanup must return None")
+            raise self._error(hook, "cleanup hook must return None")
 
     async def apply_auth(self, flow: AuthFlow, request: RequestSpec) -> RequestSpec:
         hook = "auth_apply"
@@ -374,6 +377,19 @@ class PluginInvoker:
             self._validate_http_url(hook, value.referer, f"{hook} returned an invalid referer")
         if not isinstance(value.auth_required, bool) or not isinstance(value.retry_non_idempotent, bool):
             raise self._error(hook, f"{hook} returned invalid request flags")
+
+    def _validate_image_fetch_request(self, hook: str, value: object, *, allow_none: bool) -> None:
+        if value is None and allow_none:
+            return
+        if isinstance(value, ImageFetchRequest):
+            self._validate_request(hook, value.request, allow_none=False)
+            self._validate_string_mapping(hook, value.plugin_data, f"{hook} returned invalid plugin data")
+            return
+        if isinstance(value, RequestSpec):
+            self._validate_request(hook, value, allow_none=False)
+            return
+        expected = "RequestSpec, ImageFetchRequest, or None" if allow_none else "RequestSpec or ImageFetchRequest"
+        raise self._error(hook, f"{hook} must return {expected}")
 
     def _validate_artifact(self, hook: str, value: object) -> None:
         if not isinstance(value, ImageArtifact):

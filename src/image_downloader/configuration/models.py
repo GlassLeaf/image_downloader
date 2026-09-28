@@ -248,6 +248,7 @@ class Plugins(StrictModel):
 
 class ImageProcessors(StrictModel):
     chain: tuple[StrictStr, ...] = ()
+    transport_metadata_access: Mapping[StrictStr, tuple[StrictStr, ...]] = Field(default_factory=dict)
 
     @field_validator("chain")
     @classmethod
@@ -255,6 +256,22 @@ class ImageProcessors(StrictModel):
         if len(values) != len(set(values)) or any(not _valid_plugin_id(value) for value in values):
             raise ValueError("image processor IDs are invalid or duplicated")
         return tuple(values)
+
+    @field_validator("transport_metadata_access")
+    @classmethod
+    def valid_transport_metadata_access(
+        cls, values: Mapping[str, tuple[str, ...]]
+    ) -> Mapping[str, tuple[str, ...]]:
+        for processor_id, site_ids in values.items():
+            if not _valid_plugin_id(processor_id) or not isinstance(site_ids, tuple):
+                raise ValueError("transport metadata access IDs are invalid")
+            if (
+                not site_ids
+                or len(site_ids) != len(set(site_ids))
+                or any(not _valid_plugin_id(site_id) for site_id in site_ids)
+            ):
+                raise ValueError("transport metadata access site IDs are invalid or duplicated")
+        return freeze_json(values)
 
 
 class GenericHtmlFallback(StrictModel):
