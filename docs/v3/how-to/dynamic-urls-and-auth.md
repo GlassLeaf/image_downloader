@@ -4,7 +4,7 @@
 
 1. cursor/page API は `inspect` 内で停止条件、重複排除、上限を持って完結させる。
 2. `ImageResource.url` には、画像を一意に解決する non-empty string locator を置く。canonical URL、`image:42` のような ID、`/placeholder/42` のような placeholder を使えるが、`create_image_request` が実 request を組み立てるのに十分に安定していなければならない。`ImageResource.metadata` には inspection-time の非秘密補助情報を置け、request hook と transform context から読める。locator、`image_id`、image/manifest metadata に token、cookie、署名 URL、鍵などの秘密値を置かない。
-3. 実 URL が短命なら `create_image_request` で locator を解釈して直前 API を呼び、送信用の absolute HTTP(S) `RequestSpec.url` を発行する。core は locator を解釈せず、`RequestSpec(url=image.url)` が HTTP(S) でなければ fetch 前に失敗する。
+3. 実 URL が短命なら `create_image_request` で locator を解釈して直前 API を呼び、送信用の absolute HTTP(S) `RequestSpec.url` を発行する。core は locator を解釈せず、`RequestSpec(url=image.url)` が HTTP(S) でなければ fetch 前に失敗する。`request_concurrency` は HTTP transport だけを直列化し、hook の間には保持されないため、並列 image job が先に複数の URL を発行することは防がない。URL の TTL が短く、発行から最終 fetch までの順序保証が必要なら、selected plugin の `download_policy.preserve_image_start_order: true`（または chapter/image concurrency とも `1`）を使う。現行 API は発行と最終 fetch を一つの atomic reservation にする機構を提供しない。
 4. CDN URL が失効した response だけを `recover_image_request` で再発行する。
 5. credential と refresh は `AuthFlow` に閉じ込め、追加 origin は明示的に opt-in する。
 

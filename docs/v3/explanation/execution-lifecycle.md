@@ -28,7 +28,7 @@ candidate matching のため temporary instance が作られ得る。選択さ�
 
 `DownloadService.run()` と `check_updates()` は同一 service で直列化される。chapter は `download.chapter_concurrency`、image は chapter ごとの `download.image_concurrency_per_chapter` まで並行する。したがって `create_image_request` と site `transform_image` は並行呼出に安全でなければならない。configured processor は **同一 processor instance ごとに runtime lock で直列化** されるが、global mutable state や別 service instance との共有には依存してはならない。
 
-selected site plugin の `download_policy` はこれらの上限を下げられるが、上げることはできない。`preserve_image_start_order: true` は両方を `1` として manifest の chapter/image 順に image job を開始する。operation-local `request_concurrency` は request hook、auth、recovery、画像 fetch を含む physical transport/retry を制限するが、hook の実行中に保持されない。
+selected site plugin の `download_policy` はこれらの上限を下げられるが、上げることはできない。`preserve_image_start_order: true` は両方を `1` として manifest の chapter/image 順に image job を開始する。operation-local `request_concurrency` は request hook、auth、recovery、画像 fetch を含む physical transport/retry を制限するが、hook の実行中に保持されない。これは hook 内の `context.requests.execute()` を自己デッドロックさせないためである。したがって image job が並列なら、短命 URL を `create_image_request` で発行した後、最終画像 request が他 job の transport 待ちになることがある。`request_concurrency: 1` だけでは発行から取得までを原子的にしない。短い TTL を扱う plugin は `preserve_image_start_order: true`、または chapter/image concurrency をともに `1` にする。
 
 ## Dynamic discovery and recovery
 

@@ -60,11 +60,13 @@ plugin_settings:
 
 ### Q8. 画像 URL への並列アクセスを禁止するには？
 
-選択 plugin の image job を直列にするには Q7 の `preserve_image_start_order` を使う。画像 URL 解決、認証、鍵取得、`inspect()` を含むその operation の全 HTTP transport も一件ずつにしたい場合は、同じ `download_policy` に `request_concurrency: 1` を置く。これは global `network.request_concurrency` を緩めず、selected operation だけをさらに制限する。[configuration schema](../reference/configuration.md#config-schema) を参照する。
+選択 plugin の image job を直列にするには Q7 の `preserve_image_start_order` を使う。画像 URL 解決、認証、鍵取得、`inspect()` を含むその operation の全 HTTP transport も一件ずつにしたい場合は、同じ `download_policy` に `request_concurrency: 1` を置く。これは global `network.request_concurrency` を緩めず、selected operation だけをさらに制限する。
+
+ただし `request_concurrency: 1` は HTTP transport の上限だけであり、`create_image_request()` の実行中には取得されない。複数 image job が並列なら、複数の署名 URL が発行された後に最終画像 request が待機し、短い TTL の URL が失効し得る。署名 URL の発行から画像取得までを画像ごとに直列化する保証が必要なら、`preserve_image_start_order: true`（または chapter/image concurrency をともに `1`）を使う。現行 API に、発行と最終取得を原子的に予約する機構はない。[configuration schema](../reference/configuration.md#config-schema) を参照する。
 
 ### Q9. 画像 URL の決定に鍵取得など別 URL へのアクセスが必要な場合は？
 
-`create_image_request()` から `await context.requests.execute(RequestSpec(...))` を呼び、鍵、署名 URL、画像用 token を取得して最終 `RequestSpec` を返す。plugin は raw HTTP client を作らない。manifest locator は ID や placeholder に留め、取得した鍵・token・署名 URL を locator、`image_id`、image/manifest metadata へ保存してはならない。operation 内で共有する鍵を cache する場合、同 hook が並列に呼ばれるため lock または共有 `Future` で一回だけ取得する。`download_policy.request_concurrency: 1` は実 transport を直列にするが、hook 内の鍵取得を自己デッドロックさせない。認証更新は `AuthFlow.refresh()`、失効済み署名 URL の HTTP failure 後の再発行は `recover_image_request()` を使う。[runtime transport](../reference/runtime-behavior.md#runtime-transport) を参照する。
+`create_image_request()` から `await context.requests.execute(RequestSpec(...))` を呼び、鍵、署名 URL、画像用 token を取得して最終 `RequestSpec` を返す。plugin は raw HTTP client を作らない。manifest locator は ID や placeholder に留め、取得した鍵・token・署名 URL を locator、`image_id`、image/manifest metadata へ保存してはならない。operation 内で共有する鍵を cache する場合、同 hook が並列に呼ばれるため lock または共有 `Future` で一回だけ取得する。`download_policy.request_concurrency: 1` は実 transport を直列にするが、hook 内の鍵取得を自己デッドロックさせない。一方、同設定だけでは署名 URL 発行と最終画像取得を不可分にはしない。URL の TTL が短い場合は `preserve_image_start_order: true` を併用し、画像 job 自体を直列化する。認証更新は `AuthFlow.refresh()`、失効済み署名 URL の HTTP failure 後の再発行は `recover_image_request()` を使う。[runtime transport](../reference/runtime-behavior.md#runtime-transport) を参照する。
 
 ### Q10. `auth_flow()` は何をするべきで、何をするべきでないか？
 
@@ -111,6 +113,26 @@ browser cookie は `cookie browser-import DOMAIN`、バックアップ・移行�
 ### 7. plugin を安全に導入・診断するには？
 
 `plugin install SOURCE --yes` は staged install、署名・tree・class の検証、catalog trust を行う。導入後は `plugin list` と `doctor --json` で確認する。`strict` verification を通常運用の既定とし、`warn` や bypass mode は復旧・開発用途だけにする。[plugin package and trust](../reference/plugin-package.md#plugin-catalog) を参照する。
+
+### 8. `request_concurrency: 1` だけで短命の署名 URL を安全に扱えるか？
+
+十分ではない。これは実 transport の同時数だけを制限し、`create_image_request()` の実行中には slot を保持しない。複数の image job が並列なら、複数の署名 URL が発行された後、最終画像 request が順番待ちになり TTL 切れになり得る。URL の発行から取得までを画像単位で順に進める必要がある場合は、`preserve_image_start_order: true`（または chapter/image concurrency をともに `1`）を使う。現行 API にこの二段階を原子的に予約する機構はない。[dynamic URL how-to](dynamic-urls-and-auth.md) を参照する。
+
+### 9. 複数の CLI process を実行しても、サイトへの総並列数は抑えられるか？
+
+抑えられない。`request_concurrency`、origin/domain concurrency、rate limit は一つの process 内の service/gateway ごとの制限であり、別 process 間で共有されない。複数 process を使う運用では、外部 job queue、process 数の制限、サイト側の rate-limit 応答を尊重する retry 設定で総量を制御する。単一 process 内での制限は [HTTP transport](../reference/runtime-behavior.md#http-transport) を参照する。
+
+### 10. `--plugin`／`--force-plugin` の選択だけを、ダウンロードなしで検証できるか？
+
+完全にはできない。`doctor --host URL --json` は通常 matcher による候補・選択を read-only で確認できるが、現行 CLI に `--plugin` または `--force-plugin` を渡して同一の選択検証だけを行う dry-run option はない。`--plugin` は doctor の通常選択と指定 ID が一致することを確認し、`--force-plugin` は package の verification、enabled 状態、ID を `plugin list`／`doctor` で別途確認する。実行時の選択規則は [plugin selection](../reference/plugin-hooks.md#plugin-selection) を参照する。
+
+### 11. image processor の `download_policy` は有効か？
+
+有効ではない。core が scheduler と operation-local request cap に使うのは、選択された **site plugin** の `plugin_settings.<id>.download_policy` だけである。processor の private `config` に並列度に関する値を書いても core scheduler は変更されない。現行設定 parser は processor の `download_policy` を明示的に拒否しないため、設定を受理しても効果がない。この点は設定上の既知の制限であり、設定例では site plugin ID にだけ policy を置く。[plugin download policy](../reference/configuration.md#config-plugin-settings) を参照する。
+
+### 12. 成功した画像の最終 CDN URL を `--json` から取得できるか？
+
+できない。成功結果の `image_url` は manifest の locator であり、redirect 後または署名済みの最終 response URL を表さない。失敗時だけは診断情報として sanitized な `response_url` が含まれ得る。最終 URL、response header、署名 query を成功結果から収集する用途には、現行の public JSON contract を使わない。locator と診断 URL の扱いは [JSON contract](../reference/cli.md#cli-json) を参照する。
 
 ## ライブラリ利用者向け Q&A
 
@@ -162,6 +184,26 @@ await service.run(
 
 使わない。成功・失敗の主な判定は `DownloadResult`、`ImageOutcome.failure`、公開例外で行う。event、notification、log は観測用であり、cleanup failure も主 operation の結果を置き換えない。[observability explanation](../explanation/observability.md) を参照する。
 
+### 8. 複数の `DownloadService` で HTTP 上限・rate limit は共有されるか？
+
+共有されない。HTTP pool、cookie jar、origin/domain limiter、rate limiter は service 単位で所有される。同じ service の `run()`／`check_updates()` は直列化されるため、並列 operation のために複数 service を compose すると、その service 間で request 上限は合算されない。アプリケーション全体の上限が必要なら、呼出側で semaphore／queue を置くか、一つの process に operation coordinator を設ける。[runtime facade](../reference/library-api.md#runtime-facade) を参照する。
+
+### 9. cancellation 時に partial `DownloadResult` を受け取れるか？
+
+受け取れない。`asyncio.CancelledError` は `DownloadResult` に変換されず再送出される。途中まで保存されたファイルがある可能性を結果 DTO から復元する契約もないため、呼出側は cancellation を例外として扱い、出力 directory や event/log を必要に応じて運用上確認する。完了済み結果が必要な job system では、operation を小さな独立 job に分割する。[caller outcomes, ownership, and cancellation](../reference/library-api.md#caller-outcomes-ownership-and-cancellation) を参照する。
+
+### 10. `ImageArtifact` から最終 response URL や response header を読めるか？
+
+読めない。`ImageArtifact.source_url` は manifest の locator であり、HTTP response URL ではない。artifact には data、content type、locator、image ID、extension、history だけが public に渡る。transform に response header や redirect 後 URL が必要な仕様では、plugin が request-capable hook で必要な**非秘密**派生情報を operation-local state に保存して参照するか、変換を request hook 側で完結させる。生の response header や URL を artifact metadata にコピーしてはならない。[value objects](../reference/library-api.md#value-objects-results-and-protocols) を参照する。
+
+### 11. 大きな manifest を逐次処理または逐次通知できるか？
+
+できない。`inspect()` の完全な `DownloadManifest` が返って初めて画像 job が始まり、public API に manifest item の stream や progress callback はない。大量の pagination を扱う plugin は `inspect()` 内で有限な集合へ収束させる必要がある。規模上これが成立しないサイトは、サイト側の page/chapter 単位 URL を別 operation として呼出側で分割する。[dynamic discovery](../explanation/execution-lifecycle.md#dynamic-discovery-and-recovery) を参照する。
+
+### 12. `plugin_download_policy_overrides` は自動選択 plugin にどう指定するか？
+
+候補ではなく、選択される site plugin の ID を key に渡す。自動選択で ID が事前に分からない場合は `PluginRuntime` の選択診断または CLI `doctor` で通常 matcher の結果を先に確認し、その ID を渡す。別 plugin の ID を含む override は設定エラーであり、候補すべての policy を同時に渡すことはできない。確実に対象を固定したい場合は `plugin_id`（必要なら `force_plugin=True`）を併用する。[runtime facade](../reference/library-api.md#runtime-facade) を参照する。
+
 ## plugin 開発者向け Q&A
 
 ### 1. config によって URL matcher を変えられるか？
@@ -191,3 +233,23 @@ manifest には解決可能な locator と必要なら識別子を置く。canon
 ### 7. 鍵を使う変換と package 配布で注意する点は？
 
 変換に必要な鍵は request-capable な早い hook で取得し、operation 内の並列安全な state として transform へ参照させる。secret は外部 reference とし、artifact や log、例外、manifest、YAML に混ぜない。配布時は author-default YAML、entry source、helper を含む source tree を署名し、変更後は file-tree hash と signature を再生成する。`manifest.json` を手編集しない。[plugin settings and secrets](../reference/configuration.md#config-plugin-settings) と [signing workflow](../reference/plugin-package.md#plugin-signing-workflow) を参照する。
+
+### 8. `create_image_request()` の補助 API 呼出と画像取得を一連で直列化するには？
+
+`context.requests.execute()` で補助 API を呼び、返した `RequestSpec` を core に画像取得させる。`request_concurrency: 1` は補助 API と画像取得という各 transport を直列にするが、hook の実行から最終取得まで同じ lock を保持しない。短命 URL で画像ごとの発行・取得順まで保証するには利用者に `preserve_image_start_order: true` を設定してもらう。hook 側で core の semaphore を再実装したり raw client を使ったりしてはならない。現在は atomic な request reservation API がない。[lifecycle concurrency](../explanation/execution-lifecycle.md#lifecycle-concurrency) を参照する。
+
+### 9. response header や最終 URL が transform に必要な場合は？
+
+`TransformContext` と `ImageArtifact` は成功 response の URL/header を公開しない。必要な値が request hook の補助 API から得られるなら、秘密でない最小の派生値だけを operation-local state に image ID ごとに保存し、site transform から読む。最終 response 自体の header が不可欠な変換は現行 hook 契約では実装できないため、response を直接解釈する処理を request-capable な段階へ移すか、API 拡張を検討する。header、signed URL、token を manifest metadata、artifact、log に出してはならない。[capability contexts](../reference/plugin-hooks.md#capability-contexts) を参照する。
+
+### 10. `metadata` に構造化データや秘密値を置けるか？
+
+置けない。`ImageResource.metadata` は immutable な `Mapping[str, str]` であり、`inspect()` 時点で確定する画像単位の**非秘密**情報だけを表す。構造化データが必要でも value を JSON 文字列へ無制限に詰め込むのではなく、stable な ID と小さな文字列属性に正規化し、operation-local state を使う。token、cookie、鍵、署名 URL、raw response header は metadata に置かない。[capability contexts](../reference/plugin-hooks.md#capability-contexts) を参照する。
+
+### 11. site plugin の operation ごとの cache／resource はいつ破棄されるか？
+
+selected site plugin instance は一 operation の hook 群で共有されるが、site plugin には processor の `aclose()`／`close()` のような public cleanup hook はない。cache は operation 内だけに閉じ、ネットワーク client、file handle、長寿命 task を site instance に所有させない。確実な cleanup が必要な resource は core が所有する capability を使うか、processor に処理を分離する。site plugin の明示 cleanup は現行 API の未提供機能である。[plugin hooks](../reference/plugin-hooks.md) を参照する。
+
+### 12. plugin 自身が scheduler や origin ごとの rate limit を指定できるか？
+
+できない。plugin private `config` は plugin の動作を設定するもので、core scheduler を変更しない。選択 site plugin の `download_policy` は request/chapter/image の上限を global/host 設定以下へ下げられるが、origin/domain concurrency、rate limit、retry、timeout は application の `network` policy が一元管理する。plugin が raw HTTP client や独自 limiter でこれを迂回してはならない。[configuration schema](../reference/configuration.md#config-schema) と [HTTP transport](../reference/runtime-behavior.md#http-transport) を参照する。
