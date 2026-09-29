@@ -76,6 +76,7 @@ image-downloader plugin uninstall com.example.gallery `
 - [検証・移行・リリース](docs/v3/maintenance/testing.md)
 - [既存 v3 記述の移管 ledger](docs/v3/maintenance/legacy-coverage.md)
 - [plugin template](examples/plugin-v3-template)
+- [画像メタ情報と site/processor 間データ受渡し plugin pair](examples/plugin-v3-metadata-bridge)
 - [全ドキュメント索引](docs/README.md)
 
 ## Development

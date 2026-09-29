@@ -1,0 +1,13 @@
+{
+  "id": "local.image-downloader.metadata-bridge-gallery",
+  "publisher": "local.image-downloader",
+  "version": "1.0.0",
+  "kind": "site_plugin",
+  "capabilities": ["json-inspection", "image-metadata", "site-transform", "transport-plugin-data"],
+  "match_priority": 20,
+  "entry": {
+    "file": "metadata_bridge_gallery.py",
+    "class": "MetadataBridgeGalleryPlugin"
+  },
+  "config_file": "plugin.yaml"
+}

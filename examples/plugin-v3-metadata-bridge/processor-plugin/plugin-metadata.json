@@ -1,0 +1,13 @@
+{
+  "id": "local.image-downloader.metadata-bridge-processor",
+  "publisher": "local.image-downloader",
+  "version": "1.0.0",
+  "kind": "image_processor_plugin",
+  "capabilities": ["transport-metadata", "profile-selection"],
+  "match_priority": 0,
+  "entry": {
+    "file": "metadata_bridge_processor.py",
+    "class": "MetadataBridgeProcessor"
+  },
+  "config_file": "plugin.yaml"
+}

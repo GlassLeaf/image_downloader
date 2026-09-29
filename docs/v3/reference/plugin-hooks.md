@@ -124,9 +124,11 @@ class WatermarkProcessor:
 | cursor pagination and token | [cursor API gallery](../../../plugin-sources/cursor-api-gallery/cursor_api_gallery.py) |
 | CSRF login | [CSRF login gallery](../../../plugin-sources/csrf-login-gallery/csrf_login_gallery.py) |
 | OAuth refresh | [OAuth media API](../../../plugin-sources/oauth-media-api/oauth_media_api.py) |
+| username/password secret | [CSRF login gallery](../../../plugin-sources/csrf-login-gallery/csrf_login_gallery.py) |
 | signed URL reissue | [signed CDN gallery](../../../plugin-sources/signed-cdn-gallery/signed_cdn_gallery.py) |
 | update provider | [chaptered catalog](../../../plugin-sources/chaptered-catalog/chaptered_catalog.py) |
 | processor contract | [artifact history processor](../../../plugin-sources/artifact-history-processor/artifact_history_processor.py) |
 | Pillow resize | [resize processor](../../../plugin-sources/resize-processor/resize_processor.py) |
+| image metadata in request/site transform and allow-listed processor handoff | [metadata bridge pair](../../../examples/plugin-v3-metadata-bridge/README.md) |
 
 HTTP(S) 以外、SSE/WebSocket、JavaScript/DOM/headless browser、CAPTCHA、interactive MFA/WebAuthn、multipart/streaming body は contract 外である。必要な site は `UnsupportedSiteFeature` または明示的な plugin/authentication error で失敗させる。
