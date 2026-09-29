@@ -21,7 +21,7 @@ class _ConfigPath(argparse.Action):
         namespace.config_explicit = True
 
 
-_COMMAND_NAMES = frozenset(("download", "config", "plugin", "doctor", "cookie"))
+_COMMAND_NAMES = frozenset(("download", "inspect", "config", "plugin", "doctor", "cookie"))
 _OPTIONS_WITH_VALUE = frozenset(
     (
         "--config",
@@ -42,6 +42,7 @@ _OPTIONS_WITH_VALUE = frozenset(
         "--import-browser-cookies",
         "--existing-file",
         "--image-format",
+        "--inspection-data",
         "--plugin-verification-override",
     )
 )
@@ -143,15 +144,23 @@ def _add_download_options(
     parser: argparse.ArgumentParser,
     *,
     suppress_defaults: bool,
+    include_inspect_alias: bool = False,
 ) -> None:
     value_default = argparse.SUPPRESS if suppress_defaults else None
     flag_default = argparse.SUPPRESS if suppress_defaults else False
     parser.add_argument("--no-console-log", action="store_true", default=flag_default)
-    parser.add_argument(
+    mode = parser.add_mutually_exclusive_group() if include_inspect_alias else parser
+    mode.add_argument(
         "--list-updated-urls",
         action="store_true",
         default=flag_default,
     )
+    if include_inspect_alias:
+        mode.add_argument(
+            "--inspect-only",
+            action="store_true",
+            default=flag_default,
+        )
     parser.add_argument(
         "--existing-file",
         choices=("overwrite", "skip", "rename", "error"),
@@ -189,11 +198,22 @@ def _add_plugin_selection_options(
     )
 
 
+def _add_inspection_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--inspection-data",
+        choices=("url", "http", "all"),
+        default=argparse.SUPPRESS,
+        metavar="LEVEL",
+    )
+
+
 def _add_legacy_options(parser: argparse.ArgumentParser) -> None:
     _add_configuration_options(parser, suppress_defaults=False)
     _add_plugin_override_options(parser, suppress_defaults=False)
-    _add_download_options(parser, suppress_defaults=False)
+    _add_download_options(parser, suppress_defaults=False, include_inspect_alias=True)
     _add_plugin_selection_options(parser, suppress_defaults=False)
+    _add_inspection_options(parser)
+    parser.add_argument("--manifest-only", action="store_true", default=False)
     parser.add_argument(
         "--selection-priority",
         type=int,
@@ -223,9 +243,23 @@ def build_parser() -> argparse.ArgumentParser:
     download_parser.add_argument("url")
     _add_configuration_options(download_parser, suppress_defaults=True)
     _add_plugin_override_options(download_parser, suppress_defaults=True)
-    _add_download_options(download_parser, suppress_defaults=True)
+    _add_download_options(download_parser, suppress_defaults=True, include_inspect_alias=True)
     _add_plugin_selection_options(download_parser, suppress_defaults=True)
+    _add_inspection_options(download_parser)
+    download_parser.add_argument("--manifest-only", action="store_true", default=argparse.SUPPRESS)
     download_parser.set_defaults(command_handler="download")
+
+    inspect_parser = commands.add_parser(
+        "inspect",
+        help="inspect a manifest and resolved image requests without fetching image bodies",
+    )
+    inspect_parser.add_argument("url")
+    _add_configuration_options(inspect_parser, suppress_defaults=True)
+    _add_plugin_override_options(inspect_parser, suppress_defaults=True)
+    _add_plugin_selection_options(inspect_parser, suppress_defaults=True)
+    _add_inspection_options(inspect_parser)
+    inspect_parser.add_argument("--manifest-only", action="store_true", default=argparse.SUPPRESS)
+    inspect_parser.set_defaults(command_handler="inspect")
 
     doctor_parser = commands.add_parser(
         "doctor",

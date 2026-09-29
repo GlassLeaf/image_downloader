@@ -32,12 +32,14 @@ from ..exceptions import (
 )
 from ..immutable import thaw_json
 from ..models import (
+    EffectiveRequestPreview,
     ImageFetchRequest,
     ImageResource,
     ImageTransportMetadata,
     RequestResponse,
     RequestSpec,
     TransportCookie,
+    TransportHeader,
     TransportRequestMetadata,
 )
 from ..observability.logging import DownloadLogger
@@ -100,6 +102,17 @@ def _request_metadata(request: httpx.Request) -> TransportRequestMetadata:
         str(request.url),
         _header_values(request.headers),
         _request_cookies(request.headers),
+    )
+
+
+def _effective_request_preview(request: httpx.Request) -> EffectiveRequestPreview:
+    """Capture every serialisable request value just before ``client.send``."""
+    return EffectiveRequestPreview(
+        request.method,
+        str(request.url),
+        tuple(TransportHeader(name, value) for name, value in request.headers.multi_items()),
+        _request_cookies(request.headers),
+        request.content,
     )
 
 
@@ -188,9 +201,7 @@ class RequestGateway:
             lambda: asyncio.Semaphore(network.origin_request_concurrency or network.request_concurrency)
         )
         self._sites: defaultdict[str, asyncio.Semaphore] = defaultdict(
-            lambda: asyncio.Semaphore(
-                network.registrable_domain_request_concurrency or network.request_concurrency
-            )
+            lambda: asyncio.Semaphore(network.registrable_domain_request_concurrency or network.request_concurrency)
         )
         self._interval_lock = asyncio.Lock()
         self._last_request = 0.0
@@ -288,18 +299,7 @@ class RequestGateway:
         allowed_redirect_origins: frozenset[str] | None = None,
         trace: _TransportTrace | None = None,
     ) -> RequestResponse:
-        headers = dict(spec.headers)
-        if spec.referer and not any(key.lower() == "referer" for key in headers):
-            headers["Referer"] = spec.referer
-        request = self.client.build_request(
-            spec.method,
-            spec.url,
-            headers=headers,
-            cookies=dict(spec.cookies) or None,
-            params=dict(spec.query) or None,
-            data=dict(spec.form) or None,
-            json=thaw_json(spec.json),
-        )
+        request = self._build_request(spec)
         initial_request = _request_metadata(request)
         redirects = 0
         while True:
@@ -330,6 +330,21 @@ class RequestGateway:
                 if trace is not None:
                     trace.capture(initial_request, _request_metadata(request), response)
                 return result
+
+    def _build_request(self, spec: RequestSpec) -> httpx.Request:
+        """Build the request representation shared by preview and transport."""
+        headers = dict(spec.headers)
+        if spec.referer and not any(key.lower() == "referer" for key in headers):
+            headers["Referer"] = spec.referer
+        return self.client.build_request(
+            spec.method,
+            spec.url,
+            headers=headers,
+            cookies=dict(spec.cookies) or None,
+            params=dict(spec.query) or None,
+            data=dict(spec.form) or None,
+            json=thaw_json(spec.json),
+        )
 
     @asynccontextmanager
     async def _send_one_hop(self, request: httpx.Request) -> AsyncIterator[httpx.Response]:
@@ -483,6 +498,16 @@ class OperationRequestGateway:
 
     async def execute(self, spec: RequestSpec) -> RequestResponse:
         return await self._execute(spec)
+
+    async def preview(self, spec: RequestSpec) -> EffectiveRequestPreview:
+        """Resolve the no-send request snapshot used by inspection.
+
+        This intentionally follows the normal protocol validation and auth
+        application path, but does not acquire request limits or send a hop.
+        """
+        self._shared._validate_protocol(spec)
+        current = await self._apply_auth(spec)
+        return _effective_request_preview(self._shared._build_request(current))
 
     async def execute_image(
         self,

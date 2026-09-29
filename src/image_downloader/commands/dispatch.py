@@ -23,12 +23,14 @@ from .constants import EXIT_AUTHENTICATION, EXIT_CONFIGURATION, EXIT_FAILURE, EX
 from .cookie import CookieCommandHandler
 from .doctor import DoctorCommandHandler
 from .download import DownloadCommandHandler
+from .inspect import InspectCommandHandler
 from .parser import build_parser
 from .plugin import PluginCommandHandler
 from .validation import CommandHandler
 
 _COMMAND_HANDLERS: Mapping[str, CommandHandler] = {
     "download": DownloadCommandHandler(),
+    "inspect": InspectCommandHandler(),
     "cookie": CookieCommandHandler(),
     "doctor": DoctorCommandHandler(),
     "config": ConfigCommandHandler(),
@@ -55,7 +57,7 @@ def _operation_name(argv: Sequence[str], parsed: argparse.Namespace | None = Non
     handler = getattr(parsed, "command_handler", None) if parsed is not None else None
     if handler in _COMMAND_HANDLERS:
         return str(handler)
-    commands = {"download", "cookie", "doctor", "config", "plugin"}
+    commands = {"download", "inspect", "cookie", "doctor", "config", "plugin"}
     return next((value for value in argv if value in commands), "download")
 
 

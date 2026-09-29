@@ -51,16 +51,23 @@ class RuntimeComposer:
         registry = self.compose_registry()
         return DownloadService(self.config, registry, self._build_dependencies())
 
-    def _build_dependencies(self) -> _RuntimeDependencies:
+    def _compose_for_inspection(self) -> DownloadService:
+        """Compose the CLI-only sinkless dependencies for a display-only operation."""
+        registry = self.compose_registry()
+        return DownloadService(self.config, registry, self._build_dependencies(inspection=True))
+
+    def _build_dependencies(self, *, inspection: bool = False) -> _RuntimeDependencies:
         paths = resolve_paths(self.config)
         outputs = FileSystem(paths["downloads"])
         logs = FileSystem(paths["logs"])
         state = UpdateState(FileSystem(paths["state"]))
-        logger_sinks: list[LogSink] = [DebugFileSink(filesystem=logs, relative_path=Path("debug.log"))]
-        if self.config.logging.console.enabled:
+        logger_sinks: list[LogSink] = []
+        if not inspection:
+            logger_sinks.append(DebugFileSink(filesystem=logs, relative_path=Path("debug.log")))
+        if not inspection and self.config.logging.console.enabled:
             logger_sinks.append(ConsoleSink())
         logger = DownloadLogger(logger_sinks)
-        logger.set_chapter_summary_console(self.config.logging.console.enabled)
+        logger.set_chapter_summary_console(not inspection and self.config.logging.console.enabled)
         events = EventBus(logger)
         rendered_config = self.config.model_dump(by_alias=True, warnings=False)
         logger.configure_safety(rendered_config["logging"], outputs.root)

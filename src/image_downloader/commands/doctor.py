@@ -40,6 +40,7 @@ class DoctorCommandHandler:
                 "export_cookies",
                 "import_cookies",
                 "import_browser_cookies",
+                "inspection_data",
             ),
             "doctor",
         )

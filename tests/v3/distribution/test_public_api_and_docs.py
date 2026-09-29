@@ -10,8 +10,13 @@ from pathlib import Path
 import image_downloader.configuration.paths as configuration_paths
 from image_downloader import (
     AppConfig,
+    EffectiveRequestPreview,
     ExistingFileConflictError,
     ImageFailure,
+    ImageRequestResolution,
+    ImageRequestResolutionFailure,
+    ManifestInspectionResult,
+    TransportHeader,
     apply_overrides,
     load_application_config,
     resolve_application_config,
@@ -32,16 +37,18 @@ EXPECTED_EXPORTS = {
     "image_downloader": tuple(
         """
         AppConfig apply_overrides AuthFlow AuthenticationError Chapter ChapterResult ConfigurableSitePlugin
-        ConfigurationError DownloadManifest DownloadResult DownloadService ExistingFileConflictError FailureKind
-        HttpStatusError HttpTransportError ImageArtifact ImageFetchRequest ImageContentTypeError ImageDecodeError
+        ConfigurationError DownloadManifest DownloadResult DownloadService EffectiveRequestPreview
+        ExistingFileConflictError FailureKind
+        HttpStatusError HttpTransportError ImageArtifact ImageFetchRequest ImageRequestResolution
+        ImageRequestResolutionFailure ImageRequestResolutionStatus ImageContentTypeError ImageDecodeError
         ImageDimensionLimitError ImageDownloaderError ImageFailure ImageMimeMismatchError ImageOutcome
         ImageOutcomeKind ImageProcessingError ImageProcessorClosedError ImageProcessor ImageResource
         ImageSaveOptions ImageTransportMetadata ImageWorkerError InterProcessLockError
-        load_application_config OutputAllocationError
+        load_application_config ManifestInspectionResult OutputAllocationError
         resolve_application_config RedirectPolicyError ResolvedApplicationConfig OriginScopedAuthFlow PluginError
         PluginExecutionContext RequestPort RequestError RequestResponse RequestSpec ResponseSizeLimitError
         RuntimeComposer SecretNotFound SecretProvider SitePlugin StorageError StorageSafetyError
-        TransformContext TransportCookie TransportRequestMetadata
+        TransformContext TransportCookie TransportHeader TransportRequestMetadata
         UnsupportedImageFormatError UnsupportedSiteFeature UpdateCandidate UpdateChange UpdateChangeKind
         UpdateProvider UpdateResult UpdateSnapshot UpdateStateError
         """.split()
@@ -90,13 +97,11 @@ EXPECTED_EXPORTS = {
 
 
 def _documented_inventory(repository_root: Path) -> dict[str, tuple[str, ...]]:
-    reference = (
-        repository_root / "docs" / "v3" / "reference" / "api-contract-inventory.md"
-    ).read_text(encoding="utf-8")
+    reference = (repository_root / "docs" / "v3" / "reference" / "api-contract-inventory.md").read_text(
+        encoding="utf-8"
+    )
     return {
-        match.group("module"): tuple(
-            line.strip() for line in match.group("names").splitlines() if line.strip()
-        )
+        match.group("module"): tuple(line.strip() for line in match.group("names").splitlines() if line.strip())
         for match in INVENTORY.finditer(reference)
     }
 
@@ -211,6 +216,15 @@ def test_representative_signatures_and_result_dtos_are_stable() -> None:
         "force_plugin",
         "plugin_download_policy_overrides",
     )
+    assert tuple(signature(DownloadService.inspect).parameters) == (
+        "self",
+        "url",
+        "plugin_overrides",
+        "fallback_override",
+        "plugin_id",
+        "force_plugin",
+        "resolve_image_requests",
+    )
     assert tuple(signature(DownloadService.check_updates).parameters) == (
         "self",
         "url",
@@ -231,6 +245,37 @@ def test_representative_signatures_and_result_dtos_are_stable() -> None:
         "http_status",
         "output_path",
         "transport",
+    )
+    assert tuple(field.name for field in fields(ImageRequestResolutionFailure)) == (
+        "code",
+        "reason",
+        "exception",
+        "phase",
+    )
+    assert tuple(field.name for field in fields(ImageRequestResolution)) == (
+        "chapter_position",
+        "image_position",
+        "status",
+        "request",
+        "plugin_data",
+        "uses_image_fetch_request",
+        "failure",
+        "effective_request",
+    )
+    assert tuple(field.name for field in fields(EffectiveRequestPreview)) == (
+        "method",
+        "url",
+        "headers",
+        "cookies",
+        "body",
+    )
+    assert tuple(field.name for field in fields(TransportHeader)) == ("name", "value")
+    assert tuple(field.name for field in fields(ManifestInspectionResult)) == (
+        "source_url",
+        "plugin_id",
+        "manifest",
+        "request_resolution_performed",
+        "image_requests",
     )
     assert tuple(AppConfig.model_fields) == (
         "profile",
@@ -270,14 +315,10 @@ def test_current_documentation_links_and_contracts_are_valid(repository_root: Pa
                 continue
             assert (document.parent / target).exists(), f"broken link in {document}: {target}"
 
-    library_api = (
-        repository_root / "docs" / "v3" / "reference" / "library-api.md"
-    ).read_text(encoding="utf-8")
+    library_api = (repository_root / "docs" / "v3" / "reference" / "library-api.md").read_text(encoding="utf-8")
     assert "RuntimeComposer" in library_api
     assert "from image_downloader.config import" not in library_api
-    lifecycle = (
-        repository_root / "docs" / "v3" / "explanation" / "execution-lifecycle.md"
-    ).read_text(encoding="utf-8")
+    lifecycle = (repository_root / "docs" / "v3" / "explanation" / "execution-lifecycle.md").read_text(encoding="utf-8")
     for required_topic in (
         "create_image_request",
         "recover_image_request",

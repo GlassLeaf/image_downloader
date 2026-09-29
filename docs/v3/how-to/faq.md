@@ -149,17 +149,17 @@ browser cookie は `cookie browser-import DOMAIN`、バックアップ・移行�
 
 抑えられない。`request_concurrency`、origin/domain concurrency、rate limit は一つの process 内の service/gateway ごとの制限であり、別 process 間で共有されない。複数 process を使う運用では、外部 job queue、process 数の制限、サイト側の rate-limit 応答を尊重する retry 設定で総量を制御する。単一 process 内での制限は [HTTP transport](../reference/runtime-behavior.md#http-transport) を参照する。
 
-### 10. `--plugin`／`--force-plugin` の選択だけを、ダウンロードなしで検証できるか？
+### 10. `--plugin`／`--force-plugin` を指定して、画像を保存せずに検証できるか？
 
-完全にはできない。`doctor --host URL --json` は通常 matcher による候補・選択を read-only で確認できるが、現行 CLI に `--plugin` または `--force-plugin` を渡して同一の選択検証だけを行う dry-run option はない。`--plugin` は doctor の通常選択と指定 ID が一致することを確認し、`--force-plugin` は package の verification、enabled 状態、ID を `plugin list`／`doctor` で別途確認する。実行時の選択規則は [plugin selection](../reference/plugin-hooks.md#plugin-selection) を参照する。
+できる。`image-downloader inspect URL --plugin ID` は通常 matcher が URL を受理することを確認したうえで、通常 download と同じ selection、plugin config、verification、AuthFlow 構築、cleanup を使う。`--force-plugin ID` は同じ検証をした後に matcher だけを bypass する。既定では manifest 順に `create_image_request()` も実行するが、`--manifest-only` を付ければ request hook を呼ばない。いずれも画像 body を fetch、transform、save しない。ただし site `inspect()` と request hook が補助 HTTP を行えばサーバー側のアクセス記録・token 発行などは起こり得るため、純粋な matcher 候補だけを読みたいときは `doctor --host URL --json` を使う。実行時の選択規則は [plugin selection](../reference/plugin-hooks.md#plugin-selection) を参照する。
 
 ### 11. image processor の `download_policy` は有効か？
 
 有効ではない。core が scheduler と operation-local request cap に使うのは、選択された **site plugin** の `plugin_settings.<id>.download_policy` だけである。processor の private `config` に並列度に関する値を書いても core scheduler は変更されない。現行設定 parser は processor の `download_policy` を明示的に拒否しないため、設定を受理しても効果がない。この点は設定上の既知の制限であり、設定例では site plugin ID にだけ policy を置く。[plugin download policy](../reference/configuration.md#config-plugin-settings) を参照する。
 
-### 12. 成功した画像の最終 CDN URL を `--json` から取得できるか？
+### 12. 画像を取得せず、署名 URL を含む request の組立結果を確認できるか？
 
-できない。成功結果の `image_url` は manifest の locator であり、redirect 後または署名済みの最終 response URL を表さない。失敗時だけは診断情報として sanitized な `response_url` が含まれ得る。最終 URL、response header、署名 query を成功結果から収集する用途には、現行の public JSON contract を使わない。locator と診断 URL の扱いは [JSON contract](../reference/cli.md#cli-json) を参照する。
+できる。`image-downloader inspect URL --json`（または `download URL --inspect-only --json`）は、manifest 順に `create_image_request()` の後で `AuthFlow.apply()` と HTTP request 組立てを行い、画像 body を送らず送信直前 URL を表示する。既定の `--inspection-data url` はその URL・位置・状態だけ、`--inspection-data http` は source `RequestSpec` と実 header/cookie/Base64 body、`--inspection-data all` はさらに locator、manifest/image metadata、`ImageFetchRequest.plugin_data` を raw で出す。`--manifest-only` は request hook を呼ばない。redirect 後 URL、response header、recovery 結果は response を必要とするため含まれない。署名 URL は表示した時点で失効し得るため後続 download に再利用しない。`url` でも署名 query は秘密値になり得、`http`／`all` は credential を含むので stdout/stderr を log、CI artifact、telemetry、共有端末、チケット、第三者サービスへ転送してはならない。[JSON contract](../reference/cli.md#cli-json) を参照する。
 
 ## ライブラリ利用者向け Q&A
 
@@ -231,6 +231,10 @@ await service.run(
 
 候補ではなく、選択される site plugin の ID を key に渡す。自動選択で ID が事前に分からない場合は `PluginRuntime` の選択診断または CLI `doctor` で通常 matcher の結果を先に確認し、その ID を渡す。別 plugin の ID を含む override は設定エラーであり、候補すべての policy を同時に渡すことはできない。確実に対象を固定したい場合は `plugin_id`（必要なら `force_plugin=True`）を併用する。[runtime facade](../reference/library-api.md#runtime-facade) を参照する。
 
+### 13. 保存せずに manifest と request 組立結果を取得するには？
+
+`await service.inspect(url)` は `ManifestInspectionResult` を返す。既定では manifest 順に `create_image_request()` を一回ずつ呼び、各成功は raw `RequestSpec`、`plugin_data`、bare `RequestSpec` か `ImageFetchRequest` かを持つ。ある画像の解決失敗は `ImageRequestResolution.failure` に入り、後続画像を続ける。一方、selection、manifest `inspect()`、AuthFlow 構築、cleanup、cancellation の失敗は result を返さず例外となる。`resolve_image_requests=False` なら image request hook を呼ばず空の resolution 一覧を返す。画像 body、recovery、transform、processor、save、event、notification、update state は実行しないが、plugin hook の補助 HTTP は起こり得る。結果の request material は credential を含み得るため、保存・log・外部公開をしない。[caller outcomes](../reference/library-api.md#api-call-outcomes) を参照する。
+
 ## plugin 開発者向け Q&A
 
 ### 1. config によって URL matcher を変えられるか？
@@ -280,3 +284,7 @@ selected site plugin instance は一回の `run()` または `check_updates()` �
 ### 12. plugin 自身が scheduler や origin ごとの rate limit を指定できるか？
 
 できない。plugin private `config` は plugin の動作を設定するもので、core scheduler を変更しない。選択 site plugin の `download_policy` は request/chapter/image の上限を global/host 設定以下へ下げられるが、origin/domain concurrency、rate limit、retry、timeout は application の `network` policy が一元管理する。plugin が raw HTTP client や独自 limiter でこれを迂回してはならない。[configuration schema](../reference/configuration.md#config-schema) と [HTTP transport](../reference/runtime-behavior.md#http-transport) を参照する。
+
+### 13. display-only inspection で `create_image_request()` はどう呼ばれるか？
+
+`DownloadService.inspect(resolve_image_requests=True)` と CLI `inspect` は、manifest の chapter/images 配列順に一画像ずつ `create_image_request()` を呼び、`auth_required=True` の request には `AuthFlow.apply()` も適用して送信直前 `EffectiveRequestPreview` を組み立てる。core は request を画像 transport に送らず、redirect、response 判定、refresh、recovery、transform、save を実行しない。source request は得られても auth／組立てが失敗した画像は `partially_resolved` となり、後続画像の inspection は続く。`create_image_request()` や `apply()` が `context.requests.execute()` を使えば token 発行などのサーバー側副作用は起こり得る。plugin は画像 URL を raw client で直接 fetch して inspection を迂回してはならない。CLI の公開範囲は `--inspection-data` で選び、library result 自体は完全な raw diagnostic data を保持する。[dynamic URL how-to](dynamic-urls-and-auth.md) を参照する。

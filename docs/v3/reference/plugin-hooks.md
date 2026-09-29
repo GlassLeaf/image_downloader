@@ -16,7 +16,7 @@ selection は enabled site unit の `matches_with_config()`（ある場合）と
 | inspection | `async inspect(self, url: str, context: PluginExecutionContext) -> DownloadManifest` | operation ごとに一回、有限で完全な manifest。pagination はここで完結し、JS/DOM/browser execution はない。 |
 | image request | `async create_image_request(self, image: ImageResource, context: PluginExecutionContext) -> RequestSpec | ImageFetchRequest` | image fetch 直前に一回。`image.url` の locator（canonical URL、ID、placeholder のいずれでもよい）と `image_id` から header/referer/直前 API 解決を行い、実際に送信する absolute HTTP(S) `RequestSpec.url` を返す。request-time の transform data が必要なら `ImageFetchRequest(request, plugin_data)` を返せる。locator 自体は transport に送られない。 |
 | recovery | `async recover_image_request(self, image: ImageResource, failed: RequestSpec, response: RequestResponse, context: PluginExecutionContext) -> RequestSpec | ImageFetchRequest | None` | AuthFlow refresh 後にも HTTP `status >=400` が残るときだけ最大一回。transport failure には呼ばれない。short-lived URL を再発行するか `None`。bare `RequestSpec` は直前の `plugin_data` を維持し、`ImageFetchRequest` はそれを置換する。 |
-| authentication | `auth_flow(self, context: PluginExecutionContext) -> AuthFlow | None` | `is_auth_failure(request: RequestSpec, response: RequestResponse) -> bool`、async `apply(request: RequestSpec) -> RequestSpec`、async `refresh(failed: RequestSpec, response: RequestResponse) -> RequestSpec | None` を実装する。secret 欠落は `SecretNotFound`、login failure は `AuthenticationError`。 |
+| authentication | `auth_flow(self, context: PluginExecutionContext) -> AuthFlow | None` | `is_auth_failure(request: RequestSpec, response: RequestResponse) -> bool`、async `apply(request: RequestSpec) -> RequestSpec`、async `refresh(failed: RequestSpec, response: RequestResponse) -> RequestSpec | None` を実装する。secret 欠落は `SecretNotFound`、login failure は `AuthenticationError`。display-only inspection でも送信直前 request を組み立てるため `apply()` は呼ばれる。 |
 | site transform | `async transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact` | network/secret capability なし。 |
 | update | `async check_updates(self, url: str, context: PluginExecutionContext) -> UpdateSnapshot` | optional。partial delta でなく complete snapshot。 |
 | processor transform | `async transform(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact` | configured chain の順に実行する。 |
@@ -51,7 +51,7 @@ that needs network or a credential is outside the processor contract; put that
 work in the site request stage instead. `transport_metadata` は network capability
 ではなく、成功した画像 fetch の限定 snapshot である。raw URL query、header/cookie 値、`ImageFetchRequest.plugin_data` は artifact、result、event、log、CLI JSON へ自動コピーされない。processor へ raw 値を渡すときは、ユーザーが processor/site の組を永続設定で明示許可する。
 
-`AuthFlow` は既定で operation URL の origin にだけ credential を送る。credentialed CDN は `OriginScopedAuthFlow.allowed_origins` に absolute origin を明示して opt-in する。environment、keyring、YAML へ refreshed token を永続書込みする API はない。
+`AuthFlow` は既定で operation URL の origin にだけ credential を送る。credentialed CDN は `OriginScopedAuthFlow.allowed_origins` に absolute origin を明示して opt-in する。environment、keyring、YAML へ refreshed token を永続書込みする API はない。display-only inspection は `apply()` を呼ぶが image request を送らない。`apply()` が token 発行などの補助 HTTP や外部 state 変更を自ら行えば、そのサーバー側副作用は取り消せない。可能な限り `apply()` は request を決定するだけにし、必要な補助 HTTP は明示的に扱う。
 
 401 and 403 are always authentication failures before a custom
 `AuthFlow.is_auth_failure()` predicate is consulted. For another status the

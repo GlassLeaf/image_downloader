@@ -6,6 +6,8 @@ Canonical command forms are:
 
 ```text
 image-downloader download URL [options]
+image-downloader inspect URL [options]
+image-downloader download URL --inspect-only [options] # inspect の alias
 image-downloader URL [download options]                 # bare-URL compatibility form
 image-downloader doctor [--host HOST_OR_URL] [options]
 image-downloader config path|explain|init [arguments] [options]
@@ -28,15 +30,19 @@ config 作成・rewrite の command ごとの副作用は [configuration referen
 
 | option | accepted and effective commands | accepted/no effect or rejected behavior |
 | --- | --- | --- |
-| `--config PATH` | download, doctor, config explain/profile init, plugin, cookie | rejected by config path/init |
-| `--profile NAME` | download, doctor, config explain, plugin, cookie | rejected by config path/init/profile init |
-| `--data-root PATH`, `--plugin-root PATH` | download, doctor, config explain/init, plugin, cookie | rejected by config path and profile init |
+| `--config PATH` | download, inspect, doctor, config explain/profile init, plugin, cookie | rejected by config path/init |
+| `--profile NAME` | download, inspect, doctor, config explain, plugin, cookie | rejected by config path/init/profile init |
+| `--data-root PATH`, `--plugin-root PATH` | download, inspect, doctor, config explain/init, plugin, cookie | rejected by config path and profile init |
 | `--yes` | plugin install/trust/revoke/uninstall confirmation | config init/profile init accept it but do not require or use confirmation; other parsed uses do not approve a mutation |
-| `--plugin-verification-override MODE` | download, doctor, plugin | config commands may report the parsed value but do not perform verification; cookie has no verification effect |
-| `--plugin-config ID=JSON`, `--plugin-config-file PATH`, `--fallback-generic` | download, doctor | rejected by config, plugin, cookie |
-| `--plugin ID`, `--force-plugin ID`, `--plugin-download-policy ID=JSON`, `--plugin-download-policy-file PATH` | download（`--list-updated-urls` を含む） | rejected by doctor, config, plugin, cookie |
-| `--no-console-log`, `--existing-file`, `--image-format` | download, doctor, config explain where handler permits them | rejected by cookie and other config/plugin operations |
+| `--plugin-verification-override MODE` | download, inspect, doctor, plugin | config commands may report the parsed value but do not perform verification; cookie has no verification effect |
+| `--plugin-config ID=JSON`, `--plugin-config-file PATH`, `--fallback-generic` | download, inspect, doctor | rejected by config, plugin, cookie |
+| `--plugin ID`, `--force-plugin ID` | download（`--list-updated-urls` を含む）, inspect | rejected by doctor, config, plugin, cookie |
+| `--plugin-download-policy ID=JSON`, `--plugin-download-policy-file PATH` | download（`--list-updated-urls` を含む） | inspection を含む他 command では rejected |
+| `--no-console-log`, `--existing-file`, `--image-format` | download, doctor, config explain where handler permits them | inspection、cookie、other config/plugin operations では rejected |
 | `--list-updated-urls` | download | rejected elsewhere |
+| `--inspect-only` | `download URL` の inspection alias | `--list-updated-urls` と排他的 |
+| `--manifest-only` | inspect, `download URL --inspect-only` | normal download では rejected。`create_image_request()` を呼ばない |
+| `--inspection-data url\|http\|all` | inspect, `download URL --inspect-only` | stdout の inspection data level。既定は `url`。normal download では rejected |
 | `--host` | doctor, config explain | rejected elsewhere |
 | `--selection-priority INT` | plugin install/trust | rejected elsewhere |
 
@@ -57,7 +63,7 @@ config 作成・rewrite の command ごとの副作用は [configuration referen
 | 2 | argument/configuration validation failure |
 | 3 | authentication or secret failure |
 | 4 | plugin discovery, verification, or execution failure |
-| 5 | partial image result |
+| 5 | partial image result、または inspect の一部 image request 解決失敗 |
 | 130 | `KeyboardInterrupt`; no JSON payload |
 
 <a id="cli-io"></a>
@@ -73,6 +79,7 @@ successful stdout representation, never the inputs or the write set.
 | --- | --- | --- | --- | --- | --- |
 | `download URL` | one absolute HTTP(S) URL | resolved config/layers, selected plugin source/catalog, cookie jar, update state (only for listing) | initial user config may be created/re-written; normal mode writes downloads, reports, logs, cookie delta; listing writes update state and normal runtime state but **does not download images** | normal: chapter/result output; JSON: one result object; diagnostics and JSON-mode plugin `print()` go to stderr | 0, 1, 3, 4, or 5 |
 | `download URL --list-updated-urls` | same URL | selected site plugin and its `UpdateProvider`, update state | same bootstrap/rewrite behavior; update-state snapshot/lock; no image/output allocation | URL per added/changed candidate on stdout, summary on stderr; JSON has `updated_urls` and `removed` | 0 or operation failure |
+| `inspect URL` / `download URL --inspect-only` | one absolute HTTP(S) URL | resolved config/layers, selected plugin source/catalog, profile cookie snapshot | neither creates/re-writes config nor persists cookie changes, debug logs, update state, output, reports, events, or notifications; it runs site `inspect()` and, unless `--manifest-only`, serially runs every `create_image_request()` and `AuthFlow.apply()` to build a no-send effective request. It never fetches an image body, recovers, transforms, saves, or allocates output. Plugin helper HTTP may still have server-side effects. | exactly one inspection JSON object on stdout (pretty JSON without `--json`); plugin `print()` goes to stderr. `--inspection-data url` is the default safe-minimum projection; `http` / `all` can contain URL query, headers, cookies, bodies, tokens, and `plugin_data`. Never forward either stream to logs, CI artifacts, telemetry, tickets, or third parties. | 0, 5 if one or more resolutions fail, or 2/3/4/1 operation failure |
 | `doctor [--host HOST_OR_URL]` | no positional input; host is a bare host or absolute HTTP(S) URL | resolved config/layers, plugin source/catalog, optional selection candidates | none: it uses registry-only composition and does not create/rewrite config, catalog, cookie, or download files | human report or exactly one JSON object | 0 when healthy; 4 for unhealthy plugin diagnostics; 2/4 for handled error |
 | `config path` | none | platform paths and package baseline locations | none | paths object or human paths | 0 / 2 |
 | `config explain [--host HOST_OR_URL]` | none | selected configuration layers and runtime options | none | effective/origin report | 0 / 2 |
@@ -126,6 +133,19 @@ image-downloader config explain --profile comics --host example.test --json
 # Supply an ephemeral plugin config object.  It is not persisted to YAML.
 image-downloader download https://example.test/gallery --plugin-config com.example.site='{"page_size": 50}'
 
+# Resolve each image request without fetching an image body. The default emits
+# only each effective URL; keep even this signed-URL output local.
+image-downloader inspect https://example.test/gallery --plugin com.example.site --json
+
+# Include raw HTTP request material when diagnosing authentication or encoding.
+image-downloader inspect https://example.test/gallery --inspection-data http --json
+
+# Include all raw manifest/image metadata and plugin data. Do not archive or share it.
+image-downloader inspect https://example.test/gallery --inspection-data all --json
+
+# Show only the manifest; do not call create_image_request().
+image-downloader inspect https://example.test/gallery --manifest-only --json
+
 # Select one matching plugin and serialise its image request starts for this operation only.
 image-downloader download https://example.test/gallery --plugin com.example.site \
   --plugin-download-policy com.example.site='{"preserve_image_start_order": true}'
@@ -147,6 +167,7 @@ Every successful `--json` command prints exactly one JSON object to stdout. down
 | --- | --- |
 | download | `{"saved": string[], "skipped": string[], "failures": ImageFailureJson[]}` |
 | download `--list-updated-urls` | `{"updated_urls": string[], "removed": integer}` |
+| inspect / download `--inspect-only` | `source_url`, `plugin_id`, `inspection_data: "url"|"http"|"all"`, `request_resolution: "resolved"|"manifest_only"`, `manifest`, `image_requests` |
 | config path | `user_config`, `user_config_exists`, `package_baseline`, `default_data_root`, `default_plugin_root` |
 | config explain | `source`, `main_config_kind`, `main_config`, `config_root`, `selected_profile`, `target_host`, `layers`, `effective`, `origins`, `runtime_overrides` |
 | config init | `{"created_config": string}` |
@@ -191,6 +212,8 @@ values but does not promise a fixed replacement literal. `null` is used only
 for the explicitly nullable fields above; handled error fields are omitted when
 unknown as described below.
 
-Handled JSON failure uses an `error` wrapper with required `operation`, `exception`, `code`, `reason`, `message`. `response_url`, `http_status`, `output_path`, `stage`, `transport` are present only when known; absence differs from `null`. An image failure may additionally carry `image_url`; it is a safely rendered manifest locator, not necessarily an HTTP URL. URL query/fragment secrets, cookie contents, passphrases, browser records, and raw credential references never appear in success or failure output.
+Inspection JSON has `inspection_data` equal to `url`, `http`, or `all`. The default `url` projection has only a manifest count summary plus each request's one-based `chapter_position`, `image_position`, `status`, and AuthFlow/query/cookie-jar 合成後の `effective_url`; an effective-request failure has no guessed URL. `http` adds the complete returned `RequestSpec` (`url`, `method`, `headers`, `cookies`, `referer`, `query`, `form`, `json`, `auth_required`, `retry_non_idempotent`) and `effective_request` (`method`, complete URL, ordered/duplicate-preserving header entries, actual sent cookies, Base64 body and byte count). `all` adds the complete manifest/image projection—including locator, referer, image headers, save options, and metadata—and raw `plugin_data`. `failed` and `partially_resolved` entries carry stable `failure.code`, `failure.reason`, `failure.exception`, and `failure.phase`; the latter keeps source request data only at `http`/`all`.
+
+`url` can still contain a signed URL query. `http` and `all` are intentionally exceptions to the normal output-safety contract: the material is raw and can contain credentials, cookies, request bodies, signed URLs, or other secrets. Base64 does not protect a body. Do not send inspection stdout or stderr to logs, CI artifacts, telemetry, shared terminals, tickets, or third parties. Normal download/update output and Handled JSON failure use sanitization: an `error` wrapper has required `operation`, `exception`, `code`, `reason`, `message`; `response_url`, `http_status`, `output_path`, `stage`, `transport` are present only when known. An image failure may additionally carry `image_url`; it is a safely rendered manifest locator, not necessarily an HTTP URL. URL query/fragment secrets, cookie contents, passphrases, browser records, and raw credential references never appear in those normal success or failure outputs.
 
 <a id="cli-errors"></a>

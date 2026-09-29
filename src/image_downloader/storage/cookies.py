@@ -121,6 +121,13 @@ class CookieStore:
         """Capture persisted cookie fields without retaining a mutable jar reference."""
         return {_cookie_key(cookie): _cookie_record(cookie) for cookie in jar}
 
+    @staticmethod
+    def clone_jar(jar: CookieJar) -> CookieJar:
+        """Return a detached, non-expired copy suitable for an ephemeral operation."""
+        clone = _deserialize(_serialize(jar))
+        clone.clear_expired_cookies()
+        return clone
+
     def persist_delta(self, baseline: CookieSnapshot, current: CookieJar) -> None:
         """Apply only this service's changes to the latest persisted jar."""
         current_snapshot = self.snapshot(current)
@@ -169,9 +176,7 @@ class CookieStore:
         self.filesystem.ensure_directory()
         # Validate an existing sidecar before opening it through the OS lock API.
         self.filesystem.exists(self.lock_relative)
-        return InterProcessFileLock(
-            self.filesystem.path(self.lock_relative), timeout_seconds=self.lock_timeout_seconds
-        )
+        return InterProcessFileLock(self.filesystem.path(self.lock_relative), timeout_seconds=self.lock_timeout_seconds)
 
     def _key(self, *, create: bool) -> bytes | None:
         try:

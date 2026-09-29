@@ -46,6 +46,7 @@ class PluginCommandHandler:
                 "import_browser_cookies",
                 "existing_file",
                 "image_format",
+                "inspection_data",
             ),
             "plugin",
         )

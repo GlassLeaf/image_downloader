@@ -27,9 +27,7 @@ def _freeze_string_mapping(value: Mapping[str, str], *, field_name: str) -> Mapp
     return freeze_mapping(value)
 
 
-def _freeze_header_values(
-    value: Mapping[str, tuple[str, ...]], *, field_name: str
-) -> Mapping[str, tuple[str, ...]]:
+def _freeze_header_values(value: Mapping[str, tuple[str, ...]], *, field_name: str) -> Mapping[str, tuple[str, ...]]:
     if not isinstance(value, Mapping):
         raise TypeError(f"{field_name} must be a mapping")
     frozen: dict[str, tuple[str, ...]] = {}
@@ -92,6 +90,92 @@ class ImageFetchRequest:
         object.__setattr__(self, "plugin_data", _freeze_string_mapping(self.plugin_data, field_name="plugin_data"))
 
 
+class ImageRequestResolutionStatus(StrEnum):
+    """Outcome of inspecting one manifest image without fetching its body."""
+
+    RESOLVED = "resolved"
+    PARTIALLY_RESOLVED = "partially_resolved"
+    FAILED = "failed"
+
+
+@dataclass(frozen=True, slots=True)
+class ImageRequestResolutionFailure:
+    """Stable diagnostic data for one inspection resolution failure."""
+
+    code: str
+    reason: str
+    exception: str
+    phase: str = "create_image_request"
+
+    def __post_init__(self) -> None:
+        if any(not isinstance(value, str) for value in (self.code, self.reason, self.exception, self.phase)):
+            raise TypeError("ImageRequestResolutionFailure fields must be strings")
+        if self.phase not in {"create_image_request", "effective_request"}:
+            raise ValueError("ImageRequestResolutionFailure.phase is invalid")
+
+
+@dataclass(frozen=True, slots=True)
+class ImageRequestResolution:
+    """One request returned by ``create_image_request`` during inspection.
+
+    Positions are one-based positions in the manifest arrays and deliberately
+    differ from plugin-controlled ``Chapter.number`` and ``ImageResource.index``.
+    """
+
+    chapter_position: int
+    image_position: int
+    status: ImageRequestResolutionStatus
+    request: RequestSpec | None = None
+    plugin_data: Mapping[str, str] = field(default_factory=freeze_mapping)
+    uses_image_fetch_request: bool | None = None
+    failure: ImageRequestResolutionFailure | None = None
+    effective_request: EffectiveRequestPreview | None = None
+
+    def __post_init__(self) -> None:
+        if (
+            isinstance(self.chapter_position, bool)
+            or not isinstance(self.chapter_position, int)
+            or self.chapter_position < 1
+            or isinstance(self.image_position, bool)
+            or not isinstance(self.image_position, int)
+            or self.image_position < 1
+        ):
+            raise ValueError("ImageRequestResolution positions must be positive integers")
+        object.__setattr__(
+            self,
+            "plugin_data",
+            _freeze_string_mapping(self.plugin_data, field_name="ImageRequestResolution.plugin_data"),
+        )
+        if self.status is ImageRequestResolutionStatus.RESOLVED:
+            if not isinstance(self.request, RequestSpec) or self.failure is not None:
+                raise TypeError("resolved ImageRequestResolution requires request and no failure")
+            if not isinstance(self.uses_image_fetch_request, bool):
+                raise TypeError("resolved ImageRequestResolution requires uses_image_fetch_request")
+            if self.effective_request is not None and not isinstance(self.effective_request, EffectiveRequestPreview):
+                raise TypeError(
+                    "resolved ImageRequestResolution.effective_request must be EffectiveRequestPreview or None"
+                )
+        elif self.status is ImageRequestResolutionStatus.PARTIALLY_RESOLVED:
+            if not isinstance(self.request, RequestSpec) or not isinstance(self.uses_image_fetch_request, bool):
+                raise TypeError(
+                    "partially resolved ImageRequestResolution requires request and uses_image_fetch_request"
+                )
+            if not isinstance(self.failure, ImageRequestResolutionFailure) or self.effective_request is not None:
+                raise TypeError("partially resolved ImageRequestResolution requires failure and no effective_request")
+        elif self.status is ImageRequestResolutionStatus.FAILED:
+            if (
+                self.request is not None
+                or self.failure is None
+                or self.uses_image_fetch_request is not None
+                or self.effective_request is not None
+            ):
+                raise TypeError("failed ImageRequestResolution requires failure only")
+            if not isinstance(self.failure, ImageRequestResolutionFailure):
+                raise TypeError("failed ImageRequestResolution requires ImageRequestResolutionFailure")
+        else:
+            raise TypeError("ImageRequestResolution.status is invalid")
+
+
 @dataclass(frozen=True, slots=True)
 class TransportCookie:
     """One name/value pair actually sent in an HTTP Cookie header."""
@@ -102,6 +186,41 @@ class TransportCookie:
     def __post_init__(self) -> None:
         if not isinstance(self.name, str) or not isinstance(self.value, str):
             raise TypeError("TransportCookie fields must be strings")
+
+
+@dataclass(frozen=True, slots=True)
+class TransportHeader:
+    """One header exactly as prepared for one HTTP request."""
+
+    name: str
+    value: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or not isinstance(self.value, str):
+            raise TypeError("TransportHeader fields must be strings")
+
+
+@dataclass(frozen=True, slots=True)
+class EffectiveRequestPreview:
+    """A no-send snapshot of the HTTP request immediately before transport."""
+
+    method: str
+    url: str
+    headers: tuple[TransportHeader, ...]
+    cookies: tuple[TransportCookie, ...] = ()
+    body: bytes = b""
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.method, str) or not isinstance(self.url, str):
+            raise TypeError("EffectiveRequestPreview.method and url must be strings")
+        if any(not isinstance(header, TransportHeader) for header in self.headers):
+            raise TypeError("EffectiveRequestPreview.headers must contain TransportHeader values")
+        if any(not isinstance(cookie, TransportCookie) for cookie in self.cookies):
+            raise TypeError("EffectiveRequestPreview.cookies must contain TransportCookie values")
+        if not isinstance(self.body, bytes):
+            raise TypeError("EffectiveRequestPreview.body must be bytes")
+        object.__setattr__(self, "headers", tuple(self.headers))
+        object.__setattr__(self, "cookies", tuple(self.cookies))
 
 
 @dataclass(frozen=True, slots=True)
@@ -211,6 +330,37 @@ class DownloadManifest:
             self,
             "metadata",
             _freeze_string_mapping(self.metadata, field_name="DownloadManifest.metadata"),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class ManifestInspectionResult:
+    """A manifest and optional per-image request resolutions without image fetches."""
+
+    source_url: str
+    plugin_id: str
+    manifest: DownloadManifest
+    request_resolution_performed: bool
+    image_requests: tuple[ImageRequestResolution, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.source_url, str) or not isinstance(self.plugin_id, str):
+            raise TypeError("ManifestInspectionResult source_url and plugin_id must be strings")
+        if not isinstance(self.manifest, DownloadManifest):
+            raise TypeError("ManifestInspectionResult.manifest must be DownloadManifest")
+        if not isinstance(self.request_resolution_performed, bool):
+            raise TypeError("ManifestInspectionResult.request_resolution_performed must be bool")
+        requests = tuple(self.image_requests)
+        if any(not isinstance(value, ImageRequestResolution) for value in requests):
+            raise TypeError("ManifestInspectionResult.image_requests must contain ImageRequestResolution values")
+        if not self.request_resolution_performed and requests:
+            raise ValueError("manifest-only inspection cannot contain image request resolutions")
+        object.__setattr__(self, "image_requests", requests)
+
+    @property
+    def failures(self) -> tuple[ImageRequestResolution, ...]:
+        return tuple(
+            value for value in self.image_requests if value.status is not ImageRequestResolutionStatus.RESOLVED
         )
 
 

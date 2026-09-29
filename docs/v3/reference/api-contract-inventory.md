@@ -18,12 +18,16 @@ ConfigurationError
 DownloadManifest
 DownloadResult
 DownloadService
+EffectiveRequestPreview
 ExistingFileConflictError
 FailureKind
 HttpStatusError
 HttpTransportError
 ImageArtifact
 ImageFetchRequest
+ImageRequestResolution
+ImageRequestResolutionFailure
+ImageRequestResolutionStatus
 ImageContentTypeError
 ImageDecodeError
 ImageDimensionLimitError
@@ -41,6 +45,7 @@ ImageTransportMetadata
 ImageWorkerError
 InterProcessLockError
 load_application_config
+ManifestInspectionResult
 OutputAllocationError
 resolve_application_config
 RedirectPolicyError
@@ -61,6 +66,7 @@ StorageError
 StorageSafetyError
 TransformContext
 TransportCookie
+TransportHeader
 TransportRequestMetadata
 UnsupportedImageFormatError
 UnsupportedSiteFeature

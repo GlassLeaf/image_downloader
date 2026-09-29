@@ -49,6 +49,7 @@ def _reject_except(args: argparse.Namespace, allowed: frozenset[str]) -> None:
         "import_browser_cookies",
         "existing_file",
         "image_format",
+        "inspection_data",
     )
     _reject_command_options(args, tuple(name for name in candidates if name not in allowed), "config")
 

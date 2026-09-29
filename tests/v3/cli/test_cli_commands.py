@@ -10,11 +10,27 @@ import pytest
 import image_downloader.cli as cli
 import image_downloader.commands.dispatch as cli_dispatch
 import image_downloader.commands.download as cli_download
+import image_downloader.commands.inspect as cli_inspect
 import image_downloader.commands.setup as cli_setup
 from image_downloader.cli import build_parser
 from image_downloader.config import AppConfig, apply_overrides
 from image_downloader.exceptions import ConfigurationError
-from image_downloader.models import FailureKind, ImageFailure, UpdateChangeKind
+from image_downloader.models import (
+    Chapter,
+    DownloadManifest,
+    EffectiveRequestPreview,
+    FailureKind,
+    ImageFailure,
+    ImageRequestResolution,
+    ImageRequestResolutionFailure,
+    ImageRequestResolutionStatus,
+    ImageResource,
+    ManifestInspectionResult,
+    RequestSpec,
+    TransportCookie,
+    TransportHeader,
+    UpdateChangeKind,
+)
 
 
 def test_legacy_url_and_explicit_download_use_the_same_handler() -> None:
@@ -38,12 +54,209 @@ def test_each_top_level_subparser_selects_its_own_handler(tmp_path: Path) -> Non
     cookie = parser.parse_args(["cookie", "export", str(tmp_path / "cookies.export")])
     assert cookie.command_handler == "cookie"
     assert cookie.cookie_action == "export"
+    assert parser.parse_args(["inspect", "https://example.test/gallery"]).command_handler == "inspect"
+
+
+def test_inspection_cli_selects_request_data_and_aliases_download(monkeypatch, tmp_path: Path, capsys) -> None:
+    config = AppConfig.model_validate(
+        {
+            "storage": {"data_root": str((tmp_path / "data").resolve())},
+            "plugins": {"root": str((tmp_path / "plugins").resolve())},
+        }
+    )
+    result = ManifestInspectionResult(
+        "https://example.test/gallery",
+        "com.example.gallery",
+        DownloadManifest(
+            "Book",
+            (
+                Chapter(
+                    1,
+                    "One",
+                    images=(
+                        ImageResource(
+                            "image:1",
+                            referer="https://example.test/source?token=raw",
+                            headers={"X-Image": "raw"},
+                            image_id="image-id",
+                            metadata={"page": "1"},
+                        ),
+                    ),
+                ),
+            ),
+            metadata={"source_url": "https://example.test/gallery"},
+        ),
+        True,
+        (
+            ImageRequestResolution(
+                1,
+                1,
+                ImageRequestResolutionStatus.RESOLVED,
+                RequestSpec(
+                    "https://cdn.example.test/1?signature=raw",
+                    method="POST",
+                    headers={"Authorization": "raw"},
+                    cookies={"session": "raw"},
+                    referer="https://example.test/source?token=raw",
+                    query={"token": "raw"},
+                    json={"nested": "raw"},
+                    auth_required=False,
+                    retry_non_idempotent=True,
+                ),
+                {"plugin": "raw"},
+                True,
+                effective_request=EffectiveRequestPreview(
+                    "POST",
+                    "https://cdn.example.test/1?signature=effective",
+                    (
+                        TransportHeader("authorization", "effective"),
+                        TransportHeader("cookie", "session=effective"),
+                        TransportHeader("content-type", "application/json"),
+                    ),
+                    (TransportCookie("session", "effective"),),
+                    b'{"nested":"raw"}',
+                ),
+            ),
+            ImageRequestResolution(
+                1,
+                2,
+                ImageRequestResolutionStatus.FAILED,
+                failure=ImageRequestResolutionFailure("plugin_error", "plugin error", "PluginError"),
+            ),
+        ),
+    )
+
+    class Service:
+        async def inspect(self, *_args: object, **kwargs: object) -> ManifestInspectionResult:
+            assert kwargs["resolve_image_requests"] is True
+            print("plugin output")
+            return result
+
+        async def close(self) -> None:
+            print("plugin cleanup")
+
+    class Composer:
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
+            pass
+
+        def _compose_for_inspection(self) -> Service:
+            print("plugin import output")
+            return Service()
+
+    config_calls: list[dict[str, object]] = []
+
+    def config_for(*_args: object, **kwargs: object):
+        config_calls.append(kwargs)
+        return config, tmp_path.resolve(), tmp_path.resolve(), "test"
+
+    monkeypatch.setattr(cli_inspect, "_config_for", config_for)
+    monkeypatch.setattr(cli_inspect, "RuntimeComposer", Composer)
+
+    args = build_parser().parse_args(["inspect", "https://example.test/gallery", "--json"])
+    assert asyncio.run(cli.run(args)) == cli.EXIT_PARTIAL
+    output = capsys.readouterr()
+    payload = json.loads(output.out)
+    assert payload["inspection_data"] == "url"
+    assert payload["manifest"] == {"chapter_count": 1, "image_count": 1}
+    assert payload["image_requests"][0]["effective_url"] == "https://cdn.example.test/1?signature=effective"
+    assert "request" not in payload["image_requests"][0]
+    assert "plugin_data" not in payload["image_requests"][0]
+    assert payload["image_requests"][1]["failure"]["code"] == "plugin_error"
+    assert payload["image_requests"][1]["failure"]["phase"] == "create_image_request"
+    assert "plugin output" in output.err
+    assert "plugin cleanup" in output.err
+    assert "plugin import output" in output.err
+    assert config_calls == [{"allow_root_setup": False, "rewrite_user_layers": False}]
+
+    http_args = build_parser().parse_args(
+        ["inspect", "https://example.test/gallery", "--inspection-data", "http", "--json"]
+    )
+    assert asyncio.run(cli.run(http_args)) == cli.EXIT_PARTIAL
+    http_payload = json.loads(capsys.readouterr().out)
+    http_request = http_payload["image_requests"][0]
+    assert http_payload["inspection_data"] == "http"
+    assert http_request["request"]["headers"] == {"Authorization": "raw"}
+    assert http_request["request"]["cookies"] == {"session": "raw"}
+    assert http_request["effective_request"]["url"] == "https://cdn.example.test/1?signature=effective"
+    assert http_request["effective_request"]["headers"][0] == {"name": "authorization", "value": "effective"}
+    assert http_request["effective_request"]["cookies"] == [{"name": "session", "value": "effective"}]
+    assert http_request["effective_request"]["body"] == {
+        "encoding": "base64",
+        "size_bytes": 16,
+        "data": "eyJuZXN0ZWQiOiJyYXcifQ==",
+    }
+    assert "plugin_data" not in http_request
+    assert "chapters" not in http_payload["manifest"]
+
+    all_args = build_parser().parse_args(
+        ["inspect", "https://example.test/gallery", "--inspection-data", "all", "--json"]
+    )
+    assert asyncio.run(cli.run(all_args)) == cli.EXIT_PARTIAL
+    all_payload = json.loads(capsys.readouterr().out)
+    all_image = all_payload["manifest"]["chapters"][0]["images"][0]
+    assert all_payload["inspection_data"] == "all"
+    assert all_image["url"] == "image:1"
+    assert all_image["referer"] == "https://example.test/source?token=raw"
+    assert all_image["headers"] == {"X-Image": "raw"}
+    assert all_image["metadata"] == {"page": "1"}
+    assert all_payload["image_requests"][0]["plugin_data"] == {"plugin": "raw"}
+
+    called: list[bool] = []
+
+    async def alias(args: object) -> int:
+        called.append(args.manifest_only)  # type: ignore[attr-defined]
+        return cli.EXIT_SUCCESS
+
+    monkeypatch.setattr(cli_download, "inspect_command", alias)
+    alias_args = build_parser().parse_args(
+        ["download", "https://example.test/gallery", "--inspect-only", "--manifest-only"]
+    )
+    assert asyncio.run(cli.run(alias_args)) == cli.EXIT_SUCCESS
+    assert called == [True]
+
+
+@pytest.mark.parametrize(
+    "words",
+    (
+        ("--existing-file", "skip"),
+        ("--no-console-log",),
+        ("--plugin-download-policy", 'com.example.gallery={"request_concurrency": 1}'),
+    ),
+)
+def test_inspection_alias_rejects_download_only_options(words: tuple[str, ...]) -> None:
+    args = build_parser().parse_args(["download", "https://example.test/gallery", "--inspect-only", *words])
+
+    with pytest.raises(ConfigurationError, match="not valid for the inspect command"):
+        asyncio.run(cli.run(args))
+
+
+def test_inspection_alias_is_exclusive_with_update_listing() -> None:
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["download", "https://example.test/gallery", "--inspect-only", "--list-updated-urls"])
+
+
+def test_inspection_data_option_defaults_to_url_and_is_rejected_for_download() -> None:
+    parser = build_parser()
+
+    inspect_args = parser.parse_args(["inspect", "https://example.test/gallery"])
+    assert getattr(inspect_args, "inspection_data", "url") == "url"
+    alias_args = parser.parse_args(
+        ["download", "https://example.test/gallery", "--inspect-only", "--inspection-data", "all"]
+    )
+    assert alias_args.inspection_data == "all"
+    with pytest.raises(SystemExit):
+        parser.parse_args(["inspect", "https://example.test/gallery", "--inspection-data", "private"])
+
+    download_args = parser.parse_args(["download", "https://example.test/gallery", "--inspection-data", "url"])
+    with pytest.raises(ConfigurationError, match="not valid for the download command"):
+        asyncio.run(cli.run(download_args))
 
 
 @pytest.mark.parametrize(
     "words",
     (
         ("download", "https://example.test/gallery"),
+        ("inspect", "https://example.test/gallery"),
         ("doctor",),
         ("config", "path"),
         ("plugin", "list"),

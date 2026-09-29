@@ -38,9 +38,14 @@ from ..models import (
     FailureKind,
     ImageArtifact,
     ImageFailure,
+    ImageFetchRequest,
     ImageOutcome,
     ImageOutcomeKind,
+    ImageRequestResolution,
+    ImageRequestResolutionFailure,
+    ImageRequestResolutionStatus,
     ImageResource,
+    ManifestInspectionResult,
     RequestResponse,
     RequestSpec,
     UpdateChangeKind,
@@ -49,6 +54,7 @@ from ..models import (
 from ..observability.chapter_reporter import ChapterReporter
 from ..observability.diagnostic_safety import best_effort_diagnostic
 from ..observability.events import EventName, EventPayload
+from ..observability.logging import DownloadLogger
 from ..observability.scope import OperationDiagnosticsScope
 from ..output.output_allocator import OutputAllocation, OutputAllocator
 from ..plugins.lifecycle import PluginRecord
@@ -57,7 +63,7 @@ from ..plugins.plugin_manifest import PluginConfigOverrides, PluginDownloadPolic
 from ..plugins.runtime import PluginRuntime, safe_app_settings
 from ..ports import PluginExecutionContext, SitePlugin, UpdateProvider
 from ..storage import FileSystem, safe_component
-from ..transport.gateway import OperationRequestGateway
+from ..transport.gateway import OperationRequestGateway, RequestGateway
 from .dependencies import _RuntimeDependencies
 
 _ResultT = TypeVar("_ResultT")
@@ -236,6 +242,111 @@ class DownloadService:
                 finally:
                     await self.events.emit(EventName.AFTER_DOWNLOAD, EventPayload(url=url))
 
+    async def inspect(
+        self,
+        url: str,
+        *,
+        plugin_overrides: PluginConfigOverrides | None = None,
+        fallback_override: bool | None = None,
+        plugin_id: str | None = None,
+        force_plugin: bool = False,
+        resolve_image_requests: bool = True,
+    ) -> ManifestInspectionResult:
+        """Resolve a manifest and image request specs without fetching image bodies.
+
+        The operation uses a detached gateway and cookie jar, so request-time
+        session changes and diagnostic records are discarded when it finishes.
+        ``create_image_request`` may still perform plugin-defined auxiliary HTTP.
+        """
+        if not isinstance(resolve_image_requests, bool):
+            raise TypeError("resolve_image_requests must be bool")
+        async with self._operation_lock:
+            self._ensure_open()
+            temporary_gateway = RequestGateway(
+                self.config,
+                self.cookie_store.clone_jar(self.gateway.client.cookies.jar),
+            )
+            try:
+                async with self._site_operation(
+                    url,
+                    plugin_overrides,
+                    fallback_override,
+                    plugin_id,
+                    force_plugin,
+                    request_gateway=temporary_gateway,
+                    diagnostics_enabled=False,
+                ) as (record, plugin, context, operation_gateway, _, invoker):
+                    manifest = self._normalized_manifest(await invoker.inspect(plugin, url, context), url)
+                    requests: list[ImageRequestResolution] = []
+                    if resolve_image_requests:
+                        for chapter_position, chapter in enumerate(manifest.chapters, start=1):
+                            for image_position, image in enumerate(chapter.images, start=1):
+                                try:
+                                    value = await invoker.create_image_request(plugin, image, context)
+                                except asyncio.CancelledError:
+                                    raise
+                                except Exception as exc:
+                                    info = error_info_for(exc)
+                                    requests.append(
+                                        ImageRequestResolution(
+                                            chapter_position,
+                                            image_position,
+                                            ImageRequestResolutionStatus.FAILED,
+                                            failure=ImageRequestResolutionFailure(
+                                                info.code,
+                                                info.reason,
+                                                info.exception,
+                                                "create_image_request",
+                                            ),
+                                        )
+                                    )
+                                else:
+                                    request = value.request if isinstance(value, ImageFetchRequest) else value
+                                    plugin_data = value.plugin_data if isinstance(value, ImageFetchRequest) else {}
+                                    try:
+                                        effective_request = await operation_gateway.preview(request)
+                                    except asyncio.CancelledError:
+                                        raise
+                                    except Exception as exc:
+                                        info = error_info_for(exc)
+                                        requests.append(
+                                            ImageRequestResolution(
+                                                chapter_position,
+                                                image_position,
+                                                ImageRequestResolutionStatus.PARTIALLY_RESOLVED,
+                                                request,
+                                                plugin_data,
+                                                isinstance(value, ImageFetchRequest),
+                                                ImageRequestResolutionFailure(
+                                                    info.code,
+                                                    info.reason,
+                                                    info.exception,
+                                                    "effective_request",
+                                                ),
+                                            )
+                                        )
+                                    else:
+                                        requests.append(
+                                            ImageRequestResolution(
+                                                chapter_position,
+                                                image_position,
+                                                ImageRequestResolutionStatus.RESOLVED,
+                                                request,
+                                                plugin_data,
+                                                isinstance(value, ImageFetchRequest),
+                                                effective_request=effective_request,
+                                            )
+                                        )
+                    return ManifestInspectionResult(
+                        url,
+                        record.id,
+                        manifest,
+                        resolve_image_requests,
+                        tuple(requests),
+                    )
+            finally:
+                await temporary_gateway.close()
+
     async def _run_operation(
         self,
         url: str,
@@ -273,8 +384,7 @@ class DownloadService:
                     await best_effort_diagnostic(
                         self.logger.core, "plugin_selected", module="plugin", url=url, plugin_id=record.id, debug=True
                     )
-                    manifest = await invoker.inspect(plugin, url, context)
-                    manifest = replace(manifest, metadata={**manifest.metadata, "source_url": url})
+                    manifest = self._normalized_manifest(await invoker.inspect(plugin, url, context), url)
                     if not manifest.chapters:
                         if not self.config.download.allow_empty_chapter_manifest:
                             raise PluginError("plugin returned an empty manifest")
@@ -431,7 +541,12 @@ class DownloadService:
             )
             await best_effort_diagnostic(
                 self.logger.core,
-                "operation_failed", module="runtime", url=url, error=exc, action="check_updates", debug=True
+                "operation_failed",
+                module="runtime",
+                url=url,
+                error=exc,
+                action="check_updates",
+                debug=True,
             )
             await best_effort_diagnostic(self.logger.error_detail, exc, url=url, module="runtime")
             raise
@@ -484,6 +599,7 @@ class DownloadService:
         invoker: PluginInvoker,
         overrides: PluginConfigOverrides | None,
         download_policy_overrides: PluginDownloadPolicyOverrides | None,
+        request_gateway: RequestGateway | None = None,
     ) -> tuple[PluginExecutionContext, OperationRequestGateway, _OperationDownloadPolicy]:
         self.registry.validate_operation_overrides(record, overrides)
         self.registry.validate_download_policy_overrides(record, download_policy_overrides)
@@ -507,7 +623,7 @@ class DownloadService:
             )
             return invoker.auth_flow(plugin, context)
 
-        operation_gateway = self.gateway.operation(
+        operation_gateway = (request_gateway or self.gateway).operation(
             plugin_id=record.id,
             operation_url=url,
             auth_flow_factory=auth_flow_factory,
@@ -527,6 +643,8 @@ class DownloadService:
         plugin_id: str | None = None,
         force_plugin: bool = False,
         download_policy_overrides: PluginDownloadPolicyOverrides | None = None,
+        request_gateway: RequestGateway | None = None,
+        diagnostics_enabled: bool = True,
     ) -> AsyncIterator[
         tuple[
             PluginRecord,
@@ -538,7 +656,8 @@ class DownloadService:
         ]
     ]:
         record, plugin = self._select_site_plugin(url, overrides, fallback_override, plugin_id, force_plugin)
-        invoker = PluginInvoker(record.id, self.logger)
+        logger: DownloadLogger | None = self.logger if diagnostics_enabled else None
+        invoker = PluginInvoker(record.id, logger)
         try:
             context, operation_gateway, policy = self._build_selected_operation(
                 url,
@@ -547,14 +666,15 @@ class DownloadService:
                 invoker,
                 overrides,
                 download_policy_overrides,
+                request_gateway,
             )
         except BaseException as primary:
-            await self._cleanup_site_after_failure(invoker, plugin, primary)
+            await self._cleanup_site_after_failure(invoker, plugin, primary, logger)
             raise
         try:
             yield record, plugin, context, operation_gateway, policy, invoker
         except BaseException as primary:
-            await self._cleanup_site_after_failure(invoker, plugin, primary)
+            await self._cleanup_site_after_failure(invoker, plugin, primary, logger)
             raise
         else:
             await invoker.cleanup_after_use(plugin)
@@ -564,19 +684,24 @@ class DownloadService:
         invoker: PluginInvoker,
         plugin: SitePlugin,
         _primary: BaseException,
+        logger: DownloadLogger | None,
     ) -> None:
         try:
             await invoker.cleanup_after_use(plugin)
         except BaseException as cleanup_error:
-            if isinstance(cleanup_error, Exception):
+            if logger is not None and isinstance(cleanup_error, Exception):
                 await best_effort_diagnostic(
-                    self.logger.core,
+                    logger.core,
                     "site_operation_close_failed",
                     module="plugin",
                     plugin_id=invoker.plugin_id,
                     error=cleanup_error,
                     debug=True,
                 )
+
+    @staticmethod
+    def _normalized_manifest(manifest: DownloadManifest, url: str) -> DownloadManifest:
+        return replace(manifest, metadata={**manifest.metadata, "source_url": url})
 
     def _python_log_namespaces(self, site_record: PluginRecord, *, include_processors: bool) -> tuple[str, ...]:
         records = [site_record]

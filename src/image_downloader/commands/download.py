@@ -15,6 +15,7 @@ from ..exceptions import error_reason_for_code
 from ..models import UpdateChangeKind
 from ..privacy.log_safety import safe_exception_name, safe_relative_path, safe_url
 from .constants import EXIT_FAILURE, EXIT_PARTIAL, EXIT_SUCCESS
+from .inspect import inspect_command
 from .setup import (
     _config_for,
     _download_policy_overrides,
@@ -28,7 +29,9 @@ from .validation import _reject_command_options
 
 class DownloadCommandHandler:
     async def handle(self, args: argparse.Namespace) -> int:
-        _reject_command_options(args, ("selection_priority", "host"), "download")
+        if args.inspect_only:
+            return await inspect_command(args)
+        _reject_command_options(args, ("selection_priority", "host", "manifest_only", "inspection_data"), "download")
         if any(
             getattr(args, name, None) is not None
             for name in ("export_cookies", "import_cookies", "import_browser_cookies")
@@ -94,19 +97,21 @@ class DownloadCommandHandler:
                                 "skipped": download_result.skipped_files,
                                 "failures": [
                                     {
-                                "kind": item.kind,
-                                "exception": safe_exception_name(item.exception_type),
-                                "message": error_reason_for_code(item.code) or "image failure",
-                                "code": item.code,
-                                "reason": error_reason_for_code(item.code) or "image failure",
-                                "output_path": (
-                                    safe_relative_path(item.output_path, output_root)
-                                    if item.output_path is not None and Path(item.output_path).is_absolute()
-                                    else item.output_path
-                                ),
-                                "response_url": safe_url(item.response_url) if item.response_url is not None else None,
-                                "http_status": item.http_status,
-                                "transport": item.transport,
+                                        "kind": item.kind,
+                                        "exception": safe_exception_name(item.exception_type),
+                                        "message": error_reason_for_code(item.code) or "image failure",
+                                        "code": item.code,
+                                        "reason": error_reason_for_code(item.code) or "image failure",
+                                        "output_path": (
+                                            safe_relative_path(item.output_path, output_root)
+                                            if item.output_path is not None and Path(item.output_path).is_absolute()
+                                            else item.output_path
+                                        ),
+                                        "response_url": safe_url(item.response_url)
+                                        if item.response_url is not None
+                                        else None,
+                                        "http_status": item.http_status,
+                                        "transport": item.transport,
                                     }
                                     for item in download_result.failures
                                 ],
@@ -117,7 +122,9 @@ class DownloadCommandHandler:
                 status = (
                     EXIT_SUCCESS
                     if not download_result.failures
-                    else EXIT_PARTIAL if download_result.saved_files or download_result.skipped_files else EXIT_FAILURE
+                    else EXIT_PARTIAL
+                    if download_result.saved_files or download_result.skipped_files
+                    else EXIT_FAILURE
                 )
         finally:
             with diagnostics_output:

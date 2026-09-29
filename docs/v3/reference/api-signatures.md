@@ -53,8 +53,12 @@ This is the signature-level reference for the stable facades in the [API invento
 | `ChapterResult` | `ChapterResult(chapter: Chapter, outcomes: tuple[ImageOutcome, ...])` |
 | `DownloadManifest` | `DownloadManifest(title: str, chapters: tuple[Chapter, ...], content_id: str | None = None, author: str | None = None, access: str | None = None, revision: str | None = None, metadata: Mapping[str, str] = <factory: freeze_mapping>)` |
 | `DownloadResult` | `DownloadResult(source_url: str, manifest: DownloadManifest, chapters: tuple[ChapterResult, ...])` |
+| `EffectiveRequestPreview` | `EffectiveRequestPreview(method: str, url: str, headers: tuple[TransportHeader, ...], cookies: tuple[TransportCookie, ...] = (), body: bytes = b"")` |
 | `ImageArtifact` | `ImageArtifact(data: bytes, content_type: str, source_url: str, image_id: str | None = None, extension: str | None = None, history: tuple[str, ...] = ())` |
 | `ImageFetchRequest` | `ImageFetchRequest(request: RequestSpec, plugin_data: Mapping[str, str] = <factory: freeze_mapping>)` |
+| `ImageRequestResolutionFailure` | `ImageRequestResolutionFailure(code: str, reason: str, exception: str, phase: str = "create_image_request")` |
+| `ImageRequestResolution` | `ImageRequestResolution(chapter_position: int, image_position: int, status: ImageRequestResolutionStatus, request: RequestSpec | None = None, plugin_data: Mapping[str, str] = <factory: freeze_mapping>, uses_image_fetch_request: bool | None = None, failure: ImageRequestResolutionFailure | None = None, effective_request: EffectiveRequestPreview | None = None)` |
+| `ManifestInspectionResult` | `ManifestInspectionResult(source_url: str, plugin_id: str, manifest: DownloadManifest, request_resolution_performed: bool, image_requests: tuple[ImageRequestResolution, ...] = ())`; `failures -> tuple[ImageRequestResolution, ...]` property |
 | `ImageFailure` | `ImageFailure(kind: FailureKind, exception_type: str, message: str, code: str = "unexpected_image_failure", reason: str = "unexpected image failure", response_url: str | None = None, http_status: int | None = None, output_path: str | None = None, transport: str | None = None)` |
 | `ImageOutcome` | `ImageOutcome(image: ImageResource, kind: ImageOutcomeKind, path: str | None = None, failure: ImageFailure | None = None)` |
 | `ImageResource` | `ImageResource(url: str, index: int = 1, referer: str | None = None, headers: Mapping[str, str] = <factory: freeze_mapping>, save_options: ImageSaveOptions = <factory: ImageSaveOptions>, image_id: str | None = None, metadata: Mapping[str, str] = <factory: freeze_mapping>)` |
@@ -63,6 +67,7 @@ This is the signature-level reference for the stable facades in the [API invento
 | `RequestSpec` | `RequestSpec(url: str, method: str = "GET", headers: Mapping[str, str] = <factory: freeze_mapping>, cookies: Mapping[str, str] = <factory: freeze_mapping>, referer: str | None = None, query: Mapping[str, str] = <factory: freeze_mapping>, form: Mapping[str, str] = <factory: freeze_mapping>, json: object | None = None, auth_required: bool = True, retry_non_idempotent: bool = False)` |
 | `RequestResponse` | `RequestResponse(url: str, status: int, headers: Mapping[str, str], body: bytes)` |
 | `TransportCookie` | `TransportCookie(name: str, value: str)` |
+| `TransportHeader` | `TransportHeader(name: str, value: str)` |
 | `TransportRequestMetadata` | `TransportRequestMetadata(url: str, headers: Mapping[str, tuple[str, ...]], cookies: tuple[TransportCookie, ...] = ())` |
 | `UpdateCandidate` | `UpdateCandidate(url: str, content_id: str | None = None, revision: str | None = None)` |
 | `UpdateSnapshot` | `UpdateSnapshot(source_url: str, candidates: tuple[UpdateCandidate, ...], checked_at: datetime)` |
@@ -83,6 +88,7 @@ This is the signature-level reference for the stable facades in the [API invento
 | `ChapterReporter.finish` <!-- api-contract: image_downloader.runtime.ChapterReporter.finish --> | `async finish(self, outcomes: tuple[ImageOutcome, ...] | None = None) -> None` |
 | `DownloadService` <!-- api-contract: image_downloader.runtime.DownloadService --> | `DownloadService(config: AppConfig, registry: PluginRuntime, dependencies: _RuntimeDependencies)` |
 | `DownloadService.run` <!-- api-contract: image_downloader.runtime.DownloadService.run --> | `async run(self, url: str, *, plugin_overrides: PluginConfigOverrides | None = None, fallback_override: bool | None = None, plugin_id: str | None = None, force_plugin: bool = False, plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None) -> DownloadResult` |
+| `DownloadService.inspect` <!-- api-contract: image_downloader.runtime.DownloadService.inspect --> | `async inspect(self, url: str, *, plugin_overrides: PluginConfigOverrides | None = None, fallback_override: bool | None = None, plugin_id: str | None = None, force_plugin: bool = False, resolve_image_requests: bool = True) -> ManifestInspectionResult` |
 | `DownloadService.check_updates` <!-- api-contract: image_downloader.runtime.DownloadService.check_updates --> | `async check_updates(self, url: str, *, plugin_overrides: PluginConfigOverrides | None = None, fallback_override: bool | None = None, plugin_id: str | None = None, force_plugin: bool = False, plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None) -> UpdateResult` |
 | `DownloadService.close` <!-- api-contract: image_downloader.runtime.DownloadService.close --> | `async close(self) -> None` |
 | `OutputAllocation` <!-- api-contract: image_downloader.runtime.OutputAllocation --> | `OutputAllocation(relative_path: Path, _allocator: OutputAllocator | None = None, _key: str | None = None, _completion: asyncio.Future[bool] | None = None, _finished: bool = False)` |

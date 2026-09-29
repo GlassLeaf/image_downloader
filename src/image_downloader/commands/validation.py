@@ -25,11 +25,14 @@ _OPTION_DEFAULTS: Mapping[str, object] = {
     "host": None,
     "no_console_log": False,
     "list_updated_urls": False,
+    "inspect_only": False,
+    "manifest_only": False,
     "export_cookies": None,
     "import_cookies": None,
     "import_browser_cookies": None,
     "existing_file": None,
     "image_format": None,
+    "inspection_data": None,
 }
 
 
