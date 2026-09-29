@@ -159,7 +159,7 @@ browser cookie は `cookie browser-import DOMAIN`、バックアップ・移行�
 
 ### 12. 画像を取得せず、署名 URL を含む request の組立結果を確認できるか？
 
-できる。`image-downloader inspect URL --json`（または `download URL --inspect-only --json`）は、manifest 順に `create_image_request()` の後で `AuthFlow.apply()` と HTTP request 組立てを行い、画像 body を送らず送信直前 URL を表示する。既定の `--inspection-data url` はその URL・位置・状態だけ、`--inspection-data http` は source `RequestSpec` と実 header/cookie/Base64 body、`--inspection-data all` はさらに locator、manifest/image metadata、`ImageFetchRequest.plugin_data` を raw で出す。`--manifest-only` は request hook を呼ばない。redirect 後 URL、response header、recovery 結果は response を必要とするため含まれない。署名 URL は表示した時点で失効し得るため後続 download に再利用しない。`url` でも署名 query は秘密値になり得、`http`／`all` は credential を含むので stdout/stderr を log、CI artifact、telemetry、共有端末、チケット、第三者サービスへ転送してはならない。[JSON contract](../reference/cli.md#cli-json) を参照する。
+できる。`image-downloader inspect URL --json`（または `download URL --inspect-only --json`）は、manifest 順に `create_image_request()` の後で `AuthFlow.apply()` と HTTP request 組立てを行い、画像 body を送らず送信直前 URL を表示する。既定の `--inspection-data url` はその URL・位置・状態だけ、`--inspection-data http` は source `RequestSpec` と実 header/cookie/Base64 body、`--inspection-data all` はさらに locator、manifest/image metadata、`ImageFetchRequest.plugin_data` を raw で出す。表示レベルは stdout の投影だけで、`--manifest-only` 以外は 3 レベルとも同じ request hook／AuthFlow を実行する。`--manifest-only` は request hook を呼ばない。redirect 後 URL、response header、recovery 結果は response を必要とするため含まれない。署名 URL は表示した時点で失効し得るため後続 download に再利用しない。`url` でも署名 query は秘密値になり得、`http`／`all` は credential を含むので stdout/stderr を log、CI artifact、telemetry、共有端末、チケット、第三者サービスへ転送してはならない。大規模 manifest は全画像を直列解決し、preview body を保持する。解決数・body size の CLI 上限はないため、必要なければ `--manifest-only` を使う。[JSON contract](../reference/cli.md#cli-json) を参照する。
 
 ## ライブラリ利用者向け Q&A
 
@@ -233,7 +233,7 @@ await service.run(
 
 ### 13. 保存せずに manifest と request 組立結果を取得するには？
 
-`await service.inspect(url)` は `ManifestInspectionResult` を返す。既定では manifest 順に `create_image_request()` を一回ずつ呼び、各成功は raw `RequestSpec`、`plugin_data`、bare `RequestSpec` か `ImageFetchRequest` かを持つ。ある画像の解決失敗は `ImageRequestResolution.failure` に入り、後続画像を続ける。一方、selection、manifest `inspect()`、AuthFlow 構築、cleanup、cancellation の失敗は result を返さず例外となる。`resolve_image_requests=False` なら image request hook を呼ばず空の resolution 一覧を返す。画像 body、recovery、transform、processor、save、event、notification、update state は実行しないが、plugin hook の補助 HTTP は起こり得る。結果の request material は credential を含み得るため、保存・log・外部公開をしない。[caller outcomes](../reference/library-api.md#api-call-outcomes) を参照する。
+`await service.inspect(url)` は `ManifestInspectionResult` を返す。既定では manifest 順に `create_image_request()` を一回ずつ呼び、各成功は raw `RequestSpec`、`plugin_data`、bare `RequestSpec` か `ImageFetchRequest` かを持つ。ある画像の解決失敗は `ImageRequestResolution.failure` に入り、後続画像を続ける。一方、selection、manifest `inspect()`、AuthFlow 構築、cleanup、cancellation の失敗は result を返さず例外となる。`resolve_image_requests=False` なら image request hook を呼ばず空の resolution 一覧を返す。画像 body、recovery、transform、processor、save、event、notification、update state は実行しないが、plugin hook の補助 HTTP は起こり得る。結果の request material は credential を含み得るため、保存・log・外部公開をしない。CLI の `--inspection-data` と異なり library result は常に raw preview を持つ。画像数・request body size の上限や streaming result はないので、大規模な場合は source URL を page/chapter 単位に分けるか `resolve_image_requests=False` を使う。[caller outcomes](../reference/library-api.md#api-call-outcomes) を参照する。
 
 ## plugin 開発者向け Q&A
 
