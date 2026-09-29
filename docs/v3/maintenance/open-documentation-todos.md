@@ -1,4 +1,4 @@
-# Open documentation and policy TODOs
+# Open documentation, policy, and implementation TODOs
 
 This is the intentionally small backlog left after the API v3 reference audit.
 It records questions that cannot be settled from this repository's reference
@@ -7,7 +7,7 @@ second API specification: the current stable contracts remain the documents
 linked from [the v3 index](../README.md).
 
 Each item needs an external service, a publisher/operator decision, or a
-maintainer policy before it can be closed.  Do not infer an answer from a
+maintainer product/policy decision before it can be closed.  Do not infer an answer from a
 fixture host, a generated signing key, or the current implementation.
 
 | ID | priority | unresolved question | why repository material cannot answer it | decision or artifact needed | owner | status |
@@ -17,6 +17,8 @@ fixture host, a generated signing key, or the current implementation.
 | DOC-EXT-003 | P2 | How long are API v3 and plugin package contracts supported, and how are breaking changes deprecated? | `__all__` defines the present stable surface, but source code cannot establish a future compatibility or release-notice commitment. | A versioning, deprecation, and release-note policy. | project maintainers | open |
 | DOC-EXT-004 | P2 | What controlled vocabulary, if any, may consumers assign to manifest `capabilities`? | The current contract intentionally accepts informational strings and grants no permission; it defines no interoperable vocabulary or policy semantics. | A registered vocabulary and consumer interpretation policy, or an explicit decision to keep the field opaque. | project / catalog maintainers | open |
 | DOC-EXT-005 | P2 | Which browser, profile, encryption setup, and OS combinations are supported by browser-cookie import? | The feature delegates browser access to an optional third-party dependency and depends on the user's local browser state. | A tested support matrix and support policy, maintained alongside the optional dependency. | project maintainers | open |
+| GENERIC-HTML-001 | P3 | Should the generic HTML fallback preserve selected `<img>` attributes, beginning with `alt`, as image metadata? | The current fallback has no metadata contract for HTML attributes. Direct filename use needs explicit privacy, length, duplicate, and filename-sanitization rules. | A bounded attribute allow-list, metadata schema, and a separate decision on any filename-template exposure. | project maintainers | open |
+| GENERIC-HTML-002 | P3 | Should the generic HTML fallback offer opt-in extraction of image-bearing links such as `<a href="image.jpeg">`? | Generic `src`/`href` values commonly identify navigation, documents, ads, or unrelated resources; URL suffixes alone are not a reliable image contract. | An opt-in extraction scope, candidate/duplicate limits, URL/content validation rules, and false-positive acceptance criteria. | project maintainers | open |
 
 Until an item is decided, consumer documentation must state only the current
 framework boundary: use a site plugin selected for the target URL, install only
