@@ -37,6 +37,7 @@ class CookieCommandHandler:
                 "list_updated_urls",
                 "existing_file",
                 "image_format",
+                "force_image_format",
                 "inspection_data",
             ),
             "cookie",

@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from collections.abc import Mapping
 from dataclasses import replace
+from pathlib import PurePosixPath
+from urllib.parse import urlparse
 
-from ..configuration.models import AppConfig
-from ..exceptions import ImageContentTypeError, ImageMimeMismatchError
+from ..configuration.models import AppConfig, ImageFormat
+from ..exceptions import ConfigurationError, ImageContentTypeError, ImageMimeMismatchError
 from ..media.image_processor import ImageProcessor
 from ..media.processor_chain import PreparedProcessor
 from ..models import (
@@ -21,15 +24,30 @@ from ..models import (
     TransportRequestMetadata,
 )
 from ..observability.diagnostic_safety import best_effort_diagnostic
-from ..observability.logging import (
-    DownloadLogger,
-)
+from ..observability.logging import DownloadLogger
 from ..plugins.lifecycle import PluginRecord
 from ..plugins.plugin_invoker import PluginInvoker
 from ..plugins.plugin_manifest import PluginConfigOverrides
 from ..plugins.runtime import PluginRuntime, safe_app_settings
 from ..ports import SitePlugin, TransformContext
 from ..privacy.log_safety import safe_url
+
+_IMAGE_FORMATS = frozenset(("ORIGINAL", "JPEG", "PNG", "WEBP"))
+_SAFE_EXTENSION = re.compile(r"\.?([A-Za-z0-9]{1,16})\Z")
+_CONTENT_TYPE_EXTENSIONS = {
+    "image/jpeg": ".jpeg",
+    "image/png": ".png",
+    "image/webp": ".webp",
+    "image/gif": ".gif",
+    "image/bmp": ".bmp",
+    "image/tiff": ".tiff",
+    "image/x-icon": ".ico",
+    "image/vnd.microsoft.icon": ".ico",
+    "image/avif": ".avif",
+    "image/heic": ".heic",
+    "image/heif": ".heif",
+    "image/svg+xml": ".svg",
+}
 
 
 class ArtifactPipeline:
@@ -43,7 +61,11 @@ class ArtifactPipeline:
         logger: DownloadLogger,
         invoker: PluginInvoker,
         processors: tuple[PreparedProcessor | str, ...],
+        *,
+        force_image_format: ImageFormat | None = None,
     ) -> None:
+        if force_image_format not in (None, *_IMAGE_FORMATS):
+            raise ValueError("force_image_format must be ORIGINAL, JPEG, PNG, WEBP, or None")
         self.config = config
         self.registry = registry
         self.site_record = site_record
@@ -52,6 +74,7 @@ class ArtifactPipeline:
         self.logger = logger
         self.invoker = invoker
         self.processors = processors
+        self.force_image_format = force_image_format
 
     @staticmethod
     def _catalog(record: PluginRecord) -> Mapping[str, object] | None:
@@ -113,12 +136,13 @@ class ArtifactPipeline:
             chapter_id=chapter_id,
         )
         await asyncio.to_thread(self._validate_input, transformed)
-        options = (
-            image.save_options
-            if image.save_options.format
-            else replace(image.save_options, format=self.config.output.image_format)
-        )
-        current = await self._normalize(transformed, options, "core.decode-normalize")
+        options = self._effective_save_options(image)
+        original = self._is_original(options)
+        if original:
+            self._validate_original_options(options)
+            current = transformed
+        else:
+            current = await self._normalize(transformed, options, "core.decode-normalize")
         processor_changed = False
         for binding in self.processors:
             if isinstance(binding, str):
@@ -148,11 +172,19 @@ class ArtifactPipeline:
                     chapter_id=chapter_id,
                 )
             processor_changed = processor_changed or current != previous
-        final = (
-            await self._normalize(current, options, "core.final-validate")
-            if processor_changed
-            else replace(current, history=(*current.history, "core.final-validate"))
-        )
+        if original:
+            await asyncio.to_thread(self._validate_input, current)
+            final = replace(
+                current,
+                extension=self._original_extension(current),
+                history=(*current.history, "core.original-preserve"),
+            )
+        else:
+            final = (
+                await self._normalize(current, options, "core.final-validate")
+                if processor_changed
+                else replace(current, history=(*current.history, "core.final-validate"))
+            )
         await best_effort_diagnostic(
             self.logger.core,
             "image_processed",
@@ -165,6 +197,57 @@ class ArtifactPipeline:
             debug=True,
         )
         return final
+
+    def _effective_save_options(self, image: ImageResource) -> ImageSaveOptions:
+        """Resolve the force CLI, plugin, and configuration format precedence."""
+        if self.force_image_format is not None:
+            if self.force_image_format == "ORIGINAL":
+                # A forced pass-through must not retain a plugin's prospective
+                # extension or encoder settings for a different target format.
+                return ImageSaveOptions(format="ORIGINAL")
+            return replace(image.save_options, format=self.force_image_format, extension=None)
+        if image.save_options.format:
+            return image.save_options
+        return replace(image.save_options, format=self.config.output.image_format)
+
+    @staticmethod
+    def _is_original(options: ImageSaveOptions) -> bool:
+        return options.format is not None and options.format.upper() == "ORIGINAL"
+
+    @staticmethod
+    def _validate_original_options(options: ImageSaveOptions) -> None:
+        if options.extension is not None or any(
+            value is not None
+            for value in (
+                options.quality,
+                options.optimize,
+                options.progressive,
+                options.lossless,
+                options.compress_level,
+            )
+        ) or options.exif:
+            raise ConfigurationError("ORIGINAL image format cannot use an extension or encoder options")
+
+    @staticmethod
+    def _safe_extension(value: str) -> str | None:
+        match = _SAFE_EXTENSION.fullmatch(value.strip())
+        return f".{match.group(1).lower()}" if match is not None else None
+
+    @classmethod
+    def _original_extension(cls, artifact: ImageArtifact) -> str:
+        if artifact.extension is not None:
+            extension = cls._safe_extension(artifact.extension)
+            if extension is not None:
+                return extension
+        content_type = artifact.content_type.split(";", 1)[0].strip().lower()
+        if content_type in _CONTENT_TYPE_EXTENSIONS:
+            return _CONTENT_TYPE_EXTENSIONS[content_type]
+        locator_suffix = PurePosixPath(urlparse(artifact.source_url).path).suffix
+        if locator_suffix:
+            extension = cls._safe_extension(locator_suffix)
+            if extension is not None:
+                return extension
+        return ".bin"
 
     def _validate_input(self, artifact: ImageArtifact) -> None:
         declared = artifact.content_type.lower().split(";", 1)[0].strip()

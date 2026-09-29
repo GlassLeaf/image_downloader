@@ -153,6 +153,7 @@ def test_cli_reference_covers_every_parser_option_and_output_contract(repository
         "JPEG",
         "PNG",
         "WEBP",
+        "ORIGINAL",
         "auto",
         "enabled",
         "disabled",

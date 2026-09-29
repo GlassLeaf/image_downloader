@@ -338,7 +338,7 @@ def test_complete_builtin_download_exercises_streaming_pipeline_and_skip(tmp_pat
             second = await service.run("https://example.test/gallery")
             assert len(first.saved_files) == 1
             assert len(second.skipped_files) == 1
-            saved = data_root / "profiles" / "default" / "downloads" / "0001_Gallery" / "0001.jpeg"
+            saved = data_root / "profiles" / "default" / "downloads" / "0001_Gallery" / "0001.png"
             assert saved.is_file()
             assert "save:" in saved.with_name("log.log").read_text(encoding="utf-8")
         finally:

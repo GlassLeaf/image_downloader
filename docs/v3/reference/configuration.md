@@ -56,7 +56,7 @@ mapping は再帰 merge、scalar/list/`null` は高い layer が置換する。I
 | `download.continue_on_image_error`, `download.allow_empty_chapter_manifest` | strict boolean; `true`, `false` |
 | `output.directory_format`, `output.filename_format` | string; `%NUM%_%TITLE%_%SUBTITLE%`, `%NUM%.%EXT%` |
 | `output.existing_file` | `overwrite|skip|rename|error`; `overwrite` |
-| `output.image_format` | `JPEG|PNG|WEBP`; `JPEG` |
+| `output.image_format` | `ORIGINAL|JPEG|PNG|WEBP`; `ORIGINAL`。`ORIGINAL` は plugin transform/processor 完了後の artifact bytes を core が再エンコードせず保存する |
 | `output.isolate_by_plugin` | strict boolean; `false` |
 | `output.max_component_length` | `null` or strict integer `>=16`; `null` |
 | `output.lock_timeout_seconds` | finite number `>=0`; `30`; zero は待機しない |
@@ -163,6 +163,20 @@ YAML values may supply persistent configuration only. CLI runtime overrides
 (`--existing-file`, `--image-format`, plugin config/policy override JSON, and fallback mode)
 are applied after the layers for that operation and are not written back. Use
 `config explain --json` to see both the effective values and their origins.
+
+画像の保存形式は次の優先順位で決まる。
+
+| priority | source | effect |
+| --- | --- | --- |
+| 1 | `DownloadService.run(force_image_format=...)` / CLI `--force-image-format` | plugin 指定も上書きする。`--image-format` とは排他的。 |
+| 2 | plugin の `ImageResource.save_options.format` | 画像単位の保存形式。 |
+| 3 | CLI `--image-format` または YAML の `output.image_format` | plugin 指定がないときの既定。CLI はその operation 限り。 |
+| 4 | bundled default `ORIGINAL` | 上位の指定がない新規設定の既定。 |
+
+`ORIGINAL` は HTTP 応答の raw-download モードではなく、site transform と processor
+chain 後の最終 artifact を core が decode/re-encode せず保存するモードである。
+`media.input_validation` は維持され、processor 完了後の artifact も検証する。extension
+は artifact、Content-Type、locator、`.bin` の順で決める。
 
 <a id="config-plugin-settings"></a>
 

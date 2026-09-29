@@ -42,6 +42,7 @@ _OPTIONS_WITH_VALUE = frozenset(
         "--import-browser-cookies",
         "--existing-file",
         "--image-format",
+        "--force-image-format",
         "--inspection-data",
         "--plugin-verification-override",
     )
@@ -166,9 +167,15 @@ def _add_download_options(
         choices=("overwrite", "skip", "rename", "error"),
         default=value_default,
     )
-    parser.add_argument(
+    image_format = parser.add_mutually_exclusive_group()
+    image_format.add_argument(
         "--image-format",
-        choices=("JPEG", "PNG", "WEBP"),
+        choices=("ORIGINAL", "JPEG", "PNG", "WEBP"),
+        default=value_default,
+    )
+    image_format.add_argument(
+        "--force-image-format",
+        choices=("ORIGINAL", "JPEG", "PNG", "WEBP"),
         default=value_default,
     )
 

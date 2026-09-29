@@ -417,6 +417,21 @@ class PluginInvoker:
             for item in (value.optimize, value.progressive, value.lossless)
         ) or not isinstance(value.exif, bool):
             raise self._error(hook, f"inspect returned invalid save options at {path}")
+        if value.format is not None and value.format.upper() == "ORIGINAL" and (
+            value.extension is not None
+            or any(
+                item is not None
+                for item in (
+                    value.quality,
+                    value.optimize,
+                    value.progressive,
+                    value.lossless,
+                    value.compress_level,
+                )
+            )
+            or value.exif
+        ):
+            raise self._error(hook, f"inspect returned ORIGINAL save options with encoder fields at {path}")
 
     def _validate_http_url(self, hook: str, value: object, message: str) -> None:
         if not isinstance(value, str):

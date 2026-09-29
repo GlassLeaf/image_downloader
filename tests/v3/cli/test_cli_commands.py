@@ -45,6 +45,76 @@ def test_legacy_url_and_explicit_download_use_the_same_handler() -> None:
     assert legacy.json_output is explicit.json_output is True
 
 
+def test_image_format_options_support_original_and_force_is_download_only(monkeypatch, tmp_path: Path) -> None:
+    parser = build_parser()
+    preferred = parser.parse_args(["download", "https://example.test/gallery", "--image-format", "ORIGINAL"])
+    forced = parser.parse_args(["https://example.test/gallery", "--force-image-format", "PNG"])
+
+    assert preferred.image_format == "ORIGINAL"
+    assert preferred.force_image_format is None
+    assert forced.command_handler == "download"
+    assert forced.force_image_format == "PNG"
+    with pytest.raises(SystemExit):
+        parser.parse_args(
+            ["download", "https://example.test/gallery", "--image-format", "PNG", "--force-image-format", "JPEG"]
+        )
+
+    config = AppConfig.model_validate(
+        {
+            "storage": {"data_root": str((tmp_path / "data").resolve())},
+            "plugins": {"root": str((tmp_path / "plugins").resolve())},
+        }
+    )
+    calls: list[dict[str, object]] = []
+
+    class Service:
+        async def run(self, *_args: object, **kwargs: object) -> object:
+            calls.append(dict(kwargs))
+            return SimpleNamespace(saved_files=(), skipped_files=(), failures=())
+
+        async def close(self) -> None:
+            return None
+
+    class Composer:
+        def __init__(self, *_args: object, **_kwargs: object) -> None:
+            pass
+
+        def compose(self) -> Service:
+            return Service()
+
+    monkeypatch.setattr(
+        cli_download,
+        "_config_for",
+        lambda *_args, **_kwargs: (config, tmp_path.resolve(), tmp_path.resolve(), "test"),
+    )
+    monkeypatch.setattr(cli_download, "RuntimeComposer", Composer)
+    args = parser.parse_args(["download", "https://example.test/gallery", "--force-image-format", "PNG"])
+
+    assert asyncio.run(cli.run(args)) == cli.EXIT_SUCCESS
+    assert calls == [
+        {
+            "plugin_overrides": {},
+            "fallback_override": None,
+            "plugin_id": None,
+            "force_plugin": False,
+            "plugin_download_policy_overrides": {},
+            "force_image_format": "PNG",
+        }
+    ]
+
+    inspect_args = parser.parse_args(
+        ["download", "https://example.test/gallery", "--inspect-only", "--force-image-format", "PNG"]
+    )
+    with pytest.raises(ConfigurationError, match="force-image-format.*inspect"):
+        asyncio.run(cli.run(inspect_args))
+
+    update_args = parser.parse_args(
+        ["download", "https://example.test/gallery", "--list-updated-urls", "--force-image-format", "PNG"]
+    )
+    with pytest.raises(ConfigurationError, match="force-image-format.*list-updated-urls"):
+        asyncio.run(cli.run(update_args))
+
+
 def test_each_top_level_subparser_selects_its_own_handler(tmp_path: Path) -> None:
     parser = build_parser()
 

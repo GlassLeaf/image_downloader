@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 
 from ..application.composer import RuntimeComposer
 from ..configuration.paths import resolve_paths
-from ..exceptions import error_reason_for_code
+from ..exceptions import ConfigurationError, error_reason_for_code
 from ..models import UpdateChangeKind
 from ..privacy.log_safety import safe_exception_name, safe_relative_path, safe_url
 from .constants import EXIT_FAILURE, EXIT_PARTIAL, EXIT_SUCCESS
@@ -37,6 +37,8 @@ class DownloadCommandHandler:
             for name in ("export_cookies", "import_cookies", "import_browser_cookies")
         ):
             raise ValueError("cookie import or export cannot be combined with URL")
+        if args.list_updated_urls and args.force_image_format is not None:
+            raise ConfigurationError("--force-image-format cannot be combined with --list-updated-urls")
         hostname = urlparse(args.url).hostname
         overrides = _runtime_overrides(args)
         download_policy_overrides = _download_policy_overrides(args)
@@ -88,6 +90,7 @@ class DownloadCommandHandler:
                         plugin_id=plugin_id,
                         force_plugin=force_plugin,
                         plugin_download_policy_overrides=download_policy_overrides,
+                        force_image_format=args.force_image_format,
                     )
                 if args.json_output:
                     print(

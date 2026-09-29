@@ -16,6 +16,15 @@ from image_downloader.configuration import layers
 from image_downloader.exceptions import ConfigurationError
 
 
+@pytest.mark.parametrize("image_format", ("ORIGINAL", "JPEG", "PNG", "WEBP"))
+def test_output_image_format_accepts_original_and_existing_values(image_format: str) -> None:
+    assert AppConfig.model_validate({"output": {"image_format": image_format}}).output.image_format == image_format
+
+
+def test_output_image_format_defaults_to_original() -> None:
+    assert AppConfig().output.image_format == "ORIGINAL"
+
+
 def test_resolver_records_effective_value_origin_in_layer_order(tmp_path: Path) -> None:
     main = tmp_path / "app.yaml"
     main.write_text("network: {request_concurrency: 4}\n", encoding="utf-8")
@@ -181,7 +190,9 @@ def test_config_explain_includes_layers_effective_values_and_origins(
     main = tmp_path / "app.yaml"
     original = "network: {request_concurrency: 3, stale: ignored}\n"
     main.write_text(original, encoding="utf-8")
-    args = build_parser().parse_args(["config", "explain", "--config", str(main), "--json"])
+    args = build_parser().parse_args(
+        ["config", "explain", "--config", str(main), "--image-format", "PNG", "--json"]
+    )
 
     assert asyncio.run(run(args)) == EXIT_SUCCESS
     payload = json.loads(capsys.readouterr().out)
@@ -189,7 +200,9 @@ def test_config_explain_includes_layers_effective_values_and_origins(
     assert payload["main_config_kind"] == "explicit"
     assert payload["effective"]["network"]["request_concurrency"] == 3
     assert payload["effective"]["network"]["auth_refresh_attempts"] == 1
+    assert payload["effective"]["output"]["image_format"] == "PNG"
     assert payload["origins"]["network.request_concurrency"] == str(main)
+    assert payload["origins"]["output.image_format"] == "runtime override"
     assert payload["layers"][0]["role"] == "schema_default"
     assert main.read_text(encoding="utf-8") == original
 

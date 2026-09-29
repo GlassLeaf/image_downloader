@@ -85,6 +85,7 @@ AppConfig
 DEFAULT_CONFIG
 Profile
 Output
+ImageFormat
 Media
 ConsoleLogging
 Download

@@ -55,7 +55,8 @@ EXPECTED_EXPORTS = {
     ),
     "image_downloader.config": tuple(
         """
-        AppConfig DEFAULT_CONFIG Profile Output Media ConsoleLogging Download Logging Network Email Notification
+        AppConfig DEFAULT_CONFIG Profile Output ImageFormat Media ConsoleLogging Download Logging Network
+        Email Notification
         NotificationMethod NotificationCategory PluginSettings Security Storage Plugins PluginDownloadPolicy
         ImageProcessors
         GenericHtmlFallback Fallback StrictModel validate_config deep_merge ConfigurationLayer
@@ -215,6 +216,7 @@ def test_representative_signatures_and_result_dtos_are_stable() -> None:
         "plugin_id",
         "force_plugin",
         "plugin_download_policy_overrides",
+        "force_image_format",
     )
     assert tuple(signature(DownloadService.inspect).parameters) == (
         "self",

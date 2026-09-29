@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import io
 from pathlib import Path
+from typing import Literal
 
 import httpx
 import pytest
@@ -35,6 +36,7 @@ def _service(
     *,
     continue_on_image_error: bool = True,
     existing_file: str = "skip",
+    input_validation: Literal["content_type", "decode", "both"] = "content_type",
 ) -> DownloadService:
     plugin_root = (tmp_path / "plugins").resolve()
     config = AppConfig.model_validate(
@@ -43,6 +45,7 @@ def _service(
             "plugins": {"root": str(plugin_root)},
             "security": {"plugin_verification": "off"},
             "output": {"existing_file": existing_file},
+            "media": {"input_validation": input_validation},
             "logging": {"console": {"enabled": False}},
             "network": {"max_attempts": 1},
             "download": {"continue_on_image_error": continue_on_image_error},
@@ -125,7 +128,7 @@ def test_stage_failure_emitted_once_even_in_fail_fast(
         original_write = FileSystem.write_bytes_atomic
 
         def fail_save(self, path, data):
-            if str(path).endswith(".jpeg"):
+            if str(path).endswith(".png"):
                 raise OSError("save failed")
             return original_write(self, path, data)
 
@@ -192,7 +195,7 @@ def test_image_decode_failure_has_transport_context_in_events_notifications_and_
             return True
 
     async def scenario() -> tuple[EventPayload, str, str, object]:
-        service = _service(tmp_path)
+        service = _service(tmp_path, input_validation="decode")
         await service.gateway.client.aclose()
 
         def handler(request: httpx.Request) -> httpx.Response:
@@ -284,7 +287,7 @@ def test_existing_file_error_is_a_controlled_save_conflict_with_diagnostics(tmp_
             return True
 
     async def scenario() -> tuple[EventPayload, str, str, object, object]:
-        target = tmp_path / "data" / "profiles" / "default" / "downloads" / "0001_Gallery" / "0001.jpeg"
+        target = tmp_path / "data" / "profiles" / "default" / "downloads" / "0001_Gallery" / "0001.png"
         target.parent.mkdir(parents=True)
         target.write_bytes(b"already saved")
         service = _service(tmp_path, existing_file="error")
@@ -311,29 +314,29 @@ def test_existing_file_error_is_a_controlled_save_conflict_with_diagnostics(tmp_
     assert len(result.failures) == 1
     assert payload.stage == "image_save"
     assert payload.http_status == 200
-    assert payload.path is not None and payload.path.endswith("0001_Gallery/0001.jpeg")
+    assert payload.path is not None and payload.path.endswith("0001_Gallery/0001.png")
     assert payload.error_code == "existing_file_conflict"
     assert payload.error_reason == "output file already exists and existing-file=error prevents overwrite"
     assert payload.error_class == "ExistingFileConflictError"
     assert failure.exception_type == "ExistingFileConflictError"
     assert failure.code == "existing_file_conflict"
     assert failure.output_path is not None
-    assert Path(failure.output_path).as_posix().endswith("0001_Gallery/0001.jpeg")
+    assert Path(failure.output_path).as_posix().endswith("0001_Gallery/0001.png")
     assert "image_save_failed: count=1" in message
     assert "reason_code: existing_file_conflict" in message
-    assert "output_path: 0001_Gallery/0001.jpeg" in message
+    assert "output_path: 0001_Gallery/0001.png" in message
     assert "transport: completed" in message
     assert "exception: ExistingFileConflictError" in message
     assert "StorageError" not in message
     assert "error: image_save_failed (count=1)" in log
-    assert "save: 0001_Gallery/0001.jpeg" in log
+    assert "save: 0001_Gallery/0001.png" in log
     assert "exception: ExistingFileConflictError" in log
     assert "unexpected image save failure" not in log
 
 
 def test_existing_file_error_raises_the_specific_exception_when_fail_fast(tmp_path: Path) -> None:
     async def scenario() -> None:
-        target = tmp_path / "data" / "profiles" / "default" / "downloads" / "0001_Gallery" / "0001.jpeg"
+        target = tmp_path / "data" / "profiles" / "default" / "downloads" / "0001_Gallery" / "0001.png"
         target.parent.mkdir(parents=True)
         target.write_bytes(b"already saved")
         service = _service(tmp_path, continue_on_image_error=False, existing_file="error")
@@ -341,7 +344,7 @@ def test_existing_file_error_raises_the_specific_exception_when_fail_fast(tmp_pa
         try:
             with pytest.raises(ExistingFileConflictError) as raised:
                 await service.run("https://example.test/gallery")
-            assert raised.value.relative_path == Path("0001_Gallery") / "0001.jpeg"
+            assert raised.value.relative_path == Path("0001_Gallery") / "0001.png"
             assert raised.value.policy == "error"
         finally:
             await service.close()
@@ -351,7 +354,7 @@ def test_existing_file_error_raises_the_specific_exception_when_fail_fast(tmp_pa
 
 def test_fail_fast_save_error_keeps_stage_context_in_event_and_chapter_log(tmp_path: Path) -> None:
     async def scenario() -> tuple[EventPayload, str]:
-        target = tmp_path / "data" / "profiles" / "default" / "downloads" / "0001_Gallery" / "0001.jpeg"
+        target = tmp_path / "data" / "profiles" / "default" / "downloads" / "0001_Gallery" / "0001.png"
         target.parent.mkdir(parents=True)
         target.write_bytes(b"already saved")
         service = _service(tmp_path, continue_on_image_error=False, existing_file="error")

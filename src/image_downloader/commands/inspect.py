@@ -35,6 +35,7 @@ async def inspect_command(args: argparse.Namespace) -> int:
             "no_console_log",
             "existing_file",
             "image_format",
+            "force_image_format",
             "export_cookies",
             "import_cookies",
             "import_browser_cookies",

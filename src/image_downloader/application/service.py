@@ -12,7 +12,7 @@ from typing import TypeVar, cast
 from urllib.parse import urlparse
 
 from ..configuration.hosts import normalize_host, site_file_name
-from ..configuration.models import AppConfig, PluginDownloadPolicy
+from ..configuration.models import AppConfig, ImageFormat, PluginDownloadPolicy
 from ..credentials.plugin_secrets import RuntimeSecrets
 from ..exceptions import (
     AuthenticationError,
@@ -221,7 +221,10 @@ class DownloadService:
         plugin_id: str | None = None,
         force_plugin: bool = False,
         plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None,
+        force_image_format: ImageFormat | None = None,
     ) -> DownloadResult:
+        if force_image_format not in (None, "ORIGINAL", "JPEG", "PNG", "WEBP"):
+            raise ValueError("force_image_format must be ORIGINAL, JPEG, PNG, WEBP, or None")
         async with self._operation_lock:
             self._ensure_open()
             async with OperationDiagnosticsScope(
@@ -237,6 +240,7 @@ class DownloadService:
                         plugin_id,
                         force_plugin,
                         plugin_download_policy_overrides,
+                        force_image_format,
                         diagnostics,
                     )
                 finally:
@@ -355,6 +359,7 @@ class DownloadService:
         plugin_id: str | None,
         force_plugin: bool,
         plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None,
+        force_image_format: ImageFormat | None,
         diagnostics: OperationDiagnosticsScope,
     ) -> DownloadResult:
         try:
@@ -401,6 +406,7 @@ class DownloadService:
                             self.logger,
                             invoker,
                             processors.bindings,
+                            force_image_format=force_image_format,
                         )
                         results = await self._run_chapters(
                             plugin,

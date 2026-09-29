@@ -5,7 +5,7 @@
 Canonical command forms are:
 
 ```text
-image-downloader download URL [options]
+image-downloader download URL [--force-image-format FORMAT] [options]
 image-downloader inspect URL [options]
 image-downloader download URL --inspect-only [options] # inspect の alias
 image-downloader URL [download options]                 # bare-URL compatibility form
@@ -39,6 +39,7 @@ config 作成・rewrite の command ごとの副作用は [configuration referen
 | `--plugin ID`, `--force-plugin ID` | download（`--list-updated-urls` を含む）, inspect | rejected by doctor, config, plugin, cookie |
 | `--plugin-download-policy ID=JSON`, `--plugin-download-policy-file PATH` | download（`--list-updated-urls` を含む） | inspection を含む他 command では rejected |
 | `--no-console-log`, `--existing-file`, `--image-format` | download, doctor, config explain where handler permits them | inspection、cookie、other config/plugin operations では rejected |
+| `--force-image-format FORMAT` | normal download and bare-URL download | `--image-format` と排他的。inspect、doctor、config、plugin、cookie、update listing では rejected |
 | `--list-updated-urls` | download | rejected elsewhere |
 | `--inspect-only` | `download URL` の inspection alias | `--list-updated-urls` と排他的 |
 | `--manifest-only` | inspect, `download URL --inspect-only` | normal download では rejected。`create_image_request()` を呼ばない |
@@ -52,7 +53,9 @@ config 作成・rewrite の command ごとの副作用は [configuration referen
 
 `--plugin-verification-override` accepts `bypass-all`, `bypass-catalog`, or `bypass-signature`. It is an ephemeral override, not a persisted `security.plugin_verification` value; the persisted choices are `strict`, `warn`, and `off`. `plugin list` **does apply** the override while it discovers and verifies source units for `diagnostics`; it does not alter the catalog-entry `plugins` list or write persistent configuration/catalog state.
 
-`--plugin ID` requires that enabled non-builtin site plugin's normal matcher to accept the URL. `--force-plugin ID` bypasses that matcher only after the plugin is confirmed to be an enabled non-builtin site plugin; the two options are exclusive. Neither can be combined with an explicit `--fallback-generic=enabled|disabled`. `--fallback-generic` accepts `auto` (the parser default), `enabled`, or `disabled`; `auto` preserves the resolved configuration. `--existing-file` accepts `overwrite`, `skip`, `rename`, or `error`, and `--image-format` accepts `JPEG`, `PNG`, or `WEBP`. Omission of the latter two preserves the resolved configuration values.
+`--plugin ID` requires that enabled non-builtin site plugin's normal matcher to accept the URL. `--force-plugin ID` bypasses that matcher only after the plugin is confirmed to be an enabled non-builtin site plugin; the two options are exclusive. Neither can be combined with an explicit `--fallback-generic=enabled|disabled`. `--fallback-generic` accepts `auto` (the parser default), `enabled`, or `disabled`; `auto` preserves the resolved configuration. `--existing-file` accepts `overwrite`, `skip`, `rename`, or `error`.
+
+`--image-format` accepts `ORIGINAL`, `JPEG`, `PNG`, or `WEBP` and is a one-operation override of resolved `output.image_format`; an image whose plugin specifies `ImageResource.save_options.format` keeps the plugin format. `--force-image-format` has the same values but is mutually exclusive with `--image-format` and wins over the plugin. `--force-image-format ORIGINAL` preserves the final plugin-produced artifact bytes without core re-encoding; it is not an HTTP-response raw-download mode. A forced encoded format clears a plugin-provided filename extension so the output suffix matches the forced bytes.
 
 <a id="cli-exit-status"></a>
 
@@ -149,6 +152,9 @@ image-downloader inspect https://example.test/gallery --manifest-only --json
 # Select one matching plugin and serialise its image request starts for this operation only.
 image-downloader download https://example.test/gallery --plugin com.example.site \
   --plugin-download-policy com.example.site='{"preserve_image_start_order": true}'
+
+# Override a plugin's requested conversion format for this download only.
+image-downloader download https://example.test/gallery --force-image-format ORIGINAL
 ```
 
 For a non-interactive plugin mutation add `--yes`; it does not make `config

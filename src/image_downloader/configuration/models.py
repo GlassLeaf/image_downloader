@@ -32,6 +32,7 @@ def _strict_finite_number(value: object) -> float | int:
 
 
 FiniteNumber = Annotated[float, BeforeValidator(_strict_finite_number)]
+ImageFormat = Literal["ORIGINAL", "JPEG", "PNG", "WEBP"]
 
 
 class StrictModel(BaseModel):
@@ -53,7 +54,7 @@ class Output(StrictModel):
     directory_format: StrictStr = "%NUM%_%TITLE%_%SUBTITLE%"
     filename_format: StrictStr = "%NUM%.%EXT%"
     existing_file: Literal["overwrite", "skip", "rename", "error"] = "overwrite"
-    image_format: Literal["JPEG", "PNG", "WEBP"] = "JPEG"
+    image_format: ImageFormat = "ORIGINAL"
     isolate_by_plugin: StrictBool = False
     # Opt-in only: preserve existing names unless an operator selects a limit.
     max_component_length: StrictInt | None = Field(None, ge=16)

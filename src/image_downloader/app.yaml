@@ -8,7 +8,7 @@ output:
   directory_format: '%NUM%_%TITLE%_%SUBTITLE%'
   filename_format: '%NUM%.%EXT%'
   existing_file: overwrite
-  image_format: JPEG
+  image_format: ORIGINAL
   isolate_by_plugin: false
   max_component_length: null
   lock_timeout_seconds: 30

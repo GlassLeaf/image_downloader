@@ -32,6 +32,7 @@ _OPTION_DEFAULTS: Mapping[str, object] = {
     "import_browser_cookies": None,
     "existing_file": None,
     "image_format": None,
+    "force_image_format": None,
     "inspection_data": None,
 }
 
