@@ -14,13 +14,30 @@ from pydantic import ValidationError
 
 from image_downloader.config import AppConfig
 from image_downloader.exceptions import ExistingFileConflictError, InterProcessLockError
-from image_downloader.models import Chapter, ImageResource
+from image_downloader.models import Chapter, DownloadManifest, ImageResource
 from image_downloader.observability.logging import DownloadLogger
-from image_downloader.output.output_allocator import OutputAllocator
+from image_downloader.output.output_allocator import OutputAllocator, OutputFormatContext
 from image_downloader.output.output_lock import OutputDirectoryLocks
 from image_downloader.runtime import DownloadService, RuntimeComposer
 from image_downloader.storage import FileSystem
 from image_downloader.storage.interprocess_lock import InterProcessFileLock
+
+
+def _context(chapter: Chapter, image: ImageResource, extension: str) -> OutputFormatContext:
+    return OutputFormatContext(
+        DownloadManifest("content", (chapter,)),
+        chapter,
+        "https://example.test/content",
+        "com.example.site",
+        image,
+        extension,
+    )
+
+
+async def _allocate(
+    allocator: OutputAllocator, directory: Path, image: ImageResource, chapter: Chapter, extension: str
+) -> object:
+    return await allocator.allocate(directory, _context(chapter, image, extension))
 
 
 def _worker(root: str, state_root: str, mode: str, ready, start, result, label: str) -> None:
@@ -38,8 +55,8 @@ def _worker(root: str, state_root: str, mode: str, ready, start, result, label: 
         try:
             async with locks.hold(outputs.path(directory)):
                 await allocator.refresh_directory(directory)
-                allocation = await allocator.allocate(
-                    directory, ImageResource("https://example.test/1"), Chapter(1, "x"), ".jpeg"
+                allocation = await _allocate(
+                    allocator, directory, ImageResource("https://example.test/1"), Chapter(1, "x"), ".jpeg"
                 )
                 if allocation.should_write:
                     outputs.write_bytes_atomic(allocation.relative_path, label.encode())
@@ -60,8 +77,8 @@ def _abort_holder(root: str, state_root: str, acquired, release) -> None:
         allocator = OutputAllocator(outputs, AppConfig.model_validate({"output": {"existing_file": "skip"}}))
         async with locks.hold(outputs.path(directory)):
             await allocator.refresh_directory(directory)
-            allocation = await allocator.allocate(
-                directory, ImageResource("https://example.test/1"), Chapter(1, "x"), ".jpeg"
+            allocation = await _allocate(
+                allocator, directory, ImageResource("https://example.test/1"), Chapter(1, "x"), ".jpeg"
             )
             await allocation.abort()
             acquired.set()
@@ -135,8 +152,8 @@ def test_same_operation_overwrite_renames_after_first_commit(tmp_path: Path) -> 
         for data in (b"one", b"two"):
             async with locks.hold(outputs.path(directory)):
                 await allocator.refresh_directory(directory)
-                allocation = await allocator.allocate(
-                    directory, ImageResource("https://example.test/1"), Chapter(1, "x"), ".jpeg"
+                allocation = await _allocate(
+                    allocator, directory, ImageResource("https://example.test/1"), Chapter(1, "x"), ".jpeg"
                 )
                 paths.append(allocation.relative_path)
                 outputs.write_bytes_atomic(allocation.relative_path, data)
@@ -191,9 +208,11 @@ def test_crash_releases_lock_but_keeps_sidecar(tmp_path: Path) -> None:
         assert acquired.wait(15)
         child.join(10)
         assert child.exitcode == 7
+
         async def reacquire() -> None:
             async with locks.hold(directory):
                 pass
+
         asyncio.run(reacquire())
         assert locks.lock_path(directory).exists()
     finally:
@@ -207,13 +226,15 @@ def test_refresh_detects_new_case_and_unicode_collision(tmp_path: Path) -> None:
         outputs = FileSystem((tmp_path / "downloads").resolve())
         directory = Path("chapter")
         outputs.ensure_directory(directory)
-        config = AppConfig.model_validate({"output": {"existing_file": "rename", "filename_format": "%TITLE%.%EXT%"}})
+        config = AppConfig.model_validate(
+            {"output": {"existing_file": "rename", "filename_format": "%CHAPTER_TITLE%.%EXT%"}}
+        )
         allocator = OutputAllocator(outputs, config)
         chapter = Chapter(1, unicodedata.normalize("NFD", "CAFÉ"))
         await allocator.refresh_directory(directory)
         outputs.write_bytes_atomic(directory / "Café.jpeg", b"external")
         await allocator.refresh_directory(directory)
-        allocation = await allocator.allocate(directory, ImageResource("https://example.test/1"), chapter, ".jpeg")
+        allocation = await _allocate(allocator, directory, ImageResource("https://example.test/1"), chapter, ".jpeg")
         assert allocation.relative_path.name.endswith("_1.jpeg")
         await allocation.abort()
 
@@ -265,8 +286,8 @@ def test_cancellation_waits_for_reservation_cleanup_before_unlock(tmp_path: Path
 
         allocator._finish = slow_finish  # type: ignore[method-assign]
         async with locks.hold(outputs.path(directory)):
-            allocation = await allocator.allocate(
-                directory, ImageResource("https://example.test/1"), Chapter(1, "x"), ".jpeg"
+            allocation = await _allocate(
+                allocator, directory, ImageResource("https://example.test/1"), Chapter(1, "x"), ".jpeg"
             )
             cleanup = asyncio.create_task(DownloadService._settle_allocation(allocation, success=False))
             await entered.wait()
@@ -278,8 +299,8 @@ def test_cancellation_waits_for_reservation_cleanup_before_unlock(tmp_path: Path
                 await cleanup
             assert not allocator._reserved
         async with locks.hold(outputs.path(directory)):
-            replacement = await allocator.allocate(
-                directory, ImageResource("https://example.test/2"), Chapter(1, "x"), ".jpeg"
+            replacement = await _allocate(
+                allocator, directory, ImageResource("https://example.test/2"), Chapter(1, "x"), ".jpeg"
             )
             await replacement.abort()
 
@@ -338,7 +359,7 @@ def test_lock_timeout_fails_entire_download_operation(tmp_path: Path) -> None:
             )
 
         service.gateway.client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
-        directory = service.outputs.path(Path("0001_Gallery"))
+        directory = service.outputs.path(Path("0001_Gallery_Gallery"))
         held = InterProcessFileLock(service.output_locks.lock_path(directory))
         held.acquire()
         try:

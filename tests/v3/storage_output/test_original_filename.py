@@ -6,9 +6,9 @@ from pathlib import Path
 import pytest
 
 from image_downloader.config import AppConfig
-from image_downloader.models import Chapter, ImageResource, RequestResponse
+from image_downloader.models import Chapter, DownloadManifest, ImageResource, RequestResponse
 from image_downloader.output.original_filename import original_filename_parts, resolve_original_filename
-from image_downloader.runtime import OutputAllocator
+from image_downloader.runtime import OutputAllocator, OutputFormatContext
 from image_downloader.storage import FileSystem
 
 
@@ -120,23 +120,36 @@ def test_output_allocator_expands_original_filename_tokens_and_keeps_final_exten
             {"output": {"filename_format": "%ORIGINAL_STEM%.%EXT%", "existing_file": "overwrite"}}
         )
         allocator = OutputAllocator(filesystem, config)
+        chapter = Chapter(1, "chapter")
+        manifest = DownloadManifest("content", (chapter,))
         allocation = await allocator.allocate(
             directory,
-            ImageResource("image:1", original_filename="archive.tar.webp"),
-            Chapter(1, "chapter"),
-            ".jpeg",
+            OutputFormatContext(
+                manifest,
+                chapter,
+                "https://example.test/content",
+                "com.example.site",
+                ImageResource("image:1", original_filename="archive.tar.webp"),
+                ".jpeg",
+            ),
         )
         assert allocation.relative_path.name == "archive.tar.jpeg"
         await allocation.abort()
 
         image = ImageResource("image:format", index=1)
         chapter = Chapter(1, "")
+        context = OutputFormatContext(
+            DownloadManifest("content", (chapter,)),
+            chapter,
+            "https://example.test/content",
+            "com.example.site",
+            image,
+            ".jpeg",
+        )
         assert (
             allocator._format_filename(
                 "%ORIGINAL_FILENAME%",
-                image,
-                chapter,
-                extension=".jpeg",
+                context,
                 original_filename="archive.tar.webp",
             )
             == "archive.tar.webp"
@@ -144,9 +157,7 @@ def test_output_allocator_expands_original_filename_tokens_and_keeps_final_exten
         assert (
             allocator._format_filename(
                 "%ORIGINAL_EXT%",
-                image,
-                chapter,
-                extension=".jpeg",
+                context,
                 original_filename="archive.tar.webp",
             )
             == "webp"
@@ -154,9 +165,7 @@ def test_output_allocator_expands_original_filename_tokens_and_keeps_final_exten
         assert (
             allocator._format_filename(
                 "%ORIGINAL_EXT%",
-                image,
-                chapter,
-                extension=".jpeg",
+                context,
                 original_filename="cover",
             )
             == "download"
@@ -165,9 +174,7 @@ def test_output_allocator_expands_original_filename_tokens_and_keeps_final_exten
     asyncio.run(scenario())
 
 
-@pytest.mark.parametrize(
-    "token", ("%IMAGE_INDEX%", "%ORIGINAL_STEM%", "%ORIGINAL_FILENAME%", "%ORIGINAL_EXT%")
-)
+@pytest.mark.parametrize("token", ("%IMAGE_INDEX%", "%ORIGINAL_STEM%", "%ORIGINAL_FILENAME%", "%ORIGINAL_EXT%"))
 def test_image_only_tokens_are_rejected_in_directory_format(token: str) -> None:
     with pytest.raises(ValueError, match="directory_format cannot contain image-only tokens"):
         AppConfig.model_validate({"output": {"directory_format": f"chapter_{token}"}})

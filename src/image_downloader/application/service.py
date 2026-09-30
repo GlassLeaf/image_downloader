@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -57,7 +57,8 @@ from ..observability.events import EventName, EventPayload
 from ..observability.logging import DownloadLogger
 from ..observability.scope import OperationDiagnosticsScope
 from ..output.original_filename import resolve_original_filename
-from ..output.output_allocator import OutputAllocation, OutputAllocator
+from ..output.output_allocator import OutputAllocation, OutputAllocator, OutputFormatContext
+from ..plugins.format_values import PluginFormatValueParticipant, collect_plugin_format_values
 from ..plugins.lifecycle import PluginRecord
 from ..plugins.plugin_invoker import PluginInvoker
 from ..plugins.plugin_manifest import PluginConfigOverrides, PluginDownloadPolicyOverrides
@@ -390,11 +391,19 @@ class DownloadService:
                     await best_effort_diagnostic(
                         self.logger.core, "plugin_selected", module="plugin", url=url, plugin_id=record.id, debug=True
                     )
+                    plugin_values = self._collect_output_format_values(
+                        url,
+                        record,
+                        plugin,
+                        plugin_overrides,
+                        invoker,
+                        processors,
+                    )
                     manifest = self._normalized_manifest(await invoker.inspect(plugin, url, context), url)
                     if not manifest.chapters:
                         if not self.config.download.allow_empty_chapter_manifest:
                             raise PluginError("plugin returned an empty manifest")
-                        await self._empty_reporter(manifest, record, url)
+                        await self._empty_reporter(manifest, record, url, plugin_values)
                         result = DownloadResult(url, manifest, ())
                     else:
                         allocator = OutputAllocator(self._output_filesystem(record, url), self.config)
@@ -418,6 +427,8 @@ class DownloadService:
                             operation_gateway,
                             record.id,
                             policy,
+                            url,
+                            plugin_values,
                         )
                         result = DownloadResult(url, manifest, tuple(results))
             outcome = (
@@ -440,6 +451,38 @@ class DownloadService:
         except Exception as exc:
             await self._record_operation_failure(url, exc)
             raise
+
+    def _collect_output_format_values(
+        self,
+        url: str,
+        record: PluginRecord,
+        plugin: SitePlugin,
+        overrides: PluginConfigOverrides | None,
+        invoker: PluginInvoker,
+        processors: OperationProcessorChain,
+    ) -> Mapping[str, Mapping[str, str]]:
+        app_settings = safe_app_settings(self.config)
+        participants: list[PluginFormatValueParticipant] = [
+            PluginFormatValueParticipant(
+                record,
+                plugin,
+                self.registry.effective_config(record, overrides),
+                app_settings,
+                invoker,
+            )
+        ]
+        participants.extend(
+            PluginFormatValueParticipant(
+                binding.record,
+                binding.instance,
+                binding.config,
+                binding.app_settings,
+                PluginInvoker(binding.plugin_id, self.logger),
+            )
+            for binding in processors.bindings
+            if not isinstance(binding, str)
+        )
+        return collect_plugin_format_values(url, participants)
 
     async def check_updates(
         self,
@@ -823,6 +866,8 @@ class DownloadService:
         operation_gateway: OperationRequestGateway,
         plugin_id: str,
         policy: _OperationDownloadPolicy,
+        operation_url: str,
+        plugin_values: Mapping[str, Mapping[str, str]],
     ) -> list[ChapterResult]:
         operation_id = uuid.uuid4().hex
 
@@ -838,6 +883,8 @@ class DownloadService:
                 plugin_id,
                 f"{operation_id}-chapter-{position}",
                 policy,
+                operation_url,
+                plugin_values,
             )
 
         factories = [
@@ -869,8 +916,17 @@ class DownloadService:
         plugin_id: str,
         reporter_id: str,
         policy: _OperationDownloadPolicy,
+        operation_url: str,
+        plugin_values: Mapping[str, Mapping[str, str]],
     ) -> ChapterResult:
-        directory = allocator.chapter_directory(chapter)
+        directory_context = OutputFormatContext(
+            manifest,
+            chapter,
+            operation_url,
+            plugin_id,
+            plugin_values=plugin_values,
+        )
+        directory = allocator.chapter_directory(directory_context)
         reporter = ChapterReporter(allocator.filesystem, directory, manifest, chapter, self.logger, reporter_id)
         await reporter.start()
         chapter_id = str(chapter.number)
@@ -948,10 +1004,16 @@ class DownloadService:
                         await allocator.refresh_directory(directory)
                         allocation = await allocator.allocate(
                             directory,
-                            image,
-                            chapter,
-                            processed.extension or ".jpeg",
-                            original_filename=resolve_original_filename(image, response),
+                            OutputFormatContext(
+                                manifest,
+                                chapter,
+                                operation_url,
+                                plugin_id,
+                                image,
+                                processed.extension or ".jpeg",
+                                resolve_original_filename(image, response),
+                                plugin_values,
+                            ),
                         )
                         path = allocator.filesystem.path(allocation.relative_path)
                         if allocation.should_write:
@@ -1104,10 +1166,18 @@ class DownloadService:
             task.result()
             raise
 
-    async def _empty_reporter(self, manifest: DownloadManifest, record: PluginRecord, url: str) -> None:
+    async def _empty_reporter(
+        self,
+        manifest: DownloadManifest,
+        record: PluginRecord,
+        url: str,
+        plugin_values: Mapping[str, Mapping[str, str]],
+    ) -> None:
         chapter = Chapter(0, manifest.title)
         outputs = self._output_filesystem(record, url)
-        directory = OutputAllocator(outputs, self.config).chapter_directory(chapter)
+        directory = OutputAllocator(outputs, self.config).chapter_directory(
+            OutputFormatContext(manifest, chapter, url, record.id, plugin_values=plugin_values)
+        )
         reporter_id = f"{uuid.uuid4().hex}-empty-manifest"
         reporter = ChapterReporter(outputs, directory, manifest, chapter, self.logger, reporter_id)
         try:

@@ -26,7 +26,7 @@ def test_output_image_format_defaults_to_original() -> None:
 
 
 def test_output_name_format_defaults_match_model_bundled_config_and_template() -> None:
-    expected_directory = "%CHAPTER_NUMBER%_%TITLE%_%SUBTITLE%"
+    expected_directory = "%CHAPTER_NUMBER%_%CONTENT_TITLE%_%CHAPTER_TITLE%"
     expected_filename = "%IMAGE_INDEX%.%EXT%"
     package = Path(layers.__file__).parents[1]
     bundled = yaml.safe_load((package / "app.yaml").read_text(encoding="utf-8"))
@@ -41,11 +41,12 @@ def test_output_name_format_defaults_match_model_bundled_config_and_template() -
 
 
 @pytest.mark.parametrize("field", ("directory_format", "filename_format"))
-def test_resolver_rejects_legacy_num_format_token(tmp_path: Path, field: str) -> None:
+@pytest.mark.parametrize("token", ("%NUM%", "%TITLE%", "%SUBTITLE%"))
+def test_resolver_rejects_legacy_format_tokens(tmp_path: Path, field: str, token: str) -> None:
     main = tmp_path / "app.yaml"
-    main.write_text(f"output: {{{field}: '%NUM%'}}\n", encoding="utf-8")
+    main.write_text(f"output: {{{field}: '{token}'}}\n", encoding="utf-8")
 
-    with pytest.raises(ConfigurationError, match=r"cannot contain %NUM%"):
+    with pytest.raises(ConfigurationError, match=rf"cannot contain {token}"):
         resolve_application_config(main, source="explicit")
 
 
@@ -214,9 +215,7 @@ def test_config_explain_includes_layers_effective_values_and_origins(
     main = tmp_path / "app.yaml"
     original = "network: {request_concurrency: 3, stale: ignored}\n"
     main.write_text(original, encoding="utf-8")
-    args = build_parser().parse_args(
-        ["config", "explain", "--config", str(main), "--image-format", "PNG", "--json"]
-    )
+    args = build_parser().parse_args(["config", "explain", "--config", str(main), "--image-format", "PNG", "--json"])
 
     assert asyncio.run(run(args)) == EXIT_SUCCESS
     payload = json.loads(capsys.readouterr().out)

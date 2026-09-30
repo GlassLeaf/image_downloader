@@ -6,7 +6,7 @@ from .application.service import DownloadService
 from .credentials.plugin_secrets import RuntimeSecrets
 from .media.artifact_pipeline import ArtifactPipeline
 from .observability.chapter_reporter import ChapterReporter
-from .output.output_allocator import OutputAllocation, OutputAllocator
+from .output.output_allocator import OutputAllocation, OutputAllocator, OutputFormatContext
 from .storage.state import UpdateState
 from .transport.gateway import RequestGateway
 
@@ -16,6 +16,7 @@ __all__ = [
     "DownloadService",
     "OutputAllocation",
     "OutputAllocator",
+    "OutputFormatContext",
     "RequestGateway",
     "RuntimeComposer",
     "RuntimeSecrets",

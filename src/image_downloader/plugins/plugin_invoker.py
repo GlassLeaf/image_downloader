@@ -28,6 +28,7 @@ from ..ports import (
     ConfigurableSitePlugin,
     ImageProcessor,
     PluginExecutionContext,
+    PluginFormatContext,
     SitePlugin,
     TransformContext,
     UpdateProvider,
@@ -36,6 +37,7 @@ from ..ports import (
 
 _T = TypeVar("_T")
 _HTTP_METHOD = re.compile(r"[!#$%&'*+.^_`|~0-9A-Za-z-]+")
+_OUTPUT_FORMAT_KEY = re.compile(r"[A-Z][A-Z0-9_]{0,63}\Z")
 
 
 class PluginInvoker:
@@ -117,6 +119,26 @@ class PluginInvoker:
         result = self._invoke_sync("validate_config", lambda: plugin.validate_config(config, app_settings))
         if result is not None:
             raise self._error("validate_config", "validate_config must return None")
+
+    def output_format_values(self, plugin: object, context: PluginFormatContext) -> Mapping[str, str]:
+        """Invoke an optional stable output-format hook, returning an empty mapping when absent."""
+        hook = "output_format_values"
+        callback = self._invoke_sync(hook, lambda: getattr(plugin, hook, None))
+        if callback is None:
+            return {}
+        if not callable(callback):
+            raise self._error(hook, "output_format_values must be callable")
+        value = self._invoke_sync(hook, lambda: callback(context))
+        if not isinstance(value, Mapping):
+            raise self._error(hook, "output_format_values must return Mapping[str, str]")
+        result: dict[str, str] = {}
+        for key, item in value.items():
+            if not isinstance(key, str) or _OUTPUT_FORMAT_KEY.fullmatch(key) is None:
+                raise self._error(hook, "output_format_values returned an invalid key")
+            if not isinstance(item, str):
+                raise self._error(hook, "output_format_values returned a non-string value")
+            result[key] = item
+        return result
 
     def matches(
         self,
@@ -424,19 +446,23 @@ class PluginInvoker:
             for item in (value.optimize, value.progressive, value.lossless)
         ) or not isinstance(value.exif, bool):
             raise self._error(hook, f"inspect returned invalid save options at {path}")
-        if value.format is not None and value.format.upper() == "ORIGINAL" and (
-            value.extension is not None
-            or any(
-                item is not None
-                for item in (
-                    value.quality,
-                    value.optimize,
-                    value.progressive,
-                    value.lossless,
-                    value.compress_level,
+        if (
+            value.format is not None
+            and value.format.upper() == "ORIGINAL"
+            and (
+                value.extension is not None
+                or any(
+                    item is not None
+                    for item in (
+                        value.quality,
+                        value.optimize,
+                        value.progressive,
+                        value.lossless,
+                        value.compress_level,
+                    )
                 )
+                or value.exif
             )
-            or value.exif
         ):
             raise self._error(hook, f"inspect returned ORIGINAL save options with encoder fields at {path}")
 

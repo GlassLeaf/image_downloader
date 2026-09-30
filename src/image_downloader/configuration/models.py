@@ -21,6 +21,7 @@ from pydantic import (
 )
 
 from ..immutable import freeze_json
+from ..output.format_tokens import has_invalid_plugin_token
 from ..privacy.sensitive_values import is_sensitive_field_name
 
 
@@ -34,7 +35,7 @@ def _strict_finite_number(value: object) -> float | int:
 FiniteNumber = Annotated[float, BeforeValidator(_strict_finite_number)]
 ImageFormat = Literal["ORIGINAL", "JPEG", "PNG", "WEBP"]
 _IMAGE_FILENAME_TOKENS = ("%ORIGINAL_STEM%", "%ORIGINAL_FILENAME%", "%ORIGINAL_EXT%")
-_LEGACY_NUMBER_TOKEN = "%NUM%"
+_LEGACY_FORMAT_TOKENS = ("%NUM%", "%TITLE%", "%SUBTITLE%")
 _IMAGE_INDEX_TOKEN = "%IMAGE_INDEX%"
 
 
@@ -54,7 +55,7 @@ class Profile(StrictModel):
 
 
 class Output(StrictModel):
-    directory_format: StrictStr = "%CHAPTER_NUMBER%_%TITLE%_%SUBTITLE%"
+    directory_format: StrictStr = "%CHAPTER_NUMBER%_%CONTENT_TITLE%_%CHAPTER_TITLE%"
     filename_format: StrictStr = "%IMAGE_INDEX%.%EXT%"
     existing_file: Literal["overwrite", "skip", "rename", "error"] = "overwrite"
     image_format: ImageFormat = "ORIGINAL"
@@ -65,10 +66,20 @@ class Output(StrictModel):
 
     @model_validator(mode="after")
     def format_tokens_are_valid(self) -> Output:
-        if _LEGACY_NUMBER_TOKEN in self.directory_format or _LEGACY_NUMBER_TOKEN in self.filename_format:
+        legacy = next(
+            (
+                token
+                for token in _LEGACY_FORMAT_TOKENS
+                if token in self.directory_format or token in self.filename_format
+            ),
+            None,
+        )
+        if legacy is not None:
             raise ValueError(
-                "output format cannot contain %NUM%; use %CHAPTER_NUMBER% or %IMAGE_INDEX% instead"
+                f"output format cannot contain {legacy}; use explicit content, chapter, or image tokens instead"
             )
+        if has_invalid_plugin_token(self.directory_format) or has_invalid_plugin_token(self.filename_format):
+            raise ValueError("output format contains an invalid %PLUGIN[...]% token")
         if _IMAGE_INDEX_TOKEN in self.directory_format or any(
             token in self.directory_format for token in _IMAGE_FILENAME_TOKENS
         ):
@@ -232,6 +243,7 @@ class PluginSettings(StrictModel):
         object.__setattr__(self, "config", freeze_json(self.config))
         object.__setattr__(self, "secrets", freeze_json(self.secrets))
 
+
 class Security(StrictModel):
     plugin_verification: Literal["strict", "warn", "off"] = "strict"
 
@@ -275,9 +287,7 @@ class ImageProcessors(StrictModel):
 
     @field_validator("transport_metadata_access")
     @classmethod
-    def valid_transport_metadata_access(
-        cls, values: Mapping[str, tuple[str, ...]]
-    ) -> Mapping[str, tuple[str, ...]]:
+    def valid_transport_metadata_access(cls, values: Mapping[str, tuple[str, ...]]) -> Mapping[str, tuple[str, ...]]:
         for processor_id, site_ids in values.items():
             if not _valid_plugin_id(processor_id) or not isinstance(site_ids, tuple):
                 raise ValueError("transport metadata access IDs are invalid")

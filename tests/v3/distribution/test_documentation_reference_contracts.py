@@ -306,8 +306,11 @@ def test_cli_plugin_and_tutorial_references_expose_actionable_contracts(reposito
     assert '<a id="config-storage-layout"></a>' in configuration
     for phrase in (
         "%CHAPTER_NUMBER%",
+        "%CONTENT_TITLE%",
+        "%CHAPTER_TITLE%",
+        "%CHAPTER_SUBTITLE%",
         "%IMAGE_INDEX%",
-        "%NUM%` is no longer accepted",
+        "%NUM%`, `%TITLE%`, and `%SUBTITLE%` are no longer accepted",
         "%TITLE%",
         "%SUBTITLE%",
         "%EXT%",
@@ -326,6 +329,8 @@ def test_cli_plugin_and_tutorial_references_expose_actionable_contracts(reposito
         "CancelledError",
         "ordinary `Exception`",
         "Manifest numbering",
+        "output_format_values",
+        "PluginFormatContext",
         "plugin は、manifest の採番にも責任を持つ",
         "Chapter.number",
         "ImageResource.index",
@@ -462,9 +467,7 @@ def test_embedded_tutorial_snippets_execute_in_an_isolated_facade(
     service = namespace["build_service"](SimpleNamespace(), object(), injected)
 
     assert service.dependencies is injected
-    inspected_registries = [
-        composer.registry for composer in created_composers if hasattr(composer.registry, "url")
-    ]
+    inspected_registries = [composer.registry for composer in created_composers if hasattr(composer.registry, "url")]
     assert len(inspected_registries) == 1
     assert inspected_registries[0].closed
     assert not (tmp_path / "platform" / "plugins").exists()
@@ -473,9 +476,7 @@ def test_embedded_tutorial_snippets_execute_in_an_isolated_facade(
 def test_facade_exports_and_error_catalog_match_the_visible_reference(repository_root: Path) -> None:
     inventory = _read(repository_root, "docs/v3/reference/api-contract-inventory.md")
     documented = {
-        match.group("module"): tuple(
-            line.strip() for line in match.group("names").splitlines() if line.strip()
-        )
+        match.group("module"): tuple(line.strip() for line in match.group("names").splitlines() if line.strip())
         for match in INVENTORY.finditer(inventory)
     }
     for module_name, names in documented.items():
@@ -483,9 +484,7 @@ def test_facade_exports_and_error_catalog_match_the_visible_reference(repository
 
     library = _read(repository_root, "docs/v3/reference/library-api.md")
     for entry in ERROR_CATALOG:
-        assert (
-            f"| `{entry.exception_name}` | `{entry.code}` | {entry.reason} |" in library
-        )
+        assert f"| `{entry.exception_name}` | `{entry.code}` | {entry.reason} |" in library
         for attribute in entry.attributes:
             assert f"`{attribute}`" in library
     for detail in ("PluginConfigOverrides", "_RuntimeDependencies", "CancelledError", "ImageOutcome"):
@@ -654,12 +653,7 @@ def test_coverage_ledger_quotes_snapshots_and_keeps_visible_destination_proof(
         locator = citation.group("source")
         if locator.startswith("pre-reorg/"):
             source = (
-                repository_root
-                / "archive"
-                / "docs"
-                / "legacy"
-                / "v3-pre-reorg"
-                / locator.removeprefix("pre-reorg/")
+                repository_root / "archive" / "docs" / "legacy" / "v3-pre-reorg" / locator.removeprefix("pre-reorg/")
             )
         else:
             assert locator.startswith("pre-taxonomy/"), claim_id
@@ -700,6 +694,4 @@ def test_current_documentation_links_are_recursive_and_archive_is_excluded(repos
             destination = document.parent / target
             assert destination.exists(), f"broken link in {document}: {target}"
             if fragment := match.group("fragment"):
-                assert fragment in _all_anchors(destination), (
-                    f"broken anchor in {document}: {target}#{fragment}"
-                )
+                assert fragment in _all_anchors(destination), f"broken anchor in {document}: {target}#{fragment}"

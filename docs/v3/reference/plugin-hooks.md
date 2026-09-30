@@ -20,6 +20,7 @@ selection は enabled site unit の `matches_with_config()`（ある場合）と
 | site transform | `async transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact` | network/secret capability なし。 |
 | update | `async check_updates(self, url: str, context: PluginExecutionContext) -> UpdateSnapshot` | optional。partial delta でなく complete snapshot。 |
 | processor transform | `async transform(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact` | configured chain の順に実行する。 |
+| optional output format values | `output_format_values(self, context: PluginFormatContext) -> Mapping[str, str]` | selected site plugin と enabled processor に任意で実装できる同期 hook。operation 構成後に一度だけ呼ばれ、同一 operation 内では時点によらず同じ、大文字スネークケース key の非秘密 string mapping を返す。未実装は空 mapping。 |
 | optional cleanup after runtime use | `cleanup_after_use() -> Awaitable[None] | None` | selected site instance と configured processor instance に任意で実装する。runtime がその instance の利用を終えると一回だけ呼び、awaitable は await する。最終戻り値は `None`。 |
 
 ## Manifest numbering
@@ -51,6 +52,8 @@ must return a new DTO rather than mutate a context object.
 | `.catalog` | `Mapping[str, object] | None` | selected plugin catalog pin, or `None` for an unpinned/builtin unit |
 | `.secrets` | `SecretProvider` | `get(name: str) -> str`; missing/unavailable is `SecretNotFound` |
 | `.requests` | `RequestPort` | `await execute(RequestSpec) -> RequestResponse`; this is the only supplied network capability |
+| `PluginFormatContext.plugin_id`, `.plugin_kind`, `.operation_url` | `str` | output-format provider の実行中 plugin identity と operation URL。mapping は image/chapter/artifact ではなくこの operation-stable context だけに依存する。 |
+| `.config`, `.app_settings`, `.manifest`, `.catalog` | same mapping types as above | output-format provider の current plugin config、redacted app settings、plugin manifest/catalog snapshot。request/secret/filesystem capability はない。 |
 | `TransformContext.image_id` | `str | None` | source `ImageResource.image_id` |
 | `.index` | `int` | source image index |
 | `.image_metadata` | `Mapping[str, str]` | source `ImageResource.metadata` の immutable、非秘密な inspection-time metadata |
@@ -64,6 +67,8 @@ must return a new DTO rather than mutate a context object.
 that needs network or a credential is outside the processor contract; put that
 work in the site request stage instead. `transport_metadata` は network capability
 ではなく、成功した画像 fetch の限定 snapshot である。raw URL query、header/cookie 値、`ImageFetchRequest.plugin_data` は artifact、result、event、log、CLI JSON へ自動コピーされない。processor へ raw 値を渡すときは、ユーザーが processor/site の組を永続設定で明示許可する。
+
+`output_format_values()` is optional and synchronous. Core calls it once after the selected site and enabled processor chain have been composed, then freezes the returned mapping for all output names in that operation. `PluginFormatContext` and all mappings it exposes are immutable. The hook must not perform I/O or depend on mutable time, image, artifact, `DownloadManifest`, or chapter state. It returns a mapping such as `{"FILTER_NAME": "_grayscale"}` from `com.example.grayscale`; core namespaces it as `%PLUGIN[com.example.grayscale:FILTER_NAME]%`. Values are non-secret output text. A missing hook, selected plugin, or key is not an error; the matching token remains literal before path-component safety conversion. Exceptions, non-mapping returns, non-string values, and keys outside `[A-Z][A-Z0-9_]{0,63}` are `PluginError`. A future plugin kind participates only when its operation composer deliberately registers it as an output-format value provider.
 
 `AuthFlow` は既定で operation URL の origin にだけ credential を送る。credentialed CDN は `OriginScopedAuthFlow.allowed_origins` に absolute origin を明示して opt-in する。environment、keyring、YAML へ refreshed token を永続書込みする API はない。display-only inspection は `apply()` を呼ぶが image request を送らない。`apply()` が token 発行などの補助 HTTP や外部 state 変更を自ら行えば、そのサーバー側副作用は取り消せない。可能な限り `apply()` は request を決定するだけにし、必要な補助 HTTP は明示的に扱う。
 
@@ -106,6 +111,7 @@ cancellation reaches the caller.
 | `auth_flow`, `is_auth_failure`, `apply`, `refresh` | `AuthFlow|None`, `bool`, `RequestSpec`, `RequestSpec|None` | secret absence: `SecretNotFound`; login/refresh refusal: `AuthenticationError` | invalid return/ordinary exception becomes `PluginError`; declared authentication failure ends the operation, not an image outcome |
 | `create_image_request`, `recover_image_request` | `RequestSpec|ImageFetchRequest`, `RequestSpec|ImageFetchRequest|None` | return valid absolute HTTP(S) request DTOs; plugin data is immutable string mapping | invalid return/ordinary exception becomes `PluginError`; request/auth/status failures follow the lifecycle and can become a per-image fetch outcome only when normal continuation applies |
 | `transform_image`, processor `transform` | `ImageArtifact` | preserve valid bytes/content type/source locator; processor has no secret/network context | invalid return/ordinary exception becomes `PluginError`; normal image processing failures can be recorded as an image outcome when `continue_on_image_error=true`, whereas `PluginError` remains operation-level |
+| `output_format_values` | `Mapping[str, str]` | optional, synchronous, stable non-secret mapping with `^[A-Z][A-Z0-9_]{0,63}$` keys; an absent hook is empty mapping | invalid return/ordinary exception becomes `PluginError`; values are collected before inspection and reused for the operation |
 | `cleanup_after_use` | `None` または await 後に `None` | selected site/processor instance の runtime 利用後の任意 cleanup。属性がある場合は callable でなければならない。runtime はこの hook の完了後、同じ instance の plugin hook を再度呼ばない。temporary matcher instance、`aclose`、`close`、`aclose_operation`、`close_operation` は対象外 | normal completion では exception/invalid return が `PluginError`。operation failure/cancellation を置換せず diagnostic に残る。processor の partial construction failure 後も実行する |
 
 The result boundary is defined in [execution lifecycle](../explanation/execution-lifecycle.md#result-boundary): callers find image-level failures through `ImageOutcome.failure`, not by catching a flattened plugin exception.

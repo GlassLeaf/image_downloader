@@ -53,6 +53,8 @@ ResolvedApplicationConfig
 OriginScopedAuthFlow
 PluginError
 PluginExecutionContext
+PluginFormatContext
+OutputFormatValueProvider
 RequestPort
 RequestError
 RequestResponse
@@ -130,6 +132,7 @@ ChapterReporter
 DownloadService
 OutputAllocation
 OutputAllocator
+OutputFormatContext
 RequestGateway
 RuntimeComposer
 RuntimeSecrets

@@ -46,7 +46,8 @@ EXPECTED_EXPORTS = {
         ImageSaveOptions ImageTransportMetadata ImageWorkerError InterProcessLockError
         load_application_config ManifestInspectionResult OutputAllocationError
         resolve_application_config RedirectPolicyError ResolvedApplicationConfig OriginScopedAuthFlow PluginError
-        PluginExecutionContext RequestPort RequestError RequestResponse RequestSpec ResponseSizeLimitError
+        PluginExecutionContext PluginFormatContext OutputFormatValueProvider RequestPort RequestError
+        RequestResponse RequestSpec ResponseSizeLimitError
         RuntimeComposer SecretNotFound SecretProvider SitePlugin StorageError StorageSafetyError
         TransformContext TransportCookie TransportHeader TransportRequestMetadata
         UnsupportedImageFormatError UnsupportedSiteFeature UpdateCandidate UpdateChange UpdateChangeKind
@@ -67,7 +68,8 @@ EXPECTED_EXPORTS = {
     ),
     "image_downloader.runtime": tuple(
         """
-        ArtifactPipeline ChapterReporter DownloadService OutputAllocation OutputAllocator RequestGateway
+        ArtifactPipeline ChapterReporter DownloadService OutputAllocation OutputAllocator OutputFormatContext
+        RequestGateway
         RuntimeComposer RuntimeSecrets UpdateState _RuntimeDependencies
         """.split()
     ),

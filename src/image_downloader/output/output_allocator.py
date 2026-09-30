@@ -2,14 +2,62 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-from dataclasses import dataclass
+import re
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import cast
 
 from ..configuration.models import AppConfig
 from ..exceptions import ConfigurationError, ExistingFileConflictError, OutputAllocationError
-from ..models import Chapter, ImageResource
+from ..immutable import freeze_json
+from ..models import Chapter, DownloadManifest, ImageResource
 from ..storage import FileSystem, safe_component
+from .format_tokens import PLUGIN_TOKEN_PATTERN
 from .original_filename import original_filename_parts
+
+_CORE_TOKEN_PATTERN = re.compile(
+    r"%(?P<core>CHAPTER_NUMBER|IMAGE_INDEX|CONTENT_TITLE|CHAPTER_TITLE|CHAPTER_SUBTITLE|EXT|"
+    r"ORIGINAL_STEM|ORIGINAL_FILENAME|ORIGINAL_EXT)%"
+)
+_FORMAT_TOKEN_PATTERN = re.compile(rf"{PLUGIN_TOKEN_PATTERN.pattern}|{_CORE_TOKEN_PATTERN.pattern}")
+
+
+@dataclass(frozen=True, slots=True)
+class OutputFormatContext:
+    """All immutable data used to expand one output path component."""
+
+    manifest: DownloadManifest
+    chapter: Chapter
+    operation_url: str
+    plugin_id: str
+    image: ImageResource | None = None
+    extension: str | None = None
+    original_filename: str | None = None
+    plugin_values: Mapping[str, Mapping[str, str]] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.manifest, DownloadManifest) or not isinstance(self.chapter, Chapter):
+            raise TypeError("manifest and chapter must be their public DTO types")
+        if not isinstance(self.operation_url, str) or not isinstance(self.plugin_id, str):
+            raise TypeError("operation_url and plugin_id must be strings")
+        if self.image is not None and not isinstance(self.image, ImageResource):
+            raise TypeError("image must be ImageResource or None")
+        if self.extension is not None and not isinstance(self.extension, str):
+            raise TypeError("extension must be str or None")
+        if self.original_filename is not None and not isinstance(self.original_filename, str):
+            raise TypeError("original_filename must be str or None")
+        values: dict[str, dict[str, str]] = {}
+        for provider_id, mapping in self.plugin_values.items():
+            if not isinstance(provider_id, str) or not isinstance(mapping, Mapping):
+                raise TypeError("plugin_values must map plugin IDs to string mappings")
+            materialized: dict[str, str] = {}
+            for key, value in mapping.items():
+                if not isinstance(key, str) or not isinstance(value, str):
+                    raise TypeError("plugin_values must contain only string keys and values")
+                materialized[key] = value
+            values[provider_id] = materialized
+        object.__setattr__(self, "plugin_values", cast(Mapping[str, Mapping[str, str]], freeze_json(values)))
 
 
 @dataclass(slots=True)
@@ -70,24 +118,21 @@ class OutputAllocator:
                 self._known_files.setdefault(self.filesystem.collision_key(child), child)
             self._loaded_parents.add(parent_key)
 
-    def chapter_directory(self, chapter: Chapter) -> Path:
-        return Path(self._format_directory(self.config.output.directory_format, chapter))
+    def chapter_directory(self, context: OutputFormatContext) -> Path:
+        return Path(self._format_directory(self.config.output.directory_format, context))
 
     async def allocate(
         self,
         chapter_directory: Path,
-        image: ImageResource,
-        chapter: Chapter,
-        extension: str,
-        *,
-        original_filename: str | None = None,
+        context: OutputFormatContext,
     ) -> OutputAllocation:
-        source_name = original_filename if original_filename is not None else image.original_filename
+        image = context.image
+        if image is None or context.extension is None:
+            raise ValueError("filename allocation requires image and extension in OutputFormatContext")
+        source_name = context.original_filename if context.original_filename is not None else image.original_filename
         base = chapter_directory / self._format_filename(
             self.config.output.filename_format,
-            image,
-            chapter,
-            extension=extension,
+            context,
             original_filename=source_name,
         )
         mode = self.config.output.existing_file
@@ -189,36 +234,63 @@ class OutputAllocator:
             stem = f"{stem[: available - 9].rstrip(' .')}_{digest}" if available > 9 else digest[:available]
         return candidate.with_name(f"{stem}{tail}")
 
-    def _format_directory(self, template: str, chapter: Chapter) -> str:
-        value = (
-            template.replace("%CHAPTER_NUMBER%", f"{chapter.number:04d}")
-            .replace("%TITLE%", chapter.title)
-            .replace("%SUBTITLE%", chapter.subtitle)
-            .replace("%EXT%", "jpeg")
-        )
-        return self._safe_format_component(value)
+    def _format_directory(self, template: str, context: OutputFormatContext) -> str:
+        return self._safe_format_component(self._render(template, context, extension="jpeg"))
 
     def _format_filename(
         self,
         template: str,
-        image: ImageResource,
-        chapter: Chapter,
+        context: OutputFormatContext,
         *,
-        extension: str,
         original_filename: str | None,
     ) -> str:
+        image = context.image
+        if image is None or context.extension is None:
+            raise ValueError("filename formatting requires image and extension in OutputFormatContext")
         source_filename, source_stem, source_extension = original_filename_parts(original_filename, image.index)
-        value = (
-            template.replace("%CHAPTER_NUMBER%", f"{chapter.number:04d}")
-            .replace("%IMAGE_INDEX%", f"{image.index:04d}")
-            .replace("%TITLE%", chapter.title)
-            .replace("%SUBTITLE%", chapter.subtitle)
-            .replace("%EXT%", extension.removeprefix("."))
-            .replace("%ORIGINAL_STEM%", source_stem)
-            .replace("%ORIGINAL_FILENAME%", source_filename)
-            .replace("%ORIGINAL_EXT%", source_extension)
+        return self._safe_format_component(
+            self._render(
+                template,
+                context,
+                extension=context.extension.removeprefix("."),
+                original_stem=source_stem,
+                original_filename=source_filename,
+                original_extension=source_extension,
+            )
         )
-        return self._safe_format_component(value)
+
+    @staticmethod
+    def _render(
+        template: str,
+        context: OutputFormatContext,
+        *,
+        extension: str,
+        original_stem: str = "",
+        original_filename: str = "",
+        original_extension: str = "",
+    ) -> str:
+        image_index = f"{context.image.index:04d}" if context.image is not None else "%IMAGE_INDEX%"
+        core_values = {
+            "CHAPTER_NUMBER": f"{context.chapter.number:04d}",
+            "IMAGE_INDEX": image_index,
+            "CONTENT_TITLE": context.manifest.title,
+            "CHAPTER_TITLE": context.chapter.title,
+            "CHAPTER_SUBTITLE": context.chapter.subtitle,
+            "EXT": extension,
+            "ORIGINAL_STEM": original_stem,
+            "ORIGINAL_FILENAME": original_filename,
+            "ORIGINAL_EXT": original_extension,
+        }
+
+        def replace(match: re.Match[str]) -> str:
+            plugin_id = match.groupdict().get("plugin_id")
+            if plugin_id is not None:
+                key = match.group("key")
+                return context.plugin_values.get(plugin_id, {}).get(key, match.group(0))
+            core = match.group("core")
+            return core_values[core] if core is not None else match.group(0)
+
+        return _FORMAT_TOKEN_PATTERN.sub(replace, template)
 
     def _safe_format_component(self, value: str) -> str:
         return safe_component(

@@ -75,6 +75,75 @@ class PluginExecutionContext:
         return self._requests
 
 
+class PluginFormatContext:
+    """Stable, capability-reduced context for output-format value providers."""
+
+    __slots__ = (
+        "_plugin_id",
+        "_plugin_kind",
+        "_operation_url",
+        "_config",
+        "_app_settings",
+        "_manifest",
+        "_catalog",
+        "_initialized",
+    )
+
+    def __init__(
+        self,
+        plugin_id: str,
+        plugin_kind: str,
+        operation_url: str,
+        config: Mapping[str, object],
+        app_settings: Mapping[str, object],
+        manifest: Mapping[str, object],
+        catalog: Mapping[str, object] | None,
+    ) -> None:
+        if not all(isinstance(value, str) for value in (plugin_id, plugin_kind, operation_url)):
+            raise TypeError("plugin_id, plugin_kind, and operation_url must be strings")
+        self._plugin_id = plugin_id
+        self._plugin_kind = plugin_kind
+        self._operation_url = operation_url
+        self._config = _readonly_mapping(config)
+        self._app_settings = _readonly_mapping(app_settings)
+        self._manifest = _readonly_mapping(manifest)
+        self._catalog = _readonly_mapping(catalog) if catalog is not None else None
+        self._initialized = True
+
+    def __setattr__(self, name: str, value: object) -> None:
+        if getattr(self, "_initialized", False):
+            raise AttributeError("PluginFormatContext is immutable")
+        object.__setattr__(self, name, value)
+
+    @property
+    def plugin_id(self) -> str:
+        return self._plugin_id
+
+    @property
+    def plugin_kind(self) -> str:
+        return self._plugin_kind
+
+    @property
+    def operation_url(self) -> str:
+        return self._operation_url
+
+    @property
+    def config(self) -> Mapping[str, object]:
+        return self._config
+
+    @property
+    def app_settings(self) -> Mapping[str, object]:
+        return self._app_settings
+
+    @property
+    def manifest(self) -> Mapping[str, object]:
+        return self._manifest
+
+    @property
+    def catalog(self) -> Mapping[str, object] | None:
+        return self._catalog
+
+
 class TransformContext:
     """Processor/site transform metadata without network or secret capability."""
 
@@ -190,6 +259,13 @@ class OriginScopedAuthFlow(AuthFlow, Protocol):
     """Optional AuthFlow extension permitting credentials on additional origins."""
 
     allowed_origins: Collection[str]
+
+
+@runtime_checkable
+class OutputFormatValueProvider(Protocol):
+    """Optional provider of stable, non-secret output-format values."""
+
+    def output_format_values(self, context: PluginFormatContext) -> Mapping[str, str]: ...
 
 
 @runtime_checkable

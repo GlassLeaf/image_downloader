@@ -26,6 +26,7 @@ from image_downloader.exceptions import (
 from image_downloader.media import ImageProcessor
 from image_downloader.models import (
     Chapter,
+    DownloadManifest,
     RequestResponse,
     RequestSpec,
     UpdateCandidate,
@@ -34,7 +35,14 @@ from image_downloader.models import (
 )
 from image_downloader.observability.events import EventName
 from image_downloader.observability.logging import safe_log_text
-from image_downloader.runtime import DownloadService, OutputAllocator, RequestGateway, RuntimeComposer, UpdateState
+from image_downloader.runtime import (
+    DownloadService,
+    OutputAllocator,
+    OutputFormatContext,
+    RequestGateway,
+    RuntimeComposer,
+    UpdateState,
+)
 from image_downloader.storage import FileSystem, safe_component
 
 
@@ -261,12 +269,18 @@ def test_image_worker_failure_is_reported_as_image_worker_error(monkeypatch: pyt
 def test_filename_truncation_is_disabled_by_default_and_opt_in(tmp_path: Path) -> None:
     title = "a" * 300
     assert safe_component(title) == title
+    chapter = Chapter(1, title)
+    context = OutputFormatContext(
+        DownloadManifest("content", (chapter,)), chapter, "https://example.test/content", "com.example.site"
+    )
 
     unlimited = OutputAllocator(FileSystem(tmp_path.resolve()), AppConfig())
-    assert unlimited.chapter_directory(Chapter(1, title)).name.endswith(title)
+    assert unlimited.chapter_directory(context).name.endswith(title)
 
-    limited_config = AppConfig.model_validate({"output": {"directory_format": "%TITLE%", "max_component_length": 16}})
-    limited = OutputAllocator(FileSystem(tmp_path.resolve()), limited_config).chapter_directory(Chapter(1, title)).name
+    limited_config = AppConfig.model_validate(
+        {"output": {"directory_format": "%CHAPTER_TITLE%", "max_component_length": 16}}
+    )
+    limited = OutputAllocator(FileSystem(tmp_path.resolve()), limited_config).chapter_directory(context).name
     assert len(limited) == 16
     assert limited == safe_component(title, max_length=16)
 
@@ -338,7 +352,7 @@ def test_complete_builtin_download_exercises_streaming_pipeline_and_skip(tmp_pat
             second = await service.run("https://example.test/gallery")
             assert len(first.saved_files) == 1
             assert len(second.skipped_files) == 1
-            saved = data_root / "profiles" / "default" / "downloads" / "0001_Gallery" / "0001.png"
+            saved = data_root / "profiles" / "default" / "downloads" / "0001_Gallery_Gallery" / "0001.png"
             assert saved.is_file()
             assert "save:" in saved.with_name("log.log").read_text(encoding="utf-8")
         finally:

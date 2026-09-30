@@ -54,7 +54,7 @@ mapping は再帰 merge、scalar/list/`null` は高い layer が置換する。I
 | `download.chapter_concurrency` | strict integer `>=1`; `3` |
 | `download.image_concurrency_per_chapter` | strict integer `>=1`; `8` |
 | `download.continue_on_image_error`, `download.allow_empty_chapter_manifest` | strict boolean; `true`, `false` |
-| `output.directory_format`, `output.filename_format` | string; `%CHAPTER_NUMBER%_%TITLE%_%SUBTITLE%`, `%IMAGE_INDEX%.%EXT%`。`%NUM%` は configuration error |
+| `output.directory_format`, `output.filename_format` | string; `%CHAPTER_NUMBER%_%CONTENT_TITLE%_%CHAPTER_TITLE%`, `%IMAGE_INDEX%.%EXT%`。`%NUM%`、`%TITLE%`、`%SUBTITLE%` は configuration error |
 | `output.existing_file` | `overwrite|skip|rename|error`; `overwrite` |
 | `output.image_format` | `ORIGINAL|JPEG|PNG|WEBP`; `ORIGINAL`。`ORIGINAL` は plugin transform/processor 完了後の artifact bytes を core が再エンコードせず保存する |
 | `output.isolate_by_plugin` | strict boolean; `false` |
@@ -124,19 +124,35 @@ symlink/reparse point, and a root that cannot be safely resolved are rejected.
 The output directory is the profile downloads root followed by
 `output.directory_format`; a chapter file name is `output.filename_format`.
 `directory_format` accepts `%CHAPTER_NUMBER%` (the four-digit
-`Chapter.number`), `%TITLE%`, `%SUBTITLE%`, and the existing `%EXT%` expansion
-(`jpeg`). `filename_format` accepts `%CHAPTER_NUMBER%`, `%IMAGE_INDEX%` (the
-four-digit `ImageResource.index`), `%TITLE%`, `%SUBTITLE%`, and `%EXT%` (the
-saved artifact extension without a leading dot). It alone also accepts
+`Chapter.number`), `%CONTENT_TITLE%` (`DownloadManifest.title`),
+`%CHAPTER_TITLE%`, `%CHAPTER_SUBTITLE%`, and the existing `%EXT%` expansion
+(`jpeg`). `filename_format` accepts those content/chapter tokens plus
+`%IMAGE_INDEX%` (the four-digit `ImageResource.index`) and `%EXT%` (the saved
+artifact extension without a leading dot). It alone also accepts
 `%ORIGINAL_STEM%`, `%ORIGINAL_FILENAME%`, and `%ORIGINAL_EXT%`: the selected
 source filename without its last extension, the complete selected source
 filename, and that last source extension without its leading dot.
 
-`%NUM%` is no longer accepted in either format: migrate a directory use to
-`%CHAPTER_NUMBER%` and a file-name use to `%IMAGE_INDEX%`. `%IMAGE_INDEX%` and
-the `%ORIGINAL_*%` image-specific tokens in `directory_format` are
-configuration errors. `%CHAPTER_NUMBER%` is available in a file name so that,
-for example, `%CHAPTER_NUMBER%_%IMAGE_INDEX%.%EXT%` can identify both levels.
+`%NUM%`, `%TITLE%`, and `%SUBTITLE%` are no longer accepted in either format.
+Migrate them to the explicit content, chapter, or image token matching the
+intended level. `%IMAGE_INDEX%` and the `%ORIGINAL_*%` image-specific tokens in
+`directory_format` are configuration errors. `%CHAPTER_NUMBER%` is available
+in a file name so that, for example, `%CHAPTER_NUMBER%_%IMAGE_INDEX%.%EXT%`
+can identify both levels.
+
+Any participating plugin can return operation-stable non-secret values through
+the optional `OutputFormatValueProvider.output_format_values()` hook. A value
+is referenced as `%PLUGIN[com.example.gallery:SERIES_ID]%`; the plugin returns
+only `{"SERIES_ID": "..."}` and core owns the reverse-DNS ID namespace. Plugin
+tokens are valid in both formats. The hook is collected once before inspection
+and its frozen values are shared by every chapter and image. A plugin that does
+not implement the hook, a disabled/unselected plugin ID, or an absent key is
+not an error: the token is retained literally before normal component safety
+conversion. This deliberately makes typos and removed plugin keys visible in
+the output name rather than failing a download. Plugin values are not expanded
+recursively and must not contain secrets. Invalid `%PLUGIN[...]%` syntax is a
+configuration error; other unrecognized percent-delimited text remains
+literal for compatibility.
 
 The selected source filename is, in order: a site plugin's non-secret
 `ImageResource.original_filename`; successful response `Content-Disposition`
@@ -167,7 +183,7 @@ profile: {default: comics}
 storage: {data_root: 'D:/image-data'}
 plugins: {root: 'D:/image-plugins'}
 output:
-  directory_format: '%CHAPTER_NUMBER%_%TITLE%_%SUBTITLE%'
+  directory_format: '%CHAPTER_NUMBER%_%CONTENT_TITLE%_%CHAPTER_TITLE%'
   filename_format: '%IMAGE_INDEX%.%EXT%'
   existing_file: skip
 security: {plugin_verification: strict}
