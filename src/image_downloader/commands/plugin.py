@@ -47,6 +47,8 @@ class PluginCommandHandler:
                 "existing_file",
                 "image_format",
                 "force_image_format",
+                "output_dir",
+                "directory_format",
                 "inspection_data",
             ),
             "plugin",

@@ -20,6 +20,7 @@ from .setup import (
     _config_for,
     _download_policy_overrides,
     _fallback,
+    _output_root,
     _persist_initial_user_config,
     _plugin_root,
     _runtime_overrides,
@@ -51,11 +52,13 @@ class DownloadCommandHandler:
             rewrite_user_layers=True,
         )
         _persist_initial_user_config(source)
-        output_root = resolve_paths(config)["downloads"]
+        custom_output_root = None if args.list_updated_urls else _output_root(args)
+        output_root = custom_output_root or resolve_paths(config)["downloads"]
         service = RuntimeComposer(
             config,
             config_root=config_root,
             plugin_root=_plugin_root(args, config),
+            output_root=custom_output_root,
             plugin_verification_override=args.plugin_verification_override,
         ).compose()
         diagnostics_output = redirect_stdout(sys.stderr) if args.json_output else nullcontext()

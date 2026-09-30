@@ -104,7 +104,7 @@ This is the signature-level reference for the stable facades in the [API invento
 | `RequestGateway.operation` <!-- api-contract: image_downloader.runtime.RequestGateway.operation --> | `operation(self, *, plugin_id: str | None, operation_url: str, auth_flow_factory: Callable[[OperationRequestGateway], object | None] | None = None, invoker: PluginInvoker | None = None, request_concurrency: int | None = None) -> OperationRequestGateway` |
 | `RequestGateway.execute` <!-- api-contract: image_downloader.runtime.RequestGateway.execute --> | `async execute(self, spec: RequestSpec) -> RequestResponse` |
 | `RequestGateway.close` <!-- api-contract: image_downloader.runtime.RequestGateway.close --> | `async close(self) -> None` |
-| `RuntimeComposer` <!-- api-contract: image_downloader.runtime.RuntimeComposer --> | `RuntimeComposer(config: AppConfig, *, config_root: Path, plugin_root: Path, plugin_verification_override: PluginVerificationOverride | None = None)` |
+| `RuntimeComposer` <!-- api-contract: image_downloader.runtime.RuntimeComposer --> | `RuntimeComposer(config: AppConfig, *, config_root: Path, plugin_root: Path, output_root: Path | None = None, plugin_verification_override: PluginVerificationOverride | None = None)` |
 | `RuntimeComposer.compose` <!-- api-contract: image_downloader.runtime.RuntimeComposer.compose --> | `compose(self) -> DownloadService` |
 | `RuntimeComposer.compose_registry` <!-- api-contract: image_downloader.runtime.RuntimeComposer.compose_registry --> | `compose_registry(self) -> PluginRuntime` |
 | `RuntimeSecrets` <!-- api-contract: image_downloader.runtime.RuntimeSecrets --> | `RuntimeSecrets(plugin_id: str, references: Mapping[str, str])` |

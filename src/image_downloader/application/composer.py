@@ -39,11 +39,16 @@ class RuntimeComposer:
         *,
         config_root: Path,
         plugin_root: Path,
+        output_root: Path | None = None,
         plugin_verification_override: PluginVerificationOverride | None = None,
     ) -> None:
         config_root = existing_directory(config_root, "configuration root", required=True)
         plugin_root = existing_directory(plugin_root, "plugin root")
-        self.config, self.config_root, self.plugin_root = config, config_root, plugin_root
+        output_root = existing_directory(output_root, "output_root") if output_root is not None else None
+        self.config = config
+        self.config_root = config_root
+        self.plugin_root = plugin_root
+        self.output_root = output_root
         self.plugin_verification_override = plugin_verification_override
 
     def compose(self) -> DownloadService:
@@ -58,7 +63,7 @@ class RuntimeComposer:
 
     def _build_dependencies(self, *, inspection: bool = False) -> _RuntimeDependencies:
         paths = resolve_paths(self.config)
-        outputs = FileSystem(paths["downloads"])
+        outputs = FileSystem(self.output_root or paths["downloads"])
         logs = FileSystem(paths["logs"])
         state = UpdateState(FileSystem(paths["state"]))
         logger_sinks: list[LogSink] = []

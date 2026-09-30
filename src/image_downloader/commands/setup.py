@@ -116,6 +116,14 @@ def _plugin_root(args: argparse.Namespace, config: AppConfig) -> Path:
     return existing_directory(root, "--plugin-root" if args.plugin_root is not None else "plugins.root")
 
 
+def _output_root(args: argparse.Namespace) -> Path | None:
+    """Return the download-only output root requested for this invocation."""
+    output_dir = getattr(args, "output_dir", None)
+    if output_dir is None:
+        return None
+    return existing_directory(output_dir, "--output-dir")
+
+
 def _bootstrap_override(args: argparse.Namespace) -> Mapping[str, object]:
     patch: dict[str, object] = {}
     if args.data_root is not None:
@@ -207,6 +215,15 @@ def _app_override(args: argparse.Namespace) -> Mapping[str, object]:
         existing_output = patch.get("output")
         output = dict(existing_output) if isinstance(existing_output, Mapping) else {}
         output["image_format"] = args.image_format
+        patch["output"] = output
+    if (
+        getattr(args, "directory_format", None) is not None
+        and not getattr(args, "inspect_only", False)
+        and not getattr(args, "list_updated_urls", False)
+    ):
+        existing_output = patch.get("output")
+        output = dict(existing_output) if isinstance(existing_output, Mapping) else {}
+        output["directory_format"] = args.directory_format
         patch["output"] = output
     if getattr(args, "no_console_log", False) or args.json_output:
         patch["logging"] = {"console": {"enabled": False}}

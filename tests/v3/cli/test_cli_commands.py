@@ -45,6 +45,151 @@ def test_legacy_url_and_explicit_download_use_the_same_handler() -> None:
     assert legacy.json_output is explicit.json_output is True
 
 
+def test_output_options_support_explicit_and_bare_url_downloads(tmp_path: Path) -> None:
+    parser = build_parser()
+    output_dir = (tmp_path / "output").resolve()
+
+    explicit = parser.parse_args(
+        [
+            "download",
+            "https://example.test/gallery",
+            "--output-dir",
+            str(output_dir),
+            "--directory-format",
+            "destination_%CHAPTER_NUMBER%",
+        ]
+    )
+    bare = parser.parse_args(
+        [
+            "--output-dir",
+            str(output_dir),
+            "--directory-format",
+            "destination_%CHAPTER_NUMBER%",
+            "https://example.test/gallery",
+        ]
+    )
+
+    assert explicit.command_handler == bare.command_handler == "download"
+    assert explicit.url == bare.url == "https://example.test/gallery"
+    assert explicit.output_dir == bare.output_dir == output_dir
+    assert explicit.directory_format == bare.directory_format == "destination_%CHAPTER_NUMBER%"
+
+
+def test_directory_format_is_a_nonpersistent_runtime_override(tmp_path: Path) -> None:
+    config = AppConfig.model_validate({"output": {"directory_format": "from_yaml"}})
+    args = build_parser().parse_args(
+        ["download", "https://example.test/gallery", "--directory-format", "destination_%CHAPTER_NUMBER%"]
+    )
+
+    overridden = apply_overrides(config, cli_setup._app_override(args))
+
+    assert overridden.output.directory_format == "destination_%CHAPTER_NUMBER%"
+    assert config.output.directory_format == "from_yaml"
+
+    invalid = build_parser().parse_args(
+        ["download", "https://example.test/gallery", "--directory-format", "%IMAGE_INDEX%"]
+    )
+    with pytest.raises(ConfigurationError, match="image-only tokens"):
+        apply_overrides(config, cli_setup._app_override(invalid))
+
+
+def test_output_dir_requires_an_absolute_safe_directory() -> None:
+    args = build_parser().parse_args(
+        ["download", "https://example.test/gallery", "--output-dir", "relative-output"]
+    )
+
+    with pytest.raises(ConfigurationError, match="--output-dir must be an absolute path"):
+        cli_setup._output_root(args)
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    (
+        ("inspect", "https://example.test/gallery"),
+        ("doctor",),
+        ("config", "path"),
+        ("plugin", "list"),
+        ("cookie", "export", "cookies.export"),
+    ),
+)
+def test_output_options_are_rejected_outside_download(tmp_path: Path, arguments: tuple[str, ...]) -> None:
+    args = build_parser().parse_args(
+        ["--output-dir", str((tmp_path / "output").resolve()), "--directory-format", "destination", *arguments]
+    )
+
+    with pytest.raises(ConfigurationError, match="output-dir|directory-format"):
+        asyncio.run(cli.run(args))
+
+
+def test_output_options_are_ignored_for_non_saving_download_modes(monkeypatch, tmp_path: Path) -> None:
+    parser = build_parser()
+    ignored = parser.parse_args(
+        [
+            "download",
+            "https://example.test/gallery",
+            "--inspect-only",
+            "--output-dir",
+            "relative-output-is-ignored",
+            "--directory-format",
+            "%IMAGE_INDEX%",
+        ]
+    )
+    monkeypatch.setattr(cli_download, "inspect_command", lambda _args: asyncio.sleep(0, result=cli.EXIT_SUCCESS))
+
+    assert asyncio.run(cli.run(ignored)) == cli.EXIT_SUCCESS
+    assert "directory_format" not in cli_setup._app_override(ignored).get("output", {})
+
+    config = AppConfig.model_validate(
+        {
+            "storage": {"data_root": str((tmp_path / "data").resolve())},
+            "plugins": {"root": str((tmp_path / "plugins").resolve())},
+        }
+    )
+    composer_calls: list[dict[str, object]] = []
+
+    class Service:
+        async def check_updates(self, *_args: object, **_kwargs: object) -> object:
+            return SimpleNamespace(changes=())
+
+        async def close(self) -> None:
+            return None
+
+    class Composer:
+        def __init__(self, *_args: object, **kwargs: object) -> None:
+            composer_calls.append(dict(kwargs))
+
+        def compose(self) -> Service:
+            return Service()
+
+    monkeypatch.setattr(
+        cli_download,
+        "_config_for",
+        lambda *_args, **_kwargs: (config, tmp_path.resolve(), tmp_path.resolve(), "test"),
+    )
+    monkeypatch.setattr(cli_download, "RuntimeComposer", Composer)
+    updates = parser.parse_args(
+        [
+            "download",
+            "https://example.test/gallery",
+            "--list-updated-urls",
+            "--output-dir",
+            "relative-output-is-ignored",
+            "--directory-format",
+            "%IMAGE_INDEX%",
+        ]
+    )
+
+    assert asyncio.run(cli.run(updates)) == cli.EXIT_SUCCESS
+    assert composer_calls == [
+        {
+            "config_root": tmp_path.resolve(),
+                "plugin_root": (tmp_path / "plugins").resolve(),
+            "output_root": None,
+            "plugin_verification_override": None,
+        }
+    ]
+
+
 def test_image_format_options_support_original_and_force_is_download_only(monkeypatch, tmp_path: Path) -> None:
     parser = build_parser()
     preferred = parser.parse_args(["download", "https://example.test/gallery", "--image-format", "ORIGINAL"])
@@ -547,3 +692,54 @@ def test_download_json_includes_structured_existing_file_conflict(monkeypatch, t
             "transport": None,
         }
     ]
+
+
+def test_download_json_makes_custom_output_failure_paths_relative(monkeypatch, tmp_path: Path, capsys) -> None:
+    output_root = (tmp_path / "custom-output").resolve()
+    config = AppConfig.model_validate(
+        {
+            "storage": {"data_root": str((tmp_path / "data").resolve())},
+            "plugins": {"root": str((tmp_path / "plugins").resolve())},
+        }
+    )
+    failure = ImageFailure(
+        FailureKind.SAVE,
+        "StorageError",
+        "save failed",
+        output_path=str(output_root / "chapter" / "0001.jpeg"),
+    )
+    composer_calls: list[dict[str, object]] = []
+
+    class Service:
+        async def run(self, *_args: object, **_kwargs: object) -> object:
+            return SimpleNamespace(saved_files=(), skipped_files=(), failures=(failure,))
+
+        async def close(self) -> None:
+            return None
+
+    class Composer:
+        def __init__(self, *_args: object, **kwargs: object) -> None:
+            composer_calls.append(dict(kwargs))
+
+        def compose(self) -> Service:
+            return Service()
+
+    monkeypatch.setattr(
+        cli_download,
+        "_config_for",
+        lambda *_args, **_kwargs: (config, tmp_path.resolve(), tmp_path.resolve(), "test"),
+    )
+    monkeypatch.setattr(cli_download, "RuntimeComposer", Composer)
+
+    status = asyncio.run(
+        cli.run(
+            build_parser().parse_args(
+                ["download", "https://example.test/item", "--json", "--output-dir", str(output_root)]
+            )
+        )
+    )
+    payload = json.loads(capsys.readouterr().out)
+
+    assert status == cli.EXIT_FAILURE
+    assert payload["failures"][0]["output_path"] == "chapter/0001.jpeg"
+    assert composer_calls[0]["output_root"] == output_root

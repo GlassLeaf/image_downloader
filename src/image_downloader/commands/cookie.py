@@ -38,6 +38,8 @@ class CookieCommandHandler:
                 "existing_file",
                 "image_format",
                 "force_image_format",
+                "output_dir",
+                "directory_format",
                 "inspection_data",
             ),
             "cookie",

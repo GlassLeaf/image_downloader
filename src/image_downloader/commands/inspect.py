@@ -24,24 +24,23 @@ class InspectCommandHandler:
 
 async def inspect_command(args: argparse.Namespace) -> int:
     """Run inspection for the canonical command and the download alias."""
-    _reject_command_options(
-        args,
-        (
-            "selection_priority",
-            "host",
-            "plugin_download_policy",
-            "plugin_download_policy_file",
-            "list_updated_urls",
-            "no_console_log",
-            "existing_file",
-            "image_format",
-            "force_image_format",
-            "export_cookies",
-            "import_cookies",
-            "import_browser_cookies",
-        ),
-        "inspect",
-    )
+    rejected = [
+        "selection_priority",
+        "host",
+        "plugin_download_policy",
+        "plugin_download_policy_file",
+        "list_updated_urls",
+        "no_console_log",
+        "existing_file",
+        "image_format",
+        "force_image_format",
+        "export_cookies",
+        "import_cookies",
+        "import_browser_cookies",
+    ]
+    if args.command_handler != "download":
+        rejected.extend(("output_dir", "directory_format"))
+    _reject_command_options(args, tuple(rejected), "inspect")
     hostname = urlparse(args.url).hostname
     overrides = _runtime_overrides(args)
     plugin_id = args.plugin_id or args.force_plugin_id

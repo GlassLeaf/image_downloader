@@ -30,6 +30,7 @@ def _service(
     directory_format: str = "%CHAPTER_NUMBER%_%CONTENT_TITLE%_%CHAPTER_TITLE%",
     filename_format: str = "%IMAGE_INDEX%.%EXT%",
     processors: tuple[str, ...] = (),
+    output_root: Path | None = None,
 ):
     plugin_root = (tmp_path / "plugins").resolve()
     make_plugin(plugin_root, plugin_id=SITE_ID)
@@ -46,16 +47,23 @@ def _service(
             "notification": {"enabled": False},
         }
     )
-    return RuntimeComposer(config, config_root=tmp_path.resolve(), plugin_root=plugin_root).compose()
+    return RuntimeComposer(
+        config,
+        config_root=tmp_path.resolve(),
+        plugin_root=plugin_root,
+        output_root=output_root,
+    ).compose()
 
 
 def test_site_and_processor_values_are_collected_once_before_inspection_and_reused(tmp_path: Path) -> None:
     async def scenario() -> None:
+        output_root = (tmp_path / "custom-output").resolve()
         service = _service(
             tmp_path,
             directory_format=f"%CHAPTER_NUMBER%_%PLUGIN[{SITE_ID}:SITE_TAG]%_%PLUGIN[{PROCESSOR_ID}:FILTER_NAME]%",
             filename_format=f"%IMAGE_INDEX%%PLUGIN[{SITE_ID}:SITE_TAG]%_%PLUGIN[{PROCESSOR_ID}:FILTER_NAME]%.%EXT%",
             processors=(PROCESSOR_ID,),
+            output_root=output_root,
         )
         order: list[str] = []
         seen: dict[str, object] = {}
@@ -131,6 +139,7 @@ def test_site_and_processor_values_are_collected_once_before_inspection_and_reus
         with pytest.raises(AttributeError, match="immutable"):
             seen["site"].operation_url = "https://example.test/other"  # type: ignore[attr-defined]
         saved = Path(result.chapters[0].outcomes[0].path or "")
+        assert saved.is_relative_to(output_root)
         assert saved.name == "0001_site_grayscale.png"
         assert saved.parent.name == "0001_site_grayscale"
 

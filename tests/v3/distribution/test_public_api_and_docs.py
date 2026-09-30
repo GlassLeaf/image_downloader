@@ -208,6 +208,7 @@ def test_representative_signatures_and_result_dtos_are_stable() -> None:
         "config",
         "config_root",
         "plugin_root",
+        "output_root",
         "plugin_verification_override",
     )
     assert tuple(signature(DownloadService.run).parameters) == (

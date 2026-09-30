@@ -28,6 +28,8 @@ _OPTIONS_WITH_VALUE = frozenset(
         "--profile",
         "--plugin-root",
         "--data-root",
+        "--output-dir",
+        "--directory-format",
         "--selection-priority",
         "--plugin-config",
         "--plugin-config-file",
@@ -180,6 +182,16 @@ def _add_download_options(
     )
 
 
+def _add_output_override_options(
+    parser: argparse.ArgumentParser,
+    *,
+    suppress_defaults: bool,
+) -> None:
+    value_default = argparse.SUPPRESS if suppress_defaults else None
+    parser.add_argument("--output-dir", type=Path, default=value_default, metavar="ABSOLUTE_PATH")
+    parser.add_argument("--directory-format", default=value_default, metavar="FORMAT")
+
+
 def _add_plugin_selection_options(
     parser: argparse.ArgumentParser,
     *,
@@ -218,6 +230,7 @@ def _add_legacy_options(parser: argparse.ArgumentParser) -> None:
     _add_configuration_options(parser, suppress_defaults=False)
     _add_plugin_override_options(parser, suppress_defaults=False)
     _add_download_options(parser, suppress_defaults=False, include_inspect_alias=True)
+    _add_output_override_options(parser, suppress_defaults=False)
     _add_plugin_selection_options(parser, suppress_defaults=False)
     _add_inspection_options(parser)
     parser.add_argument("--manifest-only", action="store_true", default=False)
@@ -251,6 +264,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_configuration_options(download_parser, suppress_defaults=True)
     _add_plugin_override_options(download_parser, suppress_defaults=True)
     _add_download_options(download_parser, suppress_defaults=True, include_inspect_alias=True)
+    _add_output_override_options(download_parser, suppress_defaults=True)
     _add_plugin_selection_options(download_parser, suppress_defaults=True)
     _add_inspection_options(download_parser)
     download_parser.add_argument("--manifest-only", action="store_true", default=argparse.SUPPRESS)

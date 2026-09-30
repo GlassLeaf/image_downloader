@@ -168,8 +168,10 @@ the source suffix and may therefore not match transformed bytes.
 The formatter then makes one safe path component, collapses double underscores,
 and removes a trailing underscore. It never treats a token value as a path
 separator. When `output.isolate_by_plugin=true`, the runtime inserts safe
-`<normalized-host>/<selected-plugin-id>/` components between `downloads` and
-the formatted chapter directory. `existing_file` controls collisions as described in
+`<normalized-host>/<selected-plugin-id>/` components between the image-output
+root and the formatted chapter directory. The default root is `downloads`; a
+normal download's `--output-dir ABSOLUTE_PATH` replaces only that root, not the
+profile cookie/log/state roots. `existing_file` controls collisions as described in
 [runtime behavior](runtime-behavior.md#output-allocation-and-locks).
 
 The following is a complete, valid *shape* for a main config plus a profile and
@@ -200,9 +202,12 @@ plugin_settings:
 ```
 
 YAML values may supply persistent configuration only. CLI runtime overrides
-(`--existing-file`, `--image-format`, plugin config/policy override JSON, and fallback mode)
-are applied after the layers for that operation and are not written back. Use
-`config explain --json` to see both the effective values and their origins.
+(`--existing-file`, `--image-format`, `--directory-format`, plugin config/policy override JSON, and fallback mode)
+are applied after the layers for that operation and are not written back.
+`--output-dir` is a separate download-only composition override rather than an
+`AppConfig` field, so it also is not written back. Use
+`config explain --json` to see supported configuration overrides and their
+origins; it does not accept download-only `--directory-format` or `--output-dir`.
 
 画像の保存形式は次の優先順位で決まる。
 

@@ -42,6 +42,8 @@ class DoctorCommandHandler:
                 "import_browser_cookies",
                 "inspection_data",
                 "force_image_format",
+                "output_dir",
+                "directory_format",
             ),
             "doctor",
         )

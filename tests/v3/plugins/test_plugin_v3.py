@@ -523,11 +523,17 @@ def test_isolated_output_uses_canonical_host_then_plugin_id(tmp_path: Path) -> N
             "security": {"plugin_verification": "strict"},
         }
     )
-    service = RuntimeComposer(config, config_root=tmp_path.resolve(), plugin_root=root).compose()
+    output_root = (tmp_path / "custom-output").resolve()
+    service = RuntimeComposer(
+        config,
+        config_root=tmp_path.resolve(),
+        plugin_root=root,
+        output_root=output_root,
+    ).compose()
     try:
         record = service.registry.records["com.example.gallery"]
         assert service._output_filesystem(record, "https://Example.Test/item").root == (
-            tmp_path / "data" / "profiles" / "default" / "downloads" / "example.test" / "com.example.gallery"
+            output_root / "example.test" / "com.example.gallery"
         )
         assert service._output_filesystem(record, "https://[2001:db8::1]/item").root.name == "com.example.gallery"
         assert service._output_filesystem(record, "https://[2001:db8::1]/item").root.parent.name == (

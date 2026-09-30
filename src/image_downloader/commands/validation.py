@@ -33,6 +33,8 @@ _OPTION_DEFAULTS: Mapping[str, object] = {
     "existing_file": None,
     "image_format": None,
     "force_image_format": None,
+    "output_dir": None,
+    "directory_format": None,
     "inspection_data": None,
 }
 

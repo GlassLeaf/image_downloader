@@ -50,6 +50,8 @@ def _reject_except(args: argparse.Namespace, allowed: frozenset[str]) -> None:
         "existing_file",
         "image_format",
         "force_image_format",
+        "output_dir",
+        "directory_format",
         "inspection_data",
     )
     _reject_command_options(args, tuple(name for name in candidates if name not in allowed), "config")

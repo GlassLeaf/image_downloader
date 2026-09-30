@@ -4,8 +4,11 @@ import asyncio
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import pytest
+
 import image_downloader.application.composer as composer_module
 from image_downloader.config import AppConfig, resolve_paths
+from image_downloader.exceptions import ConfigurationError
 from image_downloader.runtime import DownloadService, RuntimeComposer, _RuntimeDependencies
 from image_downloader.storage.cookies import CookieStore
 
@@ -96,6 +99,41 @@ def test_runtime_composer_builds_all_default_dependencies(tmp_path: Path) -> Non
             await service.close()
 
     asyncio.run(scenario())
+
+
+def test_runtime_composer_uses_an_output_root_without_moving_profile_resources(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        default_composer = _composer(tmp_path)
+        output_root = (tmp_path / "custom-output").resolve()
+        composer = RuntimeComposer(
+            default_composer.config,
+            config_root=default_composer.config_root,
+            plugin_root=default_composer.plugin_root,
+            output_root=output_root,
+        )
+        service = composer.compose()
+        paths = resolve_paths(composer.config)
+        try:
+            assert service.outputs.root == output_root
+            assert service.logs.root == paths["logs"]
+            assert service.state.filesystem.root == paths["state"]
+            assert service.cookie_store.filesystem.root == paths["cookie"]
+        finally:
+            await service.close()
+
+    asyncio.run(scenario())
+
+
+def test_runtime_composer_rejects_a_relative_output_root(tmp_path: Path) -> None:
+    composer = _composer(tmp_path)
+
+    with pytest.raises(ConfigurationError, match="output_root must be an absolute path"):
+        RuntimeComposer(
+            composer.config,
+            config_root=composer.config_root,
+            plugin_root=composer.plugin_root,
+            output_root=Path("relative-output"),
+        )
 
 
 def test_two_services_preserve_each_others_cookie_changes(tmp_path: Path, monkeypatch) -> None:

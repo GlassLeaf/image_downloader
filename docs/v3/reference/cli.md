@@ -40,6 +40,7 @@ config 作成・rewrite の command ごとの副作用は [configuration referen
 | `--plugin-download-policy ID=JSON`, `--plugin-download-policy-file PATH` | download（`--list-updated-urls` を含む） | inspection を含む他 command では rejected |
 | `--no-console-log`, `--existing-file`, `--image-format` | download, doctor, config explain where handler permits them | inspection、cookie、other config/plugin operations では rejected |
 | `--force-image-format FORMAT` | normal download and bare-URL download | `--image-format` と排他的。inspect、doctor、config、plugin、cookie、update listing では rejected |
+| `--output-dir ABSOLUTE_PATH`, `--directory-format FORMAT` | normal download and bare-URL download | `download --inspect-only` と `--list-updated-urls` では accepted/no effect。inspect、doctor、config、plugin、cookie では rejected |
 | `--list-updated-urls` | download | rejected elsewhere |
 | `--inspect-only` | `download URL` の inspection alias | `--list-updated-urls` と排他的 |
 | `--manifest-only` | inspect, `download URL --inspect-only` | normal download では rejected。`create_image_request()` を呼ばない |
@@ -56,6 +57,8 @@ config 作成・rewrite の command ごとの副作用は [configuration referen
 `--plugin ID` requires that enabled non-builtin site plugin's normal matcher to accept the URL. `--force-plugin ID` bypasses that matcher only after the plugin is confirmed to be an enabled non-builtin site plugin; the two options are exclusive. Neither can be combined with an explicit `--fallback-generic=enabled|disabled`. `--fallback-generic` accepts `auto` (the parser default), `enabled`, or `disabled`; `auto` preserves the resolved configuration. `--existing-file` accepts `overwrite`, `skip`, `rename`, or `error`.
 
 `--image-format` accepts `ORIGINAL`, `JPEG`, `PNG`, or `WEBP` and is a one-operation override of resolved `output.image_format`; an image whose plugin specifies `ImageResource.save_options.format` keeps the plugin format. `--force-image-format` has the same values but is mutually exclusive with `--image-format` and wins over the plugin. `--force-image-format ORIGINAL` preserves the final plugin-produced artifact bytes without core re-encoding; it is not an HTTP-response raw-download mode. A forced encoded format clears a plugin-provided filename extension so the output suffix matches the forced bytes. Output format tokens use explicit `%CONTENT_TITLE%`, `%CHAPTER_TITLE%`, `%CHAPTER_SUBTITLE%`, `%CHAPTER_NUMBER%`, and `%IMAGE_INDEX%`; `%NUM%`, `%TITLE%`, and `%SUBTITLE%` are rejected. See [configuration](configuration.md#config-storage-layout).
+
+`--output-dir` replaces only the image-output root for one normal download; it must be an absolute safe directory path and does not relocate profile logs, cookies, or update state. `--directory-format` is the corresponding one-operation override of `output.directory_format`, with the same token validation. They can be combined: `--output-dir C:\Base --directory-format destination_%CHAPTER_NUMBER%` saves beneath `C:\Base\destination_0001`. If `output.isolate_by_plugin=true`, core instead inserts `<normalized-host>/<selected-site-plugin-id>/` between the selected output root and the formatted chapter directory. Neither option writes YAML.
 
 <a id="cli-exit-status"></a>
 
