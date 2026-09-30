@@ -296,6 +296,7 @@ class ImageResource:
     save_options: ImageSaveOptions = field(default_factory=ImageSaveOptions)
     image_id: str | None = None
     metadata: Mapping[str, str] = field(default_factory=freeze_mapping)
+    original_filename: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "headers", freeze_mapping(self.headers))

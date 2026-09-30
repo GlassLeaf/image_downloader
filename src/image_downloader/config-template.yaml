@@ -21,8 +21,8 @@
 #   continue_on_image_error: true
 #   allow_empty_chapter_manifest: false
 # output:
-#   directory_format: '%NUM%_%TITLE%_%SUBTITLE%'
-#   filename_format: '%NUM%.%EXT%'
+#   directory_format: '%CHAPTER_NUMBER%_%TITLE%_%SUBTITLE%'
+#   filename_format: '%IMAGE_INDEX%.%EXT%'
 #   existing_file: overwrite         # overwrite, skip, rename, error
 #   image_format: ORIGINAL           # ORIGINAL, JPEG, PNG, WEBP
 #   isolate_by_plugin: false

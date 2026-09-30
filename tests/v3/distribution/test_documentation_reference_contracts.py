@@ -304,14 +304,32 @@ def test_cli_plugin_and_tutorial_references_expose_actionable_contracts(reposito
     ):
         assert phrase in cli
     assert '<a id="config-storage-layout"></a>' in configuration
-    for phrase in ("%NUM%", "%TITLE%", "%SUBTITLE%", "%EXT%", "profiles/<profile>", "cookie/cookies.enc"):
+    for phrase in (
+        "%CHAPTER_NUMBER%",
+        "%IMAGE_INDEX%",
+        "%NUM%` is no longer accepted",
+        "%TITLE%",
+        "%SUBTITLE%",
+        "%EXT%",
+        "profiles/<profile>",
+        "cookie/cookies.enc",
+    ):
         assert phrase in configuration
     assert "filename は固定ではない" in package
     assert "bypass-signature" in package
     assert '<a id="plugin-signing-workflow"></a>' in package
     for marker in ("plugin-contexts", "plugin-hook-errors"):
         assert f'<a id="{marker}"></a>' in hooks
-    for phrase in ("401 and 403", "TransformContext", "CancelledError", "ordinary `Exception`"):
+    for phrase in (
+        "401 and 403",
+        "TransformContext",
+        "CancelledError",
+        "ordinary `Exception`",
+        "Manifest numbering",
+        "plugin は、manifest の採番にも責任を持つ",
+        "Chapter.number",
+        "ImageResource.index",
+    ):
         assert phrase in hooks
     for heading in (
         "Check a complete update snapshot",

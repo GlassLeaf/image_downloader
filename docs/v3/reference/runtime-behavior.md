@@ -11,7 +11,7 @@ plugin は raw HTTP client を作らず `await context.requests.execute(RequestS
 
 `ImageResource.url` は opaque locator であり transport に直接渡されない。実際の network destination は `create_image_request` または recovery hook が返す absolute HTTP(S) `RequestSpec.url` だけである。
 
-成功した画像 fetch の AuthFlow 後 initial request、redirect 後 final request、response URL/header、request-time `plugin_data` は `TransformContext.transport_metadata` だけに記録される。site transform は raw snapshot を受ける。processor は `image_processors.transport_metadata_access` で selected site を明示許可した場合だけ raw、それ以外は値をマスクした `is_redacted=True` snapshot を受ける。cookie jar 全体を公開せず、各 request snapshot には実際に送信された Cookie header だけを含める。raw metadata は `ImageArtifact`、result、event、CLI JSON、chapter report、log へ自動コピーされない。
+成功した画像 fetch の AuthFlow 後 initial request、redirect 後 final request、response URL/header、request-time `plugin_data` は `TransformContext.transport_metadata` だけに記録される。site transform は raw snapshot を受ける。processor は `image_processors.transport_metadata_access` で selected site を明示許可した場合だけ raw、それ以外は値をマスクした `is_redacted=True` snapshot を受ける。cookie jar 全体を公開せず、各 request snapshot には実際に送信された Cookie header だけを含める。raw metadata は `ImageArtifact`、result、event、CLI JSON、chapter report、log へ自動コピーされない。ただし `filename_format` の `%ORIGINAL_*%` token を使うときだけ、core は `Content-Disposition` または final response URL から抽出した一つの path-less filename を出力名候補に使う。query/fragment、header 全体、URL 全体は保存・出力しない。
 
 GET、HEAD、OPTIONS、TRACE は retry 対象である。429、500、502、503、504 は `Retry-After` を尊重し、`network.retry_max_delay_seconds` 以下の jitter を加える。POST 等の non-idempotent request は `retry_non_idempotent=True` を plugin が安全性を保証するときだけ retry する。
 

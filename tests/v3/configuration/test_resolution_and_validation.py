@@ -25,6 +25,30 @@ def test_output_image_format_defaults_to_original() -> None:
     assert AppConfig().output.image_format == "ORIGINAL"
 
 
+def test_output_name_format_defaults_match_model_bundled_config_and_template() -> None:
+    expected_directory = "%CHAPTER_NUMBER%_%TITLE%_%SUBTITLE%"
+    expected_filename = "%IMAGE_INDEX%.%EXT%"
+    package = Path(layers.__file__).parents[1]
+    bundled = yaml.safe_load((package / "app.yaml").read_text(encoding="utf-8"))
+    template = (package / "config-template.yaml").read_text(encoding="utf-8")
+
+    assert AppConfig().output.directory_format == expected_directory
+    assert AppConfig().output.filename_format == expected_filename
+    assert bundled["output"]["directory_format"] == expected_directory
+    assert bundled["output"]["filename_format"] == expected_filename
+    assert f"#   directory_format: '{expected_directory}'" in template
+    assert f"#   filename_format: '{expected_filename}'" in template
+
+
+@pytest.mark.parametrize("field", ("directory_format", "filename_format"))
+def test_resolver_rejects_legacy_num_format_token(tmp_path: Path, field: str) -> None:
+    main = tmp_path / "app.yaml"
+    main.write_text(f"output: {{{field}: '%NUM%'}}\n", encoding="utf-8")
+
+    with pytest.raises(ConfigurationError, match=r"cannot contain %NUM%"):
+        resolve_application_config(main, source="explicit")
+
+
 def test_resolver_records_effective_value_origin_in_layer_order(tmp_path: Path) -> None:
     main = tmp_path / "app.yaml"
     main.write_text("network: {request_concurrency: 4}\n", encoding="utf-8")

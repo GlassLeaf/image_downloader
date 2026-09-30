@@ -13,7 +13,7 @@ from image_downloader.runtime import OutputAllocator
 from image_downloader.storage import FileSystem
 
 
-def _config(mode: str, *, filename_format: str = "%NUM%.%EXT%", max_length: int | None = None) -> AppConfig:
+def _config(mode: str, *, filename_format: str = "%IMAGE_INDEX%.%EXT%", max_length: int | None = None) -> AppConfig:
     output: dict[str, object] = {"existing_file": mode, "filename_format": filename_format}
     if max_length is not None:
         output["max_component_length"] = max_length
@@ -25,6 +25,71 @@ def _allocator(tmp_path: Path, config: AppConfig) -> tuple[FileSystem, OutputAll
     directory = Path("chapter")
     filesystem.ensure_directory(directory)
     return filesystem, OutputAllocator(filesystem, config), directory
+
+
+def test_output_defaults_use_unambiguous_number_tokens() -> None:
+    output = AppConfig().output
+
+    assert output.directory_format == "%CHAPTER_NUMBER%_%TITLE%_%SUBTITLE%"
+    assert output.filename_format == "%IMAGE_INDEX%.%EXT%"
+
+
+def test_allocator_distinguishes_chapter_number_from_image_index(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        filesystem = FileSystem(tmp_path.resolve())
+        config = AppConfig.model_validate(
+            {
+                "output": {
+                    "directory_format": "%CHAPTER_NUMBER%_%TITLE%_%EXT%",
+                    "filename_format": "%CHAPTER_NUMBER%_%IMAGE_INDEX%.%EXT%",
+                }
+            }
+        )
+        allocator = OutputAllocator(filesystem, config)
+        chapter = Chapter(12, "chapter")
+        directory = allocator.chapter_directory(chapter)
+        filesystem.ensure_directory(directory)
+
+        allocation = await allocator.allocate(
+            directory,
+            ImageResource("https://example.test/3", index=3),
+            chapter,
+            ".jpeg",
+        )
+
+        assert directory.name == "0012_chapter_jpeg"
+        assert allocation.relative_path == Path("0012_chapter_jpeg/0012_0003.jpeg")
+        await allocation.abort()
+
+    asyncio.run(scenario())
+
+
+def test_allocator_keeps_plugin_provided_zero_numbers(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        filesystem = FileSystem(tmp_path.resolve())
+        allocator = OutputAllocator(filesystem, AppConfig())
+        chapter = Chapter(0, "chapter")
+        directory = allocator.chapter_directory(chapter)
+        filesystem.ensure_directory(directory)
+
+        allocation = await allocator.allocate(
+            directory,
+            ImageResource("https://example.test/0", index=0),
+            chapter,
+            ".jpeg",
+        )
+
+        assert directory.name == "0000_chapter"
+        assert allocation.relative_path.name == "0000.jpeg"
+        await allocation.abort()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("field", ("directory_format", "filename_format"))
+def test_legacy_num_token_is_rejected(field: str) -> None:
+    with pytest.raises(ValueError, match=r"cannot contain %NUM%"):
+        AppConfig.model_validate({"output": {field: "%NUM%"}})
 
 
 @pytest.mark.parametrize(

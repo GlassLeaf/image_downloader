@@ -54,7 +54,7 @@ mapping は再帰 merge、scalar/list/`null` は高い layer が置換する。I
 | `download.chapter_concurrency` | strict integer `>=1`; `3` |
 | `download.image_concurrency_per_chapter` | strict integer `>=1`; `8` |
 | `download.continue_on_image_error`, `download.allow_empty_chapter_manifest` | strict boolean; `true`, `false` |
-| `output.directory_format`, `output.filename_format` | string; `%NUM%_%TITLE%_%SUBTITLE%`, `%NUM%.%EXT%` |
+| `output.directory_format`, `output.filename_format` | string; `%CHAPTER_NUMBER%_%TITLE%_%SUBTITLE%`, `%IMAGE_INDEX%.%EXT%`。`%NUM%` は configuration error |
 | `output.existing_file` | `overwrite|skip|rename|error`; `overwrite` |
 | `output.image_format` | `ORIGINAL|JPEG|PNG|WEBP`; `ORIGINAL`。`ORIGINAL` は plugin transform/processor 完了後の artifact bytes を core が再エンコードせず保存する |
 | `output.isolate_by_plugin` | strict boolean; `false` |
@@ -123,8 +123,32 @@ symlink/reparse point, and a root that cannot be safely resolved are rejected.
 
 The output directory is the profile downloads root followed by
 `output.directory_format`; a chapter file name is `output.filename_format`.
-Only four tokens are substituted: `%NUM%` (four-digit chapter number or image
-index), `%TITLE%`, `%SUBTITLE%`, and `%EXT%` (extension without a leading dot).
+`directory_format` accepts `%CHAPTER_NUMBER%` (the four-digit
+`Chapter.number`), `%TITLE%`, `%SUBTITLE%`, and the existing `%EXT%` expansion
+(`jpeg`). `filename_format` accepts `%CHAPTER_NUMBER%`, `%IMAGE_INDEX%` (the
+four-digit `ImageResource.index`), `%TITLE%`, `%SUBTITLE%`, and `%EXT%` (the
+saved artifact extension without a leading dot). It alone also accepts
+`%ORIGINAL_STEM%`, `%ORIGINAL_FILENAME%`, and `%ORIGINAL_EXT%`: the selected
+source filename without its last extension, the complete selected source
+filename, and that last source extension without its leading dot.
+
+`%NUM%` is no longer accepted in either format: migrate a directory use to
+`%CHAPTER_NUMBER%` and a file-name use to `%IMAGE_INDEX%`. `%IMAGE_INDEX%` and
+the `%ORIGINAL_*%` image-specific tokens in `directory_format` are
+configuration errors. `%CHAPTER_NUMBER%` is available in a file name so that,
+for example, `%CHAPTER_NUMBER%_%IMAGE_INDEX%.%EXT%` can identify both levels.
+
+The selected source filename is, in order: a site plugin's non-secret
+`ImageResource.original_filename`; successful response `Content-Disposition`
+(`filename*` before `filename`); final response URL path; absolute manifest
+locator URL path; then the four-digit image index. URL query/fragment values do
+not participate. `filename*` follows RFC 8187 decoding. The stem and original
+extension always come from that one selected name; if it has no extension,
+`%ORIGINAL_EXT%` is empty and core does not infer an extension from MIME data,
+Pillow, or a lower-priority name. Use `%ORIGINAL_STEM%.%EXT%` when the saved
+format may differ from the source; `%ORIGINAL_FILENAME%` intentionally keeps
+the source suffix and may therefore not match transformed bytes.
+
 The formatter then makes one safe path component, collapses double underscores,
 and removes a trailing underscore. It never treats a token value as a path
 separator. When `output.isolate_by_plugin=true`, the runtime inserts safe
@@ -143,8 +167,8 @@ profile: {default: comics}
 storage: {data_root: 'D:/image-data'}
 plugins: {root: 'D:/image-plugins'}
 output:
-  directory_format: '%NUM%_%TITLE%_%SUBTITLE%'
-  filename_format: '%NUM%.%EXT%'
+  directory_format: '%CHAPTER_NUMBER%_%TITLE%_%SUBTITLE%'
+  filename_format: '%IMAGE_INDEX%.%EXT%'
   existing_file: skip
 security: {plugin_verification: strict}
 

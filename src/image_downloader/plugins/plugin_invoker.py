@@ -340,6 +340,13 @@ class PluginInvoker:
         self._validate_save_options(hook, image.save_options, path)
         if image.image_id is not None and not isinstance(image.image_id, str):
             raise self._error(hook, f"inspect returned an invalid image ID at {path}")
+        if image.original_filename is not None and (
+            not isinstance(image.original_filename, str)
+            or not image.original_filename.strip()
+            or "/" in image.original_filename
+            or "\\" in image.original_filename
+        ):
+            raise self._error(hook, f"inspect returned an invalid original filename at {path}")
 
     def _validate_update_snapshot(self, hook: str, value: object) -> None:
         if not isinstance(value, UpdateSnapshot):

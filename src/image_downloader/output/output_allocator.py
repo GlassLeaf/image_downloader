@@ -9,6 +9,7 @@ from ..configuration.models import AppConfig
 from ..exceptions import ConfigurationError, ExistingFileConflictError, OutputAllocationError
 from ..models import Chapter, ImageResource
 from ..storage import FileSystem, safe_component
+from .original_filename import original_filename_parts
 
 
 @dataclass(slots=True)
@@ -70,14 +71,7 @@ class OutputAllocator:
             self._loaded_parents.add(parent_key)
 
     def chapter_directory(self, chapter: Chapter) -> Path:
-        return Path(
-            self._format(
-                self.config.output.directory_format,
-                chapter.number,
-                chapter.title,
-                chapter.subtitle,
-            )
-        )
+        return Path(self._format_directory(self.config.output.directory_format, chapter))
 
     async def allocate(
         self,
@@ -85,13 +79,16 @@ class OutputAllocator:
         image: ImageResource,
         chapter: Chapter,
         extension: str,
+        *,
+        original_filename: str | None = None,
     ) -> OutputAllocation:
-        base = chapter_directory / self._format(
+        source_name = original_filename if original_filename is not None else image.original_filename
+        base = chapter_directory / self._format_filename(
             self.config.output.filename_format,
-            image.index,
-            chapter.title,
-            chapter.subtitle,
-            extension,
+            image,
+            chapter,
+            extension=extension,
+            original_filename=source_name,
         )
         mode = self.config.output.existing_file
         while True:
@@ -192,20 +189,38 @@ class OutputAllocator:
             stem = f"{stem[: available - 9].rstrip(' .')}_{digest}" if available > 9 else digest[:available]
         return candidate.with_name(f"{stem}{tail}")
 
-    def _format(
+    def _format_directory(self, template: str, chapter: Chapter) -> str:
+        value = (
+            template.replace("%CHAPTER_NUMBER%", f"{chapter.number:04d}")
+            .replace("%TITLE%", chapter.title)
+            .replace("%SUBTITLE%", chapter.subtitle)
+            .replace("%EXT%", "jpeg")
+        )
+        return self._safe_format_component(value)
+
+    def _format_filename(
         self,
         template: str,
-        number: int,
-        title: str,
-        subtitle: str,
-        extension: str = ".jpeg",
+        image: ImageResource,
+        chapter: Chapter,
+        *,
+        extension: str,
+        original_filename: str | None,
     ) -> str:
+        source_filename, source_stem, source_extension = original_filename_parts(original_filename, image.index)
         value = (
-            template.replace("%NUM%", f"{number:04d}")
-            .replace("%TITLE%", title)
-            .replace("%SUBTITLE%", subtitle)
+            template.replace("%CHAPTER_NUMBER%", f"{chapter.number:04d}")
+            .replace("%IMAGE_INDEX%", f"{image.index:04d}")
+            .replace("%TITLE%", chapter.title)
+            .replace("%SUBTITLE%", chapter.subtitle)
             .replace("%EXT%", extension.removeprefix("."))
+            .replace("%ORIGINAL_STEM%", source_stem)
+            .replace("%ORIGINAL_FILENAME%", source_filename)
+            .replace("%ORIGINAL_EXT%", source_extension)
         )
+        return self._safe_format_component(value)
+
+    def _safe_format_component(self, value: str) -> str:
         return safe_component(
             value.replace("__", "_").rstrip("_"),
             max_length=self.config.output.max_component_length,

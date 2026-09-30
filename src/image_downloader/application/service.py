@@ -56,6 +56,7 @@ from ..observability.diagnostic_safety import best_effort_diagnostic
 from ..observability.events import EventName, EventPayload
 from ..observability.logging import DownloadLogger
 from ..observability.scope import OperationDiagnosticsScope
+from ..output.original_filename import resolve_original_filename
 from ..output.output_allocator import OutputAllocation, OutputAllocator
 from ..plugins.lifecycle import PluginRecord
 from ..plugins.plugin_invoker import PluginInvoker
@@ -945,7 +946,13 @@ class DownloadService:
                     await self.events.emit(EventName.BEFORE_SAVE, EventPayload(url=image.url))
                     async with self.output_locks.hold(allocator.filesystem.path(directory)):
                         await allocator.refresh_directory(directory)
-                        allocation = await allocator.allocate(directory, image, chapter, processed.extension or ".jpeg")
+                        allocation = await allocator.allocate(
+                            directory,
+                            image,
+                            chapter,
+                            processed.extension or ".jpeg",
+                            original_filename=resolve_original_filename(image, response),
+                        )
                         path = allocator.filesystem.path(allocation.relative_path)
                         if allocation.should_write:
                             try:

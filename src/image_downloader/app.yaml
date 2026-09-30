@@ -5,8 +5,8 @@ storage:
 plugins:
   root: null
 output:
-  directory_format: '%NUM%_%TITLE%_%SUBTITLE%'
-  filename_format: '%NUM%.%EXT%'
+  directory_format: '%CHAPTER_NUMBER%_%TITLE%_%SUBTITLE%'
+  filename_format: '%IMAGE_INDEX%.%EXT%'
   existing_file: overwrite
   image_format: ORIGINAL
   isolate_by_plugin: false

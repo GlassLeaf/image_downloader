@@ -150,6 +150,7 @@ def test_inspection_cli_selects_request_data_and_aliases_download(monkeypatch, t
                             headers={"X-Image": "raw"},
                             image_id="image-id",
                             metadata={"page": "1"},
+                            original_filename="plugin-name.webp",
                         ),
                     ),
                 ),
@@ -269,6 +270,7 @@ def test_inspection_cli_selects_request_data_and_aliases_download(monkeypatch, t
     assert all_image["referer"] == "https://example.test/source?token=raw"
     assert all_image["headers"] == {"X-Image": "raw"}
     assert all_image["metadata"] == {"page": "1"}
+    assert all_image["original_filename"] == "plugin-name.webp"
     assert all_payload["image_requests"][0]["plugin_data"] == {"plugin": "raw"}
 
     called: list[bool] = []

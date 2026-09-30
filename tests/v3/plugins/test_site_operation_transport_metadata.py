@@ -38,6 +38,7 @@ def _service(
     transport_metadata_access: dict[str, list[str]] | None = None,
     allow_empty_manifest: bool = False,
     network: dict[str, object] | None = None,
+    filename_format: str | None = None,
 ) -> DownloadService:
     root = (tmp_path / "plugins").resolve()
     make_plugin(root, plugin_id=SITE_ID)
@@ -56,7 +57,10 @@ def _service(
                 "chain": list(processors),
                 "transport_metadata_access": transport_metadata_access or {},
             },
-            "output": {"existing_file": "overwrite"},
+            "output": {
+                "existing_file": "overwrite",
+                **({"filename_format": filename_format} if filename_format else {}),
+            },
             "logging": {"console": {"enabled": False}},
             "notification": {"enabled": False},
         }
@@ -696,6 +700,92 @@ def test_recovery_bare_request_keeps_plugin_data_and_dto_replaces_it(tmp_path: P
             assert observed["image:replace"].plugin_data == {"phase": "replacement"}  # type: ignore[union-attr]
             assert observed["image:inherit"].initial_request.url.endswith("/recovered/inherit")  # type: ignore[union-attr]
             assert observed["image:replace"].final_request.url.endswith("/recovered/replace")  # type: ignore[union-attr]
+        finally:
+            await service.close()
+
+    asyncio.run(scenario())
+
+
+def test_manifest_original_filename_survives_an_artifact_replacement(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        service = _service(tmp_path, filename_format="%ORIGINAL_STEM%.%EXT%")
+
+        class Site:
+            def validate_config(self, _config: object, _app_settings: object) -> None:
+                return None
+
+            def matches(self, _url: str) -> bool:
+                return True
+
+            async def inspect(self, _url: str, _context: object) -> DownloadManifest:
+                return DownloadManifest(
+                    "Book",
+                    (Chapter(1, "One", images=(ImageResource("image:1", original_filename="logical.webp"),)),),
+                )
+
+            async def create_image_request(self, _image: ImageResource, _context: object) -> RequestSpec:
+                return RequestSpec("https://example.test/server-name.webp", auth_required=False)
+
+            async def recover_image_request(self, *_args: object) -> None:
+                return None
+
+            def auth_flow(self, _context: object) -> None:
+                return None
+
+            async def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
+                return ImageArtifact(artifact.data, artifact.content_type, artifact.source_url)
+
+        service.registry.loader.register_class(service.registry.records[SITE_ID], Site)
+        await service.gateway.client.aclose()
+        service.gateway.client = httpx.AsyncClient(
+            transport=httpx.MockTransport(
+                lambda request: httpx.Response(
+                    200,
+                    headers={"content-type": "image/png", "content-disposition": "attachment; filename=header.webp"},
+                    content=_png(),
+                    request=request,
+                )
+            )
+        )
+        try:
+            result = await service.run("https://example.test/gallery")
+            assert [Path(path).name for path in result.saved_files] == ["logical.png"]
+        finally:
+            await service.close()
+
+    asyncio.run(scenario())
+
+
+def test_generic_html_uses_its_img_source_url_when_no_higher_priority_name_exists(tmp_path: Path) -> None:
+    async def scenario() -> None:
+        plugin_root = (tmp_path / "plugins").resolve()
+        config = AppConfig.model_validate(
+            {
+                "storage": {"data_root": str((tmp_path / "data").resolve())},
+                "plugins": {"root": str(plugin_root)},
+                "security": {"plugin_verification": "off"},
+                "output": {"filename_format": "%ORIGINAL_STEM%.%EXT%"},
+                "logging": {"console": {"enabled": False}},
+                "notification": {"enabled": False},
+            }
+        )
+        service = RuntimeComposer(config, config_root=tmp_path.resolve(), plugin_root=plugin_root).compose()
+        await service.gateway.client.aclose()
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/gallery":
+                return httpx.Response(
+                    200,
+                    content=b'<html><img src="/images/original_file.webp"></html>',
+                    request=request,
+                )
+            assert request.url.path == "/images/original_file.webp"
+            return httpx.Response(200, headers={"content-type": "image/png"}, content=_png(), request=request)
+
+        service.gateway.client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
+        try:
+            result = await service.run("https://example.test/gallery")
+            assert [Path(path).name for path in result.saved_files] == ["original_file.png"]
         finally:
             await service.close()
 

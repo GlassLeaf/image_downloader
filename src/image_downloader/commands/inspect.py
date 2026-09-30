@@ -156,6 +156,7 @@ def _full_manifest_json(result: ManifestInspectionResult) -> dict[str, object]:
                         "save_options": _save_options_json(image.save_options),
                         "image_id": image.image_id,
                         "metadata": dict(image.metadata),
+                        "original_filename": image.original_filename,
                     }
                     for image in chapter.images
                 ],

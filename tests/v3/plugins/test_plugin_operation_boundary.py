@@ -74,6 +74,28 @@ def test_invoker_converts_unexpected_hook_exceptions_with_plugin_and_hook_identi
             DownloadManifest("Book", (Chapter(1, "Chapter", images=(ImageResource(" \t"),)),)),
             r"invalid image locator at chapters\[0\]\.images\[0\]",
         ),
+        (
+            DownloadManifest(
+                "Book", (Chapter(1, "Chapter", images=(ImageResource("image:1", original_filename=""),)),)
+            ),
+            r"invalid original filename at chapters\[0\]\.images\[0\]",
+        ),
+        (
+            DownloadManifest(
+                "Book",
+                (
+                    Chapter(1, "Chapter", images=(ImageResource("image:1", original_filename="folder/name.webp"),)),
+                ),
+            ),
+            r"invalid original filename at chapters\[0\]\.images\[0\]",
+        ),
+        (
+            DownloadManifest(
+                "Book",
+                (Chapter(1, "Chapter", images=(ImageResource("image:1", original_filename=cast(str, 1)),)),),
+            ),
+            r"invalid original filename at chapters\[0\]\.images\[0\]",
+        ),
     ),
 )
 def test_invoker_rejects_invalid_nested_manifest_values(manifest: DownloadManifest, message: str) -> None:
@@ -106,6 +128,28 @@ def test_invoker_accepts_an_opaque_image_locator_at_the_manifest_boundary() -> N
             _context(),
         )
         assert manifest.chapters[0].images == (image,)
+
+    asyncio.run(scenario())
+
+
+def test_image_resource_original_filename_defaults_to_none() -> None:
+    assert ImageResource("image:42").original_filename is None
+
+
+def test_invoker_accepts_an_extensionless_original_filename_at_the_manifest_boundary() -> None:
+    image = ImageResource("image:42", original_filename="cover")
+
+    class ManifestPlugin:
+        async def inspect(self, _url: str, _context: object) -> DownloadManifest:
+            return DownloadManifest("Book", (Chapter(1, "One", images=(image,)),))
+
+    async def scenario() -> None:
+        manifest = await PluginInvoker("com.example.original-filename").inspect(
+            cast(SitePlugin, ManifestPlugin()),
+            "https://example.test/gallery",
+            _context(),
+        )
+        assert manifest.chapters[0].images[0].original_filename == "cover"
 
     asyncio.run(scenario())
 

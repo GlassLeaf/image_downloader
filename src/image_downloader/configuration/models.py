@@ -33,6 +33,9 @@ def _strict_finite_number(value: object) -> float | int:
 
 FiniteNumber = Annotated[float, BeforeValidator(_strict_finite_number)]
 ImageFormat = Literal["ORIGINAL", "JPEG", "PNG", "WEBP"]
+_IMAGE_FILENAME_TOKENS = ("%ORIGINAL_STEM%", "%ORIGINAL_FILENAME%", "%ORIGINAL_EXT%")
+_LEGACY_NUMBER_TOKEN = "%NUM%"
+_IMAGE_INDEX_TOKEN = "%IMAGE_INDEX%"
 
 
 class StrictModel(BaseModel):
@@ -51,14 +54,26 @@ class Profile(StrictModel):
 
 
 class Output(StrictModel):
-    directory_format: StrictStr = "%NUM%_%TITLE%_%SUBTITLE%"
-    filename_format: StrictStr = "%NUM%.%EXT%"
+    directory_format: StrictStr = "%CHAPTER_NUMBER%_%TITLE%_%SUBTITLE%"
+    filename_format: StrictStr = "%IMAGE_INDEX%.%EXT%"
     existing_file: Literal["overwrite", "skip", "rename", "error"] = "overwrite"
     image_format: ImageFormat = "ORIGINAL"
     isolate_by_plugin: StrictBool = False
     # Opt-in only: preserve existing names unless an operator selects a limit.
     max_component_length: StrictInt | None = Field(None, ge=16)
     lock_timeout_seconds: FiniteNumber = Field(30.0, ge=0)
+
+    @model_validator(mode="after")
+    def format_tokens_are_valid(self) -> Output:
+        if _LEGACY_NUMBER_TOKEN in self.directory_format or _LEGACY_NUMBER_TOKEN in self.filename_format:
+            raise ValueError(
+                "output format cannot contain %NUM%; use %CHAPTER_NUMBER% or %IMAGE_INDEX% instead"
+            )
+        if _IMAGE_INDEX_TOKEN in self.directory_format or any(
+            token in self.directory_format for token in _IMAGE_FILENAME_TOKENS
+        ):
+            raise ValueError("output.directory_format cannot contain image-only tokens")
+        return self
 
 
 class Media(StrictModel):
