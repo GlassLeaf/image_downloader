@@ -178,6 +178,17 @@ cleanupのみ失敗した場合も、変更のない成功画像を保持した�
 全成功後は終了し、更新監視のための周回は行わない。再試行対象外の失敗しか残っていない場合も終了する。
 詳細な条件表は[runtime behavior](../reference/runtime-behavior.md#workflow-retry-rounds)を参照する。
 
+### workflowの取得対象をダウンロード前に確認できるか？
+
+`image-downloader workflow URL --dry-run`で、通常実行の初回周回に選ばれるURLと選択理由、
+非選択・削除候補を確認できる。`all`／`updated`に対応し、`--json`では一つの文書を返す。
+各URLのmanifest・画像は取得しないため、画像数・保存名・保存衝突・取得成功は予測しない。
+更新履歴・完了状態・Cookie・設定・ログファイルは保存せず、通知も送らない。
+認証・更新確認の通信とplugin cleanupは実行し、ロックファイルと親ディレクトリは作成し得る。
+plugin独自の外部操作まで無副作用と保証するものではない。
+本実行では再確認するため、対象一覧が変わる場合がある。再試行オプションは検証するが周回は行わない。
+詳細は[CLI reference](../reference/cli.md#workflow)を参照する。
+
 ### 14. 同じimage_idで画像内容が同じでも、署名URLだけ変わると再取得するか？
 
 `ImageResource.url`が変われば再取得する。例えば次のクエリ変更も変更扱いとなる。

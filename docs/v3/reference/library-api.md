@@ -23,6 +23,27 @@ Retry refreshes the feed and selected manifests, then downloads failed/unprocess
 Successful and skipped outcomes are reused when their `ImageResource` fields are unchanged; manifest revision
 alone does not invalidate them. This is invocation-local: the next call resumes at URL granularity.
 
+`await service.plan_workflow(feed_url, download_scope="updated")` previews only initial-round URL
+selection, using the same workflow history and selection calculation as execution. It accepts plugin configuration,
+selection, fallback and download-policy overrides; it has no image-format or retry arguments.
+It checks the feed once without inspecting target manifests or fetching images. The service operation lock
+and same-feed interprocess lock remain held through checking, selection and plugin cleanup.
+
+The immutable `WorkflowPlanResult` exposes `source_url`, `download_scope`, `plugin_id`, `snapshot`,
+`changes`, `first_run`, `items`, `stop_error`, `cancelled`, and deduplicated `selected_urls`.
+Each immutable `WorkflowPlanItem` has `candidate: UpdateCandidate`, `selected: bool`, and tuple `reasons`.
+Reasons are all/added/changed/unfinished or excluded completed. Shared target URLs share selection and reasons.
+`first_run` is null before comparison, then true only if the plugin/feed has no workflow snapshot.
+Exceptions and cancellation propagate with `workflow_plan_result` carrying confirmed information.
+Raw candidate URLs remain available to library callers; CLI output applies existing redaction.
+
+Planning validates both update and workflow history without saving or migrating either. It uses a detached
+cookie gateway and discards authentication/session changes, without planning-originated file logs, events or
+notifications. This does not disable persistence from ordinary service construction, other operations or their
+session changes when the ordinary service closes. The CLI uses dedicated sinkless composition with cookie
+persistence disabled. Necessary lock files/directories may be created. Plugin code and authentication still run;
+plugin-defined external effects are not sandboxed. A later workflow checks the feed again.
+
 `WorkflowItemResult.attempts` contains immutable `WorkflowAttemptResult` entries with round number, status,
 merged download, safe error, and `WorkflowImageResult` entries (one-based positions, image, status, outcome,
 `attempted` and `retained`). `WorkflowResult.rounds` contains immutable `WorkflowRoundResult` snapshots,

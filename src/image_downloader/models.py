@@ -555,6 +555,37 @@ class WorkflowItemResult:
 
 
 @dataclass(frozen=True, slots=True)
+class WorkflowPlanItem:
+    candidate: UpdateCandidate
+    selected: bool
+    reasons: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "reasons", tuple(self.reasons))
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowPlanResult:
+    source_url: str
+    download_scope: Literal["all", "updated"]
+    plugin_id: str | None = None
+    snapshot: UpdateSnapshot | None = None
+    changes: tuple[UpdateChange, ...] = ()
+    first_run: bool | None = None
+    items: tuple[WorkflowPlanItem, ...] = ()
+    stop_error: ErrorInfo | None = None
+    cancelled: bool = False
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "changes", tuple(self.changes))
+        object.__setattr__(self, "items", tuple(self.items))
+
+    @property
+    def selected_urls(self) -> tuple[str, ...]:
+        return tuple(dict.fromkeys(item.candidate.url for item in self.items if item.selected))
+
+
+@dataclass(frozen=True, slots=True)
 class WorkflowResult:
     source_url: str
     download_scope: Literal["all", "updated"]

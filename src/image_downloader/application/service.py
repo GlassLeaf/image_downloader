@@ -52,6 +52,7 @@ from ..models import (
     UpdateChangeKind,
     UpdateResult,
     UpdateSnapshot,
+    WorkflowPlanResult,
     WorkflowResult,
 )
 from ..observability.chapter_reporter import ChapterReporter
@@ -258,6 +259,7 @@ class DownloadService:
         self.notifications = dependencies.notifications
         self.cookie_store = dependencies.cookie_store
         self._cookie_baseline = dependencies.cookie_baseline
+        self._persist_cookies_on_close = dependencies.persist_cookies_on_close
         self.gateway = dependencies.gateway
         self.image_processor = dependencies.image_processor
         self.output_locks = dependencies.output_locks
@@ -615,9 +617,7 @@ class DownloadService:
                     action="check_updates",
                     debug=True,
                 )
-                if not isinstance(plugin, UpdateProvider):
-                    raise PluginError("update check is not supported by this plugin")
-                snapshot = await invoker.check_updates(plugin, url, context)
+                snapshot = await self._fetch_update_snapshot(plugin, url, context, invoker)
                 changes = await self.state.apply_snapshot_async(record.id, url, snapshot)
                 for change in changes:
                     if change.kind in {UpdateChangeKind.ADDED, UpdateChangeKind.CHANGED}:
@@ -663,6 +663,42 @@ class DownloadService:
             )
             await best_effort_diagnostic(self.logger.error_detail, exc, url=url, module="runtime")
             raise
+
+    async def _fetch_update_snapshot(
+        self, plugin: SitePlugin, url: str, context: PluginExecutionContext, invoker: PluginInvoker
+    ) -> UpdateSnapshot:
+        if not isinstance(plugin, UpdateProvider):
+            raise PluginError("update check is not supported by this plugin")
+        return await invoker.check_updates(plugin, url, context)
+
+    async def plan_workflow(
+        self,
+        url: str,
+        *,
+        download_scope: Literal["all", "updated"] = "updated",
+        plugin_overrides: PluginConfigOverrides | None = None,
+        fallback_override: bool | None = None,
+        plugin_id: str | None = None,
+        force_plugin: bool = False,
+        plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None,
+    ) -> WorkflowPlanResult:
+        """Preview initial URL selection without persisting history or session changes."""
+        from .workflow_plan import plan_workflow
+
+        if download_scope not in ("all", "updated"):
+            raise ValueError("download_scope must be all or updated")
+        async with self._operation_lock:
+            self._ensure_open()
+            return await plan_workflow(
+                self,
+                url,
+                download_scope,
+                plugin_overrides,
+                fallback_override,
+                plugin_id,
+                force_plugin,
+                plugin_download_policy_overrides,
+            )
 
     async def workflow(
         self,
@@ -1348,7 +1384,8 @@ class DownloadService:
             if not self._closed:
                 self._closed = True
                 try:
-                    await self._persist_cookies()
+                    if self._persist_cookies_on_close:
+                        await self._persist_cookies()
                 finally:
                     try:
                         await self.gateway.close()

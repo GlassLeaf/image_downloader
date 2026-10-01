@@ -34,3 +34,4 @@ class _RuntimeDependencies:
     gateway: RequestGateway
     image_processor: ImageProcessor
     output_locks: OutputDirectoryLocks
+    persist_cookies_on_close: bool = True

@@ -16,7 +16,14 @@ from urllib.parse import urlparse
 from ..application.composer import RuntimeComposer
 from ..configuration.paths import resolve_paths
 from ..exceptions import AuthenticationError, ConfigurationError, PluginError, error_info_for, error_reason_for_code
-from ..models import DownloadResult, ImageFailure, WorkflowAttemptResult, WorkflowResult, WorkflowRoundResult
+from ..models import (
+    DownloadResult,
+    ImageFailure,
+    WorkflowAttemptResult,
+    WorkflowPlanResult,
+    WorkflowResult,
+    WorkflowRoundResult,
+)
 from ..privacy.log_safety import safe_exception_name, safe_locator, safe_relative_path, safe_url
 from .constants import (
     EXIT_AUTHENTICATION,
@@ -177,6 +184,23 @@ def _stopped_status(error: BaseException) -> int:
 
 class WorkflowCommandHandler:
     async def handle(self, args: argparse.Namespace) -> int:
+        try:
+            return await self._handle(args)
+        except (Exception, asyncio.CancelledError) as exc:
+            if not getattr(args, "dry_run", False):
+                raise
+            result = getattr(
+                exc, "workflow_plan_result", WorkflowPlanResult(args.url, args.download_scope or "updated")
+            )
+            result = replace(
+                result,
+                stop_error=None if isinstance(exc, asyncio.CancelledError) else error_info_for(exc),
+                cancelled=isinstance(exc, asyncio.CancelledError),
+            )
+            _print_plan(result, args, Path.cwd())
+            return _stopped_status(exc)
+
+    async def _handle(self, args: argparse.Namespace) -> int:
         retries = args.workflow_retries if args.workflow_retries is not None else 1
         delay = args.workflow_retry_delay if args.workflow_retry_delay is not None else 600.0
         timeout = args.workflow_retry_timeout
@@ -205,6 +229,8 @@ class WorkflowCommandHandler:
         )
         overrides = _runtime_overrides(args)
         policies = _download_policy_overrides(args)
+        if getattr(args, "dry_run", False):
+            return await _plan_command(args, overrides, policies)
         config, config_root, _, source = _config_for(
             args,
             urlparse(args.url).hostname,
@@ -271,3 +297,104 @@ class WorkflowCommandHandler:
             if result.cancelled:
                 print("workflow cancelled", file=sys.stderr)
         return status
+
+
+def workflow_plan_payload(result: WorkflowPlanResult, root: Path) -> dict[str, object]:
+    return {
+        "operation": "workflow",
+        "dry_run": True,
+        "source_url": safe_url(result.source_url),
+        "download_scope": result.download_scope,
+        "plugin_id": result.plugin_id,
+        "first_run": result.first_run,
+        "checked_at": result.snapshot.checked_at.isoformat() if result.snapshot is not None else None,
+        "candidates": [dict(asdict(c), url=safe_url(c.url)) for c in result.snapshot.candidates]
+        if result.snapshot
+        else [],
+        "changes": [dict(asdict(c), url=safe_url(c.url)) for c in result.changes],
+        "selected_urls": [safe_url(url) for url in result.selected_urls],
+        "items": [
+            {
+                "candidate": dict(asdict(i.candidate), url=safe_url(i.candidate.url)),
+                "selected": i.selected,
+                "reasons": i.reasons,
+            }
+            for i in result.items
+        ],
+        "summary": {
+            "candidates": len(result.snapshot.candidates) if result.snapshot else 0,
+            "selected_urls": len(result.selected_urls),
+            "selected_candidates": sum(i.selected for i in result.items),
+            "excluded_candidates": sum(not i.selected for i in result.items),
+            "removed_candidates": sum(c.kind.value == "removed" for c in result.changes),
+        },
+        "stop_error": _safe_error(asdict(result.stop_error), root) if result.stop_error else None,
+        "cancelled": result.cancelled,
+    }
+
+
+def _print_plan(result: WorkflowPlanResult, args: argparse.Namespace, root: Path) -> None:
+    payload = workflow_plan_payload(result, root)
+    if args.json_output:
+        print(json.dumps(payload, ensure_ascii=False))
+        return
+    for item in result.items:
+        label = "selected" if item.selected else "excluded"
+        print(f"{label} ({', '.join(item.reasons)}): {safe_url(item.candidate.url)}")
+    for change in result.changes:
+        if change.kind.value == "removed":
+            print(f"removed: {safe_url(change.url)}")
+    print(f"workflow dry-run ({result.download_scope}): {payload['summary']}", file=sys.stderr)
+    if result.stop_error:
+        print(f"error [{result.stop_error.code}]: {result.stop_error.reason}", file=sys.stderr)
+    if result.cancelled:
+        print("workflow dry-run cancelled", file=sys.stderr)
+
+
+async def _plan_command(args: argparse.Namespace, overrides, policies) -> int:
+    service = None
+    result = WorkflowPlanResult(args.url, args.download_scope or "updated")
+    root = _output_root(args) or Path.cwd()
+    status = EXIT_SUCCESS
+    with redirect_stdout(sys.stderr):
+        try:
+            config, config_root, _, _ = _config_for(args, urlparse(args.url).hostname, rewrite_user_layers=False)
+            root = _output_root(args) or resolve_paths(config)["downloads"]
+            service = RuntimeComposer(
+                config,
+                config_root=config_root,
+                plugin_root=_plugin_root(args, config),
+                output_root=_output_root(args),
+                plugin_verification_override=args.plugin_verification_override,
+            )._compose_for_workflow_plan()
+            result = await service.plan_workflow(
+                args.url,
+                download_scope=cast(Literal["all", "updated"], args.download_scope or "updated"),
+                plugin_overrides=overrides,
+                fallback_override=_fallback(args),
+                plugin_id=args.plugin_id or args.force_plugin_id,
+                force_plugin=args.force_plugin_id is not None,
+                plugin_download_policy_overrides=policies,
+            )
+        except (Exception, asyncio.CancelledError) as exc:
+            result = getattr(exc, "workflow_plan_result", result)
+            result = replace(
+                result,
+                stop_error=None if isinstance(exc, asyncio.CancelledError) else error_info_for(exc),
+                cancelled=isinstance(exc, asyncio.CancelledError),
+            )
+            status = _stopped_status(exc)
+        finally:
+            if service is not None:
+                try:
+                    await service.close()
+                except (Exception, asyncio.CancelledError) as exc:
+                    if result.stop_error is None and not result.cancelled:
+                        result = replace(
+                            result,
+                            stop_error=None if isinstance(exc, asyncio.CancelledError) else error_info_for(exc),
+                            cancelled=isinstance(exc, asyncio.CancelledError),
+                        )
+                        status = _stopped_status(exc)
+    _print_plan(result, args, root)
+    return status

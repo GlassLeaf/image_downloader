@@ -61,7 +61,12 @@ class RuntimeComposer:
         registry = self.compose_registry()
         return DownloadService(self.config, registry, self._build_dependencies(inspection=True))
 
-    def _build_dependencies(self, *, inspection: bool = False) -> _RuntimeDependencies:
+    def _compose_for_workflow_plan(self) -> DownloadService:
+        """Compose a sinkless service that never persists its cookie session."""
+        registry = self.compose_registry()
+        return DownloadService(self.config, registry, self._build_dependencies(inspection=True, planning=True))
+
+    def _build_dependencies(self, *, inspection: bool = False, planning: bool = False) -> _RuntimeDependencies:
         paths = resolve_paths(self.config)
         outputs = FileSystem(self.output_root or paths["downloads"])
         logs = FileSystem(paths["logs"])
@@ -78,7 +83,7 @@ class RuntimeComposer:
         logger.configure_safety(rendered_config["logging"], outputs.root)
         events.configure_safety(rendered_config["logging"], str(outputs.root))
         notifications = NotificationService(
-            self.config.notification,
+            self.config.notification.model_copy(update={"enabled": False}) if planning else self.config.notification,
             logger,
             events,
             default_notification_senders(self.config.notification),
@@ -104,6 +109,7 @@ class RuntimeComposer:
             gateway=gateway,
             image_processor=image_processor,
             output_locks=output_locks,
+            persist_cookies_on_close=not planning,
         )
 
     def compose_registry(self) -> PluginRuntime:

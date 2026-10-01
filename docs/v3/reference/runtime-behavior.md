@@ -63,6 +63,21 @@ Started transactions finish before cancellation propagates. Completed URLs survi
 Authentication/request/plugin/existing-file-conflict errors abort that URL and continue with other URLs;
 configuration, storage/lock/safety errors and unexpected failures abort the workflow.
 
+### Workflow dry-run
+
+CLI `workflow --dry-run` / library `plan_workflow()` use a shared pure initial-round selection calculation.
+The preview checks the feed once and reads workflow completion history under the existing shared-file lock;
+both update and workflow histories are validated, but neither is written or migrated. Missing workflow feed
+history selects all current candidates in either scope. The operation and same-feed locks cover the check,
+selection and cleanup; other feeds are not locked for the network check.
+
+No target manifest, image request/processing/output allocation, wait or retry round is run. A cloned CookieJar
+and detached gateway keep authentication changes out of the normal service session. CLI planning additionally
+suppresses initial configuration persistence/rewrite, file logs, notifications and close-time cookie persistence.
+Only required lock files/directories are created. This is not a sandbox for plugin code or remote authentication.
+Preview results are observations, not a reservation; actual execution refreshes the feed again.
+See [CLI output](cli.md#workflow) and [library API](library-api.md) for the separate plan result contract.
+
 ### Workflow retry rounds
 
 The default is one additional round, after a fixed 600-second wait, only while retryable unfinished work exists.

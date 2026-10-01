@@ -48,6 +48,8 @@ async def run(args: argparse.Namespace) -> int:
         handler_name = "cookie"
     if handler_name is None:
         raise ValueError("URL or command is required")
+    if handler_name != "workflow" and getattr(args, "dry_run", False):
+        raise ConfigurationError("--dry-run is only valid for workflow")
     if handler_name != "workflow" and getattr(args, "download_scope", None) is not None:
         raise ConfigurationError("--download-scope is only valid for workflow")
     for option in ("workflow_retries", "workflow_retry_delay", "workflow_retry_timeout"):

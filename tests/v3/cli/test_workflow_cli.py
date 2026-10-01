@@ -30,6 +30,85 @@ TARGET = "https://example.test/a?token=secret"
 
 
 @pytest.mark.parametrize("before", [False, True])
+def test_dry_run_supported_before_and_after_command(before):
+    args = build_parser().parse_args(["--dry-run", "workflow", URL] if before else ["workflow", URL, "--dry-run"])
+    assert args.dry_run and args.command_handler == "workflow"
+
+
+@pytest.mark.parametrize("arguments", [["download", URL], [URL], ["inspect", URL], ["doctor"], ["config", "path"]])
+def test_dry_run_rejected_by_other_commands(arguments, capsys):
+    assert main(["--dry-run", *arguments, "--json"]) == 2
+    assert json.loads(capsys.readouterr().out)["error"]["code"] == "configuration_error"
+
+
+@pytest.mark.parametrize("failure", [None, "check", "cleanup", "cancel"])
+def test_dry_run_cli_is_sinkless_and_emits_one_safe_document(tmp_path, monkeypatch, capsys, failure):
+    from image_downloader import AppConfig, PluginError, RuntimeComposer
+
+    config = AppConfig.model_validate(
+        {"storage": {"data_root": str(tmp_path / "data")}, "plugins": {"root": str(tmp_path / "plugins")}}
+    )
+    services = []
+    seen = []
+
+    def configure(args, host, **kwargs):
+        assert kwargs == {"rewrite_user_layers": False}
+        return config, tmp_path, tmp_path / "never-created.yaml", "defaults"
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("dry-run must not persist configuration or invoke downloads")
+
+    async def check(url, context):
+        print("plugin stdout must not enter JSON")
+        seen.append("check")
+        if failure == "check":
+            raise PluginError("token=secret private failure")
+        if failure == "cancel":
+            raise asyncio.CancelledError()
+        return UpdateSnapshot(url, (UpdateCandidate(TARGET, "a", "1"),), datetime.now(UTC))
+
+    def cleanup():
+        seen.append("cleanup")
+        if failure == "cleanup":
+            raise PluginError("private cleanup failure")
+
+    def composer(config, **kwargs):
+        real = RuntimeComposer(config, **kwargs)
+        service = real._compose_for_workflow_plan()
+        record = service.registry.records["core.generic-html"]
+        plugin = SimpleNamespace(check_updates=check, auth_flow=lambda context: None, cleanup_after_use=cleanup)
+        service.registry.resolve = lambda *args, **kwargs: (record, plugin)
+        service.run = forbidden
+        service.workflow = forbidden
+        services.append(service)
+        return SimpleNamespace(_compose_for_workflow_plan=lambda: service)
+
+    monkeypatch.setattr(command, "_config_for", configure)
+    monkeypatch.setattr(command, "_persist_initial_user_config", forbidden)
+    monkeypatch.setattr(command, "RuntimeComposer", composer)
+    status = main(["workflow", URL, "--dry-run", "--workflow-retries", "99", "--workflow-retry-delay", "600", "--json"])
+    captured = capsys.readouterr()
+    payload = json.loads(captured.out)
+    assert payload["operation"] == "workflow" and payload["dry_run"] is True
+    assert "secret" not in captured.out
+    assert "plugin stdout" in captured.err
+    assert seen == ["check", "cleanup"]
+    assert status == (130 if failure == "cancel" else 4 if failure else 0)
+    if failure == "cleanup":
+        assert len(payload["selected_urls"]) == 1
+    if failure is None:
+        assert payload["first_run"] is True and payload["summary"]["selected_urls"] == 1
+    assert services[0]._closed
+    assert all(p.suffix == ".lock" for p in tmp_path.rglob("*") if p.is_file())
+
+
+def test_invalid_dry_run_options_return_plan_error_document(capsys):
+    assert main(["workflow", URL, "--dry-run", "--workflow-retry-timeout", "0", "--json"]) == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["dry_run"] and payload["stop_error"]["code"] == "configuration_error"
+
+
+@pytest.mark.parametrize("before", [False, True])
 def test_retry_options_supported_before_and_after_command(before):
     options = ["--workflow-retries", "2", "--workflow-retry-delay", "0", "--workflow-retry-timeout", "30"]
     args = build_parser().parse_args([*options, "workflow", URL] if before else ["workflow", URL, *options])

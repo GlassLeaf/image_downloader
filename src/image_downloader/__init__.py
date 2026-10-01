@@ -67,6 +67,8 @@ from .models import (
     WorkflowAttemptResult,
     WorkflowImageResult,
     WorkflowItemResult,
+    WorkflowPlanItem,
+    WorkflowPlanResult,
     WorkflowResult,
     WorkflowRoundResult,
 )
@@ -93,6 +95,8 @@ __all__ = [
     "WorkflowRoundResult",
     "WorkflowItemResult",
     "WorkflowResult",
+    "WorkflowPlanItem",
+    "WorkflowPlanResult",
     "AppConfig",
     "apply_overrides",
     "AuthFlow",

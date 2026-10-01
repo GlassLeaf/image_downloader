@@ -97,46 +97,25 @@ class WorkflowState:
             feeds = document["sources"].setdefault(plugin_id, {})
             source_key = UpdateState._source_key(url)
             previous = feeds.get(source_key, {}).get("records", {})
-            current: dict[str, Any] = {}
-            changes: list[UpdateChange] = []
-            selected: dict[str, tuple[str, ...]] = {}
-            for candidate in snapshot.candidates:
-                identity = UpdateState._identity(candidate)
-                if identity in current:
-                    raise PluginError("check_updates returned duplicate candidate identities")
-                old = previous.get(identity)
-                changed = old is None or old["url"] != candidate.url or old["revision"] != candidate.revision
-                reason = "added" if old is None else "changed" if changed else "unfinished"
-                if changed:
-                    changes.append(
-                        UpdateChange(UpdateChangeKind(reason), candidate.url, candidate.content_id, candidate.revision)
-                    )
-                completed = not changed and old["completed"]
-                if scope == "all" or not completed:
-                    reasons = selected.get(candidate.url, ())
-                    chosen_reason = "all" if scope == "all" else reason
-                    selected[candidate.url] = tuple(dict.fromkeys((*reasons, chosen_reason)))
-                current[identity] = {
-                    "url": candidate.url,
-                    "content_id": candidate.content_id,
-                    "revision": candidate.revision,
-                    "completed": completed,
-                }
-            for identity, old in previous.items():
-                if identity not in current:
-                    changes.append(
-                        UpdateChange(UpdateChangeKind.REMOVED, old["url"], old["content_id"], old["revision"])
-                    )
-            # Any candidate sharing a selected URL participates in that attempt.
-            for record in current.values():
-                if record["url"] in selected:
-                    record["completed"] = False
-            selected = {
-                candidate.url: selected[candidate.url] for candidate in snapshot.candidates if candidate.url in selected
-            }
+            current, changes, selected = select_candidates(previous, snapshot, scope)
             feeds[source_key] = {"checked_at": snapshot.checked_at.isoformat(), "records": current}
             self._write(document)
             return tuple(changes), selected
+
+    def preview(
+        self, plugin_id: str, url: str, snapshot: UpdateSnapshot, scope: str
+    ) -> tuple[bool, tuple[UpdateChange, ...], dict[str, tuple[str, ...]]]:
+        with self.lock(Path("workflow.lock")):
+            document = self._read()
+            feeds = document["sources"].get(plugin_id, {})
+            key = UpdateState._source_key(url)
+            previous = feeds.get(key, {}).get("records", {})
+            _, changes, selected = select_candidates(previous, snapshot, scope)
+            return key not in feeds, changes, selected
+
+    def validate(self) -> None:
+        with self.lock(Path("workflow.lock")):
+            self._read()
 
     def complete(self, plugin_id: str, source_url: str, target_url: str) -> None:
         with self.lock(Path("workflow.lock")):
@@ -149,3 +128,45 @@ class WorkflowState:
 
     def _write(self, document: dict[str, Any]) -> None:
         self.filesystem.write_bytes_atomic(self.relative, json.dumps(document, ensure_ascii=False).encode("utf-8"))
+
+
+def select_candidates(
+    previous: dict[str, Any], snapshot: UpdateSnapshot, scope: str
+) -> tuple[dict[str, Any], tuple[UpdateChange, ...], dict[str, tuple[str, ...]]]:
+    """Pure initial-round selection, shared by preparation and preview."""
+    current: dict[str, Any] = {}
+    changes: list[UpdateChange] = []
+    selected: dict[str, tuple[str, ...]] = {}
+    for candidate in snapshot.candidates:
+        identity = UpdateState._identity(candidate)
+        if identity in current:
+            raise PluginError("check_updates returned duplicate candidate identities")
+        old = previous.get(identity)
+        changed = old is None or old["url"] != candidate.url or old["revision"] != candidate.revision
+        reason = "added" if old is None else "changed" if changed else "unfinished"
+        if changed:
+            changes.append(
+                UpdateChange(UpdateChangeKind(reason), candidate.url, candidate.content_id, candidate.revision)
+            )
+        completed = not changed and old is not None and old["completed"]
+        if scope == "all" or not completed:
+            reasons = selected.get(candidate.url, ())
+            chosen_reason = "all" if scope == "all" else reason
+            selected[candidate.url] = tuple(dict.fromkeys((*reasons, chosen_reason)))
+        current[identity] = {
+            "url": candidate.url,
+            "content_id": candidate.content_id,
+            "revision": candidate.revision,
+            "completed": completed,
+        }
+    for identity, old in previous.items():
+        if identity not in current:
+            changes.append(UpdateChange(UpdateChangeKind.REMOVED, old["url"], old["content_id"], old["revision"]))
+    # Any candidate sharing a selected URL participates in that attempt.
+    for record in current.values():
+        if record["url"] in selected:
+            record["completed"] = False
+    selected = {
+        candidate.url: selected[candidate.url] for candidate in snapshot.candidates if candidate.url in selected
+    }
+    return current, tuple(changes), selected

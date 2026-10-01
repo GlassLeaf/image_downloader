@@ -126,12 +126,15 @@ class UpdateState:
         self._write(document)
         return tuple(changes)
 
+    def _validate_read_only(self) -> None:
+        """Read and validate without migrating or updating history."""
+        with self._lock():
+            self._read()
+
     def _lock(self) -> InterProcessFileLock:
         self.filesystem.ensure_directory()
         self.filesystem.exists(self.lock_relative)  # Reject an existing symlink/reparse point.
-        return InterProcessFileLock(
-            self.filesystem.path(self.lock_relative), timeout_seconds=self.lock_timeout_seconds
-        )
+        return InterProcessFileLock(self.filesystem.path(self.lock_relative), timeout_seconds=self.lock_timeout_seconds)
 
     @staticmethod
     def _source_key(source_url: str) -> str:

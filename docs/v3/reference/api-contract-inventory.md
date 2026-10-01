@@ -13,6 +13,8 @@ WorkflowAttemptResult
 WorkflowRoundResult
 WorkflowItemResult
 WorkflowResult
+WorkflowPlanItem
+WorkflowPlanResult
 AppConfig
 apply_overrides
 AuthFlow

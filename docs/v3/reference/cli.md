@@ -27,6 +27,37 @@ config 作成・rewrite の command ごとの副作用は [configuration referen
 
 ### Workflow
 
+`workflow URL --dry-run` performs one live feed check and previews initial-round URL selection.
+It accepts `--download-scope all|updated` and existing workflow options, including options before the command.
+`--dry-run` is rejected by other commands and the bare-URL download form. Existing option validation and
+exclusions remain; retry options are validated but no waits or additional rounds run.
+
+The preview displays selected/excluded candidates and reasons (`all`, `added`, `changed`, `unfinished`,
+or excluded `completed`), removed candidates, and candidate/selected-URL counts. URLs are deduplicated for
+selection in feed order; candidates sharing a URL share its selection and reasons.
+It does not inspect target manifests, fetch/process/save images, predict image counts/output filenames/file
+conflicts, or prove that downloads will succeed. Output/format/existing-file options are accepted but not simulated.
+
+The command does not update `updates.json` or `workflow.json`, initialize/rewrite configuration, save cookies
+or file logs, or send notifications. Existing cookies are read into a detached session; authentication refresh
+and ordinary HTTP retries can occur, but session changes are discarded. Lock files and their parent directories
+may be created. Feed/plugin authentication, check and cleanup code actually runs; plugin-defined external
+side effects are not sandboxed. The next real workflow checks the feed again; a preview does not reserve its list.
+
+With `--json`, one safe document contains `operation="workflow"`, `dry_run=true`, `source_url`,
+`download_scope`, `plugin_id`, `first_run`, `checked_at`, `candidates`, `changes`, `selected_urls`, `items`,
+`summary`, `stop_error`, and `cancelled`. Items contain `candidate`, `selected`, and `reasons`; summary counts
+`candidates`, `selected_urls`, `selected_candidates`, `excluded_candidates`, and `removed_candidates`.
+`first_run` is null until history comparison finishes, otherwise indicates that this plugin/feed has no workflow history.
+Failures retain confirmed preview information where available. Plugin stdout goes to stderr in preview mode.
+Successful previews, including empty selection, return 0; errors retain existing exception-specific codes and
+user cancellation returns 130. A preview never returns download partial-success code 5.
+
+```sh
+image-downloader workflow https://example.test/feed --dry-run
+image-downloader --dry-run workflow https://example.test/feed --download-scope all --json
+```
+
 `workflow URL` checks the selected update provider, then downloads selected URLs sequentially.
 `--download-scope updated` is the default: select added/changed candidates and unfinished candidates still present.
 `--download-scope all` selects the entire current snapshot. The first workflow run selects all candidates.

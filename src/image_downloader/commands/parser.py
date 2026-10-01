@@ -247,6 +247,7 @@ def _add_workflow_retry_options(parser: argparse.ArgumentParser, *, suppress_def
 
 
 def _add_legacy_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--dry-run", action="store_true", default=False, help="preview workflow URL selection")
     parser.add_argument("--download-scope", choices=("all", "updated"), default=None)
     _add_workflow_retry_options(parser, suppress_defaults=False)
     _add_configuration_options(parser, suppress_defaults=False)
@@ -294,6 +295,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     workflow_parser = commands.add_parser("workflow", help="check a complete update list and download selected URLs")
     workflow_parser.add_argument("url")
+    workflow_parser.add_argument("--dry-run", action="store_true", default=argparse.SUPPRESS)
     _add_workflow_retry_options(workflow_parser, suppress_defaults=True)
     workflow_parser.add_argument(
         "--download-scope",
