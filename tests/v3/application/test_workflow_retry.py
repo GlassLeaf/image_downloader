@@ -5,6 +5,7 @@ import io
 import threading
 from collections import Counter
 from dataclasses import replace
+from pathlib import Path
 
 import httpx
 import pytest
@@ -14,12 +15,17 @@ from test_workflow import FEED, A, B, Gallery, compose
 from image_downloader import (
     AuthenticationError,
     Chapter,
+    ConfigurationError,
     DownloadManifest,
+    DownloadService,
     ImageDecodeError,
     ImageResource,
     ImageSaveOptions,
+    InterProcessLockError,
     PluginError,
     RequestSpec,
+    StorageError,
+    StorageSafetyError,
     UpdateCandidate,
     WorkflowRetryTimeoutError,
 )
@@ -709,5 +715,149 @@ def test_cancellation_during_final_notification_keeps_completed_results(tmp_path
             assert result.cancelled
             assert result.items[0].status == "success"
             assert result.items[0].download.saved_files
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("timing", ["simultaneous", "later"])
+@pytest.mark.parametrize("fatal_first", [False, True])
+@pytest.mark.parametrize(
+    "failure_type", [ConfigurationError, StorageError, StorageSafetyError, InterProcessLockError, RuntimeError]
+)
+def test_parallel_failures_prioritize_stopping_errors(monkeypatch, timing, fatal_first, failure_type):
+    async def scenario():
+        release = asyncio.Event()
+        fatal = failure_type("operation must stop")
+        started = []
+        original_wait = asyncio.wait
+        if timing == "simultaneous":
+            release.set()
+
+        async def wait(tasks, **kwargs):
+            if timing == "simultaneous":
+                kwargs["return_when"] = asyncio.ALL_COMPLETED
+            result = await original_wait(tasks, **kwargs)
+            release.set()
+            return result
+
+        monkeypatch.setattr(asyncio, "wait", wait)
+
+        async def recoverable():
+            started.append("recoverable")
+            raise ImageDecodeError()
+
+        async def stopping():
+            started.append("stopping")
+            await release.wait()
+            raise fatal
+
+        async def queued():
+            started.append("queued")
+
+        factories = [stopping, recoverable] if fatal_first else [recoverable, stopping]
+        with pytest.raises(failure_type) as caught:
+            await DownloadService._bounded(None, [*factories, queued], 2)
+        assert caught.value is fatal
+        assert set(started) == {"recoverable", "stopping"}
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("separate_chapters", [False, True])
+def test_concurrent_configuration_error_stops_workflow_and_keeps_success(tmp_path, separate_chapters):
+    async def scenario():
+        gallery = RetryGallery()
+        gallery.candidates = (A, B)
+        images = (
+            ImageResource(A.url + "/good.png", index=1),
+            ImageResource(A.url + "/decode.png", index=2),
+            ImageResource(A.url + "/config.png", index=3),
+        )
+        chapters = (
+            tuple(Chapter(i, "chapter", images=(image,)) for i, image in enumerate(images, 1))
+            if separate_chapters
+            else (Chapter(1, "chapter", images=images),)
+        )
+        gallery.manifests[1, A.url] = DownloadManifest("gallery", chapters)
+        decode_failed = asyncio.Event()
+
+        async def transform(artifact, context):
+            if context.index == 2:
+                decode_failed.set()
+                raise ImageDecodeError()
+            if context.index == 3:
+                await decode_failed.wait()
+                await asyncio.sleep(0)
+                raise ConfigurationError("fatal configuration")
+            return artifact
+
+        gallery.transform_image = transform
+        async with compose(tmp_path, gallery, download={"continue_on_image_error": False}) as service:
+            await transport(service, gallery)
+            with pytest.raises(ConfigurationError) as caught:
+                await service.workflow(FEED, workflow_retry_delay=0)
+            result = caught.value.workflow_result
+            assert result.stop_error.code == "configuration_error"
+            assert gallery.checks == 1
+            assert result.items[1].status == "unprocessed"
+            assert len(result.items[0].download.saved_files) == 1
+            assert {failure.code for failure in result.items[0].download.failures} == {
+                "image_decode_error",
+                "configuration_error",
+            }
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("stage", ["after_download", "diagnostics"])
+@pytest.mark.parametrize("round_number", [0, 1])
+def test_cancellation_after_download_keeps_latest_attempt(tmp_path, monkeypatch, stage, round_number):
+    async def scenario():
+        gallery = RetryGallery()
+        if round_number == 0:
+            gallery.manifests[1, A.url] = manifest(ImageResource(A.url + "/good.png"))
+        entered = asyncio.Event()
+        blocked = False
+
+        async def block_once():
+            nonlocal blocked
+            if gallery.checks == round_number + 1 and not blocked:
+                blocked = True
+                entered.set()
+                await asyncio.Event().wait()
+
+        async with compose(tmp_path, gallery, network={"max_attempts": 1}) as service:
+            await transport(service, gallery)
+            if stage == "after_download":
+
+                async def after_download(payload):
+                    await block_once()
+
+                service.events.on(EventName.AFTER_DOWNLOAD, after_download)
+            else:
+                original_flush = service.notifications.flush
+
+                async def flush(*, source_url, **kwargs):
+                    if source_url == A.url:
+                        await block_once()
+                    await original_flush(source_url=source_url, **kwargs)
+
+                monkeypatch.setattr(service.notifications, "flush", flush)
+
+            task = asyncio.create_task(service.workflow(FEED, workflow_retry_delay=0))
+            await asyncio.wait_for(entered.wait(), 10)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError) as caught:
+                await task
+            result = caught.value.workflow_result
+            item = result.items[0]
+            assert result.cancelled and not result.timed_out
+            assert item.status == "unprocessed"
+            assert len(item.attempts) == round_number + 1
+            assert item.attempts[-1].round_number == round_number
+            assert len(item.download.saved_files) == round_number + 1
+            assert not item.download.failures
+            assert all(image.status == "saved" for image in item.attempts[-1].images)
+            assert all(Path(path).is_file() for path in item.download.saved_files)
 
     asyncio.run(scenario())

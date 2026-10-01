@@ -230,6 +230,18 @@ def _is_fatal_image_error(
     )
 
 
+def _parallel_failure_priority(error: BaseException) -> int:
+    """Preserve cancellation and operation-stopping failures over URL failures."""
+    if not isinstance(error, Exception):
+        return 0
+    if isinstance(
+        error,
+        (AuthenticationError, PluginError, RequestError, ImageProcessingError, ExistingFileConflictError),
+    ):
+        return 2
+    return 1
+
+
 class DownloadService:
     def __init__(
         self,
@@ -923,6 +935,7 @@ class DownloadService:
         results: list[_ResultT | None] = [None] * len(factories)
         pending = iter(enumerate(factories))
         active: dict[asyncio.Future[_ResultT], int] = {}
+        failures: list[tuple[int, BaseException]] = []
 
         def start_next() -> bool:
             try:
@@ -932,26 +945,28 @@ class DownloadService:
             active[asyncio.ensure_future(factory())] = index
             return True
 
+        def collect(task: asyncio.Future[_ResultT]) -> None:
+            index = active.pop(task)
+            try:
+                results[index] = task.result()
+            except BaseException as exc:
+                failures.append((index, exc))
+
         for _ in range(min(limit, len(factories))):
             start_next()
         try:
             while active:
                 done, _ = await asyncio.wait(active, return_when=asyncio.FIRST_COMPLETED)
-                error: BaseException | None = None
-                completed = 0
                 for task in done:
-                    index = active.pop(task)
-                    try:
-                        results[index] = task.result()
-                        completed += 1
-                    except BaseException as exc:
-                        error = exc
-                if error is not None:
+                    collect(task)
+                if failures:
                     # Started work is collected; queued work is intentionally never created.
                     await asyncio.gather(*active, return_exceptions=True)
-                    active.clear()
-                    raise error
-                for _ in range(completed):
+                    for task in tuple(active):
+                        collect(task)
+                    # Task completion order must not hide an operation-stopping error.
+                    raise min(failures, key=lambda failure: (_parallel_failure_priority(failure[1]), failure[0]))[1]
+                for _ in range(len(done)):
                     start_next()
         except asyncio.CancelledError:
             for task in active:

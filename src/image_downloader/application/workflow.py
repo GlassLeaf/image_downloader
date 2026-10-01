@@ -226,37 +226,40 @@ class _WorkflowExecution:
         error = None
         fatal: BaseException | None = None
         status: Literal["success", "partial", "failed", "unprocessed"] = "success"
-        async with OperationDiagnosticsScope(
-            service.logger, lambda: service.notifications.flush(source_url=item.url)
-        ) as diagnostics:
-            with service.notifications.defer_download():
-                await service.events.emit(EventName.BEFORE_DOWNLOAD, EventPayload(url=item.url))
-                try:
-                    await service._run_operation(
-                        item.url,
-                        self.overrides,
-                        self.fallback,
-                        self.plugin_id,
-                        self.force_plugin,
-                        self.policies,
-                        self.image_format,
-                        diagnostics,
-                        ledger,
-                    )
-                except (
-                    AuthenticationError,
-                    PluginError,
-                    RequestError,
-                    ImageProcessingError,
-                    ExistingFileConflictError,
-                ) as exc:
-                    error, status = error_info_for(exc), "failed"
-                except BaseException as exc:
-                    fatal = exc
-                    error = None if isinstance(exc, asyncio.CancelledError) else error_info_for(exc)
-                    status = "unprocessed" if isinstance(exc, asyncio.CancelledError) else "failed"
-                finally:
-                    await service.events.emit(EventName.AFTER_DOWNLOAD, EventPayload(url=item.url))
+        try:
+            async with OperationDiagnosticsScope(
+                service.logger, lambda: service.notifications.flush(source_url=item.url)
+            ) as diagnostics:
+                with service.notifications.defer_download():
+                    try:
+                        await service.events.emit(EventName.BEFORE_DOWNLOAD, EventPayload(url=item.url))
+                        await service._run_operation(
+                            item.url,
+                            self.overrides,
+                            self.fallback,
+                            self.plugin_id,
+                            self.force_plugin,
+                            self.policies,
+                            self.image_format,
+                            diagnostics,
+                            ledger,
+                        )
+                    finally:
+                        await service.events.emit(EventName.AFTER_DOWNLOAD, EventPayload(url=item.url))
+        except (
+            AuthenticationError,
+            PluginError,
+            RequestError,
+            ImageProcessingError,
+            ExistingFileConflictError,
+        ) as exc:
+            error, status = error_info_for(exc), "failed"
+        except BaseException as exc:
+            fatal = exc
+            error = None if isinstance(exc, asyncio.CancelledError) else error_info_for(exc)
+            status = "unprocessed" if isinstance(exc, asyncio.CancelledError) else "failed"
+        # Observer finalization can be cancelled after files have already committed.
+        # Publish the settled ledger before propagating every operation failure.
         download = ledger.result()
         if status == "success" and download is not None and download.failures:
             status = "partial"
