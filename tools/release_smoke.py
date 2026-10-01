@@ -81,7 +81,14 @@ def _check_archive_names(names: list[str], *, source_archive: bool) -> None:
 
 
 def _run(*arguments: str) -> str:
-    result = subprocess.run(arguments, check=True, capture_output=True, text=True)
+    try:
+        result = subprocess.run(arguments, check=True, capture_output=True, text=True)
+    except subprocess.CalledProcessError as exc:
+        if exc.stdout:
+            print(exc.stdout, end="", file=sys.stderr)
+        if exc.stderr:
+            print(exc.stderr, end="", file=sys.stderr)
+        raise
     return result.stdout
 
 

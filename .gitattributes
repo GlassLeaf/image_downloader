@@ -1,0 +1,7 @@
+# Keep signed plugin text identical across operating systems.
+plugin-sources/**/*.py text eol=lf
+plugin-sources/**/*.json text eol=lf
+plugin-sources/**/*.yaml text eol=lf
+plugin-sources/**/*.md text eol=lf
+plugin-sources/generic-css-selector/licenses/AUTHORS text eol=lf
+plugin-sources/generic-css-selector/licenses/LICENSE text eol=lf

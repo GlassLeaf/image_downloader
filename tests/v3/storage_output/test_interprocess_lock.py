@@ -110,6 +110,54 @@ def test_posix_backend_uses_nonblocking_flock_flags(monkeypatch: pytest.MonkeyPa
     assert backend.try_acquire(stream) is False  # type: ignore[arg-type]
 
 
+def test_windows_backend_locks_one_byte_and_handles_contention(monkeypatch: pytest.MonkeyPatch) -> None:
+    class FakeStream:
+        def __init__(self) -> None:
+            self.positions: list[int] = []
+
+        def seek(self, position: int) -> None:
+            self.positions.append(position)
+
+        def fileno(self) -> int:
+            return 17
+
+    class FakeMsvcrt:
+        LK_NBLCK = 1
+        LK_UNLCK = 2
+
+        def __init__(self) -> None:
+            self.calls: list[tuple[int, int, int]] = []
+            self.error: int | None = None
+
+        def locking(self, descriptor: int, operation: int, byte_count: int) -> None:
+            self.calls.append((descriptor, operation, byte_count))
+            if self.error is not None:
+                raise OSError(self.error, "lock failed")
+
+    fake = FakeMsvcrt()
+    imported: list[str] = []
+
+    def import_module(name: str) -> FakeMsvcrt:
+        imported.append(name)
+        return fake
+
+    monkeypatch.setattr(lock_module.importlib, "import_module", import_module)
+    backend = lock_module._WindowsLockBackend()
+    stream = FakeStream()
+    assert backend.try_acquire(stream) is True  # type: ignore[arg-type]
+    backend.release(stream)  # type: ignore[arg-type]
+    assert fake.calls == [(17, 1, 1), (17, 2, 1)]
+    assert stream.positions == [0, 0]
+    assert imported == ["msvcrt", "msvcrt"]
+    for error in (errno.EACCES, errno.EAGAIN, errno.EDEADLK):
+        fake.error = error
+        assert backend.try_acquire(stream) is False  # type: ignore[arg-type]
+    fake.error = errno.EIO
+    with pytest.raises(OSError) as caught:
+        backend.try_acquire(stream)  # type: ignore[arg-type]
+    assert caught.value.errno == errno.EIO
+
+
 def test_interprocess_lock_contract_uses_fixed_polling_and_default_timeout(tmp_path: Path) -> None:
     lock = InterProcessFileLock(tmp_path / "contract.lock")
 

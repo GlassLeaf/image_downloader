@@ -29,9 +29,16 @@ class _FcntlModule(Protocol):
     def flock(self, file_descriptor: int, operation: int) -> None: ...
 
 
+class _MsvcrtModule(Protocol):
+    LK_NBLCK: int
+    LK_UNLCK: int
+
+    def locking(self, file_descriptor: int, operation: int, byte_count: int) -> None: ...
+
+
 class _WindowsLockBackend:
     def try_acquire(self, stream: BinaryIO) -> bool:
-        import msvcrt
+        msvcrt = cast(_MsvcrtModule, importlib.import_module("msvcrt"))
 
         stream.seek(0)
         try:
@@ -43,7 +50,7 @@ class _WindowsLockBackend:
         return True
 
     def release(self, stream: BinaryIO) -> None:
-        import msvcrt
+        msvcrt = cast(_MsvcrtModule, importlib.import_module("msvcrt"))
 
         stream.seek(0)
         msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)

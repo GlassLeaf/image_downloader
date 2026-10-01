@@ -139,10 +139,9 @@ def _process_image(
             extension = _extension_for(options, target)
             if not requested and target == detected and extension == _FORMAT_TO_EXTENSION[target]:
                 return data, extension
-            if target == "JPEG":
-                image = image.convert("RGB")
+            save_image: Image.Image = image.convert("RGB") if target == "JPEG" else image
             output = io.BytesIO()
-            image.save(output, format=target, **_pillow_options(options, target))
+            save_image.save(output, format=target, **_pillow_options(options, target))
             return output.getvalue(), extension
     except (ConfigurationError, ImageDecodeError, ImageDimensionLimitError, UnsupportedImageFormatError):
         raise
