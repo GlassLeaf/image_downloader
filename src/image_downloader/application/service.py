@@ -8,7 +8,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequenc
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import TypeVar, cast
+from typing import Literal, TypeVar, cast
 from urllib.parse import urlparse
 
 from ..configuration.hosts import normalize_host, site_file_name
@@ -50,6 +50,8 @@ from ..models import (
     RequestSpec,
     UpdateChangeKind,
     UpdateResult,
+    UpdateSnapshot,
+    WorkflowResult,
 )
 from ..observability.chapter_reporter import ChapterReporter
 from ..observability.diagnostic_safety import best_effort_diagnostic
@@ -502,7 +504,7 @@ class DownloadService:
             ) as diagnostics:
                 await self.events.emit(EventName.UPDATE_CHECK_STARTED, EventPayload(url=url))
                 try:
-                    return await self._check_updates_operation(
+                    result, _snapshot = await self._check_updates_operation(
                         url,
                         plugin_overrides,
                         fallback_override,
@@ -511,6 +513,7 @@ class DownloadService:
                         plugin_download_policy_overrides,
                         diagnostics,
                     )
+                    return result
                 finally:
                     await self.events.emit(EventName.UPDATE_CHECK_FINISHED, EventPayload(url=url))
 
@@ -523,7 +526,8 @@ class DownloadService:
         force_plugin: bool,
         plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None,
         diagnostics: OperationDiagnosticsScope,
-    ) -> UpdateResult:
+        selected_plugin: tuple[PluginRecord, SitePlugin] | None = None,
+    ) -> tuple[UpdateResult, UpdateSnapshot]:
         try:
             async with self._site_operation(
                 url,
@@ -532,6 +536,7 @@ class DownloadService:
                 plugin_id,
                 force_plugin,
                 plugin_download_policy_overrides,
+                selected_plugin=selected_plugin,
             ) as (record, plugin, context, _, _, invoker):
                 diagnostics.capture(self._python_log_namespaces(record, include_processors=False))
                 await best_effort_diagnostic(
@@ -568,7 +573,7 @@ class DownloadService:
                     plugin_id=record.id,
                     debug=True,
                 )
-                return UpdateResult(url, record.id, changes, snapshot.checked_at)
+                return UpdateResult(url, record.id, changes, snapshot.checked_at), snapshot
         except asyncio.CancelledError:
             await best_effort_diagnostic(
                 self.logger.core, "download_cancelled", module="runtime", url=url, action="check_updates", debug=True
@@ -600,6 +605,38 @@ class DownloadService:
             )
             await best_effort_diagnostic(self.logger.error_detail, exc, url=url, module="runtime")
             raise
+
+    async def workflow(
+        self,
+        url: str,
+        *,
+        download_scope: Literal["all", "updated"] = "updated",
+        plugin_overrides: PluginConfigOverrides | None = None,
+        fallback_override: bool | None = None,
+        plugin_id: str | None = None,
+        force_plugin: bool = False,
+        plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None,
+        force_image_format: ImageFormat | None = None,
+    ) -> WorkflowResult:
+        from .workflow import execute_workflow
+
+        if download_scope not in ("all", "updated"):
+            raise ValueError("download_scope must be all or updated")
+        if force_image_format not in (None, "ORIGINAL", "JPEG", "PNG", "WEBP"):
+            raise ValueError("force_image_format must be ORIGINAL, JPEG, PNG, WEBP, or None")
+        async with self._operation_lock:
+            self._ensure_open()
+            return await execute_workflow(
+                self,
+                url,
+                download_scope,
+                plugin_overrides,
+                fallback_override,
+                plugin_id,
+                force_plugin,
+                plugin_download_policy_overrides,
+                force_image_format,
+            )
 
     def _operation(
         self,
@@ -695,6 +732,7 @@ class DownloadService:
         download_policy_overrides: PluginDownloadPolicyOverrides | None = None,
         request_gateway: RequestGateway | None = None,
         diagnostics_enabled: bool = True,
+        selected_plugin: tuple[PluginRecord, SitePlugin] | None = None,
     ) -> AsyncIterator[
         tuple[
             PluginRecord,
@@ -705,7 +743,9 @@ class DownloadService:
             PluginInvoker,
         ]
     ]:
-        record, plugin = self._select_site_plugin(url, overrides, fallback_override, plugin_id, force_plugin)
+        record, plugin = selected_plugin or self._select_site_plugin(
+            url, overrides, fallback_override, plugin_id, force_plugin
+        )
         logger: DownloadLogger | None = self.logger if diagnostics_enabled else None
         invoker = PluginInvoker(record.id, logger)
         try:

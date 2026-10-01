@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 
 from ..application.composer import RuntimeComposer
 from ..immutable import thaw_json
-from ..models import EffectiveRequestPreview, ManifestInspectionResult, RequestSpec
+from ..models import EffectiveRequestPreview, ImageSaveOptions, ManifestInspectionResult, RequestSpec
 from .constants import EXIT_PARTIAL, EXIT_SUCCESS
 from .setup import _config_for, _fallback, _plugin_root, _runtime_overrides
 from .validation import _reject_command_options
@@ -118,7 +118,7 @@ def _manifest_summary(result: ManifestInspectionResult) -> dict[str, int]:
     }
 
 
-def _save_options_json(options: object) -> dict[str, object]:
+def _save_options_json(options: ImageSaveOptions) -> dict[str, object]:
     return {
         "format": options.format,
         "extension": options.extension,

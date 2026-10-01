@@ -5,13 +5,13 @@ from __future__ import annotations
 import os
 import re
 import tempfile
-from collections.abc import Mapping
+from collections.abc import Mapping, MutableMapping
 from dataclasses import dataclass
 from functools import cache
 from io import StringIO
 from pathlib import Path
 from types import MappingProxyType, UnionType
-from typing import Annotated, Any, Literal, Union, get_args, get_origin
+from typing import Annotated, Any, Literal, Protocol, Union, cast, get_args, get_origin
 
 import yaml
 from pydantic import BaseModel, ValidationError
@@ -25,6 +25,11 @@ from .models import DEFAULT_CONFIG, AppConfig
 from .paths import default_data_root, default_plugin_root
 
 LayerStatus = Literal["applied", "missing", "not_applicable"]
+
+
+class _YamlLineBreak(Protocol):
+    # ruamel.yaml supports string line breaks but infers this attribute as None.
+    line_break: str | None
 
 
 @dataclass(frozen=True)
@@ -70,11 +75,12 @@ class ResolvedApplicationConfig:
     @property
     def main_config_kind(self) -> Literal["package_defaults", "fixed_user", "explicit"]:
         """Classify main-config selection independently from its filesystem path."""
-        return {
+        kinds: Mapping[str, Literal["package_defaults", "fixed_user", "explicit"]] = {
             "defaults": "package_defaults",
             "user": "fixed_user",
             "explicit": "explicit",
-        }[self.source]
+        }
+        return kinds[self.source]
 
 
 _REMOVED_KEYS = {
@@ -287,7 +293,7 @@ def _apply_cleanup(plan: _LayerCleanup) -> None:
         document_yaml = YAML(typ="rt")
         document_yaml.preserve_quotes = True
         if b"\r\n" in plan.source:
-            document_yaml.line_break = "\r\n"
+            cast(_YamlLineBreak, document_yaml).line_break = "\r\n"
         document = document_yaml.load(plan.source.decode("utf-8"))
         if not isinstance(document, Mapping):
             raise ConfigurationError(f"configuration root must be a mapping: {plan.path}")
@@ -297,7 +303,7 @@ def _apply_cleanup(plan: _LayerCleanup) -> None:
                 if not isinstance(current, Mapping) or key not in current:
                     raise ConfigurationError(f"configuration changed while normalizing: {plan.path}")
                 current = current[key]
-            if not isinstance(current, Mapping) or removal[-1] not in current:
+            if not isinstance(current, MutableMapping) or removal[-1] not in current:
                 raise ConfigurationError(f"configuration changed while normalizing: {plan.path}")
             del current[removal[-1]]
         rendered = StringIO()

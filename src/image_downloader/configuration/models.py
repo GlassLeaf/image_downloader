@@ -6,7 +6,7 @@ import re
 from collections.abc import Mapping
 from math import isfinite
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Literal, cast
 
 from pydantic import (
     BaseModel,
@@ -297,7 +297,7 @@ class ImageProcessors(StrictModel):
                 or any(not _valid_plugin_id(site_id) for site_id in site_ids)
             ):
                 raise ValueError("transport metadata access site IDs are invalid or duplicated")
-        return freeze_json(values)
+        return cast(Mapping[str, tuple[str, ...]], freeze_json(values))
 
 
 class GenericHtmlFallback(StrictModel):

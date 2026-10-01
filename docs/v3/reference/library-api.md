@@ -1,5 +1,26 @@
 # Library API reference
 
+## Workflow API
+
+`await service.workflow(url, download_scope="updated", **download_overrides)` returns immutable
+`WorkflowResult`; it accepts the same override arguments as `run()`. Full signatures are in
+[API signatures](api-signatures.md). `all` selects the current complete snapshot; `updated` selects
+added, changed, and unfinished current candidates, using dedicated workflow state. First run selects all.
+The service configuration is shared; automatic plugin selection is evaluated for each target URL.
+
+`WorkflowResult` contains `source_url`, `download_scope`, `snapshot`, workflow-history `changes`, ordered
+`items`, optional `stop_error`, and `cancelled`; `selected_urls` derives from items.
+`WorkflowItemResult` contains `url`, tuple `reasons`, `status`, optional `download: DownloadResult`,
+and optional `error: ErrorInfo`. Reasons are all/added/changed/unfinished, status is
+success/partial/failed/unprocessed. Multiple identities sharing a URL share one attempt.
+Result objects preserve exact URLs for embedded callers; CLI serialization applies safe URL rendering.
+
+Fatal errors and cancellation propagate their original exception. Its `workflow_result` attribute retains
+completed results, stop information, and unprocessed targets; cancellation must still be propagated by callers.
+Ordinary target authentication/request/plugin/conflict failures are recorded and remaining URLs continue.
+The operation is serial with run/check_updates/inspect/close. Dedicated state and locks are described in
+[runtime behavior](runtime-behavior.md).
+
 この文書、[configuration reference](configuration.md)、[CLI reference](cli.md)、[logging reference](logging.md)、[public signature index](api-signatures.md)、[API inventory](api-contract-inventory.md) が stable Python API の参照仕様である。inventory にある `__all__` 以外の import は stable ではない。async method は await する。`asyncio.CancelledError` は result に変換せず再送出する。
 
 <a id="api-common"></a>

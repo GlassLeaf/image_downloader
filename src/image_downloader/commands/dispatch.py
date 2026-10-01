@@ -27,9 +27,11 @@ from .inspect import InspectCommandHandler
 from .parser import build_parser
 from .plugin import PluginCommandHandler
 from .validation import CommandHandler
+from .workflow import WorkflowCommandHandler
 
 _COMMAND_HANDLERS: Mapping[str, CommandHandler] = {
     "download": DownloadCommandHandler(),
+    "workflow": WorkflowCommandHandler(),
     "inspect": InspectCommandHandler(),
     "cookie": CookieCommandHandler(),
     "doctor": DoctorCommandHandler(),
@@ -46,6 +48,8 @@ async def run(args: argparse.Namespace) -> int:
         handler_name = "cookie"
     if handler_name is None:
         raise ValueError("URL or command is required")
+    if handler_name != "workflow" and getattr(args, "download_scope", None) is not None:
+        raise ConfigurationError("--download-scope is only valid for workflow")
     return await _COMMAND_HANDLERS[handler_name].handle(args)
 
 
@@ -57,7 +61,7 @@ def _operation_name(argv: Sequence[str], parsed: argparse.Namespace | None = Non
     handler = getattr(parsed, "command_handler", None) if parsed is not None else None
     if handler in _COMMAND_HANDLERS:
         return str(handler)
-    commands = {"download", "inspect", "cookie", "doctor", "config", "plugin"}
+    commands = {"download", "workflow", "inspect", "cookie", "doctor", "config", "plugin"}
     return next((value for value in argv if value in commands), "download")
 
 

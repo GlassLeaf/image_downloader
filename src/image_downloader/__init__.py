@@ -63,6 +63,8 @@ from .models import (
     UpdateChangeKind,
     UpdateResult,
     UpdateSnapshot,
+    WorkflowItemResult,
+    WorkflowResult,
 )
 from .ports import (
     AuthFlow,
@@ -81,6 +83,8 @@ from .ports import (
 from .runtime import DownloadService, RuntimeComposer
 
 __all__ = [
+    "WorkflowItemResult",
+    "WorkflowResult",
     "AppConfig",
     "apply_overrides",
     "AuthFlow",

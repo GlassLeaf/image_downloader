@@ -1,0 +1,189 @@
+from __future__ import annotations
+
+import asyncio
+import json
+from datetime import UTC, datetime
+from pathlib import Path
+from types import SimpleNamespace
+
+import pytest
+
+from image_downloader.cli import build_parser, main
+from image_downloader.commands import workflow as command
+from image_downloader.exceptions import ConfigurationError, StorageSafetyError, error_info_for
+from image_downloader.models import (
+    Chapter,
+    ChapterResult,
+    DownloadManifest,
+    DownloadResult,
+    ImageOutcome,
+    ImageOutcomeKind,
+    ImageResource,
+    UpdateCandidate,
+    UpdateSnapshot,
+    WorkflowItemResult,
+    WorkflowResult,
+)
+
+URL = "https://example.test/feed"
+TARGET = "https://example.test/a?token=secret"
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ["--download-scope", "all", "workflow", URL],
+        ["workflow", URL, "--download-scope", "all"],
+    ],
+)
+def test_scope_supported_before_and_after_command(arguments):
+    args = build_parser().parse_args(arguments)
+    assert args.command_handler == "workflow"
+    assert args.download_scope == "all"
+
+
+@pytest.mark.parametrize(
+    "arguments",
+    [
+        ["download", URL],
+        [URL],
+        ["inspect", URL],
+        ["doctor"],
+        ["config", "path"],
+        ["plugin", "list"],
+    ],
+)
+def test_scope_rejected_for_other_commands(arguments, capsys):
+    assert main(["--download-scope", "all", *arguments, "--json"]) == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["error"]["code"] == "configuration_error"
+
+
+@pytest.mark.parametrize(
+    "option",
+    [
+        "--list-updated-urls",
+        "--inspect-only",
+        "--manifest-only",
+        "--export-cookies",
+        "--host",
+        "--selection-priority",
+        "--inspection-data",
+    ],
+)
+def test_workflow_rejects_incompatible_global_options(option, capsys, tmp_path):
+    values = {
+        "--export-cookies": str(tmp_path / "cookies"),
+        "--host": "example.test",
+        "--selection-priority": "3",
+        "--inspection-data": "all",
+    }
+    options = [option] + ([values[option]] if option in values else [])
+    assert main([*options, "workflow", URL, "--json"]) == 2
+    assert json.loads(capsys.readouterr().out)["error"]["operation"] == "workflow"
+
+
+def result(root: Path, *, failed=False):
+    chapter = Chapter(1, "chapter")
+    download = DownloadResult(
+        TARGET,
+        DownloadManifest("title", (chapter,)),
+        (
+            ChapterResult(
+                chapter, (ImageOutcome(ImageResource(TARGET), ImageOutcomeKind.SAVED, str(root / "saved.png")),)
+            ),
+        ),
+    )
+    items = [WorkflowItemResult(TARGET, ("added",), "success", download)]
+    if failed:
+        items.append(WorkflowItemResult("https://example.test/b", ("unfinished",), "failed"))
+    return WorkflowResult(
+        URL, "updated", UpdateSnapshot(URL, (UpdateCandidate(TARGET),), datetime.now(UTC)), (), tuple(items)
+    )
+
+
+@pytest.mark.parametrize("stop", [None, "storage", "cancel", "configuration", "close"])
+def test_workflow_json_is_single_safe_document_and_keeps_partial_results(tmp_path, monkeypatch, capsys, stop):
+    config_path = tmp_path / "app.yaml"
+    config_path.write_text(
+        json.dumps({"storage": {"data_root": str(tmp_path / "data")}, "plugins": {"root": str(tmp_path / "plugins")}})
+    )
+    captured = {}
+    closed = []
+
+    async def execute(url, **kwargs):
+        captured.update(kwargs)
+        print("plugin diagnostic")
+        outcome = result(tmp_path)
+        if stop and stop != "close":
+            error = {
+                "storage": StorageSafetyError(),
+                "configuration": ConfigurationError(),
+                "cancel": asyncio.CancelledError(),
+            }[stop]
+            error.workflow_result = outcome
+            raise error
+        return outcome
+
+    async def close():
+        closed.append(True)
+        print("cleanup diagnostic")
+        if stop == "close":
+            raise StorageSafetyError()
+
+    def composer(config, **kwargs):
+        captured["config"] = config
+        captured["composer"] = kwargs
+        return SimpleNamespace(compose=lambda: SimpleNamespace(workflow=execute, close=close))
+
+    monkeypatch.setattr(command, "RuntimeComposer", composer)
+    arguments = [
+        "workflow",
+        URL,
+        "--config",
+        str(config_path),
+        "--output-dir",
+        str(tmp_path / "out"),
+        "--existing-file",
+        "skip",
+        "--image-format",
+        "PNG",
+        "--directory-format",
+        "%CONTENT_TITLE%",
+        "--json",
+    ]
+    assert main(arguments) == {None: 0, "storage": 1, "configuration": 2, "cancel": 130, "close": 1}[stop]
+    output = capsys.readouterr()
+    payload = json.loads(output.out)
+    assert "secret" not in output.out
+    assert "diagnostic" in output.err
+    assert payload["items"][0]["download"]["saved"]
+    assert captured["download_scope"] == "updated"
+    assert captured["config"].output.existing_file == "skip"
+    assert captured["config"].output.image_format == "PNG"
+    assert captured["config"].output.directory_format == "%CONTENT_TITLE%"
+    assert captured["composer"]["output_root"] == tmp_path / "out"
+    assert closed == [True]
+
+
+def test_workflow_status_and_stop_error_serialization(tmp_path):
+    assert command._status(result(tmp_path, failed=True)) == 5
+    failed = WorkflowResult(
+        URL, "updated", None, (), (WorkflowItemResult(TARGET, (), "failed"),), error_info_for(StorageSafetyError())
+    )
+    assert command._status(failed) == 1
+    assert command.workflow_payload(failed, tmp_path)["stop_error"]["code"] == "storage_safety_error"
+
+
+@pytest.mark.parametrize(
+    "before,after",
+    [
+        (["--image-format", "PNG"], ["--force-image-format", "WEBP"]),
+        (["--force-image-format", "PNG"], ["--image-format", "WEBP"]),
+        (["--plugin", "one"], ["--force-plugin", "two"]),
+        (["--force-plugin", "one"], ["--plugin", "two"]),
+    ],
+)
+def test_exclusions_across_global_and_command_options(before, after, capsys):
+    assert main([*before, "workflow", URL, *after, "--json"]) == 2
+    assert json.loads(capsys.readouterr().out)["error"]["code"] == "configuration_error"

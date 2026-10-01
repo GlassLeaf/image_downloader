@@ -389,9 +389,15 @@ class PluginRuntime:
                 app_settings=app_settings,
             )
         else:
-            record = self.records.get(plugin_id)
-            if record is None or record.kind != "site_plugin" or record.builtin or not self.enabled(record):
+            selected_record = self.records.get(plugin_id)
+            if (
+                selected_record is None
+                or selected_record.kind != "site_plugin"
+                or selected_record.builtin
+                or not self.enabled(selected_record)
+            ):
                 raise ConfigurationError(f"requested site plugin is unavailable: {plugin_id}")
+            record = selected_record
             instance = self.loader.site_instance(record)
             if force_plugin:
                 diagnostics = ({"id": record.id, "matcher": "forced", "matched": True},)

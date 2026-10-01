@@ -21,7 +21,7 @@ class _ConfigPath(argparse.Action):
         namespace.config_explicit = True
 
 
-_COMMAND_NAMES = frozenset(("download", "inspect", "config", "plugin", "doctor", "cookie"))
+_COMMAND_NAMES = frozenset(("download", "workflow", "inspect", "config", "plugin", "doctor", "cookie"))
 _OPTIONS_WITH_VALUE = frozenset(
     (
         "--config",
@@ -47,6 +47,7 @@ _OPTIONS_WITH_VALUE = frozenset(
         "--force-image-format",
         "--inspection-data",
         "--plugin-verification-override",
+        "--download-scope",
     )
 )
 
@@ -148,16 +149,18 @@ def _add_download_options(
     *,
     suppress_defaults: bool,
     include_inspect_alias: bool = False,
+    include_update_listing: bool = True,
 ) -> None:
     value_default = argparse.SUPPRESS if suppress_defaults else None
     flag_default = argparse.SUPPRESS if suppress_defaults else False
     parser.add_argument("--no-console-log", action="store_true", default=flag_default)
     mode = parser.add_mutually_exclusive_group() if include_inspect_alias else parser
-    mode.add_argument(
-        "--list-updated-urls",
-        action="store_true",
-        default=flag_default,
-    )
+    if include_update_listing:
+        mode.add_argument(
+            "--list-updated-urls",
+            action="store_true",
+            default=flag_default,
+        )
     if include_inspect_alias:
         mode.add_argument(
             "--inspect-only",
@@ -227,6 +230,7 @@ def _add_inspection_options(parser: argparse.ArgumentParser) -> None:
 
 
 def _add_legacy_options(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--download-scope", choices=("all", "updated"), default=None)
     _add_configuration_options(parser, suppress_defaults=False)
     _add_plugin_override_options(parser, suppress_defaults=False)
     _add_download_options(parser, suppress_defaults=False, include_inspect_alias=True)
@@ -269,6 +273,21 @@ def build_parser() -> argparse.ArgumentParser:
     _add_inspection_options(download_parser)
     download_parser.add_argument("--manifest-only", action="store_true", default=argparse.SUPPRESS)
     download_parser.set_defaults(command_handler="download")
+
+    workflow_parser = commands.add_parser("workflow", help="check a complete update list and download selected URLs")
+    workflow_parser.add_argument("url")
+    workflow_parser.add_argument(
+        "--download-scope",
+        choices=("all", "updated"),
+        default=argparse.SUPPRESS,
+        help="download all current URLs or added/changed/unfinished URLs (default: updated)",
+    )
+    _add_configuration_options(workflow_parser, suppress_defaults=True)
+    _add_plugin_override_options(workflow_parser, suppress_defaults=True)
+    _add_download_options(workflow_parser, suppress_defaults=True, include_update_listing=False)
+    _add_output_override_options(workflow_parser, suppress_defaults=True)
+    _add_plugin_selection_options(workflow_parser, suppress_defaults=True)
+    workflow_parser.set_defaults(command_handler="workflow")
 
     inspect_parser = commands.add_parser(
         "inspect",

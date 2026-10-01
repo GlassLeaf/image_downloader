@@ -7,6 +7,8 @@
 ## image_downloader
 
 <!-- api-inventory:start image_downloader -->
+WorkflowItemResult
+WorkflowResult
 AppConfig
 apply_overrides
 AuthFlow

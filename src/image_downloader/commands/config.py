@@ -120,6 +120,11 @@ def _config_explain(args: argparse.Namespace) -> int:
         **_app_override(args),
         "plugin_verification_override": args.plugin_verification_override,
     }
+    layers: list[dict[str, str | None]] = [
+        {"role": layer.role, "path": str(layer.path) if layer.path is not None else None, "status": layer.status}
+        for layer in resolved.layers
+    ]
+    origins = dict(resolved.origins)
     payload = {
         "source": resolved.source,
         "main_config_kind": resolved.main_config_kind,
@@ -127,12 +132,9 @@ def _config_explain(args: argparse.Namespace) -> int:
         "config_root": str(resolved.config_root),
         "selected_profile": resolved.selected_profile,
         "target_host": site,
-        "layers": [
-            {"role": layer.role, "path": str(layer.path) if layer.path is not None else None, "status": layer.status}
-            for layer in resolved.layers
-        ],
+        "layers": layers,
         "effective": _doctor_redact(resolved.config.model_dump(by_alias=True, warnings=False)),
-        "origins": dict(resolved.origins),
+        "origins": origins,
         "runtime_overrides": _doctor_redact(runtime_overrides),
     }
     if args.json_output:
@@ -143,12 +145,12 @@ def _config_explain(args: argparse.Namespace) -> int:
         print(f"main configuration: {payload['main_config'] or '(none; package defaults only)'}")
         print(f"profile: {payload['selected_profile']}")
         print("layers:")
-        for layer in payload["layers"]:
+        for layer in layers:
             print(f"  {layer['status']:14} {layer['role']:16} {layer['path'] or '-'}")
         print("effective configuration:")
         print(json.dumps(payload["effective"], ensure_ascii=False, indent=2))
         print("value origins:")
-        for key, origin in payload["origins"].items():
+        for key, origin in origins.items():
             print(f"  {key}: {origin}")
         print("CLI runtime overrides:")
         print(json.dumps(payload["runtime_overrides"], ensure_ascii=False, indent=2))

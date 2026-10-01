@@ -7,6 +7,7 @@ import json
 import sys
 from collections.abc import Mapping
 from pathlib import Path
+from typing import Literal
 
 import yaml
 
@@ -259,6 +260,7 @@ def _resolved_config_for(
     rewrite_user_layers: bool = False,
 ) -> ResolvedApplicationConfig:
     """Choose the single user config location, then resolve without prompting or writing files."""
+    source: Literal["defaults", "user", "explicit"]
     if args.config is not None:
         if not args.config.is_absolute():
             raise ConfigurationError("--config must be an absolute path")

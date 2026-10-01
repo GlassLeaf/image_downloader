@@ -36,6 +36,7 @@ INVENTORY = re.compile(
 EXPECTED_EXPORTS = {
     "image_downloader": tuple(
         """
+        WorkflowItemResult WorkflowResult
         AppConfig apply_overrides AuthFlow AuthenticationError Chapter ChapterResult ConfigurableSitePlugin
         ConfigurationError DownloadManifest DownloadResult DownloadService EffectiveRequestPreview
         ExistingFileConflictError FailureKind

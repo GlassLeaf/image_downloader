@@ -6,6 +6,7 @@ Canonical command forms are:
 
 ```text
 image-downloader download URL [--force-image-format FORMAT] [options]
+image-downloader workflow URL [--download-scope all|updated] [download options]
 image-downloader inspect URL [options]
 image-downloader download URL --inspect-only [options] # inspect の alias
 image-downloader URL [download options]                 # bare-URL compatibility form
@@ -23,6 +24,37 @@ legacy `--export-cookies`、`--import-cookies`、`--import-browser-cookies` sele
 config 作成・rewrite の command ごとの副作用は [configuration reference](configuration.md#config-layers) が正本である。`config path` と `config explain` は観測専用である。
 
 ## Option acceptance and effect
+
+### Workflow
+
+`workflow URL` checks the selected update provider once, then downloads selected URLs sequentially.
+`--download-scope updated` is the default: select added/changed candidates and unfinished candidates still present.
+`--download-scope all` selects the entire current snapshot. The first workflow run selects all candidates.
+Removed candidates are never downloaded; a removed candidate that reappears is added again.
+Comparison uses workflow history, independently of `--list-updated-urls` history.
+
+Configuration/profile/root/security, plugin configuration/selection/fallback/download-policy, output-directory,
+directory-format, existing-file, image-format/force-image-format, JSON and console options apply to workflow.
+Existing precedence and exclusions remain: image-format versus force-image-format; plugin versus force-plugin;
+explicit plugin selection versus explicit fallback. Explicit plugin selection applies to the feed and every target.
+Site configuration is resolved for the feed and shared across targets, including cookies and connections.
+`--yes` is accepted without introducing another confirmation.
+`--download-scope` is accepted before/after `workflow`, and rejected by other commands.
+Update-listing, inspection, cookie actions, `--host` and `--selection-priority` are rejected by workflow,
+including when supplied before the command.
+
+Output/configuration changes do not themselves make a completed candidate updated: use `all` to download again
+with new output settings. Existing-file policy is unchanged, including fetching/processing before `skip`.
+An unfinished URL is attempted again on the next workflow run, rather than automatically retried in this run.
+
+JSON emits one document containing `operation`, `source_url`, `download_scope`, `checked_at`, `candidates`,
+`changes`, `selected_urls`, `items`, `summary`, `stop_error`, and `cancelled`.
+Each item contains safe `url`, `reasons`, `status`, `download` and `error`;
+download reuses `saved`, `skipped`, `failures`. Reasons are `all`, `added`, `changed`, `unfinished`.
+Statuses are `success`, `partial`, `failed`, `unprocessed`; summary counts these statuses.
+Stopped workflows retain completed results and unprocessed targets. Diagnostics go to stderr in JSON mode.
+Success or no selected targets returns 0; image/URL failures with saved/skipped files return 5;
+failures without saved/skipped files return 1. Fatal stops use existing exception codes, cancellation uses 130.
 
 <a id="cli-options"></a>
 

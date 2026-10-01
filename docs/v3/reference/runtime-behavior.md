@@ -43,7 +43,28 @@ v1（version field のない旧形を含む）は次の update check で `legacy
 
 同 profile の本 application process は `state/updates.lock` を共有し、read/compare/atomic write 全体を直列化する。default lock timeout は 30 秒で、timeout は update operation 全体を失敗させる。異なる feed の変更は両方保持する。lock file は残り、NAS と外部 application の変更は保証しない。
 
+## Workflow state
+
+`workflow` also writes profile `state/workflow.json` (schema version 1), independently of `updates.json`.
+It retains the latest complete snapshot and per-candidate `completed` flag by plugin ID and hashed feed URL.
+There is no time-based expiration. Missing state means first run; invalid/future schemas fail without overwrite.
+Existing update-listing history is still updated at check time, but does not initialize workflow completion.
+
+Before downloads, the selected candidates are durably marked unfinished. Each URL with no image failures
+and successful plugin cleanup is committed complete, including skips and permitted empty manifests.
+Failed, partial and unprocessed candidates remain unfinished. Disappeared candidates are removed from the
+workflow snapshot without deleting local artifacts, and are treated as added if they reappear.
+Both scopes share completion state; duplicate target URLs run once and update every matching identity.
+
+The service serializes the entire workflow. `state/workflow-locks/<hash>.lock` serializes one plugin/feed
+across processes from before its check through completion; `state/workflow.lock` serializes short
+read/merge/atomic-write transactions for all feeds. Default timeout is 30 seconds. Lock files remain.
+Started transactions finish before cancellation propagates. Completed URLs survive interrupted runs.
+Authentication/request/plugin/existing-file-conflict errors abort that URL and continue with other URLs;
+configuration, storage/lock/safety errors and unexpected failures abort the workflow.
+
 ## Observability and notification
+
 
 chapter log は image URL、response URL、status、stage、transport、reason code、safe exception detail を記録する。`completed`、`response_received`、`response_limit_exceeded`、`redirect_rejected`、`failed` は取得段階を区別する。image-level fetch/process/save failure は対応する notification category を一度だけ送る。operation-level authentication/configuration/plugin/update/storage/unknown failure は対応する category に送る。
 

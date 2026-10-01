@@ -7,8 +7,9 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
 from types import MappingProxyType
-from typing import TypeVar
+from typing import Literal, TypeVar
 
+from .exceptions import ErrorInfo
 from .immutable import freeze_json as freeze_json
 from .immutable import thaw_json as thaw_json
 
@@ -499,3 +500,34 @@ class UpdateResult:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "changes", tuple(self.changes))
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowItemResult:
+    url: str
+    reasons: tuple[str, ...]
+    status: Literal["success", "partial", "failed", "unprocessed"]
+    download: DownloadResult | None = None
+    error: ErrorInfo | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "reasons", tuple(self.reasons))
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowResult:
+    source_url: str
+    download_scope: Literal["all", "updated"]
+    snapshot: UpdateSnapshot | None
+    changes: tuple[UpdateChange, ...]
+    items: tuple[WorkflowItemResult, ...]
+    stop_error: ErrorInfo | None = None
+    cancelled: bool = False
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "changes", tuple(self.changes))
+        object.__setattr__(self, "items", tuple(self.items))
+
+    @property
+    def selected_urls(self) -> tuple[str, ...]:
+        return tuple(item.url for item in self.items)
