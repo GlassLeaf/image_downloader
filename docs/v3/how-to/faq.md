@@ -192,6 +192,14 @@ images/image.jpeg?ver=yymmddhhmmss&key-pair-id=bbbb
 元ファイル名だけの変更でも再取得する。chapter／画像の識別子が重複し照合できない範囲も再取得する。
 manifestの`revision`だけの変更では成功画像を取り直さない。
 
+現在はこの比較条件を維持する。目的は画像本体の厳密な変更検知ではなく、部分失敗からの回復時に
+変更のない成功・skip結果を保持し、不要な再取得・加工や保存衝突を抑えることである。
+`metadata`や`headers`／`referer`などは取得・加工へ影響し得るため、単なる付帯情報として除外しない。
+保存条件・名前の比較除外や、画像revision／hashが一致すればURL変更を無視する仕組みは未実装である。
+内部の全体等価比較では`ImageResource`への比較対象フィールド追加も再取得条件に影響するため、
+当面は挙動を変えず、条件と保持理由の明確化を優先する。
+[保守上の方針](../maintenance/architecture.md#workflow-image-comparison-maintenance)を参照する。
+
 一方、manifestのlocatorが安定し、`create_image_request()`でだけ署名URLを作る場合、要求URLだけの
 変化は比較しない。保持された成功画像では同hookも呼ばない。pluginはlocatorに秘密値を入れず、
 短命URLの組立をrequest hookで行う。[dynamic URL how-to](dynamic-urls-and-auth.md)と
