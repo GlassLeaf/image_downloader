@@ -48,6 +48,9 @@ _OPTIONS_WITH_VALUE = frozenset(
         "--inspection-data",
         "--plugin-verification-override",
         "--download-scope",
+        "--workflow-retries",
+        "--workflow-retry-delay",
+        "--workflow-retry-timeout",
     )
 )
 
@@ -229,8 +232,23 @@ def _add_inspection_options(parser: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_workflow_retry_options(parser: argparse.ArgumentParser, *, suppress_defaults: bool) -> None:
+    default = argparse.SUPPRESS if suppress_defaults else None
+    parser.add_argument("--workflow-retries", type=int, default=default, help="extra workflow rounds (default: 1)")
+    parser.add_argument(
+        "--workflow-retry-delay", type=float, default=default, help="seconds before each retry round (default: 600)"
+    )
+    parser.add_argument(
+        "--workflow-retry-timeout",
+        type=float,
+        default=default,
+        help="retry time limit after the initial round, including waits (default: unlimited)",
+    )
+
+
 def _add_legacy_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--download-scope", choices=("all", "updated"), default=None)
+    _add_workflow_retry_options(parser, suppress_defaults=False)
     _add_configuration_options(parser, suppress_defaults=False)
     _add_plugin_override_options(parser, suppress_defaults=False)
     _add_download_options(parser, suppress_defaults=False, include_inspect_alias=True)
@@ -276,6 +294,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     workflow_parser = commands.add_parser("workflow", help="check a complete update list and download selected URLs")
     workflow_parser.add_argument("url")
+    _add_workflow_retry_options(workflow_parser, suppress_defaults=True)
     workflow_parser.add_argument(
         "--download-scope",
         choices=("all", "updated"),

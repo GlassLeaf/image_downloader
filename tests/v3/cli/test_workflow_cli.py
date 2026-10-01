@@ -29,6 +29,35 @@ URL = "https://example.test/feed"
 TARGET = "https://example.test/a?token=secret"
 
 
+@pytest.mark.parametrize("before", [False, True])
+def test_retry_options_supported_before_and_after_command(before):
+    options = ["--workflow-retries", "2", "--workflow-retry-delay", "0", "--workflow-retry-timeout", "30"]
+    args = build_parser().parse_args([*options, "workflow", URL] if before else ["workflow", URL, *options])
+    assert (args.workflow_retries, args.workflow_retry_delay, args.workflow_retry_timeout) == (2, 0, 30)
+
+
+@pytest.mark.parametrize(
+    "option,value",
+    [
+        ("--workflow-retries", "-1"),
+        ("--workflow-retry-delay", "nan"),
+        ("--workflow-retry-delay", "-1"),
+        ("--workflow-retry-timeout", "inf"),
+        ("--workflow-retry-timeout", "0"),
+    ],
+)
+def test_invalid_retry_options_rejected_before_runtime(option, value, capsys):
+    assert main(["workflow", URL, option, value, "--json"]) == 2
+    assert json.loads(capsys.readouterr().out)["error"]["code"] == "configuration_error"
+
+
+@pytest.mark.parametrize("option", ["--workflow-retries", "--workflow-retry-delay", "--workflow-retry-timeout"])
+@pytest.mark.parametrize("command", [["download", URL], ["inspect", URL], ["doctor"], ["config", "path"]])
+def test_retry_options_rejected_for_other_commands(option, command, capsys):
+    assert main([option, "1", *command, "--json"]) == 2
+    assert json.loads(capsys.readouterr().out)["error"]["code"] == "configuration_error"
+
+
 @pytest.mark.parametrize(
     "arguments",
     [

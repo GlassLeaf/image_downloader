@@ -7,6 +7,7 @@ import smtplib
 import ssl
 from collections import Counter
 from collections.abc import Mapping
+from contextlib import contextmanager
 from email.message import EmailMessage
 from functools import partial
 from typing import Any, Protocol
@@ -14,6 +15,7 @@ from typing import Any, Protocol
 from ..configuration.models import Email, Notification, NotificationCategory, NotificationMethod
 from ..credentials.keyring import load_secret
 from ..exceptions import ConfigurationError
+from ..models import WorkflowItemResult
 from .events import EventBus, EventName, EventPayload
 from .logging import DownloadLogger
 
@@ -120,15 +122,122 @@ class NotificationService:
         self.events = events
         self.senders = senders
         self._records: list[tuple[NotificationCategory, EventPayload]] = []
+        self._defer_download = False
         if events is not None:
             for source in NOTIFICATION_SOURCES:
                 events.on(source, partial(self._collect, source))
 
     def _collect(self, source: EventName, payload: EventPayload) -> None:
         category = NOTIFICATION_SOURCES[source]
+        if self._defer_download and category not in {
+            "auth_cookie_store_access",
+            "auth_credential_store_access",
+            "auth_login_success",
+            "auth_session_refresh_success",
+        }:
+            return
         if not self.config.enabled or category not in self.config.notify_on:
             return
         self._records.append((category, payload))
+
+    @contextmanager
+    def defer_download(self):
+        """Keep lifecycle events observable while deferring attempt notifications."""
+        previous = self._defer_download
+        self._defer_download = True
+        try:
+            yield
+        finally:
+            self._defer_download = previous
+
+    def _collect_final(self, source: EventName, payload: EventPayload) -> None:
+        sanitizer = self.events if self.events is not None else EventBus()
+        payload = sanitizer._sanitize(
+            payload,
+            url_is_locator=source
+            in {
+                EventName.FETCH_FAILED,
+                EventName.SAVE_FAILED,
+                EventName.IMAGE_PROCESS_FAILED,
+            },
+        )
+        self._collect(source, payload)
+
+    async def workflow_item(self, item: WorkflowItemResult) -> None:
+        """Notify the final aggregate without replaying events to other observers."""
+        if item.status == "removed":
+            return
+        failure_codes = {failure.code for failure in item.download.failures} if item.download else set()
+        if item.error is not None and item.error.code not in failure_codes:
+            info = item.error
+            source = {
+                "authentication_error": EventName.AUTH_FAILED,
+                "secret_not_found": EventName.AUTH_FAILED,
+                "plugin_error": EventName.PLUGIN_FAILED,
+                "unsupported_site_feature": EventName.PLUGIN_FAILED,
+                "configuration_error": EventName.CONFIG_FAILED,
+                "storage_error": EventName.STORAGE_FAILED,
+                "storage_safety_error": EventName.STORAGE_FAILED,
+                "interprocess_lock_error": EventName.STORAGE_FAILED,
+                "output_allocation_error": EventName.STORAGE_FAILED,
+                "existing_file_conflict": EventName.SAVE_FAILED,
+                "unexpected_runtime_error": EventName.RUNTIME_FAILED,
+                "image_processing_error": EventName.IMAGE_PROCESS_FAILED,
+                "image_decode_error": EventName.IMAGE_PROCESS_FAILED,
+                "image_content_type_error": EventName.IMAGE_PROCESS_FAILED,
+                "image_mime_mismatch": EventName.IMAGE_PROCESS_FAILED,
+                "unsupported_image_format": EventName.IMAGE_PROCESS_FAILED,
+                "image_dimension_limit_error": EventName.IMAGE_PROCESS_FAILED,
+                "image_processor_closed": EventName.IMAGE_PROCESS_FAILED,
+                "image_worker_error": EventName.IMAGE_PROCESS_FAILED,
+            }.get(info.code, EventName.REQUEST_FAILED)
+            self._collect_final(
+                source,
+                EventPayload(
+                    url=item.url,
+                    error_code=info.code,
+                    error_reason=info.reason,
+                    error_class=info.exception,
+                    response_url=info.response_url,
+                    http_status=info.http_status,
+                    operation="workflow",
+                ),
+            )
+        if item.download is not None:
+            for chapter in item.download.chapters:
+                for outcome in chapter.outcomes:
+                    failure = outcome.failure
+                    if failure is None:
+                        continue
+                    source = {
+                        "fetch": EventName.FETCH_FAILED,
+                        "process": EventName.IMAGE_PROCESS_FAILED,
+                        "save": EventName.SAVE_FAILED,
+                    }[failure.kind]
+                    self._collect_final(
+                        source,
+                        EventPayload(
+                            url=outcome.image.url,
+                            response_url=failure.response_url,
+                            path=outcome.path,
+                            stage={"fetch": "image_fetch", "process": "image_processing", "save": "image_save"}[
+                                failure.kind
+                            ],
+                            chapter_id=str(chapter.chapter.number),
+                            image_index=outcome.image.index,
+                            error_code=failure.code,
+                            error_reason=failure.reason,
+                            error_class=failure.exception_type,
+                            http_status=failure.http_status,
+                            transport=failure.transport,
+                            operation="workflow",
+                        ),
+                    )
+        if item.status == "success":
+            self._collect_final(EventName.DOWNLOAD_SUCCESS, EventPayload(url=item.url))
+        elif item.download is not None and (item.download.saved_files or item.download.skipped_files):
+            self._collect_final(EventName.DOWNLOAD_PARTIAL_SUCCESS, EventPayload(url=item.url))
+        await self.flush(source_url=item.url)
 
     async def flush(self, *, source_url: str, log_path: str | None = None) -> None:
         if not self._records:

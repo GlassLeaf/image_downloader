@@ -503,15 +503,55 @@ class UpdateResult:
 
 
 @dataclass(frozen=True, slots=True)
-class WorkflowItemResult:
-    url: str
-    reasons: tuple[str, ...]
+class WorkflowImageResult:
+    chapter_position: int
+    image_position: int
+    image: ImageResource
+    status: Literal["saved", "skipped", "failed", "unprocessed"]
+    retained: bool = False
+    outcome: ImageOutcome | None = None
+    attempted: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowAttemptResult:
+    round_number: int
     status: Literal["success", "partial", "failed", "unprocessed"]
     download: DownloadResult | None = None
     error: ErrorInfo | None = None
+    images: tuple[WorkflowImageResult, ...] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "images", tuple(self.images))
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowRoundResult:
+    round_number: int
+    snapshot: UpdateSnapshot | None
+    changes: tuple[UpdateChange, ...] = ()
+    selected_urls: tuple[str, ...] = ()
+    removed_urls: tuple[str, ...] = ()
+    status: Literal["complete", "stopped"] = "complete"
+    error: ErrorInfo | None = None
+
+    def __post_init__(self) -> None:
+        for name in ("changes", "selected_urls", "removed_urls"):
+            object.__setattr__(self, name, tuple(getattr(self, name)))
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowItemResult:
+    url: str
+    reasons: tuple[str, ...]
+    status: Literal["success", "partial", "failed", "unprocessed", "removed"]
+    download: DownloadResult | None = None
+    error: ErrorInfo | None = None
+    attempts: tuple[WorkflowAttemptResult, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "reasons", tuple(self.reasons))
+        object.__setattr__(self, "attempts", tuple(self.attempts))
 
 
 @dataclass(frozen=True, slots=True)
@@ -523,10 +563,16 @@ class WorkflowResult:
     items: tuple[WorkflowItemResult, ...]
     stop_error: ErrorInfo | None = None
     cancelled: bool = False
+    workflow_retries: int = 1
+    workflow_retry_delay: float = 600.0
+    workflow_retry_timeout: float | None = None
+    rounds: tuple[WorkflowRoundResult, ...] = ()
+    timed_out: bool = False
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "changes", tuple(self.changes))
         object.__setattr__(self, "items", tuple(self.items))
+        object.__setattr__(self, "rounds", tuple(self.rounds))
 
     @property
     def selected_urls(self) -> tuple[str, ...]:

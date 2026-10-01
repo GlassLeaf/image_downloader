@@ -50,6 +50,9 @@ async def run(args: argparse.Namespace) -> int:
         raise ValueError("URL or command is required")
     if handler_name != "workflow" and getattr(args, "download_scope", None) is not None:
         raise ConfigurationError("--download-scope is only valid for workflow")
+    for option in ("workflow_retries", "workflow_retry_delay", "workflow_retry_timeout"):
+        if handler_name != "workflow" and getattr(args, option, None) is not None:
+            raise ConfigurationError(f"--{option.replace('_', '-')} is only valid for workflow")
     return await _COMMAND_HANDLERS[handler_name].handle(args)
 
 

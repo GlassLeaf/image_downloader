@@ -63,6 +63,98 @@ Started transactions finish before cancellation propagates. Completed URLs survi
 Authentication/request/plugin/existing-file-conflict errors abort that URL and continue with other URLs;
 configuration, storage/lock/safety errors and unexpected failures abort the workflow.
 
+### Workflow retry rounds
+
+The default is one additional round, after a fixed 600-second wait, only while retryable unfinished work exists.
+Every round refreshes the complete feed, commits its latest snapshot, excludes deleted candidates, and includes
+new/changed candidates plus retryable unfinished URLs. `all` applies to initial selection only during this call.
+The feed lock and service operation lock remain held through waits. Short shared-file locks are not held while waiting.
+
+Within a call, an image ledger records outcomes as they settle, including concurrent successes before fail-fast
+or cancellation. Chapter identity prefers chapter_id, otherwise number; image identity within chapter prefers
+image_id, otherwise locator. Only unique identities with equal ImageResource fields can reuse outcomes.
+Ambiguous identity groups are fetched again. A changed plugin resets image reuse. Actual image-body changes
+without changed manifest image information cannot be detected; no artifact validation is added.
+Changed images use the configured file policy, so rename can add files and error can reject collisions.
+Cleanup failure keeps the URL unfinished even when images succeeded; retries reuse those images and repeat cleanup.
+
+#### Workflowで取得対象URLを選ぶ条件
+
+「取得対象URL」は更新元が返す `UpdateCandidate.url`、「画像URL／locator」は各URLのmanifestが返す
+`ImageResource.url` を指す。両者の変更判定は別である。
+
+| 条件・情報 | 初回周回 | 追加周回 |
+| --- | --- | --- |
+| workflow専用履歴がない | `all`／`updated`とも全候補を選ぶ | 当該実行の状態を使う |
+| `all` | 今回一覧の全候補を選ぶ | 全件取得を強制せず、以下の条件で選ぶ |
+| 新規候補 | 選ぶ | 選ぶ |
+| 同じ候補のURLまたは`revision`が変更 | 選ぶ | 選ぶ。成功済みURLも対象になる |
+| 一覧に残る未完了候補 | 選ぶ | 再試行可能な失敗または未処理画像がある場合に選ぶ |
+| 成功済みで候補情報に変更なし | `updated`では選ばない | 選ばない。manifestも再確認しない |
+| 一覧から削除された候補 | 選ばない | 対象・専用状態から除外。再登場すれば新規扱い |
+
+候補の識別には `content_id` を優先し、なければURLを使う。URLと`revision`を比較し、チェック日時や
+出力先・加工設定の変更は更新判定に含めない。同じURLを指す複数候補は周回内で一度だけ処理する。
+追加周回は再試行可能な未完了対象がある場合だけ開始する。全成功、または再試行対象外の失敗しか
+残っていない場合は終了するため、新規・変更候補を監視するための周回は行わない。
+
+#### Workflowで画像を照合・再取得する条件
+
+選ばれたURLのmanifestを再取得してから、同じ実行中に確定した画像結果と照合する。
+chapterは`chapter_id`、なければ章番号で識別し、そのchapter内の画像は`image_id`、なければ
+`ImageResource.url`で識別する。画像配列の位置自体は識別子ではない。
+
+| 情報 | 比較・照合での扱い |
+| --- | --- |
+| `ImageResource.url` | 全文字列を比較。クエリだけの変更でも再取得する。`image_id`が同じでも除外しない |
+| `image_id` | 識別と比較に使用。変更・追加・削除で照合できなければ再取得する |
+| `index` | 比較する。値が変われば再取得する |
+| `referer`、`headers` | 比較する。値の変更で再取得する。mappingの並び順だけの変更は無視 |
+| `save_options` | 全フィールドを比較。形式・拡張子・品質・optimize・progressive・lossless・compress_level・EXIFの変更で再取得 |
+| `metadata` | キーと値を比較。変更で再取得する。mappingの並び順だけの変更は無視 |
+| `original_filename` | 比較する。値が変われば再取得する |
+| 対象URLのplugin ID | 変われば以前の画像結果を流用しない |
+| chapter／画像の識別子の重複 | 一意に照合できない範囲の画像結果を流用せず再取得する |
+
+同じplugin、一意なchapter／画像識別子、上記画像フィールドの一致が揃った成功・skip結果は保持し、
+画像の要求生成・取得・加工・保存を再実行しない。再試行可能な失敗画像、未処理画像、新規・変更画像は取得する。
+再試行対象外の画像失敗も、照合可能で比較フィールドが同じなら保持する。未処理画像があれば追加周回は
+実行できるが、保持した対象外の失敗画像は再取得しない。画像単位の継続は`continue_on_image_error`に従う。
+
+| 比較に使わない情報 | 制限・注意点 |
+| --- | --- |
+| 画像本体・ハッシュ、HTTPの`ETag`／`Last-Modified`／`Content-Length` | 実体が変わっても画像情報が同じなら検出できない。保存済み成果物の存在・破損も検証しない |
+| `create_image_request()`が返す実際の要求URL・headers・cookiesなど | 保持した成功画像ではhookを呼ばない。要求情報だけの変化を検出しない |
+| manifestの`revision`、タイトル、著者、`content_id`、access、metadata | 単独の変更では成功画像を再取得しない。更新元候補の`revision`とは異なる |
+| chapterのタイトル・サブタイトル | 単独の変更では再取得しない |
+| 安定した`chapter_id`があるchapterの章番号 | 番号だけの変更では再取得しない |
+| chapter／画像の配列順 | 一意に照合でき、画像フィールドが同じなら保持。ただし`index`の変更は比較対象 |
+
+例えば同じ`image_id`でも、manifestの画像URLが
+`images/image.jpeg?ver=yymmdd&key-pair-id=aaaa`から
+`images/image.jpeg?ver=yymmddhhmmss&key-pair-id=bbbb`へ変われば、内容が同じでも再取得する。
+URLの正規化や認証用クエリの除外は行わない。一方、manifestには安定した非秘密locatorを返し、
+短命の署名URLを`create_image_request()`で生成する場合、署名URLだけの更新では保持済み画像を再取得しない。
+pluginでの組立方法と秘密情報の扱いは[dynamic URL how-to](../how-to/dynamic-urls-and-auth.md)を参照する。
+
+画像結果の保持は同じ実行中・同じ取得対象URL内に限定する。候補の取得対象URLが変われば新しい台帳になり、
+画像情報が同じでも以前のURLの成功結果を流用しない。削除されたURLの台帳も破棄し、再登場時は流用しない。
+次回起動には画像結果を永続化しないため、未完了URLを取得すると成功済み画像も通常処理の対象になる。
+`skip`は通常処理では取得・加工後に保存を省略するが、同一実行中に保持したskip結果は取得自体を省略する。
+変更画像の取得は保存成功を保証せず、`overwrite`／`rename`／`skip`／`error`の既存ファイル方針に従う。
+
+通信・認証・plugin・画像加工の失敗は再試行対象。HTTPは401／403／408／429と5xxが対象で、
+それ以外の恒久的4xx、秘密情報不足、未対応機能・形式、サイズ・画素数・リダイレクト制限、閉じた画像処理器、
+保存失敗・既存ファイル衝突は対象外。設定・ロック・状態異常、予期しない内部例外では停止する。
+更新チェック失敗、不正一覧、状態保存失敗でも以降の取得を開始しない。HTTP要求単位の既存再試行・
+認証更新・画像URL再発行の後にworkflowの再試行判定を行う。
+
+Only URL completion is durable; schema remains 1. An optional retry deadline starts after the initial round,
+includes waiting/checking/downloading, cancels active work, and then waits for cleanup and started transactions.
+It raises WorkflowRetryTimeoutError, distinct from user cancellation. CLI returns 5 if any attempt saved/skipped
+files, otherwise 1; successful recovery or removal of all failed targets returns 0. Original fatal error codes
+and user-cancellation code 130 remain unchanged.
+
 ## Observability and notification
 
 

@@ -7,6 +7,10 @@
 ## image_downloader
 
 <!-- api-inventory:start image_downloader -->
+WorkflowRetryTimeoutError
+WorkflowImageResult
+WorkflowAttemptResult
+WorkflowRoundResult
 WorkflowItemResult
 WorkflowResult
 AppConfig

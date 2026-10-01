@@ -33,6 +33,7 @@ from .exceptions import (
     UnsupportedImageFormatError,
     UnsupportedSiteFeature,
     UpdateStateError,
+    WorkflowRetryTimeoutError,
 )
 from .models import (
     Chapter,
@@ -63,8 +64,11 @@ from .models import (
     UpdateChangeKind,
     UpdateResult,
     UpdateSnapshot,
+    WorkflowAttemptResult,
+    WorkflowImageResult,
     WorkflowItemResult,
     WorkflowResult,
+    WorkflowRoundResult,
 )
 from .ports import (
     AuthFlow,
@@ -83,6 +87,10 @@ from .ports import (
 from .runtime import DownloadService, RuntimeComposer
 
 __all__ = [
+    "WorkflowRetryTimeoutError",
+    "WorkflowImageResult",
+    "WorkflowAttemptResult",
+    "WorkflowRoundResult",
     "WorkflowItemResult",
     "WorkflowResult",
     "AppConfig",

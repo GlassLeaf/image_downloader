@@ -42,7 +42,18 @@ __all__ = [
 if TYPE_CHECKING:
     from ..storage import FileSystem
 
-_SAFE_MODULES = {"auth", "download", "http", "image", "notification", "plugin", "processor", "runtime", "storage"}
+_SAFE_MODULES = {
+    "auth",
+    "download",
+    "http",
+    "image",
+    "notification",
+    "plugin",
+    "processor",
+    "runtime",
+    "storage",
+    "workflow",
+}
 _SAFE_EVENTS = {
     "auth_apply_started",
     "auth_apply_finished",
@@ -53,6 +64,8 @@ _SAFE_EVENTS = {
     "download_started",
     "request_started",
     "request_retry",
+    "workflow_retry_wait",
+    "workflow_retry_started",
     "response_received",
     "site_operation_close_failed",
     "image_processed",

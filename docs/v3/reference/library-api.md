@@ -12,8 +12,34 @@ The service configuration is shared; automatic plugin selection is evaluated for
 `items`, optional `stop_error`, and `cancelled`; `selected_urls` derives from items.
 `WorkflowItemResult` contains `url`, tuple `reasons`, `status`, optional `download: DownloadResult`,
 and optional `error: ErrorInfo`. Reasons are all/added/changed/unfinished, status is
-success/partial/failed/unprocessed. Multiple identities sharing a URL share one attempt.
+success/partial/failed/unprocessed/removed. Multiple identities sharing a URL share one attempt per round.
+Removed URLs have status `removed` and retain their historical attempts without remaining failed targets.
 Result objects preserve exact URLs for embedded callers; CLI serialization applies safe URL rendering.
+
+`workflow_retries=1`, `workflow_retry_delay=600.0`, and `workflow_retry_timeout=None` control retry rounds.
+Retries must be a non-negative integer; delay must be finite and non-negative; an optional timeout must be
+finite and positive. Invalid arguments raise `ValueError` before checks/downloads. No persistent settings are added.
+Retry refreshes the feed and selected manifests, then downloads failed/unprocessed/new/changed images.
+Successful and skipped outcomes are reused when their `ImageResource` fields are unchanged; manifest revision
+alone does not invalidate them. This is invocation-local: the next call resumes at URL granularity.
+
+`WorkflowItemResult.attempts` contains immutable `WorkflowAttemptResult` entries with round number, status,
+merged download, safe error, and `WorkflowImageResult` entries (one-based positions, image, status, outcome,
+`attempted` and `retained`). `WorkflowResult.rounds` contains immutable `WorkflowRoundResult` snapshots,
+differences, selected/removed URLs and stopped-round errors. Round 0 is initial. Top-level `snapshot`/`changes`
+describe the latest committed preparation. Historical results retain successes even if later manifests remove them.
+Each result also exposes the effective retry settings and `timed_out`.
+
+```python
+result = await service.workflow(
+    feed_url, workflow_retries=2, workflow_retry_delay=30, workflow_retry_timeout=300,
+)
+```
+
+Timeout raises `WorkflowRetryTimeoutError` with `workflow_result`, `timed_out=True`, and `cancelled=False`.
+The deadline starts after the initial round; active work is cancelled but cleanup and started writes settle.
+All-success runs finish without waiting. User cancellation remains `asyncio.CancelledError`.
+Download notifications report only final results, while lifecycle events and logs retain each attempt.
 
 Fatal errors and cancellation propagate their original exception. Its `workflow_result` attribute retains
 completed results, stop information, and unprocessed targets; cancellation must still be propagated by callers.
@@ -140,6 +166,7 @@ No public runtime API converts `asyncio.CancelledError` to `DownloadResult`,
 | exception | code | reason | public attributes |
 | --- | --- | --- | --- |
 | `ImageDownloaderError` | `image_downloader_error` | image downloader operation failed | — |
+| `WorkflowRetryTimeoutError` | `workflow_retry_timeout` | workflow retry time limit was reached | — |
 | `ConfigurationError` | `configuration_error` | configuration is invalid | — |
 | `PluginError` | `plugin_error` | plugin operation failed | — |
 | `UnsupportedSiteFeature` | `unsupported_site_feature` | site requires an unsupported feature | — |

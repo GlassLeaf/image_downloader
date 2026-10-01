@@ -27,7 +27,7 @@ config 作成・rewrite の command ごとの副作用は [configuration referen
 
 ### Workflow
 
-`workflow URL` checks the selected update provider once, then downloads selected URLs sequentially.
+`workflow URL` checks the selected update provider, then downloads selected URLs sequentially.
 `--download-scope updated` is the default: select added/changed candidates and unfinished candidates still present.
 `--download-scope all` selects the entire current snapshot. The first workflow run selects all candidates.
 Removed candidates are never downloaded; a removed candidate that reappears is added again.
@@ -45,13 +45,49 @@ including when supplied before the command.
 
 Output/configuration changes do not themselves make a completed candidate updated: use `all` to download again
 with new output settings. Existing-file policy is unchanged, including fetching/processing before `skip`.
-An unfinished URL is attempted again on the next workflow run, rather than automatically retried in this run.
+An unfinished URL with a retryable failure is retried after the initial round. Each retry round refreshes
+the feed and target manifests, removes disappeared URLs, and processes remaining failures plus new/changed URLs.
+Unchanged successful/skip image outcomes are retained within this invocation, including with scope `all`.
+Next invocation still uses URL-level unfinished state and ordinary existing-file policy.
+
+URL候補の更新判定と、対象URL内の画像の変更判定は別である。画像は`ImageResource`の全フィールドを
+比較し、同じ`image_id`でも画像URLのクエリ、`referer`／`headers`、`save_options`、`original_filename`
+などが変われば再取得する。画像本体や実際の要求URLは比較しない。
+条件表と既知の制限は[runtime behavior](runtime-behavior.md#workflow-retry-rounds)、
+具体例は[workflow FAQ](../how-to/faq.md#workflow-retry-faq)を参照する。
+
+| workflow-only option | default | behavior |
+| --- | --- | --- |
+| `--workflow-retries` N | 1 | Additional rounds; non-negative integer. 0 disables retries. |
+| `--workflow-retry-delay` SECONDS | 600 | Fixed wait before each retry round; finite, non-negative number. |
+| `--workflow-retry-timeout` SECONDS | unlimited | Positive finite retry duration after the initial round, including waits/checks/downloads. |
+
+These options work before/after `workflow` and are rejected by other commands. No configuration-file keys are added.
+All-success runs finish immediately without waiting or watching for further updates. Timeout cancels active work,
+then finishes cleanup and started writes; shutdown may exceed the requested duration. The same-feed process lock
+remains held during the 10-minute default wait. Changed images still use the existing-file policy:
+`rename` can create additional files and `error` can fail on an existing output.
+
+```sh
+image-downloader workflow https://example.test/feed --workflow-retries 2 --workflow-retry-delay 30 --workflow-retry-timeout 300 --json
+image-downloader workflow https://example.test/feed --workflow-retries 0
+```
+
+Retryable failures include transport errors, authentication, plugin failures and image processing errors.
+Missing secrets, unsupported features/formats, redirect/size/dimension limits, closed processors, permanent HTTP
+4xx responses (except 401/403/408/429), storage failures and file conflicts are excluded. 5xx is retryable.
+Configuration/state/lock errors and unexpected internal exceptions stop the workflow. HTTP-level retries remain active.
 
 JSON emits one document containing `operation`, `source_url`, `download_scope`, `checked_at`, `candidates`,
 `changes`, `selected_urls`, `items`, `summary`, `stop_error`, and `cancelled`.
 Each item contains safe `url`, `reasons`, `status`, `download` and `error`;
 download reuses `saved`, `skipped`, `failures`. Reasons are `all`, `added`, `changed`, `unfinished`.
-Statuses are `success`, `partial`, `failed`, `unprocessed`; summary counts these statuses.
+Statuses are `success`, `partial`, `failed`, `unprocessed`, `removed`; summary counts these statuses.
+JSON additionally includes retry settings, `rounds`, per-item `attempts`, and `timed_out`.
+Rounds expose snapshots/differences/selected/removed URLs and stop information; the top-level snapshot and changes
+refer to the latest successfully prepared round. Attempts expose merged download results and image positions,
+safe locators/paths, status, `attempted`, and `retained`. Round 0 is the initial round.
+Intermediate failures remain in logs/events/JSON; download notifications contain only final results.
 Stopped workflows retain completed results and unprocessed targets. Diagnostics go to stderr in JSON mode.
 Success or no selected targets returns 0; image/URL failures with saved/skipped files return 5;
 failures without saved/skipped files return 1. Fatal stops use existing exception codes, cancellation uses 130.

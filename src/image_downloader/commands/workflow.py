@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import math
 import sys
 from contextlib import nullcontext, redirect_stdout
 from dataclasses import asdict, replace
@@ -15,8 +16,8 @@ from urllib.parse import urlparse
 from ..application.composer import RuntimeComposer
 from ..configuration.paths import resolve_paths
 from ..exceptions import AuthenticationError, ConfigurationError, PluginError, error_info_for, error_reason_for_code
-from ..models import DownloadResult, WorkflowResult
-from ..privacy.log_safety import safe_exception_name, safe_relative_path, safe_url
+from ..models import DownloadResult, ImageFailure, WorkflowAttemptResult, WorkflowResult, WorkflowRoundResult
+from ..privacy.log_safety import safe_exception_name, safe_locator, safe_relative_path, safe_url
 from .constants import (
     EXIT_AUTHENTICATION,
     EXIT_CONFIGURATION,
@@ -45,27 +46,68 @@ def _safe_error(payload: dict[str, object], root: Path) -> dict[str, object]:
     return payload
 
 
+def _failure_payload(failure: ImageFailure, root: Path) -> dict[str, object]:
+    return _safe_error(
+        {
+            "kind": failure.kind,
+            "exception": safe_exception_name(failure.exception_type),
+            "message": error_reason_for_code(failure.code) or "image failure",
+            "code": failure.code,
+            "reason": error_reason_for_code(failure.code) or "image failure",
+            "output_path": failure.output_path,
+            "response_url": failure.response_url,
+            "http_status": failure.http_status,
+            "transport": failure.transport,
+        },
+        root,
+    )
+
+
 def _download_payload(result: DownloadResult, root: Path) -> dict[str, object]:
     return {
-        "saved": result.saved_files,
-        "skipped": result.skipped_files,
-        "failures": [
-            _safe_error(
-                {
-                    "kind": failure.kind,
-                    "exception": safe_exception_name(failure.exception_type),
-                    "message": error_reason_for_code(failure.code) or "image failure",
-                    "code": failure.code,
-                    "reason": error_reason_for_code(failure.code) or "image failure",
-                    "output_path": failure.output_path,
-                    "response_url": failure.response_url,
-                    "http_status": failure.http_status,
-                    "transport": failure.transport,
-                },
-                root,
-            )
-            for failure in result.failures
+        "saved": [safe_relative_path(path, root) for path in result.saved_files],
+        "skipped": [safe_relative_path(path, root) for path in result.skipped_files],
+        "failures": [_failure_payload(failure, root) for failure in result.failures],
+    }
+
+
+def _attempt_payload(attempt: WorkflowAttemptResult, root: Path) -> dict[str, object]:
+    return {
+        "round_number": attempt.round_number,
+        "status": attempt.status,
+        "download": _download_payload(attempt.download, root) if attempt.download is not None else None,
+        "error": _safe_error(asdict(attempt.error), root) if attempt.error is not None else None,
+        "images": [
+            {
+                "chapter_position": image.chapter_position,
+                "image_position": image.image_position,
+                "locator": safe_locator(image.image.url),
+                "status": image.status,
+                "retained": image.retained,
+                "attempted": image.attempted,
+                "failure": _failure_payload(image.outcome.failure, root)
+                if image.outcome is not None and image.outcome.failure is not None
+                else None,
+                "path": safe_relative_path(image.outcome.path, root)
+                if image.outcome is not None and image.outcome.path is not None
+                else None,
+            }
+            for image in attempt.images
         ],
+    }
+
+
+def _round_payload(round_result: WorkflowRoundResult, root: Path) -> dict[str, object]:
+    snapshot = round_result.snapshot
+    return {
+        "round_number": round_result.round_number,
+        "status": round_result.status,
+        "checked_at": snapshot.checked_at.isoformat() if snapshot is not None else None,
+        "candidates": [dict(asdict(c), url=safe_url(c.url)) for c in snapshot.candidates] if snapshot else [],
+        "changes": [dict(asdict(c), url=safe_url(c.url)) for c in round_result.changes],
+        "selected_urls": [safe_url(url) for url in round_result.selected_urls],
+        "removed_urls": [safe_url(url) for url in round_result.removed_urls],
+        "error": _safe_error(asdict(round_result.error), root) if round_result.error is not None else None,
     }
 
 
@@ -77,6 +119,7 @@ def workflow_payload(result: WorkflowResult, root: Path) -> dict[str, object]:
             "status": item.status,
             "download": _download_payload(item.download, root) if item.download is not None else None,
             "error": _safe_error(asdict(item.error), root) if item.error is not None else None,
+            "attempts": [_attempt_payload(attempt, root) for attempt in item.attempts],
         }
         for item in result.items
     ]
@@ -84,6 +127,11 @@ def workflow_payload(result: WorkflowResult, root: Path) -> dict[str, object]:
         "operation": "workflow",
         "source_url": safe_url(result.source_url),
         "download_scope": result.download_scope,
+        "workflow_retries": result.workflow_retries,
+        "workflow_retry_delay": result.workflow_retry_delay,
+        "workflow_retry_timeout": result.workflow_retry_timeout,
+        "rounds": [_round_payload(round_result, root) for round_result in result.rounds],
+        "timed_out": result.timed_out,
         "checked_at": result.snapshot.checked_at.isoformat() if result.snapshot is not None else None,
         "candidates": [dict(asdict(candidate), url=safe_url(candidate.url)) for candidate in result.snapshot.candidates]
         if result.snapshot is not None
@@ -93,7 +141,7 @@ def workflow_payload(result: WorkflowResult, root: Path) -> dict[str, object]:
         "items": items,
         "summary": {
             status: sum(item.status == status for item in result.items)
-            for status in ("success", "partial", "failed", "unprocessed")
+            for status in ("success", "partial", "failed", "unprocessed", "removed")
         },
         "stop_error": _safe_error(asdict(result.stop_error), root) if result.stop_error is not None else None,
         "cancelled": result.cancelled,
@@ -101,12 +149,16 @@ def workflow_payload(result: WorkflowResult, root: Path) -> dict[str, object]:
 
 
 def _status(result: WorkflowResult) -> int:
-    if all(item.status == "success" for item in result.items):
+    if not result.timed_out and all(item.status in {"success", "removed"} for item in result.items):
         return EXIT_SUCCESS
     return (
         EXIT_PARTIAL
         if any(
-            item.download is not None and (item.download.saved_files or item.download.skipped_files)
+            (item.download is not None and (item.download.saved_files or item.download.skipped_files))
+            or any(
+                attempt.download is not None and (attempt.download.saved_files or attempt.download.skipped_files)
+                for attempt in item.attempts
+            )
             for item in result.items
         )
         else EXIT_FAILURE
@@ -125,6 +177,13 @@ def _stopped_status(error: BaseException) -> int:
 
 class WorkflowCommandHandler:
     async def handle(self, args: argparse.Namespace) -> int:
+        retries = args.workflow_retries if args.workflow_retries is not None else 1
+        delay = args.workflow_retry_delay if args.workflow_retry_delay is not None else 600.0
+        timeout = args.workflow_retry_timeout
+        if retries < 0 or not math.isfinite(delay) or delay < 0:
+            raise ConfigurationError("workflow retries and delay must be non-negative and finite")
+        if timeout is not None and (not math.isfinite(timeout) or timeout <= 0):
+            raise ConfigurationError("workflow retry timeout must be positive and finite")
         if args.image_format is not None and args.force_image_format is not None:
             raise ConfigurationError("--image-format cannot be combined with --force-image-format")
         if args.plugin_id is not None and args.force_plugin_id is not None:
@@ -168,6 +227,9 @@ class WorkflowCommandHandler:
                     result = await service.workflow(
                         args.url,
                         download_scope=cast(Literal["all", "updated"], args.download_scope or "updated"),
+                        workflow_retries=retries,
+                        workflow_retry_delay=delay,
+                        workflow_retry_timeout=timeout,
                         plugin_overrides=overrides,
                         fallback_override=_fallback(args),
                         plugin_id=args.plugin_id or args.force_plugin_id,
@@ -181,7 +243,7 @@ class WorkflowCommandHandler:
                     if not isinstance(stopped_result, WorkflowResult):
                         raise
                     result = stopped_result
-                    status = _stopped_status(exc)
+                    status = _status(result) if result.timed_out else _stopped_status(exc)
         finally:
             with diagnostics:
                 try:

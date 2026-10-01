@@ -25,6 +25,11 @@ class ConfigurationError(ImageDownloaderError, ValueError):
     reason = "configuration is invalid"
 
 
+class WorkflowRetryTimeoutError(ImageDownloaderError):
+    code = "workflow_retry_timeout"
+    reason = "workflow retry time limit was reached"
+
+
 class PluginError(ImageDownloaderError):
     code = "plugin_error"
     reason = "plugin operation failed"
@@ -217,6 +222,7 @@ class ErrorCatalogEntry:
 
 ERROR_CATALOG: Final[tuple[ErrorCatalogEntry, ...]] = (
     ErrorCatalogEntry(ImageDownloaderError),
+    ErrorCatalogEntry(WorkflowRetryTimeoutError),
     ErrorCatalogEntry(ConfigurationError),
     ErrorCatalogEntry(PluginError),
     ErrorCatalogEntry(UnsupportedSiteFeature),

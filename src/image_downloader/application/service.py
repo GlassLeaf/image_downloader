@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import math
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Literal, TypeVar, cast
+from typing import Literal, NoReturn, TypeVar, cast
 from urllib.parse import urlparse
 
 from ..configuration.hosts import normalize_host, site_file_name
@@ -69,8 +70,21 @@ from ..ports import PluginExecutionContext, SitePlugin, UpdateProvider
 from ..storage import FileSystem, safe_component
 from ..transport.gateway import OperationRequestGateway, RequestGateway
 from .dependencies import _RuntimeDependencies
+from .workflow_retry import ImageLedger
 
 _ResultT = TypeVar("_ResultT")
+
+
+def _remember_image(ledger: ImageLedger | None, cp: int, ip: int, outcome: ImageOutcome) -> None:
+    if ledger is not None:
+        ledger.record(cp, ip, outcome)
+
+
+def _start_workflow_image(ledger: ImageLedger | None, cp: int, ip: int) -> None:
+    if ledger is not None:
+        ledger.attempted.add((cp, ip))
+
+
 _IMAGE_FAILURE_EVENTS = {
     FailureKind.FETCH: EventName.FETCH_FAILED,
     FailureKind.PROCESS: EventName.IMAGE_PROCESS_FAILED,
@@ -143,6 +157,7 @@ def _classify_image_error(kind: FailureKind, cause: Exception) -> ImageDownloade
     else:
         error = StorageError("unexpected image save failure")
     error.__cause__ = cause
+    error.__dict__["_unexpected_image_error"] = not (kind is FailureKind.SAVE and isinstance(cause, OSError))
     return error
 
 
@@ -181,10 +196,37 @@ def _failure_transport(kind: FailureKind, error: Exception, response: RequestRes
     }.get(code, "failed")
 
 
-def _is_fatal_image_error(error: ImageDownloaderError, continue_on_image_error: bool) -> bool:
-    return not continue_on_image_error or isinstance(
-        error,
-        (AuthenticationError, PluginError, ConfigurationError, StorageSafetyError, InterProcessLockError),
+def _workflow_image_error(error: ImageDownloaderError, ledger: ImageLedger | None) -> Exception:
+    if (
+        ledger is not None
+        and getattr(error, "_unexpected_image_error", False)
+        and isinstance(error.__cause__, Exception)
+    ):
+        return error.__cause__
+    return error
+
+
+def _raise_image_error(error: ImageDownloaderError, ledger: ImageLedger | None) -> NoReturn:
+    failure = _workflow_image_error(error, ledger)
+    if failure is error:
+        raise error from error.__cause__
+    failure.__dict__["_image_failure_reported"] = True
+    failure.__dict__["_image_failure_context"] = error._image_failure_context
+    raise failure from None
+
+
+def _is_fatal_image_error(
+    error: ImageDownloaderError,
+    continue_on_image_error: bool,
+    ledger: ImageLedger | None = None,
+) -> bool:
+    return (
+        (ledger is not None and getattr(error, "_unexpected_image_error", False))
+        or not continue_on_image_error
+        or isinstance(
+            error,
+            (AuthenticationError, PluginError, ConfigurationError, StorageSafetyError, InterProcessLockError),
+        )
     )
 
 
@@ -365,6 +407,7 @@ class DownloadService:
         plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None,
         force_image_format: ImageFormat | None,
         diagnostics: OperationDiagnosticsScope,
+        ledger: ImageLedger | None = None,
     ) -> DownloadResult:
         try:
             async with self._site_operation(
@@ -402,6 +445,8 @@ class DownloadService:
                         processors,
                     )
                     manifest = self._normalized_manifest(await invoker.inspect(plugin, url, context), url)
+                    if ledger is not None:
+                        ledger.begin(manifest, record.id)
                     if not manifest.chapters:
                         if not self.config.download.allow_empty_chapter_manifest:
                             raise PluginError("plugin returned an empty manifest")
@@ -431,6 +476,7 @@ class DownloadService:
                             policy,
                             url,
                             plugin_values,
+                            ledger,
                         )
                         result = DownloadResult(url, manifest, tuple(results))
             outcome = (
@@ -611,6 +657,9 @@ class DownloadService:
         url: str,
         *,
         download_scope: Literal["all", "updated"] = "updated",
+        workflow_retries: int = 1,
+        workflow_retry_delay: float = 600.0,
+        workflow_retry_timeout: float | None = None,
         plugin_overrides: PluginConfigOverrides | None = None,
         fallback_override: bool | None = None,
         plugin_id: str | None = None,
@@ -622,6 +671,18 @@ class DownloadService:
 
         if download_scope not in ("all", "updated"):
             raise ValueError("download_scope must be all or updated")
+        if type(workflow_retries) is not int or workflow_retries < 0:
+            raise ValueError("workflow_retries must be a non-negative integer")
+        for name, value, positive in (
+            ("workflow_retry_delay", workflow_retry_delay, False),
+            ("workflow_retry_timeout", workflow_retry_timeout, True),
+        ):
+            if value is None and positive:
+                continue
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+                raise ValueError(f"{name} must be a finite number")
+            if value < 0 or (positive and value == 0):
+                raise ValueError(f"{name} is outside its allowed range")
         if force_image_format not in (None, "ORIGINAL", "JPEG", "PNG", "WEBP"):
             raise ValueError("force_image_format must be ORIGINAL, JPEG, PNG, WEBP, or None")
         async with self._operation_lock:
@@ -636,6 +697,9 @@ class DownloadService:
                 force_plugin,
                 plugin_download_policy_overrides,
                 force_image_format,
+                workflow_retries,
+                workflow_retry_delay,
+                workflow_retry_timeout,
             )
 
     def _operation(
@@ -908,6 +972,7 @@ class DownloadService:
         policy: _OperationDownloadPolicy,
         operation_url: str,
         plugin_values: Mapping[str, Mapping[str, str]],
+        ledger: ImageLedger | None = None,
     ) -> list[ChapterResult]:
         operation_id = uuid.uuid4().hex
 
@@ -925,6 +990,8 @@ class DownloadService:
                 policy,
                 operation_url,
                 plugin_values,
+                ledger,
+                position,
             )
 
         factories = [
@@ -958,6 +1025,8 @@ class DownloadService:
         policy: _OperationDownloadPolicy,
         operation_url: str,
         plugin_values: Mapping[str, Mapping[str, str]],
+        ledger: ImageLedger | None = None,
+        chapter_position: int = 0,
     ) -> ChapterResult:
         directory_context = OutputFormatContext(
             manifest,
@@ -982,6 +1051,11 @@ class DownloadService:
         )
 
         async def run_one(position: int, image: ImageResource) -> ImageOutcome:
+            if ledger is not None and (chapter_position, position) in ledger.retained:
+                outcome = ledger.outcomes[chapter_position, position]
+                await reporter.record(position, outcome)
+                return outcome
+            _start_workflow_image(ledger, chapter_position, position)
             response: RequestResponse | None = None
             transport_metadata = None
             try:
@@ -1062,7 +1136,19 @@ class DownloadService:
                             except BaseException:
                                 await self._settle_allocation(allocation, success=False)
                                 raise
-                            await self._settle_allocation(allocation, success=True)
+                            await self._commit_image_allocation(
+                                allocation, ledger, chapter_position, position, image, path
+                            )
+                        _remember_image(
+                            ledger,
+                            chapter_position,
+                            position,
+                            ImageOutcome(
+                                image,
+                                ImageOutcomeKind.SAVED if allocation.should_write else ImageOutcomeKind.SKIPPED,
+                                str(path),
+                            ),
+                        )
                 except asyncio.CancelledError:
                     raise
                 except Exception as exc:
@@ -1082,19 +1168,14 @@ class DownloadService:
                         url_is_locator=True,
                         debug=True,
                     )
-                if not allocation.should_write:
-                    outcome = ImageOutcome(
-                        image,
-                        ImageOutcomeKind.SKIPPED,
-                        str(path),
-                    )
-                else:
-                    outcome = ImageOutcome(image, ImageOutcomeKind.SAVED, str(path))
+                outcome = ImageOutcome(
+                    image, ImageOutcomeKind.SAVED if allocation.should_write else ImageOutcomeKind.SKIPPED, str(path)
+                )
             except asyncio.CancelledError:
                 raise
             except _ImageJobError as exc:
                 info, response_url, http_status, failure_path = _failure_info(
-                    exc.cause,
+                    _workflow_image_error(exc.cause, ledger),
                     exc.response,
                     allocator.filesystem,
                 )
@@ -1154,8 +1235,9 @@ class DownloadService:
                         transport=transport,
                     ),
                 )
+                _remember_image(ledger, chapter_position, position, outcome)
                 await reporter.record(position, outcome)
-                if _is_fatal_image_error(exc.cause, self.config.download.continue_on_image_error):
+                if _is_fatal_image_error(exc.cause, self.config.download.continue_on_image_error, ledger):
                     exc.cause._image_failure_reported = True
                     exc.cause._image_failure_context = {
                         "stage": _IMAGE_FAILURE_STAGES[exc.kind],
@@ -1165,8 +1247,9 @@ class DownloadService:
                         "http_status": http_status,
                         "output_path": info.output_path,
                     }
-                    raise exc.cause from exc.cause.__cause__
+                    _raise_image_error(exc.cause, ledger)
                 return outcome
+            _remember_image(ledger, chapter_position, position, outcome)
             await reporter.record(position, outcome)
             return outcome
 
@@ -1190,6 +1273,21 @@ class DownloadService:
             debug=True,
         )
         return ChapterResult(chapter, outcomes)
+
+    @staticmethod
+    async def _commit_image_allocation(
+        allocation: OutputAllocation,
+        ledger: ImageLedger | None,
+        cp: int,
+        ip: int,
+        image: ImageResource,
+        path: Path,
+    ) -> None:
+        try:
+            await DownloadService._settle_allocation(allocation, success=True)
+        except asyncio.CancelledError:
+            _remember_image(ledger, cp, ip, ImageOutcome(image, ImageOutcomeKind.SAVED, str(path)))
+            raise
 
     @staticmethod
     async def _settle_allocation(allocation: OutputAllocation, *, success: bool) -> None:

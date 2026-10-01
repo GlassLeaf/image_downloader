@@ -24,6 +24,13 @@ image-downloader config init `
 
 image-downloader "https://example.test/gallery"
 
+# 更新チェックから取得まで。失敗時は標準で10分後に1回再試行
+image-downloader workflow "https://example.test/feed"
+
+# 周回回数・間隔・初回処理後からの最大時間を指定（単位は秒）
+image-downloader workflow "https://example.test/feed" `
+  --workflow-retries 2 --workflow-retry-delay 30 --workflow-retry-timeout 300
+
 # 設定、plugin catalog、profile data path を診断
 image-downloader doctor --json
 ```

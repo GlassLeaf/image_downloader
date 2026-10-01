@@ -161,6 +161,58 @@ browser cookie は `cookie browser-import DOMAIN`、バックアップ・移行�
 
 できる。`image-downloader inspect URL --json`（または `download URL --inspect-only --json`）は、manifest 順に `create_image_request()` の後で `AuthFlow.apply()` と HTTP request 組立てを行い、画像 body を送らず送信直前 URL を表示する。既定の `--inspection-data url` はその URL・位置・状態だけ、`--inspection-data http` は source `RequestSpec` と実 header/cookie/Base64 body、`--inspection-data all` はさらに locator、manifest/image metadata、`ImageFetchRequest.plugin_data` を raw で出す。表示レベルは stdout の投影だけで、`--manifest-only` 以外は 3 レベルとも同じ request hook／AuthFlow を実行する。`--manifest-only` は request hook を呼ばない。redirect 後 URL、response header、recovery 結果は response を必要とするため含まれない。署名 URL は表示した時点で失効し得るため後続 download に再利用しない。`url` でも署名 query は秘密値になり得、`http`／`all` は credential を含むので stdout/stderr を log、CI artifact、telemetry、共有端末、チケット、第三者サービスへ転送してはならない。大規模 manifest は全画像を直列解決し、preview body を保持する。解決数・body size の CLI 上限はないため、必要なければ `--manifest-only` を使う。[JSON contract](../reference/cli.md#cli-json) を参照する。
 
+<a id="workflow-retry-faq"></a>
+
+### 13. workflowは追加周回で全URL・全画像を取り直すか？
+
+取り直さない。初回周回は`--download-scope all`なら全URL、既定の`updated`なら追加・変更・未完了のURLを
+取得する。workflow専用履歴がない初回は両モードとも全URLを取得する。
+
+追加周回では更新元の一覧を再取得し、再試行可能な失敗・未処理があるURLと、追加・変更された候補のURLを
+処理する。成功済み・候補情報に変更がないURLのmanifestは再確認しない。候補は`content_id`優先
+（なければURL）で識別し、候補URLまたは`revision`の変更を更新とする。同一URLは周回内で一度だけ処理する。
+削除URLは取得せず、再登場時は新規として扱う。ローカルファイルは削除しない。
+
+対象URLでも成功・skip済みで画像情報に変更がない画像は保持し、失敗・未処理・追加・変更画像だけを取得する。
+cleanupのみ失敗した場合も、変更のない成功画像を保持したまま再処理する。
+全成功後は終了し、更新監視のための周回は行わない。再試行対象外の失敗しか残っていない場合も終了する。
+詳細な条件表は[runtime behavior](../reference/runtime-behavior.md#workflow-retry-rounds)を参照する。
+
+### 14. 同じimage_idで画像内容が同じでも、署名URLだけ変わると再取得するか？
+
+`ImageResource.url`が変われば再取得する。例えば次のクエリ変更も変更扱いとなる。
+
+```text
+images/image.jpeg?ver=yymmdd&key-pair-id=aaaa
+images/image.jpeg?ver=yymmddhhmmss&key-pair-id=bbbb
+```
+
+現行実装は画像本体を比較せず、`ImageResource`の全フィールド（`url`、`image_id`、`index`、`referer`、
+`headers`、`save_options`、`metadata`、`original_filename`）を比較する。`referer`／`headers`、加工指定、
+元ファイル名だけの変更でも再取得する。chapter／画像の識別子が重複し照合できない範囲も再取得する。
+manifestの`revision`だけの変更では成功画像を取り直さない。
+
+一方、manifestのlocatorが安定し、`create_image_request()`でだけ署名URLを作る場合、要求URLだけの
+変化は比較しない。保持された成功画像では同hookも呼ばない。pluginはlocatorに秘密値を入れず、
+短命URLの組立をrequest hookで行う。[dynamic URL how-to](dynamic-urls-and-auth.md)と
+[比較対象・対象外の情報](../reference/runtime-behavior.md#workflow-retry-rounds)を参照する。
+
+### 15. workflowの再試行にはどのような制限があるか？
+
+- 成功画像の保持は同じ実行中に限る。次回起動はURL単位の完了状態だけを使い、未完了URLの成功画像も通常処理する。
+- 成功済み・変更なしのURLはmanifestを確認しないため、更新元候補が変更を伝えない画像更新は検出できない。
+- 画像情報が同じまま画像本体が変わった場合も検出できない。保存済みファイルの破損・削除は検証しない。
+- 再試行対象外の失敗は繰り返さない。通信・認証・plugin・画像加工の失敗は対象だが、恒久的4xx（401／403／408／429を除く）、秘密情報不足、未対応形式、制限違反、保存失敗・ファイル衝突などは対象外。
+- 画像の再取得にも既存ファイル方針を適用する。`rename`では追加ファイル、`error`では衝突が起き得る。通常の`skip`は取得・加工後の保存省略だが、同一実行で保持したskip結果は再取得しない。
+- 出力先・加工設定の変更は候補の更新判定に含めない。完了済みURLを別条件で取得する場合は`all`を指定する。
+- 標準は追加1周回・待機600秒。待機中も同じprofile・plugin・更新元のprocess lockを保持するため、別workflowは待つ。
+- 再試行期限は初回周回終了後から待機・チェック・取得を含む。cleanupと開始済み書込みは完了させるため、終了時刻が期限を超える場合がある。
+
+設定・ロック・状態異常、予期しない内部例外、更新チェック失敗では停止する。画像単位の継続は
+`continue_on_image_error`に従う。オプション、終了コード、JSONの周回・試行履歴は
+[CLI reference](../reference/cli.md#workflow)、状態と判定の詳細は
+[runtime behavior](../reference/runtime-behavior.md#workflow-retry-rounds)を参照する。
+
 ## ライブラリ利用者向け Q&A
 
 ### 1. `DownloadService` の resource lifetime は誰が管理するか？
