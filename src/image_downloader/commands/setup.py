@@ -15,6 +15,7 @@ from ..configuration.layers import ResolvedApplicationConfig, resolve_applicatio
 from ..configuration.models import AppConfig
 from ..configuration.paths import default_user_config_path, resolve_paths
 from ..configuration.paths import plugin_root as configured_plugin_root
+from ..diagnostics import argument_error, configuration_error, configuration_source
 from ..exceptions import ConfigurationError
 from ..immutable import thaw_json
 from ..storage.path_safety import canonical_path, existing_directory, existing_regular_file
@@ -135,67 +136,112 @@ def _bootstrap_override(args: argparse.Namespace) -> Mapping[str, object]:
 
 
 def _runtime_overrides(args: argparse.Namespace) -> dict[str, Mapping[str, object]]:
+    prepared = getattr(args, "_prepared_plugin_config", None)
+    if prepared is not None:
+        return dict(prepared)
     result: dict[str, Mapping[str, object]] = {}
-    for path in args.plugin_config_file:
-        safe_path = existing_regular_file(path, "--plugin-config-file", required=True)
+    for path in getattr(args, "plugin_config_file", []):
+        safe_path = _option_file(path, "--plugin-config-file")
         assert safe_path is not None
         try:
             raw = json.loads(safe_path.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise ConfigurationError(f"plugin config file is invalid: {path}") from exc
+            raise argument_error(
+                "--plugin-config-file must contain valid JSON", "invalid_value", option="--plugin-config-file"
+            ) from exc
         if (
             not isinstance(raw, dict)
             or set(raw) != {"plugin_id", "config"}
             or not isinstance(raw["plugin_id"], str)
             or not isinstance(raw["config"], dict)
         ):
-            raise ConfigurationError(f"plugin config file has invalid schema: {path}")
+            raise argument_error(
+                "--plugin-config-file requires an object with plugin_id and config",
+                "invalid_value",
+                option="--plugin-config-file",
+            )
         current = result.get(raw["plugin_id"], {})
         result[raw["plugin_id"]] = _deep_merge_json(current, raw["config"])
-    for item in args.plugin_config:
+    for item in getattr(args, "plugin_config", []):
         if "=" not in item:
-            raise ConfigurationError("--plugin-config must have ID=<JSON-object> form")
+            raise argument_error(
+                "--plugin-config must have ID=<JSON-object> form", "invalid_value", option="--plugin-config"
+            )
         plugin_id, text = item.split("=", 1)
         try:
             value = json.loads(text)
         except json.JSONDecodeError as exc:
-            raise ConfigurationError("--plugin-config JSON is invalid") from exc
+            raise argument_error("--plugin-config JSON is invalid", "invalid_value", option="--plugin-config") from exc
         if not plugin_id or not isinstance(value, dict):
-            raise ConfigurationError("--plugin-config value must be a JSON object")
+            raise argument_error(
+                "--plugin-config value must be a JSON object", "invalid_value", option="--plugin-config"
+            )
         result[plugin_id] = _deep_merge_json(result.get(plugin_id, {}), value)
     return result
 
 
 def _download_policy_overrides(args: argparse.Namespace) -> dict[str, Mapping[str, object]]:
+    prepared = getattr(args, "_prepared_download_policy", None)
+    if prepared is not None:
+        return dict(prepared)
     result: dict[str, Mapping[str, object]] = {}
-    for path in args.plugin_download_policy_file:
-        safe_path = existing_regular_file(path, "--plugin-download-policy-file", required=True)
+    for path in getattr(args, "plugin_download_policy_file", []):
+        safe_path = _option_file(path, "--plugin-download-policy-file")
         assert safe_path is not None
         try:
             raw = json.loads(safe_path.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise ConfigurationError(f"plugin download policy file is invalid: {path}") from exc
+            raise argument_error(
+                "--plugin-download-policy-file must contain valid JSON",
+                "invalid_value",
+                option="--plugin-download-policy-file",
+            ) from exc
         if (
             not isinstance(raw, dict)
             or set(raw) != {"plugin_id", "download_policy"}
             or not isinstance(raw["plugin_id"], str)
             or not isinstance(raw["download_policy"], dict)
         ):
-            raise ConfigurationError(f"plugin download policy file has invalid schema: {path}")
+            raise argument_error(
+                "--plugin-download-policy-file requires an object with plugin_id and download_policy",
+                "invalid_value",
+                option="--plugin-download-policy-file",
+            )
         current = result.get(raw["plugin_id"], {})
         result[raw["plugin_id"]] = _deep_merge_json(current, raw["download_policy"])
-    for item in args.plugin_download_policy:
+    for item in getattr(args, "plugin_download_policy", []):
         if "=" not in item:
-            raise ConfigurationError("--plugin-download-policy must have ID=<JSON-object> form")
+            raise argument_error(
+                "--plugin-download-policy must have ID=<JSON-object> form",
+                "invalid_value",
+                option="--plugin-download-policy",
+            )
         plugin_id, text = item.split("=", 1)
         try:
             value = json.loads(text)
         except json.JSONDecodeError as exc:
-            raise ConfigurationError("--plugin-download-policy JSON is invalid") from exc
+            raise argument_error(
+                "--plugin-download-policy JSON is invalid", "invalid_value", option="--plugin-download-policy"
+            ) from exc
         if not plugin_id or not isinstance(value, dict):
-            raise ConfigurationError("--plugin-download-policy value must be a JSON object")
+            raise argument_error(
+                "--plugin-download-policy value must be a JSON object",
+                "invalid_value",
+                option="--plugin-download-policy",
+            )
         result[plugin_id] = _deep_merge_json(result.get(plugin_id, {}), value)
     return result
+
+
+def _option_file(path: Path, option: str) -> Path:
+    try:
+        resolved = existing_regular_file(path, option, required=True)
+        assert resolved is not None
+        return resolved
+    except ConfigurationError as exc:
+        raise argument_error(
+            f"{option} requires an absolute existing regular JSON file", "invalid_value", option=option
+        ) from exc
 
 
 def _deep_merge_json(base: Mapping[str, object], override: Mapping[str, object]) -> dict[str, object]:
@@ -275,9 +321,10 @@ def _resolved_config_for(
         raw_config_path is not None
         and existing_regular_file(raw_config_path, "configuration file", required=False) is None
     ):
-        config_path = canonical_path(raw_config_path, "configuration path")
-        raise ConfigurationError(
-            f"configuration file not found: {config_path}; create it with 'config init \"{config_path}\"'"
+        raise configuration_error(
+            "configuration file not found; create it with 'config init'",
+            "configuration_missing",
+            source=configuration_source(raw_config_path, source),
         )
     patch = dict(_bootstrap_override(args))
     patch.update(_app_override(args))

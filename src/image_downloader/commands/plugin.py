@@ -23,7 +23,7 @@ from .setup import (
     _persist_initial_user_config,
     _plugin_root,
 )
-from .validation import _reject_command_options
+from .validation import _reject_command_options, validate_arguments
 
 
 class PluginCommandHandler:
@@ -166,6 +166,8 @@ def _plugin_id_mutation(args: argparse.Namespace, command: str, words: list[str]
 
 
 def plugin_command(args: argparse.Namespace) -> int:
+    if not getattr(args, "_arguments_validated", False):
+        validate_arguments(args)
     words = list(args.command_args)
     if not words:
         raise ConfigurationError("plugin command is required: install, trust, revoke, uninstall, or list")

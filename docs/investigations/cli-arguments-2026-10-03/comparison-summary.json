@@ -1,0 +1,20 @@
+{
+  "baseline_sha256": "df58f729bdb5d5a66ebe390609d8489f11d71e7dd6e59dcd845f7d1b3f069c99",
+  "case_count": 8794,
+  "url_twin_count": 3593,
+  "after_codes": {
+    "argument_error": 7860,
+    "help": 255,
+    "validation_passed": 677,
+    "configuration_error": 2
+  },
+  "url_twin_codes": {
+    "validation_passed": 1199,
+    "argument_error": 2343,
+    "help": 27,
+    "configuration_error": 24
+  },
+  "module_cases": 23,
+  "module_matches": 23,
+  "execution_boundary": true
+}

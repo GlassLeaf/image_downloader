@@ -18,11 +18,19 @@ class ImageDownloaderError(Exception):
     reason = "image downloader operation failed"
     _image_failure_reported = False
     _image_failure_context: dict[str, object] | None = None
+    _core_diagnostic: object | None = None
 
 
 class ConfigurationError(ImageDownloaderError, ValueError):
     code = "configuration_error"
     reason = "configuration is invalid"
+
+
+class ArgumentError(ConfigurationError):
+    """The command-line input is invalid before configuration resolution."""
+
+    code = "argument_error"
+    reason = "command-line arguments are invalid"
 
 
 class WorkflowRetryTimeoutError(ImageDownloaderError):
@@ -224,6 +232,7 @@ ERROR_CATALOG: Final[tuple[ErrorCatalogEntry, ...]] = (
     ErrorCatalogEntry(ImageDownloaderError),
     ErrorCatalogEntry(WorkflowRetryTimeoutError),
     ErrorCatalogEntry(ConfigurationError),
+    ErrorCatalogEntry(ArgumentError),
     ErrorCatalogEntry(PluginError),
     ErrorCatalogEntry(UnsupportedSiteFeature),
     ErrorCatalogEntry(AuthenticationError),

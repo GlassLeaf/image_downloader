@@ -21,7 +21,7 @@ from .setup import (
     _resolved_config_for,
     _write_user_config,
 )
-from .validation import _reject_command_options
+from .validation import _reject_command_options, validate_arguments
 
 _EXPLAIN_ALLOWED = frozenset(("host", "no_console_log", "existing_file", "image_format"))
 
@@ -234,6 +234,8 @@ def _profile_init(args: argparse.Namespace, words: list[str]) -> int:
 
 
 def config_command(args: argparse.Namespace) -> int:
+    if not getattr(args, "_arguments_validated", False):
+        validate_arguments(args)
     words = list(args.command_args)
     if words == ["path"]:
         return _config_path(args)

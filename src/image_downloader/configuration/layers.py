@@ -18,6 +18,7 @@ from pydantic import BaseModel, ValidationError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from ..diagnostics import Diagnostic, configuration_error, configuration_source, diagnostic_for, validation_diagnostic
 from ..exceptions import ConfigurationError
 from ..storage.path_safety import canonical_path, existing_directory, existing_regular_file
 from .hosts import normalize_host, registrable_domain, site_file_name
@@ -125,10 +126,7 @@ def _annotation_shape(annotation: object) -> _ValueShape:
 def _model_shape(model: type[BaseModel]) -> _ValueShape:
     return _ValueShape(
         properties=MappingProxyType(
-            {
-                field.alias or name: _annotation_shape(field.annotation)
-                for name, field in model.model_fields.items()
-            }
+            {field.alias or name: _annotation_shape(field.annotation) for name, field in model.model_fields.items()}
         )
     )
 
@@ -195,7 +193,7 @@ def validate_config(value: Mapping[str, Any] | AppConfig) -> AppConfig:
         return AppConfig.model_validate(value)
     except ValidationError as exc:
         issue = exc.errors()[0]
-        raise ConfigurationError(f"invalid configuration: {_dotted(tuple(issue['loc']))}: {issue['msg']}") from exc
+        raise validation_diagnostic(issue, model=AppConfig) from exc
 
 
 def deep_merge(base: Mapping[str, Any], override: Mapping[str, Any]) -> dict[str, Any]:
@@ -212,11 +210,25 @@ def deep_merge(base: Mapping[str, Any], override: Mapping[str, Any]) -> dict[str
 def _read_yaml_document(resolved: Path, original: Path) -> tuple[dict[str, Any], bytes]:
     try:
         source = resolved.read_bytes()
-        result = yaml.safe_load(source.decode("utf-8")) or {}
-    except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
-        raise ConfigurationError(f"could not read configuration: {original}: {exc}") from exc
+        decoded = yaml.safe_load(source.decode("utf-8"))
+        result = {} if decoded is None else decoded
+    except yaml.YAMLError as exc:
+        details: dict[str, object] = {"source": configuration_source(original)}
+        mark = getattr(exc, "problem_mark", None)
+        if mark is not None:
+            details.update(line=mark.line + 1, column=mark.column + 1)
+        raise configuration_error("configuration YAML syntax is invalid", "configuration_syntax", **details) from exc
+    except (OSError, UnicodeDecodeError) as exc:
+        raise configuration_error(
+            "configuration file cannot be read as UTF-8", "configuration_read", source=configuration_source(original)
+        ) from exc
     if not isinstance(result, dict):
-        raise ConfigurationError(f"configuration root must be a mapping: {original}")
+        raise configuration_error(
+            "configuration root must be a mapping",
+            "configuration_value",
+            field="configuration",
+            source=configuration_source(original),
+        )
     return result, source
 
 
@@ -225,7 +237,21 @@ def _read_yaml(resolved: Path, original: Path) -> dict[str, Any]:
 
 
 def _resolved_yaml_path(path: Path, *, required: bool, config_root: Path | None) -> Path | None:
-    resolved = existing_regular_file(path, "configuration file", required=required)
+    try:
+        resolved = existing_regular_file(path, "configuration file", required=False)
+    except ConfigurationError as exc:
+        exc._core_diagnostic = diagnostic_for(
+            configuration_error(
+                "configuration file requires an absolute safe regular file path",
+                "configuration_read",
+                source=configuration_source(path),
+            )
+        )
+        raise
+    if resolved is None and required:
+        raise configuration_error(
+            "configuration file not found", "configuration_missing", source=configuration_source(path)
+        )
     if resolved is None:
         return None
     if config_root is not None:
@@ -262,15 +288,23 @@ def _site_layers(root: Path, profile: str, host: str | None) -> tuple[Path, ...]
 
 def _validate_layer_role(raw: Mapping[str, Any], path: Path, role: str) -> None:
     if role not in {"app", "baseline"} and "profile" in raw:
-        raise ConfigurationError(f"profile is only allowed in the main app.yaml: {path}")
+        raise configuration_error(
+            "profile is only allowed in the main app.yaml",
+            "configuration_layer",
+            field="profile",
+            source=configuration_source(path, role),
+        )
     if role in {"profile_app", "site"}:
         forbidden_keys = {"storage", "plugins"}
         if role == "site":
             forbidden_keys.add("security")
         forbidden = sorted(forbidden_keys.intersection(raw))
         if forbidden:
-            raise ConfigurationError(
-                f"bootstrap settings ({', '.join(forbidden)}) are not allowed in this configuration layer: {path}"
+            raise configuration_error(
+                f"bootstrap settings ({', '.join(forbidden)}) are not allowed in this configuration layer",
+                "configuration_layer",
+                field=", ".join(forbidden),
+                source=configuration_source(path, role),
             )
 
 
@@ -280,9 +314,9 @@ def _validate_layer_values(raw: Mapping[str, Any], path: Path, role: str) -> Non
         AppConfig.model_validate(deep_merge(DEFAULT_CONFIG.model_dump(by_alias=True, warnings=False), raw))
     except ValidationError as exc:
         issue = exc.errors()[0]
-        raise ConfigurationError(
-            f"invalid configuration in {role} layer {path}: {_dotted(tuple(issue['loc']))}: {issue['msg']}"
-        ) from exc
+        error = validation_diagnostic(issue, source=configuration_source(path, role), model=AppConfig)
+        error.args = (f"invalid configuration in {role} layer {configuration_source(path)}: {error}",)
+        raise error from exc
 
 
 def _apply_cleanup(plan: _LayerCleanup) -> None:
@@ -361,16 +395,43 @@ def _read_layer(
     cleanups: list[_LayerCleanup] | None = None,
     required: bool = False,
 ) -> tuple[dict[str, Any], ConfigurationLayer]:
-    resolved = _resolved_yaml_path(path, required=required, config_root=config_root)
-    if resolved is None:
-        return {}, ConfigurationLayer(role, path, "missing")
-    raw, source = _read_yaml_document(resolved, path)
-    if role in {"app", "profile_app", "site"}:
-        raw, removals = _sanitize_user_layer(raw)
-        if cleanups is not None and removals:
-            cleanups.append(_LayerCleanup(resolved, source, removals))
-    _validate_layer_values(raw, path, role)
-    return raw, ConfigurationLayer(role, resolved, "applied")
+    source: bytes | None = None
+    try:
+        resolved = _resolved_yaml_path(path, required=required, config_root=config_root)
+        if resolved is None:
+            return {}, ConfigurationLayer(role, path, "missing")
+        raw, source = _read_yaml_document(resolved, path)
+        if role in {"app", "profile_app", "site"}:
+            raw, removals = _sanitize_user_layer(raw)
+            if cleanups is not None and removals:
+                cleanups.append(_LayerCleanup(resolved, source, removals))
+        _validate_layer_values(raw, path, role)
+        return raw, ConfigurationLayer(role, resolved, "applied")
+    except ConfigurationError as exc:
+        diagnostic = diagnostic_for(exc)
+        if diagnostic is not None:
+            details = dict(diagnostic.details)
+            details["source"] = configuration_source(path, role)
+            field = details.get("field")
+            if source is not None and isinstance(field, str):
+                details.update(_field_mark(source, field))
+            exc._core_diagnostic = Diagnostic(diagnostic.message, MappingProxyType(details))
+        raise
+
+
+def _field_mark(source: bytes, field: str) -> dict[str, int]:
+    """Retain a field's location, never its value or YAML excerpt."""
+    node = yaml.compose(source.decode("utf-8"))
+    for name in field.split("."):
+        if not isinstance(node, yaml.MappingNode):
+            break
+        child = next((value for key, value in node.value if key.value == name), None)
+        if child is None:
+            break
+        node = child
+    if node is None:
+        return {}
+    return {"line": node.start_mark.line + 1, "column": node.start_mark.column + 1}
 
 
 def _flatten(value: Any, prefix: tuple[str, ...] = ()) -> tuple[tuple[str, ...], ...]:

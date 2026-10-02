@@ -38,7 +38,7 @@ def test_dry_run_supported_before_and_after_command(before):
 @pytest.mark.parametrize("arguments", [["download", URL], [URL], ["inspect", URL], ["doctor"], ["config", "path"]])
 def test_dry_run_rejected_by_other_commands(arguments, capsys):
     assert main(["--dry-run", *arguments, "--json"]) == 2
-    assert json.loads(capsys.readouterr().out)["error"]["code"] == "configuration_error"
+    assert json.loads(capsys.readouterr().out)["error"]["code"] == "argument_error"
 
 
 @pytest.mark.parametrize("failure", [None, "check", "cleanup", "cancel"])
@@ -105,7 +105,8 @@ def test_dry_run_cli_is_sinkless_and_emits_one_safe_document(tmp_path, monkeypat
 def test_invalid_dry_run_options_return_plan_error_document(capsys):
     assert main(["workflow", URL, "--dry-run", "--workflow-retry-timeout", "0", "--json"]) == 2
     payload = json.loads(capsys.readouterr().out)
-    assert payload["dry_run"] and payload["stop_error"]["code"] == "configuration_error"
+    assert payload["error"]["code"] == "argument_error"
+    assert payload["error"]["operation"] == "workflow"
 
 
 @pytest.mark.parametrize("before", [False, True])
@@ -127,14 +128,14 @@ def test_retry_options_supported_before_and_after_command(before):
 )
 def test_invalid_retry_options_rejected_before_runtime(option, value, capsys):
     assert main(["workflow", URL, option, value, "--json"]) == 2
-    assert json.loads(capsys.readouterr().out)["error"]["code"] == "configuration_error"
+    assert json.loads(capsys.readouterr().out)["error"]["code"] == "argument_error"
 
 
 @pytest.mark.parametrize("option", ["--workflow-retries", "--workflow-retry-delay", "--workflow-retry-timeout"])
 @pytest.mark.parametrize("command", [["download", URL], ["inspect", URL], ["doctor"], ["config", "path"]])
 def test_retry_options_rejected_for_other_commands(option, command, capsys):
     assert main([option, "1", *command, "--json"]) == 2
-    assert json.loads(capsys.readouterr().out)["error"]["code"] == "configuration_error"
+    assert json.loads(capsys.readouterr().out)["error"]["code"] == "argument_error"
 
 
 @pytest.mark.parametrize(
@@ -164,7 +165,7 @@ def test_scope_supported_before_and_after_command(arguments):
 def test_scope_rejected_for_other_commands(arguments, capsys):
     assert main(["--download-scope", "all", *arguments, "--json"]) == 2
     payload = json.loads(capsys.readouterr().out)
-    assert payload["error"]["code"] == "configuration_error"
+    assert payload["error"]["code"] == "argument_error"
 
 
 @pytest.mark.parametrize(
@@ -294,4 +295,4 @@ def test_workflow_status_and_stop_error_serialization(tmp_path):
 )
 def test_exclusions_across_global_and_command_options(before, after, capsys):
     assert main([*before, "workflow", URL, *after, "--json"]) == 2
-    assert json.loads(capsys.readouterr().out)["error"]["code"] == "configuration_error"
+    assert json.loads(capsys.readouterr().out)["error"]["code"] == "argument_error"

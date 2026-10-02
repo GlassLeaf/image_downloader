@@ -40,7 +40,7 @@ EXPECTED_EXPORTS = {
         WorkflowItemResult WorkflowResult WorkflowPlanItem WorkflowPlanResult
         WorkflowRunRecord WorkflowStateItem WorkflowStateView WorkflowPruneResult WorkflowStateService
         AppConfig apply_overrides AuthFlow AuthenticationError Chapter ChapterResult ConfigurableSitePlugin
-        ConfigurationError DownloadManifest DownloadResult DownloadService EffectiveRequestPreview
+        ConfigurationError ArgumentError DownloadManifest DownloadResult DownloadService EffectiveRequestPreview
         ExistingFileConflictError FailureKind
         HttpStatusError HttpTransportError ImageArtifact ImageFetchRequest ImageRequestResolution
         ImageRequestResolutionFailure ImageRequestResolutionStatus ImageContentTypeError ImageDecodeError

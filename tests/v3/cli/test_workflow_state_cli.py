@@ -104,7 +104,7 @@ def test_corrupt_history_returns_one_and_is_untouched(tmp_path, capsys):
 def test_explicit_default_execution_option_is_rejected(tmp_path, capsys, option, value):
     config_path, _ = configuration(tmp_path)
     assert main([option, value, "--config", str(config_path), "state", "workflow", "--json"]) == 2
-    assert json.loads(capsys.readouterr().out)["error"]["code"] == "configuration_error"
+    assert json.loads(capsys.readouterr().out)["error"]["code"] == "argument_error"
 
 
 @pytest.mark.parametrize("failure", ["storage", "cancel", "config"])

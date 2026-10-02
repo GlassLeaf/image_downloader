@@ -129,7 +129,9 @@ def test_independent_processes_merge_under_shared_history_lock(tmp_path):
         assert {ready.get(timeout=10) for _ in processes} == {f"plugin.{i}" for i in range(3)}
         start.set()
         for process in processes:
-            process.join(15)
+            # Allow the 30-second product lock deadline and coverage shutdown
+            # to settle before judging the worker's exit status on Windows.
+            process.join(60)
             assert process.exitcode == 0
         assert {r.plugin_id for r in store(tmp_path).visible(NOW)} == {f"plugin.{i}" for i in range(3)}
     finally:

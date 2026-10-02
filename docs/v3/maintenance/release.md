@@ -1,5 +1,8 @@
 # Release preflight
 
+Unreleased CLI compatibility changes and JSON migration examples are in
+[CLI diagnostics migration](cli-diagnostics-migration.md).
+
 Release candidate では次を実行し、失敗したら公開を止める。
 
 ```powershell

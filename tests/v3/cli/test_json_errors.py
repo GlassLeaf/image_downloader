@@ -14,11 +14,12 @@ def test_json_syntax_error_uses_the_fixed_error_envelope(capsys) -> None:
     assert output.err == ""
     assert json.loads(output.out) == {
         "error": {
-            "code": "configuration_error",
-            "reason": "configuration is invalid",
-            "exception": "ConfigurationError",
-            "message": "configuration is invalid",
+            "code": "argument_error",
+            "reason": "command-line arguments are invalid",
+            "exception": "ArgumentError",
+            "message": "required argument missing: url",
             "operation": "download",
+            "details": {"kind": "missing_argument", "argument": "url"},
         }
     }
 

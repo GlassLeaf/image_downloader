@@ -2,7 +2,7 @@
 
 <a id="config-layers"></a>
 
-この文書は YAML 設定、layer 解決、path safety、secret reference の正本である。完全なコメント付き雛形は [config-template.yaml](../../../src/image_downloader/config-template.yaml) である。unknown field は Pydantic validation が拒否する。
+この文書は YAML 設定、layer 解決、path safety、secret reference の正本である。完全なコメント付き雛形は [config-template.yaml](../../../src/image_downloader/config-template.yaml) である。`AppConfig` / `validate_config` への直接入力では unknown field を拒否する。user-managed YAML の layer 解決では obsolete/unknown static key を検証前に除外し、下記の rewrite 設定によってファイルから削除する場合がある。
 
 <a id="config-discovery"></a>
 

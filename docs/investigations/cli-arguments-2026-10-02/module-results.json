@@ -1,0 +1,326 @@
+[
+  {
+    "argv": [],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "error [configuration_error]: configuration is invalid\n",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "--unknown-option"
+    ],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "usage: __main__.py [-h] [--limit LIMIT] [--dry-run]\n                   [--download-scope {all,updated}]\n                   [--workflow-retries WORKFLOW_RETRIES]\n                   [--workflow-retry-delay WORKFLOW_RETRY_DELAY]\n                   [--workflow-retry-timeout WORKFLOW_RETRY_TIMEOUT]\n                   [--config CONFIG] [--profile PROFILE]\n                   [--plugin-root PLUGIN_ROOT] [--data-root DATA_ROOT] [--yes]\n                   [--plugin-verification-override MODE] [--json]\n                   [--plugin-config ID=JSON]\n                   [--plugin-config-file ABSOLUTE_PATH]\n                   [--fallback-generic {auto,enabled,disabled}]\n                   [--no-console-log] [--list-updated-urls | --inspect-only]\n                   [--existing-file {overwrite,skip,rename,error}]\n                   [--image-format {ORIGINAL,JPEG,PNG,WEBP} | --force-image-format {ORIGINAL,JPEG,PNG,WEBP}]\n                   [--output-dir ABSOLUTE_PATH] [--directory-format FORMAT]\n                   [--plugin ID | --force-plugin ID]\n                   [--plugin-download-policy ID=JSON]\n                   [--plugin-download-policy-file ABSOLUTE_PATH]\n                   [--inspection-data LEVEL] [--manifest-only]\n                   {download,workflow,inspect,doctor,config,plugin,cookie,state}\n                   ...\n__main__.py: error: unrecognized arguments: --unknown-option\n",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "help",
+      "plugin"
+    ],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "usage: __main__.py [-h] [--limit LIMIT] [--dry-run]\n                   [--download-scope {all,updated}]\n                   [--workflow-retries WORKFLOW_RETRIES]\n                   [--workflow-retry-delay WORKFLOW_RETRY_DELAY]\n                   [--workflow-retry-timeout WORKFLOW_RETRY_TIMEOUT]\n                   [--config CONFIG] [--profile PROFILE]\n                   [--plugin-root PLUGIN_ROOT] [--data-root DATA_ROOT] [--yes]\n                   [--plugin-verification-override MODE] [--json]\n                   [--plugin-config ID=JSON]\n                   [--plugin-config-file ABSOLUTE_PATH]\n                   [--fallback-generic {auto,enabled,disabled}]\n                   [--no-console-log] [--list-updated-urls | --inspect-only]\n                   [--existing-file {overwrite,skip,rename,error}]\n                   [--image-format {ORIGINAL,JPEG,PNG,WEBP} | --force-image-format {ORIGINAL,JPEG,PNG,WEBP}]\n                   [--output-dir ABSOLUTE_PATH] [--directory-format FORMAT]\n                   [--plugin ID | --force-plugin ID]\n                   [--plugin-download-policy ID=JSON]\n                   [--plugin-download-policy-file ABSOLUTE_PATH]\n                   [--inspection-data LEVEL] [--manifest-only]\n                   {download,workflow,inspect,doctor,config,plugin,cookie,state}\n                   ...\n__main__.py: error: unrecognized arguments: plugin\n",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "plugin"
+    ],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "error [configuration_error]: configuration is invalid\n",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "config",
+      "unknown"
+    ],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "error [configuration_error]: configuration is invalid\n",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "--host",
+      "example.test",
+      "plugin",
+      "list"
+    ],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "error [configuration_error]: configuration is invalid\n",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "download",
+      "probe-invalid-url",
+      "--image-format",
+      "PNG",
+      "--force-image-format",
+      "JPEG"
+    ],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "usage: __main__.py download [-h] [--config CONFIG] [--profile PROFILE]\n                            [--plugin-root PLUGIN_ROOT]\n                            [--data-root DATA_ROOT] [--yes]\n                            [--plugin-verification-override MODE] [--json]\n                            [--plugin-config ID=JSON]\n                            [--plugin-config-file ABSOLUTE_PATH]\n                            [--fallback-generic {auto,enabled,disabled}]\n                            [--no-console-log]\n                            [--list-updated-urls | --inspect-only]\n                            [--existing-file {overwrite,skip,rename,error}]\n                            [--image-format {ORIGINAL,JPEG,PNG,WEBP} | --force-image-format {ORIGINAL,JPEG,PNG,WEBP}]\n                            [--output-dir ABSOLUTE_PATH]\n                            [--directory-format FORMAT]\n                            [--plugin ID | --force-plugin ID]\n                            [--plugin-download-policy ID=JSON]\n                            [--plugin-download-policy-file ABSOLUTE_PATH]\n                            [--inspection-data LEVEL] [--manifest-only]\n                            url\n__main__.py download: error: argument --force-image-format: not allowed with argument --image-format\n",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "--list"
+    ],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "error [configuration_error]: configuration is invalid\n",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "help"
+    ],
+    "exit_code": 4,
+    "stdout": "",
+    "stderr": "Using user configuration: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\local\\image-downloader\\conf\\app.yaml\nDownloads: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\data\\profiles\\default\\downloads\nPlugin root: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\plugins\nPlugin verification: strict\nerror [plugin_error]: plugin operation failed\n",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "--help"
+    ],
+    "exit_code": 0,
+    "stdout": "usage: __main__.py [-h] [--limit LIMIT] [--dry-run]\n                   [--download-scope {all,updated}]\n                   [--workflow-retries WORKFLOW_RETRIES]\n                   [--workflow-retry-delay WORKFLOW_RETRY_DELAY]\n                   [--workflow-retry-timeout WORKFLOW_RETRY_TIMEOUT]\n                   [--config CONFIG] [--profile PROFILE]\n                   [--plugin-root PLUGIN_ROOT] [--data-root DATA_ROOT] [--yes]\n                   [--plugin-verification-override MODE] [--json]\n                   [--plugin-config ID=JSON]\n                   [--plugin-config-file ABSOLUTE_PATH]\n                   [--fallback-generic {auto,enabled,disabled}]\n                   [--no-console-log] [--list-updated-urls | --inspect-only]\n                   [--existing-file {overwrite,skip,rename,error}]\n                   [--image-format {ORIGINAL,JPEG,PNG,WEBP} | --force-image-format {ORIGINAL,JPEG,PNG,WEBP}]\n                   [--output-dir ABSOLUTE_PATH] [--directory-format FORMAT]\n                   [--plugin ID | --force-plugin ID]\n                   [--plugin-download-policy ID=JSON]\n                   [--plugin-download-policy-file ABSOLUTE_PATH]\n                   [--inspection-data LEVEL] [--manifest-only]\n                   {download,workflow,inspect,doctor,config,plugin,cookie,state}\n                   ...\n\nlocal plugin API v3 image downloader\n\npositional arguments:\n  {download,workflow,inspect,doctor,config,plugin,cookie,state}\n    download            download a URL or check for updates\n    workflow            check a complete update list and download selected\n                        URLs\n    inspect             inspect a manifest and resolved image requests without\n                        fetching image bodies\n    doctor              validate configuration and plugins\n    config              locate, explain, or initialize application\n                        configuration\n    plugin              install, trust, revoke, uninstall, or list plugins\n    cookie              export or import the profile Cookie store\n    state               display offline workflow state/history or prune\n                        history\n\noptions:\n  -h, --help            show this help message and exit\n  --limit LIMIT         state workflow history limit (default: 20)\n  --dry-run             preview workflow URL selection or history pruning\n  --download-scope {all,updated}\n  --workflow-retries WORKFLOW_RETRIES\n                        extra workflow rounds (default: 1)\n  --workflow-retry-delay WORKFLOW_RETRY_DELAY\n                        seconds before each retry round (default: 600)\n  --workflow-retry-timeout WORKFLOW_RETRY_TIMEOUT\n                        retry time limit after the initial round, including\n                        waits (default: unlimited)\n  --config CONFIG\n  --profile PROFILE\n  --plugin-root PLUGIN_ROOT\n  --data-root DATA_ROOT\n  --yes\n  --plugin-verification-override MODE\n  --json\n  --plugin-config ID=JSON\n  --plugin-config-file ABSOLUTE_PATH\n  --fallback-generic {auto,enabled,disabled}\n  --no-console-log\n  --list-updated-urls\n  --inspect-only\n  --existing-file {overwrite,skip,rename,error}\n  --image-format {ORIGINAL,JPEG,PNG,WEBP}\n  --force-image-format {ORIGINAL,JPEG,PNG,WEBP}\n  --output-dir ABSOLUTE_PATH\n  --directory-format FORMAT\n  --plugin ID\n  --force-plugin ID\n  --plugin-download-policy ID=JSON\n  --plugin-download-policy-file ABSOLUTE_PATH\n  --inspection-data LEVEL\n  --manifest-only\n",
+    "stderr": "",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "plugin",
+      "list",
+      "--host",
+      "example.test"
+    ],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "usage: __main__.py [-h] [--limit LIMIT] [--dry-run]\n                   [--download-scope {all,updated}]\n                   [--workflow-retries WORKFLOW_RETRIES]\n                   [--workflow-retry-delay WORKFLOW_RETRY_DELAY]\n                   [--workflow-retry-timeout WORKFLOW_RETRY_TIMEOUT]\n                   [--config CONFIG] [--profile PROFILE]\n                   [--plugin-root PLUGIN_ROOT] [--data-root DATA_ROOT] [--yes]\n                   [--plugin-verification-override MODE] [--json]\n                   [--plugin-config ID=JSON]\n                   [--plugin-config-file ABSOLUTE_PATH]\n                   [--fallback-generic {auto,enabled,disabled}]\n                   [--no-console-log] [--list-updated-urls | --inspect-only]\n                   [--existing-file {overwrite,skip,rename,error}]\n                   [--image-format {ORIGINAL,JPEG,PNG,WEBP} | --force-image-format {ORIGINAL,JPEG,PNG,WEBP}]\n                   [--output-dir ABSOLUTE_PATH] [--directory-format FORMAT]\n                   [--plugin ID | --force-plugin ID]\n                   [--plugin-download-policy ID=JSON]\n                   [--plugin-download-policy-file ABSOLUTE_PATH]\n                   [--inspection-data LEVEL] [--manifest-only]\n                   {download,workflow,inspect,doctor,config,plugin,cookie,state}\n                   ...\n__main__.py: error: unrecognized arguments: --host example.test\n",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "--image-format",
+      "PNG",
+      "download",
+      "probe-invalid-url",
+      "--force-image-format",
+      "JPEG"
+    ],
+    "exit_code": 4,
+    "stdout": "",
+    "stderr": "Using user configuration: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\local\\image-downloader\\conf\\app.yaml\nDownloads: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\data\\profiles\\default\\downloads\nPlugin root: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\plugins\nPlugin verification: strict\nerror [plugin_error]: plugin operation failed\n",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "plugin",
+      "list"
+    ],
+    "exit_code": 0,
+    "stdout": "\n",
+    "stderr": "Using user configuration: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\local\\image-downloader\\conf\\app.yaml\nDownloads: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\data\\profiles\\default\\downloads\nPlugin root: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\plugins\nPlugin verification: strict\n",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "config",
+      "path"
+    ],
+    "exit_code": 0,
+    "stdout": "user configuration: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\local\\image-downloader\\conf\\app.yaml\nexists: True\npackage baseline: C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\app.yaml\nautomatic data root: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\local\\image-downloader\nautomatic plugin root: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\local\\image-downloader\\plugins\n",
+    "stderr": "",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "doctor"
+    ],
+    "exit_code": 0,
+    "stdout": "doctor: healthy\napplication:\n- version: 0.0.0.1b0\n- root directory: C:\\Users\\pc01\\source\\repos\\image-downloader\\src\nlibrary:\n- version: 0.0.0.1b0\n- root directory: C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\nplugin root: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\plugins\nplugin verification: strict\nconfiguration (sensitive values redacted):\n  {\n    \"config_file\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\.runtime\\\\cli-argument-audit\\\\run-1790949042285171100\\\\local\\\\image-downloader\\\\conf\\\\app.yaml\",\n    \"source\": \"user\",\n    \"main_config_kind\": \"fixed_user\",\n    \"config_root\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\.runtime\\\\cli-argument-audit\\\\run-1790949042285171100\\\\local\\\\image-downloader\\\\conf\",\n    \"selected_profile\": \"default\",\n    \"target_host\": null,\n    \"target_has_url_path\": false,\n    \"effective\": {\n      \"profile\": {\n        \"default\": \"default\"\n      },\n      \"storage\": {\n        \"data_root\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\.runtime\\\\cli-argument-audit\\\\run-1790949042285171100\\\\data\"\n      },\n      \"plugins\": {\n        \"root\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\.runtime\\\\cli-argument-audit\\\\run-1790949042285171100\\\\plugins\"\n      },\n      \"output\": {\n        \"directory_format\": \"%CHAPTER_NUMBER%_%CONTENT_TITLE%_%CHAPTER_TITLE%\",\n        \"filename_format\": \"%IMAGE_INDEX%.%EXT%\",\n        \"existing_file\": \"overwrite\",\n        \"image_format\": \"ORIGINAL\",\n        \"isolate_by_plugin\": false,\n        \"max_component_length\": null,\n        \"lock_timeout_seconds\": 30.0\n      },\n      \"media\": {\n        \"input_validation\": \"content_type\",\n        \"content_type_mismatch\": \"accept\",\n        \"max_image_pixels\": null\n      },\n      \"logging\": {\n        \"console\": {\n          \"enabled\": true\n        },\n        \"safe_query_parameters\": [],\n        \"safe_fragment_parameters\": []\n      },\n      \"network\": {\n        \"request_concurrency\": 8,\n        \"origin_request_concurrency\": null,\n        \"registrable_domain_request_concurrency\": null,\n        \"request_timeout_seconds\": 30.0,\n        \"connect_timeout_seconds\": null,\n        \"read_timeout_seconds\": null,\n        \"write_timeout_seconds\": null,\n        \"pool_timeout_seconds\": null,\n        \"max_attempts\": 3,\n        \"retry_max_delay_seconds\": 30.0,\n        \"auth_refresh_attempts\": 1,\n        \"global_request_interval_seconds\": 0.0,\n        \"pool_max_connections\": 8,\n        \"pool_max_idle_connections\": 8,\n        \"max_response_bytes\": 67108864,\n        \"http2\": true,\n        \"follow_redirects\": true,\n        \"proxy\": null,\n        \"headers\": {\n          \"User-Agent\": \"<redacted>\"\n        }\n      },\n      \"notification\": {\n        \"enabled\": false,\n        \"methods\": [\n          \"desktop\"\n        ],\n        \"notify_on\": [\n          \"fetch_error\",\n          \"process_error\",\n          \"save_error\",\n          \"auth_error\",\n          \"config_error\",\n          \"plugin_error\",\n          \"update_error\",\n          \"storage_error\",\n          \"runtime_error\"\n        ],\n        \"routes\": {},\n        \"desktop\": {},\n        \"email\": {\n          \"smtp_host\": \"\",\n          \"smtp_port\": 465,\n          \"use_tls\": true,\n          \"from\": \"\",\n          \"to\": [],\n          \"username\": \"\",\n          \"credential_service\": \"image-downloader.smtp\"\n        }\n      },\n      \"security\": {\n        \"plugin_verification\": \"strict\"\n      },\n      \"download\": {\n        \"chapter_concurrency\": 3,\n        \"image_concurrency_per_chapter\": 8,\n        \"continue_on_image_error\": true,\n        \"allow_empty_chapter_manifest\": false\n      },\n      \"image_processors\": {\n        \"chain\": [],\n        \"transport_metadata_access\": {}\n      },\n      \"plugin_settings\": {},\n      \"fallback\": {\n        \"generic_html\": {\n          \"enabled\": true\n        }\n      },\n      \"workflow_history\": {\n        \"max_age_days\": 90,\n        \"max_size_bytes\": 104857600\n      }\n    },\n    \"runtime\": {\n      \"application_overrides\": {},\n      \"plugin_overrides\": {},\n      \"fallback_generic\": \"auto\",\n      \"plugin_verification_override\": null\n    },\n    \"selection\": [],\n    \"layers\": [\n      {\n        \"role\": \"schema_default\",\n        \"path\": null,\n        \"status\": \"applied\"\n      },\n      {\n        \"role\": \"baseline\",\n        \"path\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n        \"status\": \"applied\"\n      },\n      {\n        \"role\": \"app\",\n        \"path\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\.runtime\\\\cli-argument-audit\\\\run-1790949042285171100\\\\local\\\\image-downloader\\\\conf\\\\app.yaml\",\n        \"status\": \"applied\"\n      },\n      {\n        \"role\": \"profile_app\",\n        \"path\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\.runtime\\\\cli-argument-audit\\\\run-1790949042285171100\\\\local\\\\image-downloader\\\\conf\\\\profiles\\\\default\\\\app.yaml\",\n        \"status\": \"missing\"\n      },\n      {\n        \"role\": \"site\",\n        \"path\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\.runtime\\\\cli-argument-audit\\\\run-1790949042285171100\\\\local\\\\image-downloader\\\\conf\\\\sites\\\\global.yaml\",\n        \"status\": \"missing\"\n      },\n      {\n        \"role\": \"site\",\n        \"path\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\.runtime\\\\cli-argument-audit\\\\run-1790949042285171100\\\\local\\\\image-downloader\\\\conf\\\\profiles\\\\default\\\\sites\\\\global.yaml\",\n        \"status\": \"missing\"\n      }\n    ],\n    \"origins\": {\n      \"download.allow_empty_chapter_manifest\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"download.chapter_concurrency\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"download.continue_on_image_error\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"download.image_concurrency_per_chapter\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"fallback.generic_html.enabled\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"image_processors.chain\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"image_processors.transport_metadata_access\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"logging.console.enabled\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"logging.safe_fragment_parameters\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"logging.safe_query_parameters\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"media.content_type_mismatch\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"media.input_validation\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"media.max_image_pixels\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"network.auth_refresh_attempts\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"network.connect_timeout_seconds\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"network.follow_redirects\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"network.global_request_interval_seconds\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"network.headers.User-Agent\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"network.http2\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"network.max_attempts\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"network.max_response_bytes\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"network.origin_request_concurrency\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"network.pool_max_connections\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"network.pool_max_idle_connections\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"network.pool_timeout_seconds\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"network.proxy\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"network.read_timeout_seconds\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"network.registrable_domain_request_concurrency\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"network.request_concurrency\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"network.request_timeout_seconds\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"network.retry_max_delay_seconds\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"network.write_timeout_seconds\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"notification.desktop\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"notification.email.credential_service\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"notification.email.from\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"notification.email.smtp_host\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"notification.email.smtp_port\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"notification.email.to\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"notification.email.use_tls\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"notification.email.username\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"notification.enabled\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"notification.methods\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"notification.notify_on\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"notification.routes\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"output.directory_format\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"output.existing_file\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"output.filename_format\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"output.image_format\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"output.isolate_by_plugin\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"output.lock_timeout_seconds\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"output.max_component_length\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"plugin_settings\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"plugins.root\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\.runtime\\\\cli-argument-audit\\\\run-1790949042285171100\\\\local\\\\image-downloader\\\\conf\\\\app.yaml\",\n      \"profile.default\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"security.plugin_verification\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\src\\\\image_downloader\\\\app.yaml\",\n      \"storage.data_root\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\.runtime\\\\cli-argument-audit\\\\run-1790949042285171100\\\\local\\\\image-downloader\\\\conf\\\\app.yaml\",\n      \"workflow_history.max_age_days\": \"schema default\",\n      \"workflow_history.max_size_bytes\": \"schema default\"\n    }\n  }\nruntime paths:\n  {\n    \"profile\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\.runtime\\\\cli-argument-audit\\\\run-1790949042285171100\\\\data\\\\profiles\\\\default\",\n    \"downloads\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\.runtime\\\\cli-argument-audit\\\\run-1790949042285171100\\\\data\\\\profiles\\\\default\\\\downloads\",\n    \"cookie\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\.runtime\\\\cli-argument-audit\\\\run-1790949042285171100\\\\data\\\\profiles\\\\default\\\\cookie\",\n    \"logs\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\.runtime\\\\cli-argument-audit\\\\run-1790949042285171100\\\\data\\\\profiles\\\\default\\\\logs\",\n    \"state\": \"C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader\\\\.runtime\\\\cli-argument-audit\\\\run-1790949042285171100\\\\data\\\\profiles\\\\default\\\\state\"\n  }\nloaded plugins:\n- core.generic-html: loaded kind=site_plugin publisher=core version=3 enabled=True verification=builtin\n  source=builtin entry=builtin:GenericHtmlPlugin config=builtin.yaml\n  author defaults:\n    {}\n  effective config:\n    {}\nplugin diagnostics:\n- core.generic-html: loaded\n",
+    "stderr": "Using user configuration: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\local\\image-downloader\\conf\\app.yaml\nDownloads: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\data\\profiles\\default\\downloads\nPlugin root: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\plugins\nPlugin verification: strict\n",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "--json",
+      "--unknown-option"
+    ],
+    "exit_code": 2,
+    "stdout": "{\"error\": {\"code\": \"configuration_error\", \"reason\": \"configuration is invalid\", \"exception\": \"ConfigurationError\", \"message\": \"configuration is invalid\", \"operation\": \"download\"}}\n",
+    "stderr": "",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "--json",
+      "help"
+    ],
+    "exit_code": 4,
+    "stdout": "{\"error\": {\"code\": \"plugin_error\", \"reason\": \"plugin operation failed\", \"exception\": \"PluginError\", \"message\": \"plugin operation failed\", \"operation\": \"download\"}}\n",
+    "stderr": "Using user configuration: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\local\\image-downloader\\conf\\app.yaml\nDownloads: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\data\\profiles\\default\\downloads\nPlugin root: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\plugins\nPlugin verification: strict\n",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "--json",
+      "download"
+    ],
+    "exit_code": 2,
+    "stdout": "{\"error\": {\"code\": \"configuration_error\", \"reason\": \"configuration is invalid\", \"exception\": \"ConfigurationError\", \"message\": \"configuration is invalid\", \"operation\": \"download\"}}\n",
+    "stderr": "",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "--json",
+      "--list"
+    ],
+    "exit_code": 2,
+    "stdout": "{\"error\": {\"code\": \"configuration_error\", \"reason\": \"configuration is invalid\", \"exception\": \"ConfigurationError\", \"message\": \"configuration is invalid\", \"operation\": \"download\"}}\n",
+    "stderr": "",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "--selection-priority",
+      "0",
+      "config",
+      "path"
+    ],
+    "exit_code": 0,
+    "stdout": "user configuration: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\local\\image-downloader\\conf\\app.yaml\nexists: True\npackage baseline: C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\app.yaml\nautomatic data root: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\local\\image-downloader\nautomatic plugin root: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\local\\image-downloader\\plugins\n",
+    "stderr": "",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "--inspect-only",
+      "plugin",
+      "list"
+    ],
+    "exit_code": 0,
+    "stdout": "\n",
+    "stderr": "Using user configuration: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\local\\image-downloader\\conf\\app.yaml\nDownloads: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\data\\profiles\\default\\downloads\nPlugin root: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949042285171100\\plugins\nPlugin verification: strict\n",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "--json",
+      "config",
+      "unknown"
+    ],
+    "exit_code": 2,
+    "stdout": "{\"error\": {\"code\": \"configuration_error\", \"reason\": \"configuration is invalid\", \"exception\": \"ConfigurationError\", \"message\": \"configuration is invalid\", \"operation\": \"config\"}}\n",
+    "stderr": "",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "--config",
+      "relative.yaml",
+      "doctor"
+    ],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "error [configuration_error]: configuration is invalid\n",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "--j",
+      "--unknown-option"
+    ],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "usage: __main__.py [-h] [--limit LIMIT] [--dry-run]\n                   [--download-scope {all,updated}]\n                   [--workflow-retries WORKFLOW_RETRIES]\n                   [--workflow-retry-delay WORKFLOW_RETRY_DELAY]\n                   [--workflow-retry-timeout WORKFLOW_RETRY_TIMEOUT]\n                   [--config CONFIG] [--profile PROFILE]\n                   [--plugin-root PLUGIN_ROOT] [--data-root DATA_ROOT] [--yes]\n                   [--plugin-verification-override MODE] [--json]\n                   [--plugin-config ID=JSON]\n                   [--plugin-config-file ABSOLUTE_PATH]\n                   [--fallback-generic {auto,enabled,disabled}]\n                   [--no-console-log] [--list-updated-urls | --inspect-only]\n                   [--existing-file {overwrite,skip,rename,error}]\n                   [--image-format {ORIGINAL,JPEG,PNG,WEBP} | --force-image-format {ORIGINAL,JPEG,PNG,WEBP}]\n                   [--output-dir ABSOLUTE_PATH] [--directory-format FORMAT]\n                   [--plugin ID | --force-plugin ID]\n                   [--plugin-download-policy ID=JSON]\n                   [--plugin-download-policy-file ABSOLUTE_PATH]\n                   [--inspection-data LEVEL] [--manifest-only]\n                   {download,workflow,inspect,doctor,config,plugin,cookie,state}\n                   ...\n__main__.py: error: unrecognized arguments: --unknown-option\n",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "--json",
+      "--j",
+      "--unknown-option"
+    ],
+    "exit_code": 2,
+    "stdout": "{\"error\": {\"code\": \"configuration_error\", \"reason\": \"configuration is invalid\", \"exception\": \"ConfigurationError\", \"message\": \"configuration is invalid\", \"operation\": \"download\"}}\n",
+    "stderr": "",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "config",
+      "profile",
+      "--json",
+      "init",
+      "invalid/name"
+    ],
+    "exit_code": 2,
+    "stdout": "{\"error\": {\"code\": \"configuration_error\", \"reason\": \"configuration is invalid\", \"exception\": \"ConfigurationError\", \"message\": \"configuration is invalid\", \"operation\": \"config\"}}\n",
+    "stderr": "",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "state",
+      "workflow",
+      "--json",
+      "list"
+    ],
+    "exit_code": 2,
+    "stdout": "{\"error\": {\"code\": \"configuration_error\", \"reason\": \"configuration is invalid\", \"exception\": \"ConfigurationError\", \"message\": \"configuration is invalid\", \"operation\": \"state\"}}\n",
+    "stderr": "",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  },
+  {
+    "argv": [
+      "download",
+      "https://example.test/gallery",
+      "--fallback-generic",
+      "disabled"
+    ],
+    "exit_code": 4,
+    "stdout": "",
+    "stderr": "Using user configuration: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949510554144900\\local\\image-downloader\\conf\\app.yaml\nDownloads: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949510554144900\\data\\profiles\\default\\downloads\nPlugin root: C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790949510554144900\\plugins\nPlugin verification: strict\nerror [plugin_error]: plugin operation failed\n",
+    "matches_cli_main": true,
+    "matches_except_program_name": true
+  }
+]

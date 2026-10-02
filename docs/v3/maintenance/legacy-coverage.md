@@ -138,7 +138,7 @@ the human-visible explanation is removed.
 
 | ID | literal source quotation | literal destination proof |
 | --- | --- | --- |
-| LEGACY-API-001 | pre-reorg/plugin-api-v3.md; "Local plugin API v3" | "この文書は YAML 設定、layer 解決、path safety、secret reference の正本である。完全なコメント付き雛形は &lbrack;config-template.yaml&rbrack;(../../../src/image_downloader/config-template.yaml) である。unknown field は Pydantic validation が拒否する。" |
+| LEGACY-API-001 | pre-reorg/plugin-api-v3.md; "Local plugin API v3" | "`AppConfig` / `validate_config` への直接入力では unknown field を拒否する。" |
 | LEGACY-API-002 | pre-reorg/plugin-api-v3.md; "Local plugin API v3" | "`DEFAULT_CONFIG`" |
 | LEGACY-API-003 | pre-reorg/plugin-api-v3.md; "Local plugin API v3" | "`plugin-metadata.json` は bundled signer の任意入力であり runtime は読まない。別の方法で complete manifest を生成・署名する author は置く必要がない。bundled `tools/sign_local_site_plugin.py` は metadata の `kind` に従い site plugin と image processor plugin の両方を署名できる。signer が読む metadata は unknown/missing field を許さない exact object である。" |
 | LEGACY-API-004 | pre-reorg/plugin-api-v3.md; "Local plugin API v3" | "Manifest and file tree" |
@@ -165,7 +165,7 @@ the human-visible explanation is removed.
 | LEGACY-CONFIG-017 | pre-reorg/v3/configuration-and-cli.md; "設定と CLI" | "Plugin settings and secrets" |
 | LEGACY-CONFIG-018 | pre-reorg/v3/configuration-and-cli.md; "設定と CLI" | "Migration compatibility" |
 | LEGACY-CONFIG-019 | pre-reorg/v3/configuration-and-cli.md; "設定と CLI" | "Every successful `--json` command prints exactly one JSON object to stdout. download chapter logs are suppressed from stdout; diagnostic human errors use stderr. Plugin Python `print()` is redirected to stderr for JSON download. Native code that writes directly to an OS stdout descriptor is outside this control." |
-| LEGACY-CONFIG-020 | pre-reorg/v3/configuration-and-cli.md; "設定と CLI" | "`--json` is accepted by every command. The parser also carries some global fields to every handler; **accepted** does not imply an effect. A handler rejects a listed incompatible option with `ConfigurationError`." |
+| LEGACY-CONFIG-020 | pre-reorg/v3/configuration-and-cli.md; "設定と CLI" | "`--json` is accepted by every command. **Accepted** does not imply an effect. Incompatible options raise `ArgumentError` before configuration resolution." |
 | LEGACY-CONFIG-021 | pre-reorg/v3/configuration-and-cli.md; "設定と CLI" | "code" |
 | LEGACY-CONFIG-022 | pre-reorg/v3/configuration-and-cli.md; "設定と CLI" | "Every successful `--json` command prints exactly one JSON object to stdout. download chapter logs are suppressed from stdout; diagnostic human errors use stderr. Plugin Python `print()` is redirected to stderr for JSON download. Native code that writes directly to an OS stdout descriptor is outside this control." |
 | LEGACY-CONFIG-023 | pre-reorg/v3/configuration-and-cli.md; "設定と CLI" | "Handled JSON failure" |
@@ -209,12 +209,12 @@ the human-visible explanation is removed.
 | LEGACY-RELEASE-002 | pre-reorg/v3/release-checklist.md; "公開ベータ確認事項" | "The v3 suite checks configuration acceptance, CLI dispatch/JSON/redaction, plugin package trust, lifecycle/auth/recovery, transport/persistence safety, result/exception behavior, and source processor examples." |
 | LEGACY-OPS-001 | pre-reorg/v3/trust-and-operations.md; "信頼・配布・運用" | "logging contract は &lbrack;logging reference&rbrack;(logging.md) が正本である。" |
 | LEGACY-OPS-002 | pre-reorg/v3/trust-and-operations.md; "信頼・配布・運用" | "config 作成・rewrite の command ごとの副作用は &lbrack;configuration reference&rbrack;(configuration.md#config-layers) が正本である。`config path` と `config explain` は観測専用である。" |
-| TAX-CLI-001 | pre-taxonomy/cli-reference.md; "CLI 参照" | "`--json` is accepted by every command. The parser also carries some global fields to every handler; **accepted** does not imply an effect. A handler rejects a listed incompatible option with `ConfigurationError`." |
-| TAX-CLI-002 | pre-taxonomy/cli-reference.md; "CLI 参照" | "`--json` is accepted by every command. The parser also carries some global fields to every handler; **accepted** does not imply an effect. A handler rejects a listed incompatible option with `ConfigurationError`." |
+| TAX-CLI-001 | pre-taxonomy/cli-reference.md; "CLI 参照" | "`--json` is accepted by every command. **Accepted** does not imply an effect. Incompatible options raise `ArgumentError` before configuration resolution." |
+| TAX-CLI-002 | pre-taxonomy/cli-reference.md; "CLI 参照" | "`--json` is accepted by every command. **Accepted** does not imply an effect. Incompatible options raise `ArgumentError` before configuration resolution." |
 | TAX-CLI-003 | pre-taxonomy/configuration-and-cli.md; "CLI と設定" | "Handled JSON failure" |
-| TAX-CLI-004 | pre-taxonomy/cli-reference.md; "CLI 参照" | "`--json` is accepted by every command. The parser also carries some global fields to every handler; **accepted** does not imply an effect. A handler rejects a listed incompatible option with `ConfigurationError`." |
+| TAX-CLI-004 | pre-taxonomy/cli-reference.md; "CLI 参照" | "`--json` is accepted by every command. **Accepted** does not imply an effect. Incompatible options raise `ArgumentError` before configuration resolution." |
 | TAX-CONFIG-001 | pre-taxonomy/configuration-reference.md; "設定参照" | "Schema" |
-| TAX-CONFIG-002 | pre-taxonomy/configuration-reference.md; "設定参照" | "この文書は YAML 設定、layer 解決、path safety、secret reference の正本である。完全なコメント付き雛形は &lbrack;config-template.yaml&rbrack;(../../../src/image_downloader/config-template.yaml) である。unknown field は Pydantic validation が拒否する。" |
+| TAX-CONFIG-002 | pre-taxonomy/configuration-reference.md; "設定参照" | "`AppConfig` / `validate_config` への直接入力では unknown field を拒否する。" |
 | TAX-CONFIG-003 | pre-taxonomy/configuration-reference.md; "設定参照" | "manifest `config_file` が指す author-default YAML（固定名ではない）、persistent `plugin_settings.<id>.config`、operation override はこの順に deep merge する。author-default file の root key は `config` のみである。disabled site plugin は selection candidate ではない。chain 上の disabled processor は error でなく skip される。processor に `secrets` を置くことは configuration error である。" |
 | TAX-PLUGIN-001 | pre-taxonomy/plugin-development-reference.md; "Plugin 開発参照" | "`plugin-metadata.json` は bundled signer の任意入力であり runtime は読まない。別の方法で complete manifest を生成・署名する author は置く必要がない。bundled `tools/sign_local_site_plugin.py` は metadata の `kind` に従い site plugin と image processor plugin の両方を署名できる。signer が読む metadata は unknown/missing field を許さない exact object である。" |
 | TAX-PLUGIN-002 | pre-taxonomy/plugin-development-reference.md; "Plugin 開発参照" | "この文書は plugin hook の input/output、capability、例外の正本である。呼出順・回数・並行性は &lbrack;execution lifecycle&rbrack;(../explanation/execution-lifecycle.md) を使用する。" |

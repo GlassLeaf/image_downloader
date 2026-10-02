@@ -1,0 +1,245 @@
+[
+  {
+    "argv": [],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "error [argument_error]: a command or absolute HTTP(S) URL is required\n",
+    "matches_cli_main": true
+  },
+  {
+    "argv": [
+      "--list"
+    ],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "error [argument_error]: unrecognized option: --list\n",
+    "matches_cli_main": true
+  },
+  {
+    "argv": [
+      "--unknown-option"
+    ],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "error [argument_error]: unrecognized option: --unknown-option\n",
+    "matches_cli_main": true
+  },
+  {
+    "argv": [
+      "help"
+    ],
+    "exit_code": 0,
+    "stdout": "usage: __main__.py [-h] [--config CONFIG] [--profile PROFILE]\n                   [--plugin-root PLUGIN_ROOT] [--data-root DATA_ROOT] [--yes]\n                   [--plugin-verification-override MODE] [--json]\n                   [--plugin-config ID=JSON]\n                   [--plugin-config-file ABSOLUTE_PATH]\n                   [--fallback-generic {auto,enabled,disabled}]\n                   [--no-console-log] [--list-updated-urls] [--inspect-only]\n                   [--existing-file {overwrite,skip,rename,error}]\n                   [--image-format {ORIGINAL,JPEG,PNG,WEBP}]\n                   [--force-image-format {ORIGINAL,JPEG,PNG,WEBP}]\n                   [--output-dir ABSOLUTE_PATH] [--directory-format FORMAT]\n                   [--plugin ID] [--force-plugin ID]\n                   [--plugin-download-policy ID=JSON]\n                   [--plugin-download-policy-file ABSOLUTE_PATH]\n                   [--inspection-data LEVEL] [--manifest-only]\n                   [--selection-priority SELECTION_PRIORITY] [--host HOST]\n                   [--export-cookies EXPORT_COOKIES]\n                   [--import-cookies IMPORT_COOKIES]\n                   [--import-browser-cookies DOMAIN] [--limit LIMIT]\n                   [--dry-run] [--download-scope {all,updated}]\n                   [--workflow-retries WORKFLOW_RETRIES]\n                   [--workflow-retry-delay WORKFLOW_RETRY_DELAY]\n                   [--workflow-retry-timeout WORKFLOW_RETRY_TIMEOUT]\n                   COMMAND ...\n\nlocal plugin API v3 image downloader\n\npositional arguments:\n  COMMAND\n    download            download operations\n    workflow            workflow operations\n    inspect             inspect operations\n    doctor              doctor operations\n    cookie              cookie operations\n    config              config operations\n    plugin              plugin operations\n    state               state operations\n\noptions:\n  -h, --help            show this help message and exit\n  --config CONFIG\n  --profile PROFILE\n  --plugin-root PLUGIN_ROOT\n  --data-root DATA_ROOT\n  --yes\n  --plugin-verification-override MODE\n  --json\n  --plugin-config ID=JSON\n  --plugin-config-file ABSOLUTE_PATH\n  --fallback-generic {auto,enabled,disabled}\n  --no-console-log\n  --list-updated-urls\n  --inspect-only\n  --existing-file {overwrite,skip,rename,error}\n  --image-format {ORIGINAL,JPEG,PNG,WEBP}\n  --force-image-format {ORIGINAL,JPEG,PNG,WEBP}\n  --output-dir ABSOLUTE_PATH\n  --directory-format FORMAT\n  --plugin ID\n  --force-plugin ID\n  --plugin-download-policy ID=JSON\n  --plugin-download-policy-file ABSOLUTE_PATH\n  --inspection-data LEVEL\n  --manifest-only\n  --selection-priority SELECTION_PRIORITY\n                        plugin install/trust priority (default: 0)\n  --host HOST           bare host or absolute HTTP(S) URL\n  --export-cookies EXPORT_COOKIES\n                        legacy Cookie export\n  --import-cookies IMPORT_COOKIES\n                        legacy Cookie import\n  --import-browser-cookies DOMAIN\n                        legacy browser Cookie import\n  --limit LIMIT         history limit (default: 20)\n  --dry-run             preview workflow URL selection or history pruning\n  --download-scope {all,updated}\n  --workflow-retries WORKFLOW_RETRIES\n                        extra workflow rounds (default: 1)\n  --workflow-retry-delay WORKFLOW_RETRY_DELAY\n                        seconds before each retry round (default: 600)\n  --workflow-retry-timeout WORKFLOW_RETRY_TIMEOUT\n                        positive retry duration including waits (default:\n                        unlimited)\n",
+    "stderr": "",
+    "matches_cli_main": true
+  },
+  {
+    "argv": [
+      "help",
+      "plugin"
+    ],
+    "exit_code": 0,
+    "stdout": "usage: __main__.py plugin [-h] {list,install,trust,revoke,uninstall} ...\n\npositional arguments:\n  {list,install,trust,revoke,uninstall}\n\noptions:\n  -h, --help            show this help message and exit\n\nOptions may appear before, within, or after the command. See --help at the\nroot.\n",
+    "stderr": "",
+    "matches_cli_main": true
+  },
+  {
+    "argv": [
+      "--help"
+    ],
+    "exit_code": 0,
+    "stdout": "usage: __main__.py [-h] [--config CONFIG] [--profile PROFILE]\n                   [--plugin-root PLUGIN_ROOT] [--data-root DATA_ROOT] [--yes]\n                   [--plugin-verification-override MODE] [--json]\n                   [--plugin-config ID=JSON]\n                   [--plugin-config-file ABSOLUTE_PATH]\n                   [--fallback-generic {auto,enabled,disabled}]\n                   [--no-console-log] [--list-updated-urls] [--inspect-only]\n                   [--existing-file {overwrite,skip,rename,error}]\n                   [--image-format {ORIGINAL,JPEG,PNG,WEBP}]\n                   [--force-image-format {ORIGINAL,JPEG,PNG,WEBP}]\n                   [--output-dir ABSOLUTE_PATH] [--directory-format FORMAT]\n                   [--plugin ID] [--force-plugin ID]\n                   [--plugin-download-policy ID=JSON]\n                   [--plugin-download-policy-file ABSOLUTE_PATH]\n                   [--inspection-data LEVEL] [--manifest-only]\n                   [--selection-priority SELECTION_PRIORITY] [--host HOST]\n                   [--export-cookies EXPORT_COOKIES]\n                   [--import-cookies IMPORT_COOKIES]\n                   [--import-browser-cookies DOMAIN] [--limit LIMIT]\n                   [--dry-run] [--download-scope {all,updated}]\n                   [--workflow-retries WORKFLOW_RETRIES]\n                   [--workflow-retry-delay WORKFLOW_RETRY_DELAY]\n                   [--workflow-retry-timeout WORKFLOW_RETRY_TIMEOUT]\n                   COMMAND ...\n\nlocal plugin API v3 image downloader\n\npositional arguments:\n  COMMAND\n    download            download operations\n    workflow            workflow operations\n    inspect             inspect operations\n    doctor              doctor operations\n    cookie              cookie operations\n    config              config operations\n    plugin              plugin operations\n    state               state operations\n\noptions:\n  -h, --help            show this help message and exit\n  --config CONFIG\n  --profile PROFILE\n  --plugin-root PLUGIN_ROOT\n  --data-root DATA_ROOT\n  --yes\n  --plugin-verification-override MODE\n  --json\n  --plugin-config ID=JSON\n  --plugin-config-file ABSOLUTE_PATH\n  --fallback-generic {auto,enabled,disabled}\n  --no-console-log\n  --list-updated-urls\n  --inspect-only\n  --existing-file {overwrite,skip,rename,error}\n  --image-format {ORIGINAL,JPEG,PNG,WEBP}\n  --force-image-format {ORIGINAL,JPEG,PNG,WEBP}\n  --output-dir ABSOLUTE_PATH\n  --directory-format FORMAT\n  --plugin ID\n  --force-plugin ID\n  --plugin-download-policy ID=JSON\n  --plugin-download-policy-file ABSOLUTE_PATH\n  --inspection-data LEVEL\n  --manifest-only\n  --selection-priority SELECTION_PRIORITY\n                        plugin install/trust priority (default: 0)\n  --host HOST           bare host or absolute HTTP(S) URL\n  --export-cookies EXPORT_COOKIES\n                        legacy Cookie export\n  --import-cookies IMPORT_COOKIES\n                        legacy Cookie import\n  --import-browser-cookies DOMAIN\n                        legacy browser Cookie import\n  --limit LIMIT         history limit (default: 20)\n  --dry-run             preview workflow URL selection or history pruning\n  --download-scope {all,updated}\n  --workflow-retries WORKFLOW_RETRIES\n                        extra workflow rounds (default: 1)\n  --workflow-retry-delay WORKFLOW_RETRY_DELAY\n                        seconds before each retry round (default: 600)\n  --workflow-retry-timeout WORKFLOW_RETRY_TIMEOUT\n                        positive retry duration including waits (default:\n                        unlimited)\n",
+    "stderr": "",
+    "matches_cli_main": true
+  },
+  {
+    "argv": [
+      "plugin"
+    ],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "error [argument_error]: required argument missing: action\n",
+    "matches_cli_main": true
+  },
+  {
+    "argv": [
+      "config",
+      "unknown"
+    ],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "error [argument_error]: unknown command or subcommand; choose from: path, explain, init, profile\n",
+    "matches_cli_main": true
+  },
+  {
+    "argv": [
+      "--host",
+      "example.test",
+      "plugin",
+      "list"
+    ],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "error [argument_error]: --host is not valid for plugin list\n",
+    "matches_cli_main": true
+  },
+  {
+    "argv": [
+      "plugin",
+      "list",
+      "--host",
+      "example.test"
+    ],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "error [argument_error]: --host is not valid for plugin list\n",
+    "matches_cli_main": true
+  },
+  {
+    "argv": [
+      "--image-format",
+      "PNG",
+      "download",
+      "probe-invalid-url",
+      "--force-image-format",
+      "JPEG"
+    ],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "error [argument_error]: cannot combine --image-format and --force-image-format\n",
+    "matches_cli_main": true
+  },
+  {
+    "argv": [
+      "download",
+      "probe-invalid-url",
+      "--image-format",
+      "PNG",
+      "--force-image-format",
+      "JPEG"
+    ],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "error [argument_error]: cannot combine --image-format and --force-image-format\n",
+    "matches_cli_main": true
+  },
+  {
+    "argv": [
+      "--config",
+      "relative.yaml",
+      "doctor"
+    ],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "error [argument_error]: --config requires an absolute safe file path\n",
+    "matches_cli_main": true
+  },
+  {
+    "argv": [
+      "--json",
+      "--unknown-option"
+    ],
+    "exit_code": 2,
+    "stdout": "{\"error\": {\"code\": \"argument_error\", \"reason\": \"command-line arguments are invalid\", \"exception\": \"ArgumentError\", \"message\": \"unrecognized option: --unknown-option\", \"operation\": \"cli\", \"details\": {\"kind\": \"unknown_option\", \"option\": \"--unknown-option\"}}}\n",
+    "stderr": "",
+    "matches_cli_main": true
+  },
+  {
+    "argv": [
+      "--json",
+      "help"
+    ],
+    "exit_code": 0,
+    "stdout": "usage: __main__.py [-h] [--config CONFIG] [--profile PROFILE]\n                   [--plugin-root PLUGIN_ROOT] [--data-root DATA_ROOT] [--yes]\n                   [--plugin-verification-override MODE] [--json]\n                   [--plugin-config ID=JSON]\n                   [--plugin-config-file ABSOLUTE_PATH]\n                   [--fallback-generic {auto,enabled,disabled}]\n                   [--no-console-log] [--list-updated-urls] [--inspect-only]\n                   [--existing-file {overwrite,skip,rename,error}]\n                   [--image-format {ORIGINAL,JPEG,PNG,WEBP}]\n                   [--force-image-format {ORIGINAL,JPEG,PNG,WEBP}]\n                   [--output-dir ABSOLUTE_PATH] [--directory-format FORMAT]\n                   [--plugin ID] [--force-plugin ID]\n                   [--plugin-download-policy ID=JSON]\n                   [--plugin-download-policy-file ABSOLUTE_PATH]\n                   [--inspection-data LEVEL] [--manifest-only]\n                   [--selection-priority SELECTION_PRIORITY] [--host HOST]\n                   [--export-cookies EXPORT_COOKIES]\n                   [--import-cookies IMPORT_COOKIES]\n                   [--import-browser-cookies DOMAIN] [--limit LIMIT]\n                   [--dry-run] [--download-scope {all,updated}]\n                   [--workflow-retries WORKFLOW_RETRIES]\n                   [--workflow-retry-delay WORKFLOW_RETRY_DELAY]\n                   [--workflow-retry-timeout WORKFLOW_RETRY_TIMEOUT]\n                   COMMAND ...\n\nlocal plugin API v3 image downloader\n\npositional arguments:\n  COMMAND\n    download            download operations\n    workflow            workflow operations\n    inspect             inspect operations\n    doctor              doctor operations\n    cookie              cookie operations\n    config              config operations\n    plugin              plugin operations\n    state               state operations\n\noptions:\n  -h, --help            show this help message and exit\n  --config CONFIG\n  --profile PROFILE\n  --plugin-root PLUGIN_ROOT\n  --data-root DATA_ROOT\n  --yes\n  --plugin-verification-override MODE\n  --json\n  --plugin-config ID=JSON\n  --plugin-config-file ABSOLUTE_PATH\n  --fallback-generic {auto,enabled,disabled}\n  --no-console-log\n  --list-updated-urls\n  --inspect-only\n  --existing-file {overwrite,skip,rename,error}\n  --image-format {ORIGINAL,JPEG,PNG,WEBP}\n  --force-image-format {ORIGINAL,JPEG,PNG,WEBP}\n  --output-dir ABSOLUTE_PATH\n  --directory-format FORMAT\n  --plugin ID\n  --force-plugin ID\n  --plugin-download-policy ID=JSON\n  --plugin-download-policy-file ABSOLUTE_PATH\n  --inspection-data LEVEL\n  --manifest-only\n  --selection-priority SELECTION_PRIORITY\n                        plugin install/trust priority (default: 0)\n  --host HOST           bare host or absolute HTTP(S) URL\n  --export-cookies EXPORT_COOKIES\n                        legacy Cookie export\n  --import-cookies IMPORT_COOKIES\n                        legacy Cookie import\n  --import-browser-cookies DOMAIN\n                        legacy browser Cookie import\n  --limit LIMIT         history limit (default: 20)\n  --dry-run             preview workflow URL selection or history pruning\n  --download-scope {all,updated}\n  --workflow-retries WORKFLOW_RETRIES\n                        extra workflow rounds (default: 1)\n  --workflow-retry-delay WORKFLOW_RETRY_DELAY\n                        seconds before each retry round (default: 600)\n  --workflow-retry-timeout WORKFLOW_RETRY_TIMEOUT\n                        positive retry duration including waits (default:\n                        unlimited)\n",
+    "stderr": "",
+    "matches_cli_main": true
+  },
+  {
+    "argv": [
+      "--json",
+      "download"
+    ],
+    "exit_code": 2,
+    "stdout": "{\"error\": {\"code\": \"argument_error\", \"reason\": \"command-line arguments are invalid\", \"exception\": \"ArgumentError\", \"message\": \"required argument missing: url\", \"operation\": \"download\", \"details\": {\"kind\": \"missing_argument\", \"argument\": \"url\"}}}\n",
+    "stderr": "",
+    "matches_cli_main": true
+  },
+  {
+    "argv": [
+      "--json",
+      "--list"
+    ],
+    "exit_code": 2,
+    "stdout": "{\"error\": {\"code\": \"argument_error\", \"reason\": \"command-line arguments are invalid\", \"exception\": \"ArgumentError\", \"message\": \"unrecognized option: --list\", \"operation\": \"cli\", \"details\": {\"kind\": \"unknown_option\", \"option\": \"--list\"}}}\n",
+    "stderr": "",
+    "matches_cli_main": true
+  },
+  {
+    "argv": [
+      "--selection-priority",
+      "0",
+      "config",
+      "path"
+    ],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "error [argument_error]: --selection-priority is not valid for config path\n",
+    "matches_cli_main": true
+  },
+  {
+    "argv": [
+      "--inspect-only",
+      "plugin",
+      "list"
+    ],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "error [argument_error]: --inspect-only is not valid for plugin list\n",
+    "matches_cli_main": true
+  },
+  {
+    "argv": [
+      "--json",
+      "config",
+      "unknown"
+    ],
+    "exit_code": 2,
+    "stdout": "{\"error\": {\"code\": \"argument_error\", \"reason\": \"command-line arguments are invalid\", \"exception\": \"ArgumentError\", \"message\": \"unknown command or subcommand; choose from: path, explain, init, profile\", \"operation\": \"config\", \"details\": {\"kind\": \"unknown_command\", \"argument\": \"command\", \"choices\": [\"path\", \"explain\", \"init\", \"profile\"]}}}\n",
+    "stderr": "",
+    "matches_cli_main": true
+  },
+  {
+    "argv": [
+      "--j",
+      "--unknown-option"
+    ],
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "error [argument_error]: unrecognized option: --j\n",
+    "matches_cli_main": true
+  },
+  {
+    "argv": [
+      "--json",
+      "--j",
+      "--unknown-option"
+    ],
+    "exit_code": 2,
+    "stdout": "{\"error\": {\"code\": \"argument_error\", \"reason\": \"command-line arguments are invalid\", \"exception\": \"ArgumentError\", \"message\": \"unrecognized option: --j\", \"operation\": \"cli\", \"details\": {\"kind\": \"unknown_option\", \"option\": \"--j\"}}}\n",
+    "stderr": "",
+    "matches_cli_main": true
+  },
+  {
+    "argv": [
+      "config",
+      "profile",
+      "--json",
+      "init",
+      "invalid/name"
+    ],
+    "exit_code": 2,
+    "stdout": "{\"error\": {\"code\": \"argument_error\", \"reason\": \"command-line arguments are invalid\", \"exception\": \"ArgumentError\", \"message\": \"profile name must contain only letters, numbers, '_' or '-'\", \"operation\": \"config\", \"details\": {\"kind\": \"invalid_value\", \"argument\": \"profile_name\"}}}\n",
+    "stderr": "",
+    "matches_cli_main": true
+  }
+]

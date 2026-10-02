@@ -1,384 +1,303 @@
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from collections.abc import Sequence
-from pathlib import Path
-from typing import ClassVar, NoReturn
+from typing import NoReturn
+from urllib.parse import urlsplit
 
-from ..exceptions import ConfigurationError
-
-
-class _ConfigPath(argparse.Action):
-    def __call__(
-        self,
-        parser: argparse.ArgumentParser,
-        namespace: argparse.Namespace,
-        value: object,
-        option_string: str | None = None,
-    ) -> None:
-        setattr(namespace, self.dest, value)
-        namespace.config_explicit = True
-
+from ..diagnostics import argument_error, safe_option
+from ..exceptions import ArgumentError
+from .options import OPTIONS
 
 _COMMAND_NAMES = frozenset(("download", "workflow", "inspect", "config", "plugin", "doctor", "cookie", "state"))
-_OPTIONS_WITH_VALUE = frozenset(
-    (
-        "--config",
-        "--profile",
-        "--plugin-root",
-        "--data-root",
-        "--output-dir",
-        "--directory-format",
-        "--selection-priority",
-        "--plugin-config",
-        "--plugin-config-file",
-        "--plugin",
-        "--force-plugin",
-        "--plugin-download-policy",
-        "--plugin-download-policy-file",
-        "--fallback-generic",
-        "--host",
-        "--export-cookies",
-        "--import-cookies",
-        "--import-browser-cookies",
-        "--existing-file",
-        "--image-format",
-        "--force-image-format",
-        "--inspection-data",
-        "--plugin-verification-override",
-        "--download-scope",
-        "--workflow-retries",
-        "--workflow-retry-delay",
-        "--workflow-retry-timeout",
-        "--limit",
+
+
+def _negative_number(value: str) -> bool:
+    return bool(
+        re.fullmatch(r"-(?:\d+(?:\.\d*)?(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?|inf|nan)", value, re.IGNORECASE)
     )
-)
 
 
-def _normalize_cli_arguments(arguments: Sequence[str]) -> list[str]:
-    """Insert the explicit download command for the legacy URL form."""
-    normalized = list(arguments)
-    index = 0
-    while index < len(normalized):
-        token = normalized[index]
-        option = token.split("=", 1)[0]
-        if option in _OPTIONS_WITH_VALUE:
-            index += 1 if "=" in token else 2
-            continue
-        if token.startswith("-"):
-            index += 1
-            continue
-        if token in _COMMAND_NAMES:
-            return normalized
-        normalized.insert(index, "download")
-        return normalized
-    return normalized
+def is_http_url(value: str) -> bool:
+    try:
+        parsed = urlsplit(value)
+        return (
+            parsed.scheme.lower() in {"http", "https"}
+            and bool(parsed.hostname)
+            and not any(char.isspace() or ord(char) < 32 for char in value)
+            and parsed.port != 0
+        )
+    except ValueError:
+        return False
 
 
 class _CliArgumentParser(argparse.ArgumentParser):
-    _active_json_error_mode: ClassVar[bool] = False
+    structured_errors = False
+    json_error_mode = False
+    operation = "cli"
+    _positionals_only = False
+    _defer_value_errors = False
+
+    def _parse_optional(self, arg_string):
+        return None if self._positionals_only else super()._parse_optional(arg_string)
+
+    def _invalid_option_value(self, action: argparse.Action) -> ArgumentError:
+        option = action.option_strings[0]
+        details: dict[str, object] = {"option": option}
+        message = f"invalid value for {option}"
+        if action.choices is not None:
+            details["choices"] = list(action.choices)
+            message += "; choose from: " + ", ".join(str(value) for value in action.choices)
+        elif action.type in {int, float}:
+            message += "; an integer is required" if action.type is int else "; a number is required"
+        return argument_error(message, "invalid_value", **details)
+
+    def _get_value(self, action, arg_string):
+        try:
+            return super()._get_value(action, arg_string)
+        except argparse.ArgumentError:
+            if not self._defer_value_errors:
+                raise
+            self._value_errors.append(self._invalid_option_value(action))
+            return arg_string
+
+    def _check_value(self, action, value):
+        if self._defer_value_errors and action.choices is not None and value not in action.choices:
+            self._value_errors.append(self._invalid_option_value(action))
+            return
+        super()._check_value(action, value)
+
+    def __init__(self, *args, **kwargs):
+        kwargs["allow_abbrev"] = False
+        super().__init__(*args, **kwargs)
+
+    def _scan(self, source: Sequence[str]) -> tuple[list[str], list[str], list[str], bool]:
+        options: list[str] = []
+        words: list[str] = []
+        explicit: list[str] = []
+        index = 0
+        while index < len(source):
+            token = source[index]
+            if token == "--":
+                words.extend(source[index + 1 :])
+                break
+            if token in {"--help", "-h"}:
+                return options, words, explicit, True
+            name, separator, _ = token.partition("=")
+            action = self._option_string_actions.get(name)
+            if not token.startswith("-") or token == "-":
+                words.append(token)
+                index += 1
+                continue
+            if action is None:
+                option = safe_option(token)
+                raise argument_error(f"unrecognized option: {option}", "unknown_option", option=option)
+            explicit.append(action.option_strings[0])
+            options.append(token)
+            if action.nargs != 0 and not separator:
+                if index + 1 == len(source) or (
+                    source[index + 1].startswith("-") and not _negative_number(source[index + 1])
+                ):
+                    raise argument_error(f"{name} requires a value", "missing_value", option=name)
+                options[-1] = f"{token}={source[index + 1]}"
+                index += 1
+            index += 1
+        return options, words, explicit, False
+
+    def _context(self, source: Sequence[str]) -> None:
+        """Recover output mode/command using option arity, never option values."""
+        index = 0
+        command_seen = False
+        while index < len(source):
+            token = source[index]
+            if token == "--":
+                break
+            name, separator, _ = token.partition("=")
+            action = self._option_string_actions.get(name)
+            if action is not None and action.dest == "json_output" and action.nargs == 0 and not separator:
+                self.json_error_mode = True
+            if token.startswith("-") and action is None:
+                command_seen = True
+            if action is not None and action.nargs != 0 and not separator:
+                next_is_option = (
+                    index + 1 < len(source)
+                    and source[index + 1].startswith("-")
+                    and not _negative_number(source[index + 1])
+                )
+                if next_is_option or index + 1 == len(source):
+                    command_seen = True
+                index += 1 if next_is_option else 2
+                continue
+            if not token.startswith("-") and not command_seen:
+                command_seen = True
+                if token in _COMMAND_NAMES:
+                    self.operation = token
+                elif is_http_url(token):
+                    self.operation = "download"
+            index += 1
+
+    def _help_target(self, words: Sequence[str], *, strict: bool = True) -> argparse.ArgumentParser:
+        target: argparse.ArgumentParser = self
+        for word in words:
+            sub = next((a for a in target._actions if isinstance(a, argparse._SubParsersAction)), None)
+            if sub is None or word not in sub.choices:
+                if not strict and target is not self:
+                    return target
+                choices = sorted(sub.choices) if sub is not None else []
+                raise argument_error(
+                    "unknown or excess help target", "help_target", argument="command", choices=choices
+                )
+            target = sub.choices[word]
+        return target
+
+    def _grammar_parsers(self) -> list[_CliArgumentParser]:
+        parsers = [self]
+        for action in self._actions:
+            if isinstance(action, argparse._SubParsersAction):
+                for child in action.choices.values():
+                    parsers.extend(child._grammar_parsers())
+        return parsers
 
     def parse_args(self, args=None, namespace=None):
-        source = sys.argv[1:] if args is None else args
-        normalized = _normalize_cli_arguments(source)
-        type(self)._active_json_error_mode = "--json" in normalized
+        source = list(sys.argv[1:] if args is None else args)
+        self.json_error_mode = False
+        self.operation = "cli"
+        self._context(source)
         try:
-            parsed = super().parse_args(normalized, namespace)
-            parsed._explicit_options = frozenset(
-                token.split("=", 1)[0] for token in normalized if token.startswith("--")
-            )
+            options, words, explicit, help_requested = self._scan(source)
+            if words and words[0] == "help":
+                target = self._help_target(words[1:])
+                # Check option syntax preceding help without executing anything.
+                argparse.ArgumentParser.parse_known_args(self, options, namespace)
+                target.print_help()
+                self.exit(0)
+            if help_requested:
+                argparse.ArgumentParser.parse_known_args(self, options, namespace)
+                self._help_target(words, strict=False).print_help()
+                self.exit(0)
+            if words and is_http_url(words[0]):
+                words.insert(0, "download")
+            # Options are parsed once, independently of the positional hierarchy.
+            grammar = self._grammar_parsers()
+            for parser in grammar:
+                parser._positionals_only = True
+            try:
+                parsed = super().parse_args(words, namespace)
+            finally:
+                for parser in grammar:
+                    parser._positionals_only = False
+            self._value_errors: list[ArgumentError] = []
+            self._defer_value_errors = True
+            try:
+                parsed, _ = argparse.ArgumentParser.parse_known_args(self, options, parsed)
+            finally:
+                self._defer_value_errors = False
+            parsed._value_errors = tuple(self._value_errors)
+            parsed._explicit_options = frozenset(explicit)
+            parsed._option_order = tuple(explicit)
+            empty_values = {token.partition("=")[0]: token.partition("=")[2] == "" for token in options if "=" in token}
+            parsed._empty_options = frozenset(name for name, empty in empty_values.items() if empty)
+            parsed.config_explicit = "--config" in explicit
+            parsed.command_args = _compatibility_command_args(parsed)
+            if not self.structured_errors:
+                from .validation import _check_conflicts
+
+                _check_conflicts(parsed, {option.removeprefix("--") for option in explicit}, syntax_only=True)
+                if self._value_errors:
+                    raise self._value_errors[0]
             return parsed
-        finally:
-            type(self)._active_json_error_mode = False
+        except ArgumentError as exc:
+            if self.structured_errors:
+                raise
+            self.exit(2, f"error [argument_error]: {exc}\n")
 
     def error(self, message: str) -> NoReturn:
-        """Route syntax errors through the normal safe CLI error boundary."""
-        if getattr(type(self), "_active_json_error_mode", False):
-            raise ConfigurationError(message)
-        super().error(message)
+        # argparse embeds raw invalid values in its messages. Retain grammar
+        # labels and registry choices, never those values.
+        if "invalid choice:" in message and not message.startswith("argument --"):
+            choices = re.findall(r"'([A-Za-z][A-Za-z0-9-]*)'", message.split("choose from", 1)[-1])
+            raise argument_error(
+                "unknown command or subcommand; choose from: " + ", ".join(choices),
+                "unknown_command",
+                argument="command",
+                choices=choices,
+            )
+        if message.startswith("the following arguments are required:"):
+            argument = message.split(":", 1)[1].strip()
+            raise argument_error(f"required argument missing: {argument}", "missing_argument", argument=argument)
+        option = next((name for name in self._option_string_actions if message.startswith(f"argument {name}:")), None)
+        if option is not None:
+            option_choices = self._option_string_actions[option].choices
+            details: dict[str, object] = {"option": option}
+            if option_choices is not None:
+                details["choices"] = list(option_choices)
+            raise argument_error(f"invalid value for {option}", "invalid_value", **details)
+        raise argument_error("unexpected positional argument", "unexpected_argument", argument="positional")
 
 
-def _add_configuration_options(
-    parser: argparse.ArgumentParser,
-    *,
-    suppress_defaults: bool,
-) -> None:
-    value_default = argparse.SUPPRESS if suppress_defaults else None
-    flag_default = argparse.SUPPRESS if suppress_defaults else False
-    parser.add_argument("--config", type=Path, action=_ConfigPath, default=value_default)
-    parser.add_argument("--profile", default=value_default)
-    parser.add_argument("--plugin-root", type=Path, default=value_default)
-    parser.add_argument("--data-root", type=Path, default=value_default)
-    parser.add_argument("--yes", action="store_true", default=flag_default)
-    parser.add_argument(
-        "--plugin-verification-override",
-        choices=("bypass-all", "bypass-catalog", "bypass-signature"),
-        default=value_default,
-        metavar="MODE",
-    )
-    parser.add_argument(
-        "--json",
-        dest="json_output",
-        action="store_true",
-        default=flag_default,
-    )
-
-
-def _add_plugin_override_options(
-    parser: argparse.ArgumentParser,
-    *,
-    suppress_defaults: bool,
-) -> None:
-    repeat_default: object = argparse.SUPPRESS if suppress_defaults else []
-    fallback_default: object = argparse.SUPPRESS if suppress_defaults else "auto"
-    parser.add_argument(
-        "--plugin-config",
-        action="append",
-        metavar="ID=JSON",
-        default=repeat_default,
-    )
-    parser.add_argument(
-        "--plugin-config-file",
-        action="append",
-        type=Path,
-        metavar="ABSOLUTE_PATH",
-        default=repeat_default,
-    )
-    parser.add_argument(
-        "--fallback-generic",
-        choices=("auto", "enabled", "disabled"),
-        default=fallback_default,
-    )
-
-
-def _add_download_options(
-    parser: argparse.ArgumentParser,
-    *,
-    suppress_defaults: bool,
-    include_inspect_alias: bool = False,
-    include_update_listing: bool = True,
-) -> None:
-    value_default = argparse.SUPPRESS if suppress_defaults else None
-    flag_default = argparse.SUPPRESS if suppress_defaults else False
-    parser.add_argument("--no-console-log", action="store_true", default=flag_default)
-    mode = parser.add_mutually_exclusive_group() if include_inspect_alias else parser
-    if include_update_listing:
-        mode.add_argument(
-            "--list-updated-urls",
-            action="store_true",
-            default=flag_default,
-        )
-    if include_inspect_alias:
-        mode.add_argument(
-            "--inspect-only",
-            action="store_true",
-            default=flag_default,
-        )
-    parser.add_argument(
-        "--existing-file",
-        choices=("overwrite", "skip", "rename", "error"),
-        default=value_default,
-    )
-    image_format = parser.add_mutually_exclusive_group()
-    image_format.add_argument(
-        "--image-format",
-        choices=("ORIGINAL", "JPEG", "PNG", "WEBP"),
-        default=value_default,
-    )
-    image_format.add_argument(
-        "--force-image-format",
-        choices=("ORIGINAL", "JPEG", "PNG", "WEBP"),
-        default=value_default,
-    )
-
-
-def _add_output_override_options(
-    parser: argparse.ArgumentParser,
-    *,
-    suppress_defaults: bool,
-) -> None:
-    value_default = argparse.SUPPRESS if suppress_defaults else None
-    parser.add_argument("--output-dir", type=Path, default=value_default, metavar="ABSOLUTE_PATH")
-    parser.add_argument("--directory-format", default=value_default, metavar="FORMAT")
-
-
-def _add_plugin_selection_options(
-    parser: argparse.ArgumentParser,
-    *,
-    suppress_defaults: bool,
-) -> None:
-    value_default: object = argparse.SUPPRESS if suppress_defaults else None
-    repeat_default: object = argparse.SUPPRESS if suppress_defaults else []
-    selection = parser.add_mutually_exclusive_group()
-    selection.add_argument("--plugin", dest="plugin_id", metavar="ID", default=value_default)
-    selection.add_argument("--force-plugin", dest="force_plugin_id", metavar="ID", default=value_default)
-    parser.add_argument(
-        "--plugin-download-policy",
-        action="append",
-        metavar="ID=JSON",
-        default=repeat_default,
-    )
-    parser.add_argument(
-        "--plugin-download-policy-file",
-        action="append",
-        type=Path,
-        metavar="ABSOLUTE_PATH",
-        default=repeat_default,
-    )
-
-
-def _add_inspection_options(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument(
-        "--inspection-data",
-        choices=("url", "http", "all"),
-        default=argparse.SUPPRESS,
-        metavar="LEVEL",
-    )
-
-
-def _add_workflow_retry_options(parser: argparse.ArgumentParser, *, suppress_defaults: bool) -> None:
-    default = argparse.SUPPRESS if suppress_defaults else None
-    parser.add_argument("--workflow-retries", type=int, default=default, help="extra workflow rounds (default: 1)")
-    parser.add_argument(
-        "--workflow-retry-delay", type=float, default=default, help="seconds before each retry round (default: 600)"
-    )
-    parser.add_argument(
-        "--workflow-retry-timeout",
-        type=float,
-        default=default,
-        help="retry time limit after the initial round, including waits (default: unlimited)",
-    )
-
-
-def _add_legacy_options(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--limit", type=int, default=None, help="state workflow history limit (default: 20)")
-    parser.add_argument(
-        "--dry-run", action="store_true", default=False, help="preview workflow URL selection or history pruning"
-    )
-    parser.add_argument("--download-scope", choices=("all", "updated"), default=None)
-    _add_workflow_retry_options(parser, suppress_defaults=False)
-    _add_configuration_options(parser, suppress_defaults=False)
-    _add_plugin_override_options(parser, suppress_defaults=False)
-    _add_download_options(parser, suppress_defaults=False, include_inspect_alias=True)
-    _add_output_override_options(parser, suppress_defaults=False)
-    _add_plugin_selection_options(parser, suppress_defaults=False)
-    _add_inspection_options(parser)
-    parser.add_argument("--manifest-only", action="store_true", default=False)
-    parser.add_argument(
-        "--selection-priority",
-        type=int,
-        default=0,
-        help=argparse.SUPPRESS,
-    )
-    parser.add_argument("--host", help=argparse.SUPPRESS)
-    parser.add_argument("--export-cookies", type=Path, help=argparse.SUPPRESS)
-    parser.add_argument("--import-cookies", type=Path, help=argparse.SUPPRESS)
-    parser.add_argument(
-        "--import-browser-cookies",
-        metavar="DOMAIN",
-        help=argparse.SUPPRESS,
-    )
+def _compatibility_command_args(args: argparse.Namespace) -> list[str]:
+    command = getattr(args, "command", None)
+    action = getattr(args, "action", None)
+    if command == "config":
+        result = [action] if action else []
+        if action == "profile":
+            result.extend([args.profile_action, args.profile_name])
+        elif action == "init" and args.destination is not None:
+            result.append(args.destination)
+        return result
+    if command == "plugin":
+        return [action] + ([args.target] if getattr(args, "target", None) is not None else [])
+    if command == "state":
+        result = ["workflow"]
+        workflow_action = getattr(args, "workflow_action", None)
+        if workflow_action is not None:
+            result.append(workflow_action)
+            if getattr(args, "target", None) is not None:
+                result.append(args.target)
+        return result
+    return []
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = _CliArgumentParser(description="local plugin API v3 image downloader")
     parser.set_defaults(config_explicit=False, command=None)
-    _add_legacy_options(parser)
-    commands = parser.add_subparsers(dest="command")
-
-    download_parser = commands.add_parser(
-        "download",
-        help="download a URL or check for updates",
-    )
-    download_parser.add_argument("url")
-    _add_configuration_options(download_parser, suppress_defaults=True)
-    _add_plugin_override_options(download_parser, suppress_defaults=True)
-    _add_download_options(download_parser, suppress_defaults=True, include_inspect_alias=True)
-    _add_output_override_options(download_parser, suppress_defaults=True)
-    _add_plugin_selection_options(download_parser, suppress_defaults=True)
-    _add_inspection_options(download_parser)
-    download_parser.add_argument("--manifest-only", action="store_true", default=argparse.SUPPRESS)
-    download_parser.set_defaults(command_handler="download")
-
-    workflow_parser = commands.add_parser("workflow", help="check a complete update list and download selected URLs")
-    workflow_parser.add_argument("url")
-    workflow_parser.add_argument("--dry-run", action="store_true", default=argparse.SUPPRESS)
-    _add_workflow_retry_options(workflow_parser, suppress_defaults=True)
-    workflow_parser.add_argument(
-        "--download-scope",
-        choices=("all", "updated"),
-        default=argparse.SUPPRESS,
-        help="download all current URLs or added/changed/unfinished URLs (default: updated)",
-    )
-    _add_configuration_options(workflow_parser, suppress_defaults=True)
-    _add_plugin_override_options(workflow_parser, suppress_defaults=True)
-    _add_download_options(workflow_parser, suppress_defaults=True, include_update_listing=False)
-    _add_output_override_options(workflow_parser, suppress_defaults=True)
-    _add_plugin_selection_options(workflow_parser, suppress_defaults=True)
-    workflow_parser.set_defaults(command_handler="workflow")
-
-    inspect_parser = commands.add_parser(
-        "inspect",
-        help="inspect a manifest and resolved image requests without fetching image bodies",
-    )
-    inspect_parser.add_argument("url")
-    _add_configuration_options(inspect_parser, suppress_defaults=True)
-    _add_plugin_override_options(inspect_parser, suppress_defaults=True)
-    _add_plugin_selection_options(inspect_parser, suppress_defaults=True)
-    _add_inspection_options(inspect_parser)
-    inspect_parser.add_argument("--manifest-only", action="store_true", default=argparse.SUPPRESS)
-    inspect_parser.set_defaults(command_handler="inspect")
-
-    doctor_parser = commands.add_parser(
-        "doctor",
-        help="validate configuration and plugins",
-    )
-    _add_configuration_options(doctor_parser, suppress_defaults=True)
-    _add_plugin_override_options(doctor_parser, suppress_defaults=True)
-    _add_download_options(doctor_parser, suppress_defaults=True)
-    doctor_parser.add_argument("--host", default=argparse.SUPPRESS)
-    doctor_parser.set_defaults(command_handler="doctor")
-
-    config_parser = commands.add_parser(
-        "config",
-        help="locate, explain, or initialize application configuration",
-    )
-    config_parser.add_argument("command_args", nargs="*")
-    _add_configuration_options(config_parser, suppress_defaults=True)
-    _add_download_options(config_parser, suppress_defaults=True)
-    config_parser.add_argument("--host", default=argparse.SUPPRESS)
-    config_parser.set_defaults(command_handler="config")
-
-    plugin_parser = commands.add_parser(
-        "plugin",
-        help="install, trust, revoke, uninstall, or list plugins",
-    )
-    plugin_parser.add_argument("command_args", nargs="*")
-    _add_configuration_options(plugin_parser, suppress_defaults=True)
-    plugin_parser.add_argument(
-        "--selection-priority",
-        type=int,
-        default=argparse.SUPPRESS,
-    )
-    plugin_parser.set_defaults(command_handler="plugin")
-
-    cookie_parser = commands.add_parser(
-        "cookie",
-        help="export or import the profile Cookie store",
-    )
-    cookie_parser.add_argument(
-        "cookie_action",
-        choices=("export", "import", "browser-import"),
-    )
-    cookie_parser.add_argument("cookie_value")
-    _add_configuration_options(cookie_parser, suppress_defaults=True)
-    cookie_parser.set_defaults(command_handler="cookie")
-    state_parser = commands.add_parser("state", help="display offline workflow state/history or prune history")
-    state_parser.add_argument("command_args", nargs="*")
-    state_parser.add_argument("--limit", type=int, default=argparse.SUPPRESS)
-    state_parser.add_argument("--dry-run", action="store_true", default=argparse.SUPPRESS)
-    _add_configuration_options(state_parser, suppress_defaults=True)
-    _add_plugin_selection_options(state_parser, suppress_defaults=True)
-    state_parser.set_defaults(command_handler="state")
+    for option in OPTIONS:
+        option.add_to(parser)
+    commands = parser.add_subparsers(dest="command", metavar="COMMAND")
+    for name in ("download", "workflow", "inspect", "doctor", "cookie", "config", "plugin", "state"):
+        command = commands.add_parser(name, help=f"{name} operations")
+        command.set_defaults(command_handler=name)
+        # Help lists canonical options from the single root registry. Parsing
+        # strips them before entering this hierarchy, so there are no competing
+        # per-level defaults or mutually-exclusive groups.
+        command.epilog = "Options may appear before, within, or after the command. See --help at the root."
+        if name in {"download", "workflow", "inspect"}:
+            command.add_argument("url")
+        elif name == "cookie":
+            actions = command.add_subparsers(dest="cookie_action", required=True, metavar=None)
+            for action in ("export", "import", "browser-import"):
+                actions.add_parser(action).add_argument("cookie_value")
+        elif name == "config":
+            actions = command.add_subparsers(dest="action", required=True, metavar=None)
+            actions.add_parser("path")
+            actions.add_parser("explain")
+            actions.add_parser("init").add_argument("destination", nargs="?")
+            profiles = actions.add_parser("profile").add_subparsers(dest="profile_action", required=True, metavar=None)
+            profiles.add_parser("init").add_argument("profile_name")
+        elif name == "plugin":
+            actions = command.add_subparsers(dest="action", required=True, metavar=None)
+            actions.add_parser("list")
+            for action in ("install", "trust", "revoke", "uninstall"):
+                actions.add_parser(action).add_argument("target")
+        elif name == "state":
+            groups = command.add_subparsers(dest="state_group", required=True, metavar=None)
+            actions = groups.add_parser("workflow").add_subparsers(dest="workflow_action", metavar=None)
+            for action in ("list", "show", "run", "history", "prune"):
+                operation = actions.add_parser(action)
+                if action in {"show", "run"}:
+                    operation.add_argument("target")
+                elif action == "history":
+                    operation.add_argument("target", nargs="?")
     return parser

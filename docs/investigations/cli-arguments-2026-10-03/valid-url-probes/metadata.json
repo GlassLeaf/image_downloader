@@ -1,0 +1,186 @@
+{
+  "date": "2026-10-03",
+  "execution_boundary": true,
+  "valid_url_probes": true,
+  "parser_reused": true,
+  "git_head": "21decb6cbac7eb61329c5cf0e0f19661ffe466bd",
+  "python": "3.11.4 (tags/v3.11.4:d2340ef, Jun  7 2023, 05:45:37) [MSC v.1934 64 bit (AMD64)]",
+  "executable": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+  "case_count": 3593,
+  "root_option_count": 35,
+  "unordered_option_pairs": 561,
+  "elapsed_seconds": 87.4,
+  "inventory": {
+    "root": [
+      [
+        "-h",
+        "--help"
+      ],
+      [
+        "--config"
+      ],
+      [
+        "--profile"
+      ],
+      [
+        "--plugin-root"
+      ],
+      [
+        "--data-root"
+      ],
+      [
+        "--yes"
+      ],
+      [
+        "--plugin-verification-override"
+      ],
+      [
+        "--json"
+      ],
+      [
+        "--plugin-config"
+      ],
+      [
+        "--plugin-config-file"
+      ],
+      [
+        "--fallback-generic"
+      ],
+      [
+        "--no-console-log"
+      ],
+      [
+        "--list-updated-urls"
+      ],
+      [
+        "--inspect-only"
+      ],
+      [
+        "--existing-file"
+      ],
+      [
+        "--image-format"
+      ],
+      [
+        "--force-image-format"
+      ],
+      [
+        "--output-dir"
+      ],
+      [
+        "--directory-format"
+      ],
+      [
+        "--plugin"
+      ],
+      [
+        "--force-plugin"
+      ],
+      [
+        "--plugin-download-policy"
+      ],
+      [
+        "--plugin-download-policy-file"
+      ],
+      [
+        "--inspection-data"
+      ],
+      [
+        "--manifest-only"
+      ],
+      [
+        "--selection-priority"
+      ],
+      [
+        "--host"
+      ],
+      [
+        "--export-cookies"
+      ],
+      [
+        "--import-cookies"
+      ],
+      [
+        "--import-browser-cookies"
+      ],
+      [
+        "--limit"
+      ],
+      [
+        "--dry-run"
+      ],
+      [
+        "--download-scope"
+      ],
+      [
+        "--workflow-retries"
+      ],
+      [
+        "--workflow-retry-delay"
+      ],
+      [
+        "--workflow-retry-timeout"
+      ]
+    ],
+    "download": [
+      [
+        "-h",
+        "--help"
+      ]
+    ],
+    "workflow": [
+      [
+        "-h",
+        "--help"
+      ]
+    ],
+    "inspect": [
+      [
+        "-h",
+        "--help"
+      ]
+    ],
+    "doctor": [
+      [
+        "-h",
+        "--help"
+      ]
+    ],
+    "cookie": [
+      [
+        "-h",
+        "--help"
+      ]
+    ],
+    "config": [
+      [
+        "-h",
+        "--help"
+      ]
+    ],
+    "plugin": [
+      [
+        "-h",
+        "--help"
+      ]
+    ],
+    "state": [
+      [
+        "-h",
+        "--help"
+      ]
+    ]
+  },
+  "module_cases": 0,
+  "module_matches": 0,
+  "exit_counts": {
+    "None": 1199,
+    "2": 2367,
+    "0": 27
+  },
+  "execution_counts": {
+    "validation-passed-at-execution-boundary": 1199,
+    "cli-main": 2394
+  },
+  "workspace_fixture": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\cli-argument-audit\\run-1790962868919807700"
+}

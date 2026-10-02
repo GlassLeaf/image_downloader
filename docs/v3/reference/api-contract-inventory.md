@@ -28,6 +28,7 @@ Chapter
 ChapterResult
 ConfigurableSitePlugin
 ConfigurationError
+ArgumentError
 DownloadManifest
 DownloadResult
 DownloadService

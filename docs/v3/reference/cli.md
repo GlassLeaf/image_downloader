@@ -16,6 +16,7 @@ image-downloader config path|explain|init [arguments] [options]
 image-downloader config profile init NAME [options]
 image-downloader plugin list|install|trust|revoke|uninstall [arguments] [options]
 image-downloader cookie export|import|browser-import VALUE [options]
+image-downloader help [COMMAND [SUBCOMMAND ...]]
 ```
 
 legacy `--export-cookies`、`--import-cookies`、`--import-browser-cookies` select one cookie action and cannot be combined. `URL` bare form is rewritten to `download`.
@@ -126,7 +127,13 @@ failures without saved/skipped files return 1. Fatal stops use existing exceptio
 
 <a id="cli-options"></a>
 
-`--json` is accepted by every command. The parser also carries some global fields to every handler; **accepted** does not imply an effect. A handler rejects a listed incompatible option with `ConfigurationError`.
+`--json` is accepted by every command. **Accepted** does not imply an effect. Incompatible options raise `ArgumentError` before configuration resolution. Options can appear before the command, between subcommands, or after operands; acceptance and diagnostic precedence are the same at each position. Only complete option names and documented aliases are accepted; abbreviations such as `--j` and `--list` are rejected.
+
+Scalar options use the last supplied value. Repeated JSON/file options retain their order, with all file overrides merged before inline overrides. Explicit defaults still count as supplied options: `plugin list --selection-priority 0` is invalid. `--` ends option recognition; following strings are positional operands.
+
+Bare operands select download only when they are absolute HTTP(S) URLs with a host. The same URL requirement applies to explicit download, inspect, and workflow commands. Other words are unknown commands.
+
+`help`, `help plugin`, and `help config profile` show the corresponding help and exit 0. Unknown or excess help targets are argument errors. `--help` and `-h` stop parsing early; a missing option value before help remains an error. Help is always text on stdout, including with `--json`, and does not initialize configuration, plugins, or Cookie stores.
 
 | option | accepted and effective commands | accepted/no effect or rejected behavior |
 | --- | --- | --- |
@@ -201,7 +208,7 @@ successful stdout representation, never the inputs or the write set.
 the positional argument.  `config profile init` accepts `--config` as the main
 config location and rejects `--profile`, `--data-root`, and `--plugin-root`.
 Options which a handler rejects are not “last option wins”: the command exits
-with a configuration error before doing its main operation.  The command/option
+with an argument error before doing its main operation.  The command/option
 table above and [option table](#cli-options) together distinguish accepted,
 effective, no-op, and rejected options.
 

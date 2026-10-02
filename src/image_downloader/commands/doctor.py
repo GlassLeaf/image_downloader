@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import sys
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -14,7 +13,7 @@ from ..configuration.paths import resolve_paths
 from ..exceptions import ConfigurationError, PluginError
 from ..plugins.plugin_manifest import effective_verification_mode
 from ..plugins.runtime import PluginRuntime
-from .constants import EXIT_CONFIGURATION, EXIT_PLUGIN, EXIT_SUCCESS
+from .constants import EXIT_PLUGIN, EXIT_SUCCESS
 from .reporting import _application_version, _doctor_plugin_details, _doctor_redact, _print_doctor_report
 from .setup import (
     _app_override,
@@ -23,7 +22,7 @@ from .setup import (
     _resolved_config_for,
     _runtime_overrides,
 )
-from .validation import _reject_command_options
+from .validation import _reject_command_options, validate_arguments
 
 
 class DoctorCommandHandler:
@@ -53,6 +52,8 @@ class DoctorCommandHandler:
 async def doctor(args: argparse.Namespace, *, raise_errors: bool = False) -> int:
     registry: PluginRuntime | None = None
     try:
+        if not getattr(args, "_arguments_validated", False):
+            validate_arguments(args)
         target = args.host
         site: str | None = None
         selection_url: str | None = None
@@ -148,13 +149,15 @@ async def doctor(args: argparse.Namespace, *, raise_errors: bool = False) -> int
     except ConfigurationError as exc:
         if raise_errors:
             raise
-        print(f"error: {exc}", file=sys.stderr)
-        return EXIT_CONFIGURATION
+        from .dispatch import _render_error
+
+        return _render_error(exc, json_output=args.json_output, operation="doctor")
     except PluginError as exc:
         if raise_errors:
             raise
-        print(f"error: {exc}", file=sys.stderr)
-        return EXIT_PLUGIN
+        from .dispatch import _render_error
+
+        return _render_error(exc, json_output=args.json_output, operation="doctor")
     finally:
         if registry is not None:
             registry.close()

@@ -9,6 +9,7 @@ from .config import (
     resolve_application_config,
 )
 from .exceptions import (
+    ArgumentError,
     AuthenticationError,
     ConfigurationError,
     ExistingFileConflictError,
@@ -115,6 +116,7 @@ __all__ = [
     "ChapterResult",
     "ConfigurableSitePlugin",
     "ConfigurationError",
+    "ArgumentError",
     "DownloadManifest",
     "DownloadResult",
     "DownloadService",

@@ -5,3 +5,6 @@ plugin-sources/**/*.yaml text eol=lf
 plugin-sources/**/*.md text eol=lf
 plugin-sources/generic-css-selector/licenses/AUTHORS text eol=lf
 plugin-sources/generic-css-selector/licenses/LICENSE text eol=lf
+
+# Preserve investigation artifacts byte-for-byte, including recorded SHA-256.
+docs/investigations/** -text -whitespace

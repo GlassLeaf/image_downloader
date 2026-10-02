@@ -94,9 +94,7 @@ def test_directory_format_is_a_nonpersistent_runtime_override(tmp_path: Path) ->
 
 
 def test_output_dir_requires_an_absolute_safe_directory() -> None:
-    args = build_parser().parse_args(
-        ["download", "https://example.test/gallery", "--output-dir", "relative-output"]
-    )
+    args = build_parser().parse_args(["download", "https://example.test/gallery", "--output-dir", "relative-output"])
 
     with pytest.raises(ConfigurationError, match="--output-dir must be an absolute path"):
         cli_setup._output_root(args)
@@ -183,7 +181,7 @@ def test_output_options_are_ignored_for_non_saving_download_modes(monkeypatch, t
     assert composer_calls == [
         {
             "config_root": tmp_path.resolve(),
-                "plugin_root": (tmp_path / "plugins").resolve(),
+            "plugin_root": (tmp_path / "plugins").resolve(),
             "output_root": None,
             "plugin_verification_override": None,
         }
@@ -443,7 +441,7 @@ def test_inspection_cli_selects_request_data_and_aliases_download(monkeypatch, t
 def test_inspection_alias_rejects_download_only_options(words: tuple[str, ...]) -> None:
     args = build_parser().parse_args(["download", "https://example.test/gallery", "--inspect-only", *words])
 
-    with pytest.raises(ConfigurationError, match="not valid for the inspect command"):
+    with pytest.raises(ConfigurationError, match="not valid for .*inspect"):
         asyncio.run(cli.run(args))
 
 
@@ -465,7 +463,7 @@ def test_inspection_data_option_defaults_to_url_and_is_rejected_for_download() -
         parser.parse_args(["inspect", "https://example.test/gallery", "--inspection-data", "private"])
 
     download_args = parser.parse_args(["download", "https://example.test/gallery", "--inspection-data", "url"])
-    with pytest.raises(ConfigurationError, match="not valid for the download command"):
+    with pytest.raises(ConfigurationError, match="not valid for download"):
         asyncio.run(cli.run(download_args))
 
 
@@ -494,12 +492,10 @@ def test_legacy_allow_unverified_plugins_flag_is_removed() -> None:
 def test_command_specific_options_are_rejected_outside_their_command() -> None:
     parser = build_parser()
 
-    with pytest.raises(SystemExit):
-        parser.parse_args(["plugin", "list", "--host", "example.test"])
-
-    args = parser.parse_args(["--host", "example.test", "plugin", "list"])
-    with pytest.raises(ConfigurationError, match="not valid for the plugin command"):
-        asyncio.run(cli.run(args))
+    for words in (["plugin", "list", "--host", "example.test"], ["--host", "example.test", "plugin", "list"]):
+        args = parser.parse_args(words)
+        with pytest.raises(ConfigurationError, match="not valid for plugin list"):
+            asyncio.run(cli.run(args))
 
 
 def test_run_dispatches_explicit_and_legacy_cookie_commands(monkeypatch, tmp_path: Path) -> None:
@@ -520,13 +516,13 @@ def test_run_dispatches_explicit_and_legacy_cookie_commands(monkeypatch, tmp_pat
     assert handled == ["cookie", "legacy"]
 
 
-def test_config_and_plugin_argument_validation_remains_in_their_handlers() -> None:
+def test_config_and_plugin_syntax_is_validated_by_nested_parsers() -> None:
     parser = build_parser()
 
-    with pytest.raises(ConfigurationError, match="config command"):
-        asyncio.run(cli.run(parser.parse_args(["config", "unknown"])))
-    with pytest.raises(ConfigurationError, match="plugin command"):
-        asyncio.run(cli.run(parser.parse_args(["plugin"])))
+    for words in (["config", "unknown"], ["plugin"]):
+        with pytest.raises(SystemExit) as error:
+            parser.parse_args(words)
+        assert error.value.code == 2
 
 
 @pytest.mark.parametrize(
