@@ -1,5 +1,6 @@
 """Public local plugin API v3 for image-downloader."""
 
+from .application.workflow_state import WorkflowStateService
 from .config import (
     AppConfig,
     ResolvedApplicationConfig,
@@ -69,8 +70,12 @@ from .models import (
     WorkflowItemResult,
     WorkflowPlanItem,
     WorkflowPlanResult,
+    WorkflowPruneResult,
     WorkflowResult,
     WorkflowRoundResult,
+    WorkflowRunRecord,
+    WorkflowStateItem,
+    WorkflowStateView,
 )
 from .ports import (
     AuthFlow,
@@ -97,6 +102,11 @@ __all__ = [
     "WorkflowResult",
     "WorkflowPlanItem",
     "WorkflowPlanResult",
+    "WorkflowRunRecord",
+    "WorkflowStateItem",
+    "WorkflowStateView",
+    "WorkflowPruneResult",
+    "WorkflowStateService",
     "AppConfig",
     "apply_overrides",
     "AuthFlow",

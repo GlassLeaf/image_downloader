@@ -36,6 +36,9 @@ _OPTION_DEFAULTS: Mapping[str, object] = {
     "output_dir": None,
     "directory_format": None,
     "inspection_data": None,
+    "plugin_root": None,
+    "plugin_verification_override": None,
+    "yes": False,
 }
 
 

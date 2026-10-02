@@ -7,6 +7,7 @@ Canonical command forms are:
 ```text
 image-downloader download URL [--force-image-format FORMAT] [options]
 image-downloader workflow URL [--download-scope all|updated] [download options]
+image-downloader state workflow [list|show|history|run|prune] [arguments] [options]
 image-downloader inspect URL [options]
 image-downloader download URL --inspect-only [options] # inspect の alias
 image-downloader URL [download options]                 # bare-URL compatibility form
@@ -29,7 +30,7 @@ config 作成・rewrite の command ごとの副作用は [configuration referen
 
 `workflow URL --dry-run` performs one live feed check and previews initial-round URL selection.
 It accepts `--download-scope all|updated` and existing workflow options, including options before the command.
-`--dry-run` is rejected by other commands and the bare-URL download form. Existing option validation and
+`--dry-run` is also accepted by `state workflow prune`; all other commands and the bare-URL download form reject it. Existing option validation and
 exclusions remain; retry options are validated but no waits or additional rounds run.
 
 The preview displays selected/excluded candidates and reasons (`all`, `added`, `changed`, `unfinished`,
@@ -329,3 +330,23 @@ Inspection JSON has `inspection_data` equal to `url`, `http`, or `all`. The defa
 inspection は registry-only の `doctor` とは異なり、sinkless な runtime を構築して profile cookie snapshot と HTTP gateway を初期化する。通常の output/state/log/notification は実行しないが、設定・plugin verification・filesystem path・cookie store の読取り／lock といったローカル初期化には依存する。matcher 候補だけを副作用最小で確認したいときは `doctor --host URL --json` を使う。
 
 <a id="cli-errors"></a>
+## Workflow状態表示・履歴・整理
+
+```text
+image-downloader state workflow
+image-downloader state workflow list
+image-downloader state workflow show URL [--plugin ID]
+image-downloader state workflow history [URL] [--plugin ID] [--limit N]
+image-downloader state workflow run RUN_ID
+image-downloader state workflow prune [--dry-run]
+```
+
+`--config`、`--profile`、`--data-root`、`--json`はコマンド前後で指定できる。`--limit`はhistory専用の正の整数で、既定20件。`--plugin`はlist/show/historyで保存済みplugin IDを絞り込み、プラグインのインストール・検証・選択をしない。同じURLが複数pluginに属すると、指定なしではそれぞれ表示する。ダウンロード・再試行・inspection・Cookie操作・出力設定などの実行オプションは拒否する。`--dry-run`は通常workflowと`state workflow prune`のみで受理する。
+
+ネットワーク通信・プラグイン読込み・Cookie読込み・設定の初期保存/rewrite・ファイルログ・通知は行わない。ロックファイルと親ディレクトリの作成は許容する。一度だけ保存情報を読み取り、進捗の自動更新、実行中判定、成果物検証は行わない。
+
+現在状態は候補のURL、content ID、revision、完了フラグ、チェック日時と集計を持つ。未完了を失敗・未処理・実行中と推測しない。過去結果は別欄で表示し、過去の成功は現在の完了を保証しない。feedはplugin IDとSHA-256キーで識別する。履歴があれば伏字済み更新元URLを表示するが、既存の完了状態だけからURLを復元・推測しない。
+
+JSONは`operation="state"`、`resource="workflow"`、`action`を持つ一文書。list/showは`workflows`、historyは`runs`、runは`run`、pruneは`prune`を返す。pruneは削除予定RUN_ID、期限切れ件数、UTF-8ファイルサイズの整理前後、上限超過の有無を返す。URL・エラー・パスは既存の伏字処理を適用する。
+
+表示・整理の成功は0（過去の失敗を表示しても0）、明示したURL/RUN_IDが存在しない場合は1、設定不正は2、保存情報の破損・ロック・I/O失敗は1、キャンセルは130。空の一覧・履歴一覧は正常終了する。通常workflowのJSONには`run_id`、`history_saved`、`history_warning`を追加する。履歴保存失敗は警告し、元のworkflow終了コードを変更しない。

@@ -35,6 +35,7 @@ from .configuration.models import (
     Security,
     Storage,
     StrictModel,
+    WorkflowHistory,
 )
 from .configuration.paths import (
     default_data_root,
@@ -67,6 +68,7 @@ __all__ = [
     "ImageProcessors",
     "GenericHtmlFallback",
     "Fallback",
+    "WorkflowHistory",
     "StrictModel",
     "validate_config",
     "deep_merge",

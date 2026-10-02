@@ -79,7 +79,7 @@ This is the signature-level reference for the stable facades in the [API invento
 | `WorkflowItemResult` | `WorkflowItemResult(url: str, reasons: tuple[str, ...], status: Literal['success', 'partial', 'failed', 'unprocessed', 'removed'], download: DownloadResult | None = None, error: ErrorInfo | None = None, attempts: tuple[WorkflowAttemptResult, ...] = ())` |
 | `WorkflowPlanItem` | `WorkflowPlanItem(candidate: UpdateCandidate, selected: bool, reasons: tuple[str, ...])` |
 | `WorkflowPlanResult` | `WorkflowPlanResult(source_url: str, download_scope: Literal['all', 'updated'], plugin_id: str | None = None, snapshot: UpdateSnapshot | None = None, changes: tuple[UpdateChange, ...] = (), first_run: bool | None = None, items: tuple[WorkflowPlanItem, ...] = (), stop_error: ErrorInfo | None = None, cancelled: bool = False)` `selected_urls -> tuple[str, ...]` property |
-| `WorkflowResult` | `WorkflowResult(source_url: str, download_scope: Literal['all', 'updated'], snapshot: UpdateSnapshot | None, changes: tuple[UpdateChange, ...], items: tuple[WorkflowItemResult, ...], stop_error: ErrorInfo | None = None, cancelled: bool = False, workflow_retries: int = 1, workflow_retry_delay: float = 600.0, workflow_retry_timeout: float | None = None, rounds: tuple[WorkflowRoundResult, ...] = (), timed_out: bool = False)`  `selected_urls -> tuple[str, ...]` property |
+| `WorkflowResult` | `WorkflowResult(source_url: str, download_scope: Literal['all', 'updated'], snapshot: UpdateSnapshot | None, changes: tuple[UpdateChange, ...], items: tuple[WorkflowItemResult, ...], stop_error: ErrorInfo | None = None, cancelled: bool = False, workflow_retries: int = 1, workflow_retry_delay: float = 600.0, workflow_retry_timeout: float | None = None, rounds: tuple[WorkflowRoundResult, ...] = (), timed_out: bool = False, run_id: str | None = None, history_saved: bool | None = None, history_warning: str | None = None)`  `selected_urls -> tuple[str, ...]` property |
 
 `<factory: name>` is the dataclass default-factory spelling: a new value is built for every construction, not a shared mutable default. `RequestPort`, `SecretProvider`, `AuthFlow`, `OriginScopedAuthFlow`, `SitePlugin`, `ConfigurableSitePlugin`, `ImageProcessor`, `OutputFormatValueProvider`, and `UpdateProvider` are Protocols; their exact signatures and capability boundaries are in [plugin hooks](plugin-hooks.md). Site/processor の任意 lifecycle extension は `output_format_values(context) -> Mapping[str, str]` と `cleanup_after_use() -> Awaitable[None] | None` である。runtime は cleanup 完了後に同じ instance の plugin hook を呼ばない。`FailureKind`, `ImageOutcomeKind`, and `UpdateChangeKind` are enum contracts in [library API](library-api.md#api-download-result).
 
@@ -254,3 +254,20 @@ This is the signature-level reference for the stable facades in the [API invento
 | `safe_exception_name` <!-- api-contract: image_downloader.observability.logging.safe_exception_name --> | `safe_exception_name(value: object) -> str` |
 | `safe_relative_path` <!-- api-contract: image_downloader.observability.logging.safe_relative_path --> | `safe_relative_path(value: str | Path, output_root: Path | None) -> str` |
 | `safe_url` <!-- api-contract: image_downloader.observability.logging.safe_url --> | `safe_url(value: str, *, safe_query_parameters: set[str] | None = None, safe_fragment_parameters: set[str] | None = None) -> str` |
+
+## Offline workflow state and history API
+
+These methods are synchronous and require no runtime or plugin registry. Results are immutable.
+
+| Constructor or method | Visible signature |
+| --- | --- |
+| `WorkflowRunRecord` | `WorkflowRunRecord(run_id: str, plugin_id: str | None, feed_key: str, source_url: str, started_at: datetime, ended_at: datetime, exit_code: int, details: Mapping[str, object]) -> None` |
+| `WorkflowStateItem` | `WorkflowStateItem(candidate: UpdateCandidate, completed: bool) -> None` |
+| `WorkflowStateView` | `WorkflowStateView(plugin_id: str | None, feed_key: str, source_url: str | None, checked_at: datetime | None, items: tuple[WorkflowStateItem, ...], latest_run: WorkflowRunRecord | None = None) -> None` |
+| `WorkflowPruneResult` | `WorkflowPruneResult(deleted_run_ids: tuple[str, ...], before_bytes: int, after_bytes: int, expired_count: int, over_limit: bool, dry_run: bool) -> None` |
+| `WorkflowStateService` | `WorkflowStateService(config: AppConfig) -> None` |
+| `WorkflowStateService.list_workflows` | `list_workflows(self, *, plugin_id: str | None = None) -> tuple[WorkflowStateView, ...]` |
+| `WorkflowStateService.get_workflow` | `get_workflow(self, url: str, *, plugin_id: str | None = None) -> tuple[WorkflowStateView, ...]` |
+| `WorkflowStateService.list_runs` | `list_runs(self, url: str | None = None, *, plugin_id: str | None = None, limit: int = 20) -> tuple[WorkflowRunRecord, ...]` |
+| `WorkflowStateService.get_run` | `get_run(self, run_id: str) -> WorkflowRunRecord | None` |
+| `WorkflowStateService.prune_history` | `prune_history(self, *, dry_run: bool = False) -> WorkflowPruneResult` |

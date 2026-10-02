@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import asyncio
 from dataclasses import replace
+from datetime import UTC, datetime
 from functools import partial
 from typing import TYPE_CHECKING, Literal
+from uuid import uuid4
 
 from ..configuration.models import ImageFormat
 from ..exceptions import (
@@ -35,6 +37,8 @@ from ..plugins.lifecycle import PluginRecord
 from ..plugins.plugin_manifest import PluginConfigOverrides, PluginDownloadPolicyOverrides
 from ..ports import SitePlugin
 from ..storage.workflow import WorkflowState, finish_transaction
+from .workflow_recording import record_result
+from .workflow_reporting import stopped_status, workflow_status
 from .workflow_retry import ImageLedger
 
 if TYPE_CHECKING:
@@ -68,6 +72,9 @@ class _WorkflowExecution:
         self.ledgers: dict[str, ImageLedger] = {}
         self.rounds: list[WorkflowRoundResult] = []
         self.reported = False
+        self.run_id = str(uuid4())
+        self.started_at = datetime.now(UTC)
+        self.feed_plugin_id: str | None = None
 
     def result(self, error: BaseException | None = None) -> WorkflowResult:
         return WorkflowResult(
@@ -83,6 +90,7 @@ class _WorkflowExecution:
             self.timeout,
             tuple(self.rounds),
             isinstance(error, WorkflowRetryTimeoutError),
+            run_id=self.run_id,
         )
 
     def pending(self) -> bool:
@@ -95,6 +103,7 @@ class _WorkflowExecution:
         record, plugin = self.service._select_site_plugin(
             self.url, self.overrides, self.fallback, self.plugin_id, self.force_plugin
         )
+        self.feed_plugin_id = record.id
         lock = self.state.feed_lock(record.id, self.url)
         await lock.acquire_async()
         try:
@@ -299,9 +308,10 @@ async def execute_workflow(
         delay,
         timeout,
     )
+    failure: BaseException | None = None
     try:
         try:
-            return await execution.run()
+            await execution.run()
         except Exception as exc:
             if not execution.reported:
                 await _report_workflow_failure(service, url, exc)
@@ -310,8 +320,35 @@ async def execute_workflow(
             for item in execution.items.values():
                 await best_effort_diagnostic(service.notifications.workflow_item, item)
     except BaseException as exc:
-        exc.__dict__["workflow_result"] = execution.result(exc)
-        raise
+        failure = exc
+    result = execution.result(failure)
+    status = stopped_status(failure) if failure is not None and not result.timed_out else workflow_status(result)
+    try:
+        result = await record_result(
+            service.config,
+            result,
+            execution.feed_plugin_id,
+            execution.started_at,
+            status,
+            service.outputs.root,
+        )
+    except asyncio.CancelledError as exc:
+        result = getattr(
+            exc,
+            "workflow_result",
+            replace(
+                result,
+                cancelled=True,
+                stop_error=None,
+                history_saved=False,
+                history_warning="workflow history could not be saved; execution result is unchanged",
+            ),
+        )
+        failure = exc
+    if failure is not None:
+        failure.__dict__["workflow_result"] = result
+        raise failure
+    return result
 
 
 async def _report_workflow_failure(service: DownloadService, url: str, error: Exception) -> None:

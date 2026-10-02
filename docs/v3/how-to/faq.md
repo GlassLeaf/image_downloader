@@ -359,3 +359,10 @@ selected site plugin instance は一回の `run()` または `check_updates()` �
 ### 13. display-only inspection で `create_image_request()` はどう呼ばれるか？
 
 `DownloadService.inspect(resolve_image_requests=True)` と CLI `inspect` は、manifest の chapter/images 配列順に一画像ずつ `create_image_request()` を呼び、`auth_required=True` の request には `AuthFlow.apply()` も適用して送信直前 `EffectiveRequestPreview` を組み立てる。core は request を画像 transport に送らず、redirect、response 判定、refresh、recovery、transform、save を実行しない。source request は得られても auth／組立てが失敗した画像は `partially_resolved` となり、後続画像の inspection は続く。`create_image_request()` や `apply()` が `context.requests.execute()` を使えば token 発行などのサーバー側副作用は起こり得る。plugin は画像 URL を raw client で直接 fetch して inspection を迂回してはならない。CLI の公開範囲は `--inspection-data` で選び、library result 自体は完全な raw diagnostic data を保持する。[dynamic URL how-to](dynamic-urls-and-auth.md) を参照する。
+## workflowの結果や未完了状態をあとから確認したい
+
+`state workflow show URL`で現在の候補・完了状態と最新の保存結果、`state workflow history URL`で複数回の履歴、`state workflow run RUN_ID`でURL別結果と周回集計を確認できる。オフラインで表示し、実行中かどうかやローカル成果物の正しさは推測しない。「未完了」は失敗・未処理・実行中を区別する記録ではない。
+
+通常workflowは履歴を自動記録するが、dry-run、API開始前の設定エラー、導入前の実行は記録しない。強制終了時には記録が残らないことがある。履歴保存に失敗しても元のworkflow結果・終了コードは維持し、JSON/APIの`history_saved`と警告で確認できる。
+
+既定の保持はprofile全体で90日・100MiB。表示では期限切れを隠すだけなので、workflowを実行しない期間には`state workflow prune --dry-run`で確認し、`state workflow prune`で物理整理する。大きすぎる新規結果は完全保存し、通常保存時には期間内の既存履歴を容量理由で削除しない。明示的pruneも期間内の最後の1件を残すため、容量上限は絶対上限ではない。上限超過が残る場合は設定変更または履歴の退避が必要。

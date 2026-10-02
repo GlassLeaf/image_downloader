@@ -14,8 +14,11 @@ from typing import Literal, cast
 from urllib.parse import urlparse
 
 from ..application.composer import RuntimeComposer
+from ..application.workflow_recording import revise_result
+from ..application.workflow_reporting import stopped_status, workflow_status
+from ..configuration.models import AppConfig
 from ..configuration.paths import resolve_paths
-from ..exceptions import AuthenticationError, ConfigurationError, PluginError, error_info_for, error_reason_for_code
+from ..exceptions import ConfigurationError, error_info_for, error_reason_for_code
 from ..models import (
     DownloadResult,
     ImageFailure,
@@ -26,11 +29,6 @@ from ..models import (
 )
 from ..privacy.log_safety import safe_exception_name, safe_locator, safe_relative_path, safe_url
 from .constants import (
-    EXIT_AUTHENTICATION,
-    EXIT_CONFIGURATION,
-    EXIT_FAILURE,
-    EXIT_PARTIAL,
-    EXIT_PLUGIN,
     EXIT_SUCCESS,
 )
 from .setup import (
@@ -132,6 +130,9 @@ def workflow_payload(result: WorkflowResult, root: Path) -> dict[str, object]:
     ]
     return {
         "operation": "workflow",
+        "run_id": result.run_id,
+        "history_saved": result.history_saved,
+        "history_warning": result.history_warning,
         "source_url": safe_url(result.source_url),
         "download_scope": result.download_scope,
         "workflow_retries": result.workflow_retries,
@@ -156,30 +157,11 @@ def workflow_payload(result: WorkflowResult, root: Path) -> dict[str, object]:
 
 
 def _status(result: WorkflowResult) -> int:
-    if not result.timed_out and all(item.status in {"success", "removed"} for item in result.items):
-        return EXIT_SUCCESS
-    return (
-        EXIT_PARTIAL
-        if any(
-            (item.download is not None and (item.download.saved_files or item.download.skipped_files))
-            or any(
-                attempt.download is not None and (attempt.download.saved_files or attempt.download.skipped_files)
-                for attempt in item.attempts
-            )
-            for item in result.items
-        )
-        else EXIT_FAILURE
-    )
+    return workflow_status(result)
 
 
 def _stopped_status(error: BaseException) -> int:
-    if isinstance(error, asyncio.CancelledError):
-        return 130
-    if isinstance(error, ConfigurationError):
-        return EXIT_CONFIGURATION
-    if isinstance(error, AuthenticationError):
-        return EXIT_AUTHENTICATION
-    return EXIT_PLUGIN if isinstance(error, PluginError) else EXIT_FAILURE
+    return stopped_status(error)
 
 
 class WorkflowCommandHandler:
@@ -284,6 +266,9 @@ class WorkflowCommandHandler:
                             cancelled=isinstance(exc, asyncio.CancelledError),
                         )
                         status = _stopped_status(exc)
+                        result, status = await _revise_after_close(
+                            config, result, status, output_root or resolve_paths(config)["downloads"]
+                        )
         assert result is not None
         payload = workflow_payload(result, output_root or resolve_paths(config)["downloads"])
         if args.json_output:
@@ -398,3 +383,12 @@ async def _plan_command(args: argparse.Namespace, overrides, policies) -> int:
                         status = _stopped_status(exc)
     _print_plan(result, args, root)
     return status
+
+
+async def _revise_after_close(
+    config: AppConfig, result: WorkflowResult, status: int, root: Path
+) -> tuple[WorkflowResult, int]:
+    try:
+        return await revise_result(config, result, status, root), status
+    except asyncio.CancelledError as exc:
+        return getattr(exc, "workflow_result", replace(result, cancelled=True)), 130

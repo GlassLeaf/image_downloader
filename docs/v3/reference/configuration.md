@@ -118,6 +118,8 @@ symlink/reparse point, and a root that cannot be safely resolved are rejected.
 | downloaded images and chapter reports | `<profile data root>/downloads` | normal `download` writes; `--list-updated-urls` does not allocate image output |
 | encrypted cookie jar and lock | `<profile data root>/cookie/cookies.enc`, `cookie/cookies.lock` | cookie actions and composed download service |
 | update snapshots and lock | `<profile data root>/state/updates.json`, `state/updates.lock` | update listing and `DownloadService.check_updates()` |
+| workflow completion state | `<profile data root>/state/workflow.json`, `state/workflow.lock` | normal workflow; offline state display reads it |
+| workflow execution history and lock | `<profile data root>/state/workflow-history.json`, `state/workflow-history.lock` | normal workflow auto-records; offline display reads; prune organizes history |
 | logs | `<profile data root>/logs` | composed download service/logger |
 | site and processor units/catalog | `<plugins.root or platform data root/plugins>` | plugin commands and runtime discovery; catalog is `catalog.json` below this root |
 
@@ -254,3 +256,18 @@ raw credential を YAML、manifest、catalog、plugin source、log、exception �
 ## Migration compatibility
 
 v3 は旧 descriptor/tree を discovery しない。network の旧 static key は current model の timeout、retry、pool、response-size fields に置き換え、`config explain --json` の `origins` と `layers` で移管結果を確認する。user-managed YAML の obsolete/unknown static key は `rewrite_user_layers=True` のときだけ削除候補になり、read-only resolve は書換えない。
+## Workflow実行履歴の保持設定
+
+```yaml
+workflow_history:
+  max_age_days: 90
+  max_size_bytes: 104857600
+```
+
+`workflow_history.max_age_days`と`workflow_history.max_size_bytes`は正の整数。既定はprofile全体で90日・100MiB。容量は`state/workflow-history.json`全体のUTF-8保存サイズに適用し、成果物、debug.log、ロック、一時ファイルを含めない。
+
+通常workflowはCLI/APIともに複数回の実行結果を自動保存する。dry-runは記録しない。既存`state/workflow.json`はschema 1の最新候補・URL単位完了管理を維持し、履歴ファイルも別のschema 1とする。履歴は終了日時から保持期間を判定し、境界を含む期限切れを表示から除外するが、表示ではファイルを変更しない。新規記録時と明示的な`state workflow prune`で物理削除する。
+
+通常保存では期限切れを削除し、その後は古い実行から容量整理する。ただし新しい単一結果だけで容量上限を超える場合、その結果を省略せず保存し、期間内の既存履歴も容量理由では削除しない。上限超過と整理の推奨を警告する。明示的pruneは期限切れを先に削除し、古い順に容量整理するが、期間内の最後の1件は残す。期限切れなら最後の1件も削除できる。
+
+容量は例外を認める上限であり、厳密な最大サイズではない。最後の1件が大きすぎる場合は上限変更または履歴退避が必要。`prune --dry-run`は削除予定と整理前後の容量を表示し、本整理時には共有ロック下で再計算する。設定変更は次の読込み・保存・整理から適用する。

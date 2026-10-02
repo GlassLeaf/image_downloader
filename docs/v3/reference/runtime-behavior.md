@@ -189,3 +189,8 @@ and user-cancellation code 130 remain unchanged.
 chapter log は image URL、response URL、status、stage、transport、reason code、safe exception detail を記録する。`completed`、`response_received`、`response_limit_exceeded`、`redirect_rejected`、`failed` は取得段階を区別する。image-level fetch/process/save failure は対応する notification category を一度だけ送る。operation-level authentication/configuration/plugin/update/storage/unknown failure は対応する category に送る。
 
 observer、notification sender、sink、Python log capture の cleanup failure は safe diagnostic warning に留め、主 operation の result/exception を変更しない。互換性のため定義される event でも、core に明確な判定点がなければ自動発火しない。設計上の理由は [observability explanation](../explanation/observability.md) を参照する。
+## Workflow履歴の保存安全性
+
+`state/workflow-history.json`はprofile内全feedの実行概要をschema 1で保持する。専用の短い共有ファイルロック下でread/merge/保持制御/atomic writeを行い、別feed・別プロセスの記録消失を防ぐ。開始済み保存はキャンセル時も確定させ、その後でキャンセルを伝播する。未知schema・破損を上書きしない。表示・整理ではエラー、workflow記録時には安全な警告と保存失敗フラグにする。
+
+現在の`workflow.json`と過去結果は別の情報で、二つのファイルをまとめて更新するトランザクションではない。表示は保存時点の情報であり、実行中判定や成果物検証を行わない。開始中レコードやクラッシュ検出はないため、強制終了・プロセスクラッシュでは最終記録が残らない場合がある。既存の完了状態から過去の失敗や履歴を復元せず、導入後の実行から記録する。

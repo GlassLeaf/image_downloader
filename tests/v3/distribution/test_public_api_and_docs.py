@@ -38,6 +38,7 @@ EXPECTED_EXPORTS = {
         """
         WorkflowRetryTimeoutError WorkflowImageResult WorkflowAttemptResult WorkflowRoundResult
         WorkflowItemResult WorkflowResult WorkflowPlanItem WorkflowPlanResult
+        WorkflowRunRecord WorkflowStateItem WorkflowStateView WorkflowPruneResult WorkflowStateService
         AppConfig apply_overrides AuthFlow AuthenticationError Chapter ChapterResult ConfigurableSitePlugin
         ConfigurationError DownloadManifest DownloadResult DownloadService EffectiveRequestPreview
         ExistingFileConflictError FailureKind
@@ -62,7 +63,7 @@ EXPECTED_EXPORTS = {
         Email Notification
         NotificationMethod NotificationCategory PluginSettings Security Storage Plugins PluginDownloadPolicy
         ImageProcessors
-        GenericHtmlFallback Fallback StrictModel validate_config deep_merge ConfigurationLayer
+        GenericHtmlFallback Fallback WorkflowHistory StrictModel validate_config deep_merge ConfigurationLayer
         ResolvedApplicationConfig load_yaml normalize_host registrable_domain site_file_name
         load_application_config resolve_application_config apply_overrides resolve_paths plugin_root
         default_user_config_path default_data_root default_plugin_root
@@ -298,6 +299,7 @@ def test_representative_signatures_and_result_dtos_are_stable() -> None:
         "image_processors",
         "plugin_settings",
         "fallback",
+        "workflow_history",
     )
 
 

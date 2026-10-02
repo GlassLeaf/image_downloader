@@ -15,6 +15,11 @@ WorkflowItemResult
 WorkflowResult
 WorkflowPlanItem
 WorkflowPlanResult
+WorkflowRunRecord
+WorkflowStateItem
+WorkflowStateView
+WorkflowPruneResult
+WorkflowStateService
 AppConfig
 apply_overrides
 AuthFlow
@@ -113,6 +118,7 @@ PluginDownloadPolicy
 ImageProcessors
 GenericHtmlFallback
 Fallback
+WorkflowHistory
 StrictModel
 validate_config
 deep_merge

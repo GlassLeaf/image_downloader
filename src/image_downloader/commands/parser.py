@@ -21,7 +21,7 @@ class _ConfigPath(argparse.Action):
         namespace.config_explicit = True
 
 
-_COMMAND_NAMES = frozenset(("download", "workflow", "inspect", "config", "plugin", "doctor", "cookie"))
+_COMMAND_NAMES = frozenset(("download", "workflow", "inspect", "config", "plugin", "doctor", "cookie", "state"))
 _OPTIONS_WITH_VALUE = frozenset(
     (
         "--config",
@@ -51,6 +51,7 @@ _OPTIONS_WITH_VALUE = frozenset(
         "--workflow-retries",
         "--workflow-retry-delay",
         "--workflow-retry-timeout",
+        "--limit",
     )
 )
 
@@ -83,7 +84,11 @@ class _CliArgumentParser(argparse.ArgumentParser):
         normalized = _normalize_cli_arguments(source)
         type(self)._active_json_error_mode = "--json" in normalized
         try:
-            return super().parse_args(normalized, namespace)
+            parsed = super().parse_args(normalized, namespace)
+            parsed._explicit_options = frozenset(
+                token.split("=", 1)[0] for token in normalized if token.startswith("--")
+            )
+            return parsed
         finally:
             type(self)._active_json_error_mode = False
 
@@ -247,7 +252,10 @@ def _add_workflow_retry_options(parser: argparse.ArgumentParser, *, suppress_def
 
 
 def _add_legacy_options(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--dry-run", action="store_true", default=False, help="preview workflow URL selection")
+    parser.add_argument("--limit", type=int, default=None, help="state workflow history limit (default: 20)")
+    parser.add_argument(
+        "--dry-run", action="store_true", default=False, help="preview workflow URL selection or history pruning"
+    )
     parser.add_argument("--download-scope", choices=("all", "updated"), default=None)
     _add_workflow_retry_options(parser, suppress_defaults=False)
     _add_configuration_options(parser, suppress_defaults=False)
@@ -366,4 +374,11 @@ def build_parser() -> argparse.ArgumentParser:
     cookie_parser.add_argument("cookie_value")
     _add_configuration_options(cookie_parser, suppress_defaults=True)
     cookie_parser.set_defaults(command_handler="cookie")
+    state_parser = commands.add_parser("state", help="display offline workflow state/history or prune history")
+    state_parser.add_argument("command_args", nargs="*")
+    state_parser.add_argument("--limit", type=int, default=argparse.SUPPRESS)
+    state_parser.add_argument("--dry-run", action="store_true", default=argparse.SUPPRESS)
+    _add_configuration_options(state_parser, suppress_defaults=True)
+    _add_plugin_selection_options(state_parser, suppress_defaults=True)
+    state_parser.set_defaults(command_handler="state")
     return parser

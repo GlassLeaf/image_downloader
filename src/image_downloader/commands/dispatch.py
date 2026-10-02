@@ -26,12 +26,14 @@ from .download import DownloadCommandHandler
 from .inspect import InspectCommandHandler
 from .parser import build_parser
 from .plugin import PluginCommandHandler
+from .state import StateCommandHandler
 from .validation import CommandHandler
 from .workflow import WorkflowCommandHandler
 
 _COMMAND_HANDLERS: Mapping[str, CommandHandler] = {
     "download": DownloadCommandHandler(),
     "workflow": WorkflowCommandHandler(),
+    "state": StateCommandHandler(),
     "inspect": InspectCommandHandler(),
     "cookie": CookieCommandHandler(),
     "doctor": DoctorCommandHandler(),
@@ -48,8 +50,10 @@ async def run(args: argparse.Namespace) -> int:
         handler_name = "cookie"
     if handler_name is None:
         raise ValueError("URL or command is required")
-    if handler_name != "workflow" and getattr(args, "dry_run", False):
-        raise ConfigurationError("--dry-run is only valid for workflow")
+    if handler_name not in {"workflow", "state"} and getattr(args, "dry_run", False):
+        raise ConfigurationError("--dry-run is only valid for workflow or state workflow prune")
+    if handler_name != "state" and getattr(args, "limit", None) is not None:
+        raise ConfigurationError("--limit is only valid for state workflow history")
     if handler_name != "workflow" and getattr(args, "download_scope", None) is not None:
         raise ConfigurationError("--download-scope is only valid for workflow")
     for option in ("workflow_retries", "workflow_retry_delay", "workflow_retry_timeout"):
@@ -66,7 +70,7 @@ def _operation_name(argv: Sequence[str], parsed: argparse.Namespace | None = Non
     handler = getattr(parsed, "command_handler", None) if parsed is not None else None
     if handler in _COMMAND_HANDLERS:
         return str(handler)
-    commands = {"download", "workflow", "inspect", "cookie", "doctor", "config", "plugin"}
+    commands = {"download", "workflow", "inspect", "cookie", "doctor", "config", "plugin", "state"}
     return next((value for value in argv if value in commands), "download")
 
 

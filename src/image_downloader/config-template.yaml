@@ -91,3 +91,8 @@
 # fallback:
 #   generic_html:
 #     enabled: true
+
+# Profile-wide workflow execution summaries (positive integers).
+# workflow_history:
+#   max_age_days: 90
+#   max_size_bytes: 104857600

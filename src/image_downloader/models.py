@@ -599,6 +599,9 @@ class WorkflowResult:
     workflow_retry_timeout: float | None = None
     rounds: tuple[WorkflowRoundResult, ...] = ()
     timed_out: bool = False
+    run_id: str | None = None
+    history_saved: bool | None = None
+    history_warning: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "changes", tuple(self.changes))
@@ -608,3 +611,50 @@ class WorkflowResult:
     @property
     def selected_urls(self) -> tuple[str, ...]:
         return tuple(item.url for item in self.items)
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowRunRecord:
+    run_id: str
+    plugin_id: str | None
+    feed_key: str
+    source_url: str
+    started_at: datetime
+    ended_at: datetime
+    exit_code: int
+    details: Mapping[str, object]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "details", freeze_json(self.details))
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowStateItem:
+    candidate: UpdateCandidate
+    completed: bool
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowStateView:
+    plugin_id: str | None
+    feed_key: str
+    source_url: str | None
+    checked_at: datetime | None
+    items: tuple[WorkflowStateItem, ...]
+    latest_run: WorkflowRunRecord | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "items", tuple(self.items))
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowPruneResult:
+    deleted_run_ids: tuple[str, ...]
+    before_bytes: int
+    after_bytes: int
+    expired_count: int
+    over_limit: bool
+    dry_run: bool
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "deleted_run_ids", tuple(self.deleted_run_ids))
