@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Literal, cast
 from urllib.parse import urlparse
 
+from ..application.additional_files import additional_file_payload
 from ..application.composer import RuntimeComposer
 from ..application.workflow_recording import revise_result
 from ..application.workflow_reporting import stopped_status, workflow_outcome, workflow_status
@@ -71,6 +72,7 @@ def _failure_payload(failure: ImageFailure, root: Path) -> dict[str, object]:
 
 def _download_payload(result: DownloadResult, root: Path) -> dict[str, object]:
     return {
+        "additional_files": additional_file_payload(result, root),
         "saved": [safe_relative_path(path, root) for path in result.saved_files],
         "skipped": [safe_relative_path(path, root) for path in result.skipped_files],
         "failures": [_failure_payload(failure, root) for failure in result.failures],

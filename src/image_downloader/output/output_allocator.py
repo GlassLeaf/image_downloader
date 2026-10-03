@@ -135,6 +135,11 @@ class OutputAllocator:
             context,
             original_filename=source_name,
         )
+        return await self.allocate_relative(base)
+
+    async def allocate_relative(self, base: Path) -> OutputAllocation:
+        """Reserve a validated managed relative path using the image collision policy."""
+        self.filesystem.path(base)
         mode = self.config.output.existing_file
         while True:
             waiter: asyncio.Future[bool] | None = None

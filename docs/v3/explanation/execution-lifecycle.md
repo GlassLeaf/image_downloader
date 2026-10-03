@@ -50,4 +50,14 @@ selected site instance は `run()` / `check_updates()` の runtime 利用区間�
 
 ## Result boundary
 
+追加ファイルを宣言する任意の site hook は download attempt の構成後、inspect 前に一度だけ段階を宣言する。core が `BEFORE_MANIFEST`、`AFTER_MANIFEST`、`BEFORE_IMAGE_REQUEST`、`AFTER_IMAGE_REQUEST`、`BEFORE_IMAGE_SAVE`、`AFTER_IMAGE_SAVE`、`AFTER_DOWNLOAD` の順で呼ぶ。画像取得後は認証更新・復旧を含む最終成功の後、保存前は変換の後、保存後は保存／skip 確定の後である。manifest 後と download 後は章ごと、画像の前後は処理対象画像ごとに呼ぶ。
+
+各段階は `additional_files()` → core 取得 → `additional_file_received()` → core 保存／skip → `additional_file_saved()` の順で実行する。callback の await 完了を待って主処理へ進むため、取得した鍵は直後の request hook、画像取得後の補助データは site transform から利用できる。取得失敗時も received を一回呼ぶが保存と saved は呼ばない。callback 失敗でも保存を続ける。callback は保存先 lock の外で呼び、並行画像間では重なり得るため invocation ID と対象画像で plugin の状態を分離する。
+
+`BEFORE_MANIFEST` の受け渡しは inspect 前に一度だけ行い、取得 bytes を operation 所有の一時領域に保持して、manifest 確定後に各章へ保存する。saved callback は元の段階と保存対象章を受け取る。一時領域は成功・例外・cancel で後始末する。章がなければ `no_target` を記録する。
+
+workflow の保持画像は画像単位の hook と callback を再実行せず、その画像に対応する安全な追加結果を保持する。再取得画像は新しい試行 ID で再実行する。inspection、dry-run、更新確認はこの追加 hook を呼ばない。`AFTER_DOWNLOAD` は画像 failure を結果として返す通常完了でも呼ぶが、例外／cancel では呼ばず、processor／site cleanup より前に終了する。cleanup 自体の失敗によって全体が失敗する可能性は残る。
+
+追加ファイルの取得・保存・既存ファイル読み込み・callback の失敗は `DownloadResult.additional_files` に分離し、画像の成功、失敗、終了コード、workflow 再試行判定を変更しない。必須データが得られなかったときは plugin が既存の request／transform hook で明示的に失敗させる。raw bytes、response、秘密の plugin state は公開結果へコピーしない。API と保存規則は [追加ファイル hook](../reference/plugin-hooks.md) を参照する。
+
 通常の fetch/process/save failure は `continue_on_image_error=true` なら `ImageOutcome.failure` に残る。authentication、configuration、plugin、storage safety、inter-process lock、fail-fast failure は partial `DownloadResult` を返さず operation を例外で終了する。`check_updates()` も complete `UpdateResult` または exception のいずれかである。

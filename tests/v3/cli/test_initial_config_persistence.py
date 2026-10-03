@@ -140,7 +140,7 @@ def test_download_keeps_success_and_json_when_initial_config_write_fails(
 
     class Service:
         async def run(self, *_: object, **__: object) -> object:
-            return SimpleNamespace(saved_files=("saved.jpg",), skipped_files=(), failures=())
+            return SimpleNamespace(saved_files=("saved.jpg",), skipped_files=(), failures=(), additional_files=())
 
         async def close(self) -> None:
             return None
@@ -168,14 +168,12 @@ def test_download_keeps_success_and_json_when_initial_config_write_fails(
     args = build_parser().parse_args(["download", "https://example.test/item", "--json"])
     assert asyncio.run(cli.run(args)) == EXIT_SUCCESS
     output = capsys.readouterr()
-    assert json.loads(output.out) == {"saved": ["saved.jpg"], "skipped": [], "failures": []}
+    assert json.loads(output.out) == {"saved": ["saved.jpg"], "skipped": [], "failures": [], "additional_files": []}
     assert "warning: could not create initial user configuration: permission denied" in output.err
     assert not user_config.exists()
 
 
-def test_download_exception_keeps_initial_user_configuration(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_download_exception_keeps_initial_user_configuration(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     user_config = tmp_path / "user" / "conf" / "app.yaml"
     config = _config(tmp_path)
 
@@ -207,9 +205,7 @@ def test_download_exception_keeps_initial_user_configuration(
     assert yaml.safe_load(user_config.read_text(encoding="utf-8")) == _snapshot()
 
 
-def test_cookie_export_creates_initial_user_configuration(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_cookie_export_creates_initial_user_configuration(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     user_config = tmp_path / "user" / "conf" / "app.yaml"
     data_root = (tmp_path / "data").resolve()
     plugin_root = (tmp_path / "plugins").resolve()

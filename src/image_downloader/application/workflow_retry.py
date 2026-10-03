@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import replace
+from uuid import uuid4
 
 from ..exceptions import ErrorInfo
 from ..models import (
+    AdditionalFileHookContext,
+    AdditionalFileOutcome,
     ChapterResult,
     DownloadManifest,
     DownloadResult,
@@ -42,8 +45,14 @@ class ImageLedger:
         self.outcomes: dict[tuple[int, int], ImageOutcome] = {}
         self.retained: set[tuple[int, int]] = set()
         self.attempted: set[tuple[int, int]] = set()
+        self.operation_id = uuid4().hex
+        self.attempt_number = 0
+        self.additional_files: list[AdditionalFileOutcome] = []
+        self._additional_identities: dict[int, tuple[str, str]] = {}
+        self._current_additional_identities: dict[tuple[int, int], tuple[str, str]] = {}
 
     def start_attempt(self) -> None:
+        self.attempt_number += 1
         self.retained = set(self.outcomes)
         self.attempted = set()
 
@@ -77,6 +86,39 @@ class ImageLedger:
                 if outcome.kind is not ImageOutcomeKind.FAILED or not self._retryable_outcome(outcome):
                     self.outcomes[pos] = replace(outcome, image=image)
                     self.retained.add(pos)
+        identities = self._identities(manifest)
+        self._current_additional_identities = {
+            (id(manifest.chapters[cp]), id(manifest.chapters[cp].images[ip])): identity
+            for (cp, ip), identity in identities.items()
+        }
+        retained = {identities[pos]: pos for pos in self.retained}
+        kept = []
+        associations = {}
+        for item in self.additional_files:
+            item_identity = self._additional_identities.get(id(item))
+            if item.image_index is None or item.attempt_number == self.attempt_number:
+                kept.append(item)
+            elif item_identity is not None and item_identity in retained:
+                cp, ip = retained[item_identity]
+                item = replace(
+                    item,
+                    chapter_number=manifest.chapters[cp].number,
+                    image_index=manifest.chapters[cp].images[ip].index,
+                )
+                kept.append(item)
+            else:
+                continue
+            if item_identity is not None:
+                associations[id(item)] = item_identity
+        self.additional_files, self._additional_identities = kept, associations
+
+    def record_additional(self, outcome: AdditionalFileOutcome, hook: AdditionalFileHookContext) -> None:
+        self.additional_files.append(outcome)
+        if hook.manifest is None or hook.chapter is None or hook.image is None:
+            return
+        identity = self._current_additional_identities.get((id(hook.chapter), id(hook.image)))
+        if identity is not None:
+            self._additional_identities[id(outcome)] = identity
 
     @staticmethod
     def _retryable_outcome(outcome: ImageOutcome) -> bool:
@@ -99,6 +141,7 @@ class ImageLedger:
                 )
                 for cp, chapter in enumerate(self.manifest.chapters)
             ),
+            tuple(self.additional_files),
         )
 
     def images(self) -> tuple[WorkflowImageResult, ...]:

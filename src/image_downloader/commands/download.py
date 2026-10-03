@@ -9,6 +9,7 @@ from contextlib import nullcontext, redirect_stdout
 from pathlib import Path
 from urllib.parse import urlparse
 
+from ..application.additional_files import additional_file_payload
 from ..application.composer import RuntimeComposer
 from ..configuration.paths import resolve_paths
 from ..exceptions import ConfigurationError, error_reason_for_code
@@ -100,6 +101,7 @@ class DownloadCommandHandler:
                         json.dumps(
                             {
                                 "saved": download_result.saved_files,
+                                "additional_files": additional_file_payload(download_result, output_root),
                                 "skipped": download_result.skipped_files,
                                 "failures": [
                                     {

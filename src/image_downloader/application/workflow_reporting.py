@@ -11,6 +11,7 @@ from typing import cast
 from ..exceptions import AuthenticationError, ConfigurationError, ErrorInfo, PluginError
 from ..models import DownloadResult, WorkflowResult
 from ..privacy.log_safety import safe_exception_name, safe_relative_path, safe_url
+from .additional_files import additional_file_payload
 
 
 def stopped_status(error: BaseException) -> int:
@@ -105,6 +106,7 @@ def history_details(result: WorkflowResult, root: Path) -> dict[str, object]:
                 **counts(i.download),
                 "error": safe_error(i.error, root),
                 "failure_groups": failure_groups(i.download, root),
+                "additional_files": additional_file_payload(i.download, root),
                 "attempts": [
                     {
                         "round_number": a.round_number,
@@ -112,6 +114,7 @@ def history_details(result: WorkflowResult, root: Path) -> dict[str, object]:
                         **counts(a.download),
                         "error": safe_error(a.error, root),
                         "failure_groups": failure_groups(a.download, root),
+                        "additional_files": additional_file_payload(a.download, root),
                     }
                     for a in i.attempts
                 ],

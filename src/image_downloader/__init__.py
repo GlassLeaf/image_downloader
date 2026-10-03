@@ -39,6 +39,12 @@ from .exceptions import (
     WorkflowRetryTimeoutError,
 )
 from .models import (
+    AdditionalFileHookContext,
+    AdditionalFileHookPoint,
+    AdditionalFileOutcome,
+    AdditionalFileReceiveResult,
+    AdditionalFileSaveResult,
+    AdditionalFileSpec,
     Chapter,
     ChapterResult,
     DownloadManifest,
@@ -80,6 +86,9 @@ from .models import (
     WorkflowStateView,
 )
 from .ports import (
+    AdditionalFileProvider,
+    AdditionalFileReceiver,
+    AdditionalFileSaveObserver,
     AuthFlow,
     ConfigurableSitePlugin,
     ImageProcessor,
@@ -96,6 +105,15 @@ from .ports import (
 from .runtime import DownloadService, RuntimeComposer
 
 __all__ = [
+    "AdditionalFileProvider",
+    "AdditionalFileReceiver",
+    "AdditionalFileSaveObserver",
+    "AdditionalFileHookContext",
+    "AdditionalFileHookPoint",
+    "AdditionalFileOutcome",
+    "AdditionalFileReceiveResult",
+    "AdditionalFileSaveResult",
+    "AdditionalFileSpec",
     "WorkflowRetryTimeoutError",
     "WorkflowImageResult",
     "WorkflowAttemptResult",

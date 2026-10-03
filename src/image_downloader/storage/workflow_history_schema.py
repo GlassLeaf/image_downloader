@@ -31,6 +31,28 @@ class FailureGroup(SummaryModel):
     count: Count
 
 
+class AdditionalFileSummary(SummaryModel):
+    file_id: str
+    point: Literal[
+        "before_manifest",
+        "after_manifest",
+        "before_image_request",
+        "after_image_request",
+        "before_image_save",
+        "after_image_save",
+        "after_download",
+    ]
+    operation_id: str
+    invocation_id: str
+    attempt_number: Count
+    chapter_number: int | None
+    image_index: int | None
+    phase: Literal["declaration", "hook", "receive", "save", "read", "received_callback", "saved_callback"]
+    status: Literal["received", "saved", "skipped", "failed", "completed", "no_target"]
+    path: str | None
+    error: ErrorSummary | None
+
+
 class AttemptSummary(SummaryModel):
     round_number: Count
     status: Status
@@ -39,6 +61,7 @@ class AttemptSummary(SummaryModel):
     failures: Count
     error: ErrorSummary | None
     failure_groups: list[FailureGroup]
+    additional_files: list[AdditionalFileSummary] = Field(default_factory=list)
 
 
 class ItemSummary(SummaryModel):
@@ -50,6 +73,7 @@ class ItemSummary(SummaryModel):
     failures: Count
     error: ErrorSummary | None
     failure_groups: list[FailureGroup]
+    additional_files: list[AdditionalFileSummary] = Field(default_factory=list)
     attempts: list[AttemptSummary]
 
 

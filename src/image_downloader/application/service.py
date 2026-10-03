@@ -8,8 +8,9 @@ import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, replace
+from functools import partial
 from pathlib import Path
-from typing import Literal, NoReturn, TypeVar, cast
+from typing import Any, Literal, NoReturn, TypeVar, cast
 from urllib.parse import urlparse
 
 from ..configuration.hosts import normalize_host, site_file_name
@@ -33,6 +34,7 @@ from ..exceptions import (
 from ..media.artifact_pipeline import ArtifactPipeline
 from ..media.processor_chain import OperationProcessorChain
 from ..models import (
+    AdditionalFileHookPoint,
     Chapter,
     ChapterResult,
     DownloadManifest,
@@ -71,10 +73,23 @@ from ..plugins.runtime import PluginRuntime, safe_app_settings
 from ..ports import PluginExecutionContext, SitePlugin, UpdateProvider
 from ..storage import FileSystem, safe_component
 from ..transport.gateway import OperationRequestGateway, RequestGateway
+from .additional_files import AdditionalFiles
 from .dependencies import _RuntimeDependencies
 from .workflow_retry import ImageLedger
 
 _ResultT = TypeVar("_ResultT")
+
+
+async def _additional_image(
+    additional: AdditionalFiles | None,
+    point: AdditionalFileHookPoint,
+    manifest: DownloadManifest,
+    chapter: Chapter,
+    image: ImageResource,
+    **values: Any,
+) -> None:
+    if additional is not None:
+        await additional.run(point, manifest=manifest, chapter=chapter, image=image, **values)
 
 
 def _remember_image(ledger: ImageLedger | None, cp: int, ip: int, outcome: ImageOutcome) -> None:
@@ -459,41 +474,37 @@ class DownloadService:
                         invoker,
                         processors,
                     )
-                    manifest = self._normalized_manifest(await invoker.inspect(plugin, url, context), url)
-                    if ledger is not None:
-                        ledger.begin(manifest, record.id)
-                    if not manifest.chapters:
-                        if not self.config.download.allow_empty_chapter_manifest:
-                            raise PluginError("plugin returned an empty manifest")
-                        await self._empty_reporter(manifest, record, url, plugin_values)
-                        result = DownloadResult(url, manifest, ())
-                    else:
-                        allocator = OutputAllocator(self._output_filesystem(record, url), self.config)
-                        pipeline = ArtifactPipeline(
-                            self.config,
-                            self.registry,
-                            record,
-                            plugin_overrides,
-                            self.image_processor,
-                            self.logger,
-                            invoker,
-                            processors.bindings,
-                            force_image_format=force_image_format,
-                        )
-                        results = await self._run_chapters(
+                    allocator = OutputAllocator(self._output_filesystem(record, url), self.config)
+                    additional = AdditionalFiles(
+                        self, plugin, context, allocator, record.id, url, plugin_values, ledger
+                    )
+                    try:
+                        result = await self._run_with_additional(
+                            additional,
                             plugin,
                             context,
-                            manifest,
-                            allocator,
-                            pipeline,
-                            operation_gateway,
-                            record.id,
-                            policy,
+                            invoker,
                             url,
-                            plugin_values,
                             ledger,
+                            record,
+                            plugin_values,
+                            plugin_overrides,
+                            processors,
+                            force_image_format,
+                            operation_gateway,
+                            policy,
                         )
-                        result = DownloadResult(url, manifest, tuple(results))
+                    finally:
+                        try:
+                            additional.close()
+                        except Exception as cleanup_error:
+                            await best_effort_diagnostic(
+                                self.logger.core,
+                                "additional_file_cleanup_failed",
+                                module="plugin",
+                                error=cleanup_error,
+                                debug=True,
+                            )
             outcome = (
                 EventName.DOWNLOAD_SUCCESS
                 if not result.failures
@@ -501,10 +512,7 @@ class DownloadService:
                 if result.saved_files or result.skipped_files
                 else EventName.DOWNLOAD_FAILED
             )
-            await self.events.emit(
-                outcome,
-                EventPayload(url=url),
-            )
+            await self.events.emit(outcome, EventPayload(url=url))
             await self.events.emit(EventName.DOWNLOAD_COMPLETE, EventPayload(url=url))
             await best_effort_diagnostic(self.logger.core, "download_finished", module="download", url=url, debug=True)
             return result
@@ -514,6 +522,72 @@ class DownloadService:
         except Exception as exc:
             await self._record_operation_failure(url, exc)
             raise
+
+    async def _run_with_additional(
+        self,
+        additional: AdditionalFiles,
+        plugin: SitePlugin,
+        context: PluginExecutionContext,
+        invoker: PluginInvoker,
+        url: str,
+        ledger: ImageLedger | None,
+        record: PluginRecord,
+        plugin_values: Mapping[str, Mapping[str, str]],
+        plugin_overrides: PluginConfigOverrides | None,
+        processors: OperationProcessorChain,
+        force_image_format: ImageFormat | None,
+        operation_gateway: OperationRequestGateway,
+        policy: _OperationDownloadPolicy,
+    ) -> DownloadResult:
+        await additional.initialize()
+        await additional.run(AdditionalFileHookPoint.BEFORE_MANIFEST)
+        manifest = self._normalized_manifest(await invoker.inspect(plugin, url, context), url)
+        if ledger is not None:
+            ledger.begin(manifest, record.id)
+        await additional.flush_pending(manifest)
+        for chapter in manifest.chapters:
+            await additional.run(AdditionalFileHookPoint.AFTER_MANIFEST, manifest=manifest, chapter=chapter)
+        if not manifest.chapters:
+            if not self.config.download.allow_empty_chapter_manifest:
+                raise PluginError("plugin returned an empty manifest")
+            await self._empty_reporter(manifest, record, url, plugin_values)
+            result = DownloadResult(url, manifest, ())
+        else:
+            allocator = additional.allocator
+            pipeline = ArtifactPipeline(
+                self.config,
+                self.registry,
+                record,
+                plugin_overrides,
+                self.image_processor,
+                self.logger,
+                invoker,
+                processors.bindings,
+                force_image_format=force_image_format,
+            )
+            results = await self._run_chapters(
+                plugin,
+                context,
+                manifest,
+                allocator,
+                pipeline,
+                operation_gateway,
+                record.id,
+                policy,
+                url,
+                plugin_values,
+                ledger,
+                additional,
+            )
+            result = DownloadResult(url, manifest, tuple(results))
+        for chapter_result in result.chapters:
+            await additional.run(
+                AdditionalFileHookPoint.AFTER_DOWNLOAD,
+                manifest=manifest,
+                chapter=chapter_result.chapter,
+                chapter_result=chapter_result,
+            )
+        return replace(result, additional_files=tuple(ledger.additional_files if ledger else additional.outcomes))
 
     def _collect_output_format_values(
         self,
@@ -1025,6 +1099,7 @@ class DownloadService:
         operation_url: str,
         plugin_values: Mapping[str, Mapping[str, str]],
         ledger: ImageLedger | None = None,
+        additional: AdditionalFiles | None = None,
     ) -> list[ChapterResult]:
         operation_id = uuid.uuid4().hex
 
@@ -1044,6 +1119,7 @@ class DownloadService:
                 plugin_values,
                 ledger,
                 position,
+                additional,
             )
 
         factories = [
@@ -1079,6 +1155,7 @@ class DownloadService:
         plugin_values: Mapping[str, Mapping[str, str]],
         ledger: ImageLedger | None = None,
         chapter_position: int = 0,
+        additional: AdditionalFiles | None = None,
     ) -> ChapterResult:
         directory_context = OutputFormatContext(
             manifest,
@@ -1110,8 +1187,12 @@ class DownloadService:
             _start_workflow_image(ledger, chapter_position, position)
             response: RequestResponse | None = None
             transport_metadata = None
+
+            extra = partial(_additional_image, additional, manifest=manifest, chapter=chapter, image=image)
+
             try:
                 try:
+                    await extra(AdditionalFileHookPoint.BEFORE_IMAGE_REQUEST)
                     await self.events.emit(EventName.BEFORE_FETCH, EventPayload(url=image.url))
                     await best_effort_diagnostic(
                         self.logger.core,
@@ -1141,6 +1222,7 @@ class DownloadService:
                         debug=True,
                     )
                     await self.events.emit(EventName.FETCH_SUCCESS, EventPayload(url=image.url))
+                    await extra(AdditionalFileHookPoint.AFTER_IMAGE_REQUEST, response=response)
                 except asyncio.CancelledError:
                     raise
                 except Exception as exc:
@@ -1165,6 +1247,7 @@ class DownloadService:
                 except Exception as exc:
                     raise _ImageJobError(FailureKind.PROCESS, exc, response) from exc
                 try:
+                    await extra(AdditionalFileHookPoint.BEFORE_IMAGE_SAVE, response=response, artifact=processed)
                     await self.events.emit(EventName.BEFORE_SAVE, EventPayload(url=image.url))
                     async with self.output_locks.hold(allocator.filesystem.path(directory)):
                         await allocator.refresh_directory(directory)
@@ -1222,6 +1305,12 @@ class DownloadService:
                     )
                 outcome = ImageOutcome(
                     image, ImageOutcomeKind.SAVED if allocation.should_write else ImageOutcomeKind.SKIPPED, str(path)
+                )
+                await extra(
+                    AdditionalFileHookPoint.AFTER_IMAGE_SAVE,
+                    response=response,
+                    artifact=processed,
+                    image_outcome=outcome,
                 )
             except asyncio.CancelledError:
                 raise

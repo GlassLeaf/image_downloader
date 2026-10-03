@@ -7,6 +7,11 @@ from typing import Protocol, TypeGuard, cast, runtime_checkable
 
 from .immutable import freeze_json
 from .models import (
+    AdditionalFileHookContext,
+    AdditionalFileHookPoint,
+    AdditionalFileReceiveResult,
+    AdditionalFileSaveResult,
+    AdditionalFileSpec,
     Chapter,
     DownloadManifest,
     ImageArtifact,
@@ -301,6 +306,31 @@ class ConfigurableSitePlugin(Protocol):
 @runtime_checkable
 class UpdateProvider(Protocol):
     async def check_updates(self, url: str, context: PluginExecutionContext) -> UpdateSnapshot: ...
+
+
+@runtime_checkable
+class AdditionalFileProvider(Protocol):
+    """Optional pair; callbacks are independently optional."""
+
+    def additional_file_hook_points(self, context: PluginExecutionContext) -> tuple[AdditionalFileHookPoint, ...]: ...
+
+    async def additional_files(
+        self, hook: AdditionalFileHookContext, context: PluginExecutionContext
+    ) -> tuple[AdditionalFileSpec, ...]: ...
+
+
+@runtime_checkable
+class AdditionalFileReceiver(Protocol):
+    async def additional_file_received(
+        self, result: AdditionalFileReceiveResult, context: PluginExecutionContext
+    ) -> None: ...
+
+
+@runtime_checkable
+class AdditionalFileSaveObserver(Protocol):
+    async def additional_file_saved(
+        self, result: AdditionalFileSaveResult, context: PluginExecutionContext
+    ) -> None: ...
 
 
 @runtime_checkable

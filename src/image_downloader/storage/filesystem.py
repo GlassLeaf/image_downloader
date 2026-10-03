@@ -90,6 +90,21 @@ class FileSystem:
         self._assert_same(path, before)
         return value
 
+    def read_bytes_bounded(self, relative: str | Path, limit: int) -> bytes:
+        if limit < 0:
+            raise ValueError("byte limit must be non-negative")
+        path = self._prepare_file(relative, create_parent=False)
+        before = self._require_regular_file(path)
+        with path.open("rb") as stream:
+            if not self._same_state(os.fstat(stream.fileno()), before):
+                raise StorageSafetyError("storage file changed before read")
+            value = stream.read(limit + 1)
+        self._assert_safe_ancestors(path.parent)
+        self._assert_same(path, before)
+        if len(value) > limit:
+            raise StorageSafetyError("additional file exceeds the configured size limit")
+        return value
+
     def write_bytes_atomic(self, relative: str | Path, data: bytes) -> Path:
         path = self._prepare_file(relative, create_parent=True)
         existing = self._lstat(path)

@@ -433,9 +433,11 @@ class DownloadResult:
     source_url: str
     manifest: DownloadManifest
     chapters: tuple[ChapterResult, ...]
+    additional_files: tuple[AdditionalFileOutcome, ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "chapters", tuple(self.chapters))
+        object.__setattr__(self, "additional_files", tuple(self.additional_files))
 
     @property
     def saved_files(self) -> tuple[str, ...]:
@@ -658,3 +660,73 @@ class WorkflowPruneResult:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "deleted_run_ids", tuple(self.deleted_run_ids))
+
+
+class AdditionalFileHookPoint(StrEnum):
+    BEFORE_MANIFEST = "before_manifest"
+    AFTER_MANIFEST = "after_manifest"
+    BEFORE_IMAGE_REQUEST = "before_image_request"
+    AFTER_IMAGE_REQUEST = "after_image_request"
+    BEFORE_IMAGE_SAVE = "before_image_save"
+    AFTER_IMAGE_SAVE = "after_image_save"
+    AFTER_DOWNLOAD = "after_download"
+
+
+@dataclass(frozen=True, slots=True)
+class AdditionalFileSpec:
+    file_id: str
+    relative_path: str
+    request: RequestSpec | None = field(default=None, repr=False)
+    data: bytes | None = field(default=None, repr=False)
+
+
+@dataclass(frozen=True, slots=True)
+class AdditionalFileHookContext:
+    point: AdditionalFileHookPoint
+    operation_id: str
+    attempt_number: int
+    operation_url: str = field(repr=False)
+    invocation_id: str = ""
+    manifest: DownloadManifest | None = None
+    chapter: Chapter | None = None
+    image: ImageResource | None = None
+    response: RequestResponse | None = field(default=None, repr=False)
+    artifact: ImageArtifact | None = field(default=None, repr=False)
+    image_outcome: ImageOutcome | None = None
+    chapter_result: ChapterResult | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class AdditionalFileReceiveResult:
+    hook: AdditionalFileHookContext
+    file_id: str
+    status: Literal["received", "failed"]
+    data: bytes | None = field(default=None, repr=False)
+    response: RequestResponse | None = field(default=None, repr=False)
+    error: ErrorInfo | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class AdditionalFileSaveResult:
+    hook: AdditionalFileHookContext
+    file_id: str
+    status: Literal["saved", "skipped", "failed"]
+    path: str | None = None
+    data: bytes | None = field(default=None, repr=False)
+    error: ErrorInfo | None = None
+    read_error: ErrorInfo | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class AdditionalFileOutcome:
+    file_id: str
+    point: AdditionalFileHookPoint
+    operation_id: str
+    invocation_id: str
+    attempt_number: int
+    chapter_number: int | None
+    image_index: int | None
+    phase: Literal["declaration", "hook", "receive", "save", "read", "received_callback", "saved_callback"]
+    status: Literal["received", "saved", "skipped", "failed", "completed", "no_target"]
+    path: str | None = None
+    error: ErrorInfo | None = None

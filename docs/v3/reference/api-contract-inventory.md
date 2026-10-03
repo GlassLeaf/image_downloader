@@ -7,6 +7,15 @@
 ## image_downloader
 
 <!-- api-inventory:start image_downloader -->
+AdditionalFileProvider
+AdditionalFileReceiver
+AdditionalFileSaveObserver
+AdditionalFileHookContext
+AdditionalFileHookPoint
+AdditionalFileOutcome
+AdditionalFileReceiveResult
+AdditionalFileSaveResult
+AdditionalFileSpec
 WorkflowRetryTimeoutError
 WorkflowImageResult
 WorkflowAttemptResult

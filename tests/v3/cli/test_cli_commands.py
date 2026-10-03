@@ -595,7 +595,7 @@ def test_download_json_keeps_stdout_machine_readable(monkeypatch, tmp_path: Path
         async def run(self, *_args: object, **_kwargs: object) -> object:
             assert not self.active_config.logging.console.enabled
             print("plugin output")
-            return SimpleNamespace(saved_files=("saved.jpg",), skipped_files=(), failures=())
+            return SimpleNamespace(saved_files=("saved.jpg",), skipped_files=(), failures=(), additional_files=())
 
         async def check_updates(self, *_args: object, **_kwargs: object) -> object:
             assert not self.active_config.logging.console.enabled
@@ -630,7 +630,7 @@ def test_download_json_keeps_stdout_machine_readable(monkeypatch, tmp_path: Path
     assert json.loads(output.out) == (
         {"updated_urls": ["https://example.test/new"], "removed": 1}
         if list_updates
-        else {"saved": ["saved.jpg"], "skipped": [], "failures": []}
+        else {"saved": ["saved.jpg"], "skipped": [], "failures": [], "additional_files": []}
     )
 
 
@@ -652,7 +652,9 @@ def test_download_json_includes_structured_existing_file_conflict(monkeypatch, t
 
     class Service:
         async def run(self, *_args: object, **_kwargs: object) -> object:
-            return SimpleNamespace(saved_files=("saved.jpg",), skipped_files=(), failures=(failure,))
+            return SimpleNamespace(
+                saved_files=("saved.jpg",), skipped_files=(), failures=(failure,), additional_files=()
+            )
 
         async def close(self) -> None:
             return None
@@ -708,7 +710,7 @@ def test_download_json_makes_custom_output_failure_paths_relative(monkeypatch, t
 
     class Service:
         async def run(self, *_args: object, **_kwargs: object) -> object:
-            return SimpleNamespace(saved_files=(), skipped_files=(), failures=(failure,))
+            return SimpleNamespace(saved_files=(), skipped_files=(), failures=(failure,), additional_files=())
 
         async def close(self) -> None:
             return None

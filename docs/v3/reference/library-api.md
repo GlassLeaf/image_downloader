@@ -259,6 +259,12 @@ promise that every value is non-null.
 <a id="api-logging"></a>
 
 logging contract は [logging reference](logging.md) が正本である。
+## Additional-file results
+
+`DownloadResult.additional_files` は既定値が空 tuple の追加ファイル結果である。`AdditionalFileOutcome` はファイル ID、段階、operation／invocation／試行 ID、章番号・画像 index、処理 phase、status、相対パス、安全な error を保持する。取得・保存・読み込み・callback の結果を別々の項目として記録する。追加ファイルは `saved_files`、`skipped_files`、画像 `failures` に含めず、元の画像処理結果に影響しない。raw bytes と HTTP response は選択 site の callback 専用 DTO にだけ渡す。任意の `AdditionalFileProvider`、`AdditionalFileReceiver`、`AdditionalFileSaveObserver` と DTO は package root から import できる。契約とサンプルは [plugin hooks](plugin-hooks.md) を参照する。
+
+workflow 履歴は URL 別最終結果と各試行に安全な `additional_files` を記録する。旧履歴でこの項目がない場合は空一覧として読む。
+
 ## Offline workflow状態・履歴API
 
 ```python

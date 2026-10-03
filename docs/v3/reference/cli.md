@@ -324,11 +324,13 @@ diagnostic output.
 <a id="cli-json"></a>
 <a id="cli-success-json"></a>
 
+download と workflow の download 結果に `additional_files` を追加する。要素はファイル ID、hook 段階、operation／invocation／試行 ID、章番号・画像 index、phase、status、安全な相対パスと error のみを持ち、raw bytes、HTTP response、request header、plugin 内部状態を含めない。取得・保存・読み込み・callback の結果は別々の項目である。追加ファイルだけの失敗は画像の件数、終了コード、workflow 再試行判断を変更しない。
+
 Every successful `--json` command prints exactly one JSON object to stdout. download chapter logs are suppressed from stdout; diagnostic human errors use stderr. Plugin Python `print()` is redirected to stderr for JSON download. Native code that writes directly to an OS stdout descriptor is outside this control.
 
 | command | success object |
 | --- | --- |
-| download | `{"saved": string[], "skipped": string[], "failures": ImageFailureJson[]}` |
+| download | `{"saved": string[], "skipped": string[], "failures": ImageFailureJson[], "additional_files": AdditionalFileOutcomeJson[]}` |
 | download `--list-updated-urls` | `{"updated_urls": string[], "removed": integer}` |
 | inspect / download `--inspect-only` | `source_url`, `plugin_id`, `inspection_data: "url"|"http"|"all"`, `request_resolution: "resolved"|"manifest_only"`, `manifest`, `image_requests` |
 | config path | `user_config`, `user_config_exists`, `package_baseline`, `default_data_root`, `default_plugin_root` |

@@ -27,6 +27,69 @@ selection は enabled site unit の `matches_with_config()`（ある場合）と
 codeは`update_check_unsupported`、安全な固定reasonは`selected plugin does not support update checks`。
 hook内の通常の失敗や不正な返却値は引き続き`PluginError`として区別する。
 
+## Optional additional files
+
+選択されたsite pluginは任意に `AdditionalFileProvider` を実装できる。
+必須 `SitePlugin` は変更しない。最初の2メソッドは対で実装し、callbackは個別に省略できる。
+
+| method | signature / return |
+| --- | --- |
+| declaration | `additional_file_hook_points(self, context: PluginExecutionContext) -> tuple[AdditionalFileHookPoint, ...]` |
+| provider | `async additional_files(self, hook: AdditionalFileHookContext, context: PluginExecutionContext) -> tuple[AdditionalFileSpec, ...]` |
+| received callback | `async additional_file_received(self, result: AdditionalFileReceiveResult, context: PluginExecutionContext) -> None` |
+| saved callback | `async additional_file_saved(self, result: AdditionalFileSaveResult, context: PluginExecutionContext) -> None` |
+
+宣言は各download試行で一回、同期・副作用なし。結果を固定し、宣言順によらず以下の順で呼ぶ。
+未知・重複段階、非tuple、片方だけの実装はdeclaration failureを記録し、その試行で無効化する。
+
+| point | timing / available context |
+| --- | --- |
+| `BEFORE_MANIFEST` | inspect前に一回。manifest/chapter/imageはNone |
+| `AFTER_MANIFEST` | manifest検証・章保存先決定後、章ごと。manifest/chapterあり |
+| `BEFORE_IMAGE_REQUEST` | create_image_request前、対象画像ごと。imageもあり |
+| `AFTER_IMAGE_REQUEST` | auth/recoveryを含む画像取得の最終成功後、変換前。responseもあり |
+| `BEFORE_IMAGE_SAVE` | 変換後、画像保存先割り当て前。artifactもあり |
+| `AFTER_IMAGE_SAVE` | 保存またはスキップ後。image_outcomeに確定パス・状態あり |
+| `AFTER_DOWNLOAD` | 画像処理通常完了後、章ごと。chapter_resultあり。plugin cleanupより前 |
+
+主処理失敗・キャンセルで未到達の段階は呼ばない。画像失敗を結果として返す通常完了では
+AFTER_DOWNLOADを呼ぶが、後続cleanupで全体が失敗し得る。inspection・plan/dry-run・更新確認だけでは
+宣言も追加処理も実行しない。
+
+仕様は `AdditionalFileSpec(file_id, relative_path, request=...)` または `data=bytes`。
+IDは `[A-Za-z0-9_.-]{1,128}` の非秘密識別子。relative_pathは章別画像フォルダ基準で、例えば
+`metadata/source.json` をその章内に保存する。絶対パス・drive/UNC・親参照・dot/空成分・Windows不正名/ADS・
+symlink/reparse pointを拒否する。既存画像を含む衝突は `output.existing_file` に従う。
+
+返却順に取得→received callback→保存/スキップ→saved callbackをawaitしてから次へ進む。
+通信は既存gatewayの認証origin・concurrency・size制限を使う。bytesと既存ファイル読み込みにも
+`network.max_response_bytes` を適用する。通信・callback中は保存先ロックを保持しない。
+原子的書き込みはファイル単位で、画像と追加ファイルの一括transactionはない。
+
+received callbackは取得成功・失敗で一回。bytesも成功として扱いresponse=None。
+失敗時はdata=Noneで保存せず、saved callbackも呼ばない。成功時は生bytesとAPIのresponseを渡す。
+saved callbackはsaved/skipped/failedで一回。savedは書いた内容、skippedは**既存ファイルの内容**を渡す。
+読み込み失敗・サイズ超過時は保存状態を維持し、data=Noneとread_errorを渡す。
+callbackの例外・不正な戻り値は別の失敗として記録し、保存取り消し・主処理失敗にはしない。
+received callback失敗でも保存を続ける。成功戻り値はNone。CancelledErrorは伝播する。
+
+BEFORE_MANIFESTの取得・received callbackはinspect前に実行する。内容は専用一時領域に保持し、
+manifest確定後、同じ内容を各章へ保存する。saved callbackには元pointと対象manifest/chapterを渡す。
+章0件はsave/no_targetを記録する。一時領域は成功・失敗・キャンセルで後始末する。
+
+生データは選択site専用で、公開結果・event・log・CLI JSON・historyへコピーしない。
+callbackのpathは実保存先、公開pathは相対・秘匿済み。保存内容自体を自動redactionはしないため、
+秘密情報を保存するかはpluginが明示的に判断する。必須データはpluginが保持し、後続画像hookで不足を
+明示的に失敗させる。画像request/transformへの受け渡しには既存 `ImageFetchRequest.plugin_data` を使える。
+
+並行callbackはoperation_id/attempt_number/invocation_idとchapter/imageで区別する。
+保持画像には画像hook/callbackを再実行せず、対応結果を保持する。新試行は必要なデータを再取得する。
+追加ファイルだけのretryはない。外部副作用の冪等性はplugin側で扱う。
+`DownloadResult.additional_files` はreceive/save/read/callbackの安全な結果を別々に記録し、画像の
+saved_files/failures・CLI終了コード・retry判定を変更しない。CLI/workflow履歴にも別項目で投影し、
+旧履歴の欠落項目は空として読む。
+例は [additional-files sample](../../../examples/plugin-v3-additional-files/README.md) を参照する。
+
 ## Manifest numbering
 
 `inspect()` を実装する site plugin は、manifest の採番にも責任を持つ。複数の
