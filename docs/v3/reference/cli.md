@@ -114,6 +114,13 @@ then finishes cleanup and started writes; shutdown may exceed the requested dura
 remains held during the 10-minute default wait. Changed images still use the existing-file policy:
 `rename` can create additional files and `error` can fail on an existing output.
 
+Without `--workflow-retry-timeout`, retry rounds have no overall time limit, although their count is bounded
+and HTTP/lock acquisition has separate timeouts. Plugin hooks and cleanup have no dedicated forced-stop
+deadline; a stalled plugin or OS I/O can leave execution waiting indefinitely. Even with a retry deadline,
+synchronous blocking code cannot be forcibly interrupted and cleanup/started writes may wait past the deadline
+without a guaranteed upper bound. The initial round has no overall deadline in either case. See
+[timeout boundaries](runtime-behavior.md#workflow-timeout-boundaries) for slow streaming, locks and cancellation limits.
+
 ```sh
 image-downloader workflow https://example.test/feed --workflow-retries 2 --workflow-retry-delay 30 --workflow-retry-timeout 300 --json
 image-downloader workflow https://example.test/feed --workflow-retries 0

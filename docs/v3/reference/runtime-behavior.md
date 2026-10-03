@@ -183,6 +183,21 @@ It raises WorkflowRetryTimeoutError, distinct from user cancellation. CLI return
 files, otherwise 1; successful recovery or removal of all failed targets returns 0. Original fatal error codes
 and user-cancellation code 130 remain unchanged.
 
+<a id="workflow-timeout-boundaries"></a>
+
+### workflowの期限と無期限待機の制限
+
+`--workflow-retry-timeout`未指定（APIでは`workflow_retry_timeout=None`）なら、追加周回全体の時間上限を設けず、完了またはエラーまで待つ。追加周回数は`--workflow-retries`で制限されるが、各周回の所要時間を保証するものではない。初回周回には、このオプションを指定した場合も全体期限を設けない。
+
+通常の通信・ロック競合には別の制限がある。
+
+- HTTPの接続・読み取り・書込み・接続プール待ちには個別タイムアウトがある。組込み既定は各30秒、要求単位の試行は最大3回。読み取り期限は次のデータを受信するまでの待機に適用され、要求全体の時間上限ではない。少量ずつ受信し続けるサーバーでは、応答サイズ上限があっても非常に長時間かかり得る。
+- coreの同一feed・状態・履歴・Cookieのプロセス間ロック取得は既定30秒で失敗する。出力ロックも`output.lock_timeout_seconds`（既定30秒）で制限する。他アプリにロックされた成果物を保存できるまで無限に再試行する処理はなく、通常はOSのファイル操作失敗をエラーとして扱う。
+
+ただし、pluginの更新確認・認証・加工hookやcleanupには専用の強制打切り期限がない。終了しないplugin処理・待機は、workflow期限未指定なら無期限に待ち得る。ファイルのopen・write・flush・fsync・replaceなどOSのI/O自体が停止する場合も、ロック取得の競合タイムアウトとは別であり、終了時間の上限を保証しない。
+
+workflow期限を指定しても、キャンセルは協調的である。イベントループを塞ぐ同期処理や、キャンセルに応答しない処理を直ちに強制終了する保証はない。cleanupと開始済みの保存・状態確定は終了まで待ち、その処理自体が停止すれば期限到達後も待機し続ける可能性がある。現在、別プロセスからのwatchdogによる強制終了は実装していない。期限指定は追加周回の通常の待機・通信等を制限する手段であり、プロセスの終了時刻を厳密に保証するものではない。
+
 ## Observability and notification
 
 
