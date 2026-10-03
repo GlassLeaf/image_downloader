@@ -7,6 +7,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from ..application.workflow_reporting import history_outcome
+from ..application.workflow_selection import FIRST_RUN_NOTE, selection_explanation
 
 
 def counts_text(counts: Mapping[str, object]) -> str:
@@ -34,6 +35,8 @@ def print_state(payload: Mapping[str, Any]) -> None:
         _print_run(payload["run"], detailed=True)
     else:
         _print_prune(payload["prune"])
+    if payload["action"] in {"list", "show", "history", "run"}:
+        print(FIRST_RUN_NOTE)
 
 
 def _print_feed(view: Mapping[str, Any], *, detailed: bool) -> None:
@@ -58,6 +61,8 @@ def _print_feed(view: Mapping[str, Any], *, detailed: bool) -> None:
         if detailed:
             print("  past execution result:")
             _print_run(run, detailed=True)
+        else:
+            _print_selection(run["details"], detailed=False)
 
 
 def _print_error(error: Mapping[str, Any] | None, *, prefix: str) -> None:
@@ -76,6 +81,7 @@ def _print_run(run: Mapping[str, Any], *, detailed: bool) -> None:
         f"{history_outcome(details)} (exit {run['exit_code']}, ended {run['ended_at']})"
     )
     print(f"  source: {run['source_url']}")
+    _print_selection(details, detailed=detailed)
     print(f"  URL results: {counts_text(details['summary'])}")
     if detailed:
         print(f"  started: {run['started_at']}; scope: {details['download_scope']}")
@@ -89,6 +95,15 @@ def _print_run(run: Mapping[str, Any], *, detailed: bool) -> None:
         for round_result in details["rounds"]:
             _print_round(round_result)
     _print_error(details["stop_error"], prefix="  stop ")
+
+
+def _print_selection(details: Mapping[str, Any], *, detailed: bool) -> None:
+    lines = selection_explanation(details)
+    if detailed:
+        for line in lines:
+            print("  " + line)
+    else:
+        print("  " + " | ".join(lines))
 
 
 def _print_item(item: Mapping[str, Any]) -> None:

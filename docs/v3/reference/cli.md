@@ -134,6 +134,29 @@ JSON additionally includes retry settings, `rounds`, per-item `attempts`, and `t
 (cancellation takes precedence over timeout, then stop, then incomplete URL results).
 Normal output labels counts as `URL results` separately from the overall outcome. A stop before
 the snapshot is established says `update check result: not established`; zero failed URLs does not imply success.
+
+Normal workflow output also explains round 0's target selection before the URL counters.
+`Initial selection: candidates=N selected_urls=M` counts plugin candidates and distinct selected URLs
+separately (multiple candidates can share one URL). `Selection` explains all scope, added/changed candidates,
+or previously unfinished candidates. Candidate removals are reported separately. Later retry rounds do not
+replace this initial selection explanation; their details remain in the round output.
+
+With `updated`, completed candidates whose comparison fields are unchanged can produce:
+
+```text
+workflow (updated): success
+Initial selection: candidates=1 selected_urls=0
+Selection: current candidates are unchanged and previously completed; no downloads selected
+First-run status is not recorded; added candidates do not necessarily indicate a first run.
+URL results: success=0 partial=0 failed=0 unprocessed=0 removed=0
+```
+
+This is one normally completed workflow execution with zero download targets, and it creates one saved run
+when history recording succeeds. URL counters count target results, not workflow executions. Empty snapshots
+instead say `plugin returned no candidates`; stops before selection say it was not established. Missing
+round-0 information says selection details were not recorded. First-run status is not recorded and is not
+inferred from added candidates. “Unchanged” concerns the plugin snapshot comparison, not image-byte verification.
+
 Rounds expose snapshots/differences/selected/removed URLs and stop information; the top-level snapshot and changes
 refer to the latest successfully prepared round. Attempts expose merged download results and image positions,
 safe locators/paths, status, `attempted`, and `retained`. Round 0 is the initial round.
@@ -374,6 +397,8 @@ image-downloader state workflow prune [--dry-run]
 listはfeedの概要、showは現在候補と最新実行の詳細を別欄で表示する。現在状態が未作成なら`current state: not available`と表示し、存在する空一覧の`candidates=0`と区別する。historyは実行ごとの概要、runはURL別結果・試行・周回・停止原因を整形して表示する。通常表示では辞書やJSONをそのまま出力しない。古い履歴の`plugin_error`から原因を推測せず、保存されたコードと安全な理由を表示する。
 
 `state workflow list`に表示する実行結果は各feedの最新1件のみであり、過去の履歴を削除したことを意味しない。通常表示にもこの制限と履歴確認コマンドを案内する。過去の保存履歴は`py -m image_downloader state workflow history`で全feed分、`py -m image_downloader state workflow history URL`で特定URL分を確認する。既定は新しい順に20件で、`--limit N`で表示件数を変更できる。
+
+通常表示のlist/historyにも初回周回の候補数・選択URL数と取得／対象0件の理由を簡潔に表示し、show/runでは別行で詳しく表示する。説明は通常workflowと共通で、現在状態から過去の理由を推測せず、保存済みの初回周回・scope・差分・確定できる選択理由のみを使う。初回実行かどうかは記録されていない。再試行で選択理由が混ざった場合、復元できない初回理由は断定しない。既存履歴の書換えやJSON項目の追加は行わない。
 
 JSONは`operation="state"`、`resource="workflow"`、`action`を持つ一文書。list/showは`workflows`、historyは`runs`、runは`run`、pruneは`prune`を返す。pruneは削除予定RUN_ID、期限切れ件数、UTF-8ファイルサイズの整理前後、上限超過の有無を返す。URL・エラー・パスは既存の伏字処理を適用する。
 

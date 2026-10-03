@@ -361,6 +361,14 @@ selected site plugin instance は一回の `run()` または `check_updates()` �
 `DownloadService.inspect(resolve_image_requests=True)` と CLI `inspect` は、manifest の chapter/images 配列順に一画像ずつ `create_image_request()` を呼び、`auth_required=True` の request には `AuthFlow.apply()` も適用して送信直前 `EffectiveRequestPreview` を組み立てる。core は request を画像 transport に送らず、redirect、response 判定、refresh、recovery、transform、save を実行しない。source request は得られても auth／組立てが失敗した画像は `partially_resolved` となり、後続画像の inspection は続く。`create_image_request()` や `apply()` が `context.requests.execute()` を使えば token 発行などのサーバー側副作用は起こり得る。plugin は画像 URL を raw client で直接 fetch して inspection を迂回してはならない。CLI の公開範囲は `--inspection-data` で選び、library result 自体は完全な raw diagnostic data を保持する。[dynamic URL how-to](dynamic-urls-and-auth.md) を参照する。
 ## workflowの結果や未完了状態をあとから確認したい
 
+### 変更がない2回目の実行で`success=0`になるのはなぜか？
+
+`URL results`は取得対象URLの結果集計であり、workflowの実行回数ではない。`updated`で前回完了済みの候補に変更がなければ対象0件となり、`workflow (updated): success`でもURL別の全件数は0になる。その正常終了した実行自体は、履歴保存に成功すれば履歴1件として保存される。
+
+通常workflowとstateのlist/show/history/runには、初回周回の候補数・選択URL数と理由を表示する。「候補はあるが変更なし・前回完了済み」と「プラグインが候補を返さなかった」を区別し、削除は別に説明する。追加・変更・未完了・全件指定も表示する。ここでの変更なしはプラグイン返却一覧の比較であり、画像内容を確認した保証ではない。
+
+初回実行かどうかは記録されていないため、追加候補だけを根拠に初回とは表示しない。更新確認・対象選択前の停止は未確定、初回周回情報がない履歴は未記録と表示する。再試行で混ざった理由から初回の理由を推測しない。詳しくは[CLIのworkflow出力](../reference/cli.md)を参照。
+
 listはfeedの概要、showは候補と最新結果の詳細、historyは実行の概要、runはURL別試行・周回・停止原因を表示する。`current state: not available`は現在状態が未作成であることを示し、保存済みの空一覧とは異なる。JSONでは`state_available`で判別する。通常workflowの`outcome`は正常終了・未完了・全体停止・期限終了・キャンセルを区別し、URL別失敗0件だけでは正常終了と判断しない。過去の汎用`plugin_error`の原因は推測して変更しない。
 
 `state workflow show URL`で現在の候補・完了状態と最新の保存結果、`state workflow history URL`で複数回の履歴、`state workflow run RUN_ID`でURL別結果と周回集計を確認できる。オフラインで表示し、実行中かどうかやローカル成果物の正しさは推測しない。「未完了」は失敗・未処理・実行中を区別する記録ではない。

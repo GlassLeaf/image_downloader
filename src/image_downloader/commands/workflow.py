@@ -16,6 +16,7 @@ from urllib.parse import urlparse
 from ..application.composer import RuntimeComposer
 from ..application.workflow_recording import revise_result
 from ..application.workflow_reporting import stopped_status, workflow_outcome, workflow_status
+from ..application.workflow_selection import FIRST_RUN_NOTE, workflow_selection
 from ..configuration.models import AppConfig
 from ..configuration.paths import resolve_paths
 from ..exceptions import ConfigurationError, error_info_for, error_reason_for_code
@@ -395,6 +396,9 @@ def _print_workflow(result: WorkflowResult, payload: dict[str, object]) -> None:
     print(f"workflow ({result.download_scope}): {workflow_outcome(result)}", file=sys.stderr)
     if result.snapshot is None:
         print("update check result: not established", file=sys.stderr)
+    for line in workflow_selection(result):
+        print(line, file=sys.stderr)
+    print(FIRST_RUN_NOTE, file=sys.stderr)
     summary = cast(dict[str, int], payload["summary"])
     print("URL results: " + " ".join(f"{name}={count}" for name, count in summary.items()), file=sys.stderr)
     if result.stop_error is not None:
