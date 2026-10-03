@@ -43,6 +43,13 @@ class PluginError(ImageDownloaderError):
     reason = "plugin operation failed"
 
 
+class UpdateCheckUnsupportedError(PluginError):
+    """The selected plugin cannot provide a complete update snapshot."""
+
+    code = "update_check_unsupported"
+    reason = "selected plugin does not support update checks"
+
+
 class UnsupportedSiteFeature(PluginError):
     """A site requires a capability outside the v3 plugin contract."""
 
@@ -234,6 +241,7 @@ ERROR_CATALOG: Final[tuple[ErrorCatalogEntry, ...]] = (
     ErrorCatalogEntry(ConfigurationError),
     ErrorCatalogEntry(ArgumentError),
     ErrorCatalogEntry(PluginError),
+    ErrorCatalogEntry(UpdateCheckUnsupportedError),
     ErrorCatalogEntry(UnsupportedSiteFeature),
     ErrorCatalogEntry(AuthenticationError),
     ErrorCatalogEntry(SecretNotFound),

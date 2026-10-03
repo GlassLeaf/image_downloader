@@ -27,6 +27,7 @@ from ..exceptions import (
     RequestError,
     StorageError,
     StorageSafetyError,
+    UpdateCheckUnsupportedError,
     error_info_for,
 )
 from ..media.artifact_pipeline import ArtifactPipeline
@@ -668,7 +669,7 @@ class DownloadService:
         self, plugin: SitePlugin, url: str, context: PluginExecutionContext, invoker: PluginInvoker
     ) -> UpdateSnapshot:
         if not isinstance(plugin, UpdateProvider):
-            raise PluginError("update check is not supported by this plugin")
+            raise UpdateCheckUnsupportedError()
         return await invoker.check_updates(plugin, url, context)
 
     async def plan_workflow(

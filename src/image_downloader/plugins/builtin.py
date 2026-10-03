@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+from datetime import UTC, datetime
+from hashlib import sha256
 from html.parser import HTMLParser
 from urllib.parse import urljoin, urlparse
 
@@ -12,6 +15,8 @@ from ..models import (
     ImageResource,
     RequestResponse,
     RequestSpec,
+    UpdateCandidate,
+    UpdateSnapshot,
 )
 from ..ports import PluginExecutionContext, TransformContext
 
@@ -63,10 +68,24 @@ class GenericHtmlPlugin:
         return urlparse(url).scheme in {"http", "https"}
 
     async def inspect(self, url: str, context: PluginExecutionContext) -> DownloadManifest:
+        return await self._load_manifest(url, context)
+
+    async def _load_manifest(self, url: str, context: PluginExecutionContext) -> DownloadManifest:
         response = await context.requests.execute(RequestSpec(url))
         parser = _ImageParser(url)
         parser.feed(response.body.decode("utf-8", errors="replace"))
         return DownloadManifest(parser.title, (Chapter(1, parser.title, images=tuple(parser.images)),))
+
+    async def check_updates(self, url: str, context: PluginExecutionContext) -> UpdateSnapshot:
+        manifest = await self._load_manifest(url, context)
+        images = [
+            {"url": image.url, "index": image.index, "image_id": image.image_id}
+            for chapter in manifest.chapters
+            for image in chapter.images
+        ]
+        canonical = json.dumps(images, sort_keys=True, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
+        revision = "generic-html-image-list-v1:" + sha256(canonical.encode("utf-8")).hexdigest()
+        return UpdateSnapshot(url, (UpdateCandidate(url, revision=revision),), datetime.now(UTC))
 
     async def create_image_request(self, image: ImageResource, context: PluginExecutionContext) -> RequestSpec:
         return RequestSpec(image.url, headers=image.headers, referer=image.referer)

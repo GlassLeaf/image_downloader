@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Mapping
 from dataclasses import asdict
 from pathlib import Path
 from typing import cast
@@ -31,6 +32,36 @@ def workflow_status(result: WorkflowResult) -> int:
         for i in result.items
     )
     return 5 if saved else 1
+
+
+def outcome(*, cancelled: bool, timed_out: bool, stopped: bool, incomplete: bool) -> str:
+    """Describe the whole execution independently of URL-level counters."""
+    if cancelled:
+        return "cancelled"
+    if timed_out:
+        return "timed_out"
+    if stopped:
+        return "stopped"
+    return "incomplete" if incomplete else "success"
+
+
+def workflow_outcome(result: WorkflowResult) -> str:
+    return outcome(
+        cancelled=result.cancelled,
+        timed_out=result.timed_out,
+        stopped=result.stop_error is not None,
+        incomplete=any(i.status not in {"success", "removed"} for i in result.items),
+    )
+
+
+def history_outcome(details: Mapping[str, object]) -> str:
+    summary = cast(Mapping[str, int], details["summary"])
+    return outcome(
+        cancelled=bool(details["cancelled"]),
+        timed_out=bool(details["timed_out"]),
+        stopped=details["stop_error"] is not None,
+        incomplete=any(summary[s] for s in ("partial", "failed", "unprocessed")),
+    )
 
 
 def safe_error(error: ErrorInfo | None, root: Path) -> dict[str, object] | None:

@@ -93,6 +93,7 @@ UpdateProvider
 UpdateResult
 UpdateSnapshot
 UpdateStateError
+UpdateCheckUnsupportedError
 <!-- api-inventory:end -->
 ## image_downloader.config
 

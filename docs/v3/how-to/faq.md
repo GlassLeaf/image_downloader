@@ -361,8 +361,20 @@ selected site plugin instance は一回の `run()` または `check_updates()` �
 `DownloadService.inspect(resolve_image_requests=True)` と CLI `inspect` は、manifest の chapter/images 配列順に一画像ずつ `create_image_request()` を呼び、`auth_required=True` の request には `AuthFlow.apply()` も適用して送信直前 `EffectiveRequestPreview` を組み立てる。core は request を画像 transport に送らず、redirect、response 判定、refresh、recovery、transform、save を実行しない。source request は得られても auth／組立てが失敗した画像は `partially_resolved` となり、後続画像の inspection は続く。`create_image_request()` や `apply()` が `context.requests.execute()` を使えば token 発行などのサーバー側副作用は起こり得る。plugin は画像 URL を raw client で直接 fetch して inspection を迂回してはならない。CLI の公開範囲は `--inspection-data` で選び、library result 自体は完全な raw diagnostic data を保持する。[dynamic URL how-to](dynamic-urls-and-auth.md) を参照する。
 ## workflowの結果や未完了状態をあとから確認したい
 
+listはfeedの概要、showは候補と最新結果の詳細、historyは実行の概要、runはURL別試行・周回・停止原因を表示する。`current state: not available`は現在状態が未作成であることを示し、保存済みの空一覧とは異なる。JSONでは`state_available`で判別する。通常workflowの`outcome`は正常終了・未完了・全体停止・期限終了・キャンセルを区別し、URL別失敗0件だけでは正常終了と判断しない。過去の汎用`plugin_error`の原因は推測して変更しない。
+
 `state workflow show URL`で現在の候補・完了状態と最新の保存結果、`state workflow history URL`で複数回の履歴、`state workflow run RUN_ID`でURL別結果と周回集計を確認できる。オフラインで表示し、実行中かどうかやローカル成果物の正しさは推測しない。「未完了」は失敗・未処理・実行中を区別する記録ではない。
 
+`state workflow list`の実行結果は各feedの最新1件のみ。過去の履歴が削除されたわけではなく、同じURLを複数回実行してもlistの表示は最新のRUN_IDに切り替わる。過去の保存履歴は`py -m image_downloader state workflow history URL`で確認する（URL省略で全feed、既定20件、`--limit N`で件数変更）。listの通常出力にもこの案内を表示する。
+
 通常workflowは履歴を自動記録するが、dry-run、API開始前の設定エラー、導入前の実行は記録しない。強制終了時には記録が残らないことがある。履歴保存に失敗しても元のworkflow結果・終了コードは維持し、JSON/APIの`history_saved`と警告で確認できる。
+
+## generic HTMLでworkflowを使うと何を更新確認するか？
+
+`core.generic-html`は指定ページ自身を1件の候補として返し、リンク先を巡回しない。初回・未完了・`all`ではページを取得し、完了済みの`updated`では画像一覧が変わったときだけ取得する。revisionはURL・index・image_idの返却順の一覧（重複を含む）を固定JSONにしてSHA-256を計算する。本文・タイトル・保存設定の変更は対象外。画像追加・削除・順序・ID・署名クエリを含むURLの変更は対象になる。
+
+これは画像データのハッシュではないため、URLが同じまま画像内容だけが変わる場合は検出できない。更新確認と選択後のmanifest取得でHTMLを別々に取得するため、両者の間にページが変わることもある。追加周回の成功画像保持・再取得条件は従来どおり。画像0件でもgenericは1章を返すため、通常取得とworkflowはいずれも成功する。空manifest許可設定が制御するのは章0件である。
+
+`--dry-run`はHTMLによる一覧確認だけを行い、対象manifest・画像を取得せず履歴も保存しない。別のプラグインが更新確認に非対応なら、安全な固定エラー`update_check_unsupported`（終了コード4）で停止する。古い履歴の`plugin_error`は書き換えない。詳しくは[CLI](../reference/cli.md)と[API](../reference/library-api.md)を参照。
 
 既定の保持はprofile全体で90日・100MiB。表示では期限切れを隠すだけなので、workflowを実行しない期間には`state workflow prune --dry-run`で確認し、`state workflow prune`で物理整理する。大きすぎる新規結果は完全保存し、通常保存時には期間内の既存履歴を容量理由で削除しない。明示的pruneも期間内の最後の1件を残すため、容量上限は絶対上限ではない。上限超過が残る場合は設定変更または履歴の退避が必要。

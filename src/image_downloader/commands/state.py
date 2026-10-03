@@ -7,7 +7,6 @@ import asyncio
 import json
 import sys
 from dataclasses import asdict
-from typing import Any
 
 from ..application.workflow_recording import SIZE_WARNING
 from ..application.workflow_state import WorkflowStateService
@@ -15,6 +14,7 @@ from ..exceptions import ConfigurationError
 from ..models import WorkflowStateView
 from ..storage.workflow_history import run_payload
 from .setup import _config_for
+from .state_formatting import print_state
 from .validation import _reject_command_options
 
 
@@ -23,6 +23,7 @@ def state_payload(view: WorkflowStateView) -> dict[str, object]:
         "plugin_id": view.plugin_id,
         "feed_key": view.feed_key,
         "source_url": view.source_url,
+        "state_available": view.checked_at is not None,
         "checked_at": view.checked_at.isoformat() if view.checked_at else None,
         "items": [{**asdict(i.candidate), "completed": i.completed} for i in view.items],
         "summary": {
@@ -123,7 +124,7 @@ class StateCommandHandler:
         if args.json_output:
             print(json.dumps(payload, ensure_ascii=False))
         else:
-            _print_state(payload)
+            print_state(payload)
         return status
 
 
@@ -133,44 +134,3 @@ def _reject_explicit_state_options(args: argparse.Namespace) -> None:
     for option in sorted(getattr(args, "_explicit_options", ())):
         if option not in allowed:
             raise ConfigurationError(f"{option} is not valid for the state command")
-
-
-def _print_state(payload: dict[str, Any]) -> None:
-    """Keep current completion flags separate from historical outcomes."""
-    if payload.get("not_found"):
-        print("workflow state or run not found", file=sys.stderr)
-    if "workflows" in payload:
-        for view in payload["workflows"]:
-            print(f"feed [{view['plugin_id'] or 'unresolved'}]: {view['feed_key']}")
-            if view["source_url"]:
-                print(f"  source: {view['source_url']}")
-            print(f"  current state ({view['checked_at']}): {view['summary']}")
-            for item in view["items"]:
-                print(
-                    f"  {'completed' if item['completed'] else 'unfinished'}: {item['url']} "
-                    f"content_id={item['content_id']!r} revision={item['revision']!r}"
-                )
-            run = view["latest_run"]
-            print(
-                f"  latest saved run: {run['run_id']} (exit {run['exit_code']})" if run else "  latest saved run: none"
-            )
-            if run:
-                details = run["details"]
-                print(f"  past result ({run['ended_at']}, {details['download_scope']}): {details['summary']}")
-                for item in details["items"]:
-                    print(
-                        f"    {item['status']}: {item['url']} "
-                        f"saved={item['saved']} skipped={item['skipped']} failures={item['failures']}"
-                    )
-                print(
-                    f"  past stop: timed_out={details['timed_out']} cancelled={details['cancelled']} "
-                    f"error={details['stop_error']}"
-                )
-    elif "runs" in payload:
-        for run in payload["runs"]:
-            print(
-                f"{run['run_id']} {run['ended_at']} [{run['plugin_id'] or 'unresolved'}] "
-                f"exit={run['exit_code']} {run['source_url']} {run['details']['summary']}"
-            )
-    else:
-        print(json.dumps(payload.get("run", payload.get("prune")), ensure_ascii=False, indent=2))

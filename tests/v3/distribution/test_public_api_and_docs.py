@@ -54,7 +54,7 @@ EXPECTED_EXPORTS = {
         RuntimeComposer SecretNotFound SecretProvider SitePlugin StorageError StorageSafetyError
         TransformContext TransportCookie TransportHeader TransportRequestMetadata
         UnsupportedImageFormatError UnsupportedSiteFeature UpdateCandidate UpdateChange UpdateChangeKind
-        UpdateProvider UpdateResult UpdateSnapshot UpdateStateError
+        UpdateProvider UpdateResult UpdateSnapshot UpdateStateError UpdateCheckUnsupportedError
         """.split()
     ),
     "image_downloader.config": tuple(

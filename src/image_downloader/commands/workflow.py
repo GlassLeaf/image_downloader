@@ -15,7 +15,7 @@ from urllib.parse import urlparse
 
 from ..application.composer import RuntimeComposer
 from ..application.workflow_recording import revise_result
-from ..application.workflow_reporting import stopped_status, workflow_status
+from ..application.workflow_reporting import stopped_status, workflow_outcome, workflow_status
 from ..configuration.models import AppConfig
 from ..configuration.paths import resolve_paths
 from ..exceptions import ConfigurationError, error_info_for, error_reason_for_code
@@ -130,6 +130,7 @@ def workflow_payload(result: WorkflowResult, root: Path) -> dict[str, object]:
     ]
     return {
         "operation": "workflow",
+        "outcome": workflow_outcome(result),
         "run_id": result.run_id,
         "history_saved": result.history_saved,
         "history_warning": result.history_warning,
@@ -274,13 +275,7 @@ class WorkflowCommandHandler:
         if args.json_output:
             print(json.dumps(payload, ensure_ascii=False))
         else:
-            for item in result.items:
-                print(f"{item.status}: {safe_url(item.url)}")
-            print(f"workflow ({result.download_scope}): {payload['summary']}", file=sys.stderr)
-            if result.stop_error is not None:
-                print(f"error [{result.stop_error.code}]: {result.stop_error.reason}", file=sys.stderr)
-            if result.cancelled:
-                print("workflow cancelled", file=sys.stderr)
+            _print_workflow(result, payload)
         return status
 
 
@@ -392,3 +387,17 @@ async def _revise_after_close(
         return await revise_result(config, result, status, root), status
     except asyncio.CancelledError as exc:
         return getattr(exc, "workflow_result", replace(result, cancelled=True)), 130
+
+
+def _print_workflow(result: WorkflowResult, payload: dict[str, object]) -> None:
+    for item in result.items:
+        print(f"{item.status}: {safe_url(item.url)}")
+    print(f"workflow ({result.download_scope}): {workflow_outcome(result)}", file=sys.stderr)
+    if result.snapshot is None:
+        print("update check result: not established", file=sys.stderr)
+    summary = cast(dict[str, int], payload["summary"])
+    print("URL results: " + " ".join(f"{name}={count}" for name, count in summary.items()), file=sys.stderr)
+    if result.stop_error is not None:
+        print(f"error [{result.stop_error.code}]: {result.stop_error.reason}", file=sys.stderr)
+    if result.cancelled:
+        print("workflow cancelled", file=sys.stderr)

@@ -61,6 +61,19 @@ image-downloader --dry-run workflow https://example.test/feed --download-scope a
 ```
 
 `workflow URL` checks the selected update provider, then downloads selected URLs sequentially.
+
+`core.generic-html` also supports workflow: the only candidate is the requested page itself, not linked
+pages. Its revision compares the ordered extracted image URL/index/image_id list (duplicates included),
+ignoring title/body/save settings. URL query or ordering changes count as updates; changed image bytes
+at unchanged URLs cannot be detected. HTML is fetched once for the check and again for each selected
+page manifest; retry image retention uses the existing rules. A page with zero images is still a candidate
+and succeeds, matching normal download's one empty chapter. The empty-manifest setting controls zero
+chapters. An update-incompatible plugin reports `update_check_unsupported`, with exit code 4.
+
+```text
+image-downloader workflow https://example.test/gallery --fallback-generic enabled
+image-downloader workflow https://example.test/gallery --fallback-generic enabled --dry-run --json
+```
 `--download-scope updated` is the default: select added/changed candidates and unfinished candidates still present.
 `--download-scope all` selects the entire current snapshot. The first workflow run selects all candidates.
 Removed candidates are never downloaded; a removed candidate that reappears is added again.
@@ -117,6 +130,10 @@ Each item contains safe `url`, `reasons`, `status`, `download` and `error`;
 download reuses `saved`, `skipped`, `failures`. Reasons are `all`, `added`, `changed`, `unfinished`.
 Statuses are `success`, `partial`, `failed`, `unprocessed`, `removed`; summary counts these statuses.
 JSON additionally includes retry settings, `rounds`, per-item `attempts`, and `timed_out`.
+`outcome` distinguishes `success`, `incomplete`, `stopped`, `timed_out`, and `cancelled`
+(cancellation takes precedence over timeout, then stop, then incomplete URL results).
+Normal output labels counts as `URL results` separately from the overall outcome. A stop before
+the snapshot is established says `update check result: not established`; zero failed URLs does not imply success.
 Rounds expose snapshots/differences/selected/removed URLs and stop information; the top-level snapshot and changes
 refer to the latest successfully prepared round. Attempts expose merged download results and image positions,
 safe locators/paths, status, `attempted`, and `retained`. Round 0 is the initial round.
@@ -354,6 +371,12 @@ image-downloader state workflow prune [--dry-run]
 
 現在状態は候補のURL、content ID、revision、完了フラグ、チェック日時と集計を持つ。未完了を失敗・未処理・実行中と推測しない。過去結果は別欄で表示し、過去の成功は現在の完了を保証しない。feedはplugin IDとSHA-256キーで識別する。履歴があれば伏字済み更新元URLを表示するが、既存の完了状態だけからURLを復元・推測しない。
 
+listはfeedの概要、showは現在候補と最新実行の詳細を別欄で表示する。現在状態が未作成なら`current state: not available`と表示し、存在する空一覧の`candidates=0`と区別する。historyは実行ごとの概要、runはURL別結果・試行・周回・停止原因を整形して表示する。通常表示では辞書やJSONをそのまま出力しない。古い履歴の`plugin_error`から原因を推測せず、保存されたコードと安全な理由を表示する。
+
+`state workflow list`に表示する実行結果は各feedの最新1件のみであり、過去の履歴を削除したことを意味しない。通常表示にもこの制限と履歴確認コマンドを案内する。過去の保存履歴は`py -m image_downloader state workflow history`で全feed分、`py -m image_downloader state workflow history URL`で特定URL分を確認する。既定は新しい順に20件で、`--limit N`で表示件数を変更できる。
+
 JSONは`operation="state"`、`resource="workflow"`、`action`を持つ一文書。list/showは`workflows`、historyは`runs`、runは`run`、pruneは`prune`を返す。pruneは削除予定RUN_ID、期限切れ件数、UTF-8ファイルサイズの整理前後、上限超過の有無を返す。URL・エラー・パスは既存の伏字処理を適用する。
+
+list/showの各feedには`state_available`を追加する。falseでも互換性のため`checked_at=null`、空の`items`、0件の`summary`は維持する。この0件は「保存済みの空一覧」を意味しない。
 
 表示・整理の成功は0（過去の失敗を表示しても0）、明示したURL/RUN_IDが存在しない場合は1、設定不正は2、保存情報の破損・ロック・I/O失敗は1、キャンセルは130。空の一覧・履歴一覧は正常終了する。通常workflowのJSONには`run_id`、`history_saved`、`history_warning`を追加する。履歴保存失敗は警告し、元のworkflow終了コードを変更しない。

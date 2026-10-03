@@ -23,6 +23,10 @@ selection は enabled site unit の `matches_with_config()`（ある場合）と
 | optional output format values | `output_format_values(self, context: PluginFormatContext) -> Mapping[str, str]` | selected site plugin と enabled processor に任意で実装できる同期 hook。operation 構成後に一度だけ呼ばれ、同一 operation 内では時点によらず同じ、大文字スネークケース key の非秘密 string mapping を返す。未実装は空 mapping。 |
 | optional cleanup after runtime use | `cleanup_after_use() -> Awaitable[None] | None` | selected site instance と configured processor instance に任意で実装する。runtime がその instance の利用を終えると一回だけ呼び、awaitable は await する。最終戻り値は `None`。 |
 
+更新確認hookがない場合は`UpdateCheckUnsupportedError(PluginError)`を返す。
+codeは`update_check_unsupported`、安全な固定reasonは`selected plugin does not support update checks`。
+hook内の通常の失敗や不正な返却値は引き続き`PluginError`として区別する。
+
 ## Manifest numbering
 
 `inspect()` を実装する site plugin は、manifest の採番にも責任を持つ。複数の

@@ -34,6 +34,7 @@ from .exceptions import (
     StorageSafetyError,
     UnsupportedImageFormatError,
     UnsupportedSiteFeature,
+    UpdateCheckUnsupportedError,
     UpdateStateError,
     WorkflowRetryTimeoutError,
 )
@@ -181,4 +182,5 @@ __all__ = [
     "UpdateResult",
     "UpdateSnapshot",
     "UpdateStateError",
+    "UpdateCheckUnsupportedError",
 ]
