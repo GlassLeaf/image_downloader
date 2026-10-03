@@ -53,6 +53,7 @@ image_downloader = ["app.yaml", "config-template.yaml"]
 pythonpath = ["src"]
 testpaths = ["tests/v3"]
 norecursedirs = ["tests/legacy"]
+markers = ["mailpit: opt-in integration tests requiring local Mailpit SMTP and HTTP API"]
 
 [tool.coverage.run]
 branch = true
