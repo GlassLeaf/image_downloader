@@ -48,6 +48,51 @@ def test_image_processor_preserves_matching_data_and_converts_when_requested() -
             assert image.format == "JPEG"
 
 
+@pytest.mark.parametrize("target", ["JPEG", "PNG", "WEBP", "TIFF"])
+@pytest.mark.parametrize("preserve_exif", [False, True])
+def test_reencoding_preserves_requested_exif_or_applies_orientation_before_removal(target, preserve_exif) -> None:
+    source = io.BytesIO()
+    exif = Image.Exif()
+    exif[274] = 6  # Rotate 90 degrees clockwise for display.
+    exif[315] = "sample photographer"
+    original = Image.new("RGB", (8, 6), "red")
+    original.paste("blue", (0, 0, 4, 6))
+    original.save(source, format="JPEG", quality=100, exif=exif)
+
+    with ImageProcessor() as processor:
+        data, _extension = processor.process(
+            source.getvalue(),
+            source_url="https://example.test/photo.jpg",
+            content_type="image/jpeg",
+            options=ImageSaveOptions(format=target, exif=preserve_exif),
+        )
+    with Image.open(io.BytesIO(data)) as decoded:
+        metadata = decoded.getexif()
+        if preserve_exif:
+            assert metadata[274] == 6
+            assert metadata[315] == "sample photographer"
+        else:
+            # TIFF also exposes required structural tags through getexif().
+            assert 274 not in metadata and 315 not in metadata
+            if target != "TIFF":
+                assert not metadata
+            assert decoded.size == (6, 8)
+            # Orientation must change pixels, not only the reported dimensions.
+            top = decoded.convert("RGB").getpixel((3, 1))
+            bottom = decoded.convert("RGB").getpixel((3, 6))
+            assert top[2] > top[0] and bottom[0] > bottom[2]
+
+
+def test_reencoding_rejects_exif_preservation_for_an_unsupported_encoder() -> None:
+    with ImageProcessor() as processor, pytest.raises(ConfigurationError, match="EXIF preservation"):
+        processor.process(
+            _image(),
+            source_url="https://example.test/image.png",
+            content_type="image/png",
+            options=ImageSaveOptions(format="GIF", exif=True),
+        )
+
+
 @pytest.mark.parametrize(
     ("options", "message"),
     [

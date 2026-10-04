@@ -122,7 +122,7 @@ def _process_image(
 ) -> tuple[bytes, str]:
     _validate(options)
     try:
-        from PIL import Image
+        from PIL import Image, ImageOps
 
         with Image.open(io.BytesIO(data)) as image:
             _check_dimensions(image.size, max_pixels)
@@ -139,9 +139,27 @@ def _process_image(
             extension = _extension_for(options, target)
             if not requested and target == detected and extension == _FORMAT_TO_EXTENSION[target]:
                 return data, extension
-            save_image: Image.Image = image.convert("RGB") if target == "JPEG" else image
+            if options.exif and target not in {"JPEG", "PNG", "WEBP", "TIFF"}:
+                raise ConfigurationError(f"EXIF preservation is not supported for {target}")
+            image.load()
+            encoder_options = _pillow_options(options, target)
+            if options.exif:
+                exif = image.getexif()
+                if exif:
+                    encoder_options["exif"] = exif.tobytes()
+                save_image = image.copy()
+            else:
+                # Removing Orientation without rotating pixels changes how the
+                # photo looks. Apply it first, then remove the remaining EXIF.
+                oriented = ImageOps.exif_transpose(image)
+                assert oriented is not None
+                save_image = oriented
+                save_image.info.pop("exif", None)
+                save_image.info.pop("Raw profile type exif", None)
+            if target == "JPEG":
+                save_image = save_image.convert("RGB")
             output = io.BytesIO()
-            save_image.save(output, format=target, **_pillow_options(options, target))
+            save_image.save(output, format=target, **encoder_options)
             return output.getvalue(), extension
     except (ConfigurationError, ImageDecodeError, ImageDimensionLimitError, UnsupportedImageFormatError):
         raise

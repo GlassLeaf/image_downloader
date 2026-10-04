@@ -126,6 +126,11 @@ The operation is serial with run/check_updates/inspect/close. Dedicated state an
 
 DTO は frozen で、JSON-like mapping は read-only mapping、sequence は tuple に freeze される。`<fresh …>` の default は dataclass default factory であり、mutable `{}` を共有する Python default ではない。変更は mutation でなく `dataclasses.replace()` または新しい DTO を使う。core は internal `freeze_json`/`thaw_json` で input と serialization payload を分離するが、それらの internal import は stable API ではない。serialization boundary は独立した mutable collection を生成し、caller collection と共有しない。
 
+`ImageSaveOptions.exif` は core の再エンコード時に適用する。`True` はJPEG・PNG・WEBP・TIFFへ
+入力のEXIF（Orientationを含む）を保持し、それ以外の出力形式では`ConfigurationError`となる。
+`False` はOrientationを画素へ反映してからEXIFを削除する。TIFFの画像構造を表す必須タグは残る。
+`ORIGINAL`および`ImageProcessor.process()`の同形式・無変換のバイト保持経路では、元のEXIFもそのまま保持する。
+
 <a id="api-public-methods"></a>
 <a id="api-configuration"></a>
 

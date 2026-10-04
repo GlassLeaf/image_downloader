@@ -65,10 +65,71 @@ def compose(tmp_path, *, allow_empty=False):
 
 def revision(html):
     async def execute(spec):
-        return SimpleNamespace(body=html.encode())
+        return SimpleNamespace(url=spec.url, body=html.encode())
 
     context = SimpleNamespace(requests=SimpleNamespace(execute=execute))
     return asyncio.run(GenericHtmlPlugin().check_updates(URL, context))
+
+
+@pytest.mark.parametrize(
+    ("html", "expected"),
+    [
+        ('<img src="a.png">', "https://example.test/new/gallery/a.png"),
+        ('<base href="../images/"><img src="a.png">', "https://example.test/new/images/a.png"),
+        ('<base href="//cdn.example.test/assets/"><img src="a.png">', "https://cdn.example.test/assets/a.png"),
+        ('<img src="a.png"><base href="/assets/">', "https://example.test/assets/a.png"),
+        ('<base href="/first/"><base href="/second/"><img src="a.png">', "https://example.test/first/a.png"),
+        ('<base href=""><base href="/second/"><img src="a.png">', "https://example.test/new/gallery/a.png"),
+        ('<base href="file:///images/"><img src="a.png">', "https://example.test/new/gallery/a.png"),
+        ('<base href="https://["><img src="a.png">', "https://example.test/new/gallery/a.png"),
+        ('<base href="/assets/"><img src="https://other.test/a.png">', "https://other.test/a.png"),
+    ],
+)
+def test_generic_resolves_images_against_final_response_and_first_base(html, expected):
+    final_url = "https://example.test/new/gallery/"
+
+    async def execute(spec):
+        assert spec.url == URL
+        return SimpleNamespace(url=final_url, body=html.encode())
+
+    context = SimpleNamespace(requests=SimpleNamespace(execute=execute))
+    manifest = asyncio.run(GenericHtmlPlugin().inspect(URL, context))
+    image = manifest.chapters[0].images[0]
+    assert image.url == expected
+    assert image.referer == final_url
+    request = asyncio.run(GenericHtmlPlugin().create_image_request(image, context))
+    assert request.url == expected and request.referer == final_url
+
+
+def test_generic_download_follows_redirect_and_fetches_base_relative_image(tmp_path, monkeypatch):
+    client_class = httpx.AsyncClient
+    fetched = []
+    data = io.BytesIO()
+    Image.new("RGB", (2, 2), "red").save(data, "PNG")
+
+    def respond(request):
+        fetched.append(str(request.url))
+        if request.url.path == "/":
+            return httpx.Response(302, headers={"location": "/new/gallery/"})
+        if request.url.path == "/new/gallery/":
+            return httpx.Response(200, text='<base href="../images/"><img src="a.png">')
+        assert request.url.path == "/new/images/a.png"
+        assert request.headers["referer"] == "https://example.test/new/gallery/"
+        return httpx.Response(200, content=data.getvalue(), headers={"content-type": "image/png"})
+
+    def client(*args, **kwargs):
+        return client_class(*args, **dict(kwargs, transport=httpx.MockTransport(respond)))
+
+    monkeypatch.setattr(httpx, "AsyncClient", client)
+
+    async def scenario():
+        async with compose(tmp_path) as service:
+            result = await service.run(URL)
+            assert len(result.saved_files) == 1
+            assert not result.failures
+
+    asyncio.run(scenario())
+    assert fetched == [URL, URL + "new/gallery/", URL + "new/images/a.png"]
 
 
 def test_revision_is_stable_and_ignores_title_body_and_img_attributes():
