@@ -15,6 +15,7 @@ import image_downloader.commands.plugin as cli_plugin
 import image_downloader.commands.setup as cli_setup
 from image_downloader.cli import EXIT_CONFIGURATION, EXIT_SUCCESS, build_parser, doctor
 from image_downloader.config import AppConfig, apply_overrides, load_application_config, resolve_application_config
+from image_downloader.diagnostics import diagnostic_for
 from image_downloader.exceptions import ConfigurationError, StorageSafetyError
 from image_downloader.immutable import thaw_json
 from image_downloader.storage import FileSystem
@@ -356,8 +357,14 @@ def test_plugin_config_file_rejects_link_leaf_and_ancestor(tmp_path: Path) -> No
 
     for unsafe in (leaf_link, ancestor_link / source.name):
         args = build_parser().parse_args(["--plugin-config-file", str(unsafe)])
-        with pytest.raises(ConfigurationError, match="symbolic link or reparse point"):
+        with pytest.raises(ConfigurationError, match="requires an absolute existing regular JSON file") as caught:
             cli_setup._runtime_overrides(args)
+        assert isinstance(caught.value.__cause__, ConfigurationError)
+        assert "symbolic link or reparse point" in str(caught.value.__cause__)
+        diagnostic = diagnostic_for(caught.value)
+        assert diagnostic is not None
+        assert diagnostic.details == {"kind": "invalid_value", "option": "--plugin-config-file"}
+        assert str(unsafe) not in diagnostic.message
 
 
 def test_filesystem_rejects_an_existing_hard_link(tmp_path: Path) -> None:

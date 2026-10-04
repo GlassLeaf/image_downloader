@@ -20,6 +20,7 @@ ROOT_MODULES = {
     "__main__.py",
     "cli.py",
     "config.py",
+    "diagnostics.py",
     "exceptions.py",
     "immutable.py",
     "models.py",
