@@ -59,6 +59,8 @@ def _command_path(args: argparse.Namespace) -> str:
             else "cli"
         )
     words: Sequence[str] = getattr(args, "command_args", [])
+    if command == "verify":
+        return "verify " + str(args.verify_resource)
     if command in {"config", "plugin"}:
         return " ".join([command, *words[: 2 if words and words[0] == "profile" else 1]])
     if command == "state":
@@ -107,7 +109,7 @@ def _check_paths(args: argparse.Namespace, command: str) -> None:
     ignored_output = not _option_has_effect("output-dir", args, command)
     for option in ("config", "data_root", "plugin_root", "output_dir"):
         value = getattr(args, option, None)
-        if value is None or (option == "output_dir" and ignored_output):
+        if value is None or (option == "output_dir" and (ignored_output or command == "verify workflow")):
             continue
         name = "--" + option.replace("_", "-")
         try:
@@ -156,7 +158,30 @@ def _check_empty_values(args: argparse.Namespace, command: str) -> None:
         raise argument_error(f"{command} requires a non-empty ID", "invalid_value", command=command, argument="target")
 
 
+def _check_verification_values(args: argparse.Namespace, command: str) -> None:
+    if command == "verify logs":
+        _check_verification_path(Path(args.target), "path")
+    if command == "verify workflow":
+        from uuid import UUID
+
+        try:
+            if str(UUID(args.target)) != args.target:
+                raise ValueError
+        except ValueError as exc:
+            raise argument_error("RUN_ID must be a canonical UUID", "invalid_value", argument="target") from exc
+        if args.output_dir is None:
+            raise argument_error("verify workflow requires --output-dir", "missing_value", option="--output-dir")
+        _check_verification_path(args.output_dir, "--output-dir")
+
+
+def _check_verification_path(path: Path, argument: str) -> None:
+    # Unsafe existing nodes are findings (exit 5), rather than syntax errors (exit 2).
+    if not path.is_absolute() or ".." in path.parts:
+        raise argument_error("verification requires an absolute path without ..", "invalid_value", argument=argument)
+
+
 def _check_values(args: argparse.Namespace, command: str) -> None:
+    _check_verification_values(args, command)
     if hasattr(args, "url") and not is_http_url(args.url):
         raise argument_error("URL must be an absolute HTTP(S) URL with a host", "invalid_value", argument="url")
     _check_empty_values(args, command)

@@ -8,6 +8,8 @@ Canonical command forms are:
 image-downloader download URL [--force-image-format FORMAT] [options]
 image-downloader workflow URL [--download-scope all|updated] [download options]
 image-downloader state workflow [list|show|history|run|prune] [arguments] [options]
+image-downloader verify logs ABSOLUTE_PATH [--json]
+image-downloader verify workflow RUN_ID --output-dir ABSOLUTE_PATH [options]
 image-downloader inspect URL [options]
 image-downloader download URL --inspect-only [options] # inspect の alias
 image-downloader URL [download options]                 # bare-URL compatibility form
@@ -241,6 +243,8 @@ successful stdout representation, never the inputs or the write set.
 | `download URL --list-updated-urls` | same URL | selected site plugin and its `UpdateProvider`, update state | same bootstrap/rewrite behavior; update-state snapshot/lock; no image/output allocation | URL per added/changed candidate on stdout, summary on stderr; JSON has `updated_urls` and `removed` | 0 or operation failure |
 | `inspect URL` / `download URL --inspect-only` | one absolute HTTP(S) URL | resolved config/layers, selected plugin source/catalog, profile cookie snapshot | neither creates/re-writes config nor persists cookie changes, debug logs, update state, output, reports, events, or notifications; it runs site `inspect()` and, unless `--manifest-only`, serially runs every `create_image_request()` and `AuthFlow.apply()` to build a no-send effective request. It never fetches an image body, recovers, transforms, saves, or allocates output. Plugin helper HTTP may still have server-side effects. | exactly one inspection JSON object on stdout (pretty JSON without `--json`); plugin `print()` goes to stderr. `--inspection-data url` is the default safe-minimum projection; `http` / `all` can contain URL query, headers, cookies, bodies, tokens, and `plugin_data`. Never forward either stream to logs, CI artifacts, telemetry, tickets, or third parties. | 0, 5 if one or more resolutions fail, or 2/3/4/1 operation failure |
 | `doctor [--host HOST_OR_URL]` | no positional input; host is a bare host or absolute HTTP(S) URL | resolved config/layers, plugin source/catalog, optional selection candidates | none: it uses registry-only composition and does not create/rewrite config, catalog, cookie, or download files | human report or exactly one JSON object | 0 when healthy; 4 for unhealthy plugin diagnostics; 2/4 for handled error |
+| `verify logs ABSOLUTE_PATH` | folder or log.log/debug.log file | saved logs only | none | recorded errors and indeterminate findings / one JSON document | 0 / 1 / 2 / 5 |
+| `verify workflow RUN_ID --output-dir ABSOLUTE_PATH` | canonical run UUID and output root | config, profile workflow history, saved image files and chapter logs | history read locks/parent directories only | URL acquisition and separate log findings / one JSON document | 0 / 1 / 2 / 5 |
 | `config path` | none | platform paths and package baseline locations | none | paths object or human paths | 0 / 2 |
 | `config explain [--host HOST_OR_URL]` | none | selected configuration layers and runtime options | none | effective/origin report | 0 / 2 |
 | `config init [ABSOLUTE_PATH]` | zero or one absolute main-config path | template and destination safety metadata | creates exactly that missing main YAML; never overwrites | created path object / message | 0 / 2 |
@@ -414,3 +418,54 @@ JSONは`operation="state"`、`resource="workflow"`、`action`を持つ一文書�
 list/showの各feedには`state_available`を追加する。falseでも互換性のため`checked_at=null`、空の`items`、0件の`summary`は維持する。この0件は「保存済みの空一覧」を意味しない。
 
 表示・整理の成功は0（過去の失敗を表示しても0）、明示したURL/RUN_IDが存在しない場合は1、設定不正は2、保存情報の破損・ロック・I/O失敗は1、キャンセルは130。空の一覧・履歴一覧は正常終了する。通常workflowのJSONには`run_id`、`history_saved`、`history_warning`を追加する。履歴保存失敗は警告し、元のworkflow終了コードを変更しない。
+
+
+## 保存済みログとworkflow成果物の検証
+
+```powershell
+image-downloader verify logs "C:\Downloads"
+image-downloader verify logs "C:\Data\logs\debug.log" --json
+image-downloader state workflow history --json
+image-downloader verify workflow RUN_ID --output-dir "C:\Downloads" --json
+```
+
+`verify logs` は絶対パスを必須とし、フォルダー以下の `log.log` を再帰検査する。
+単一ファイル指定は `log.log` または `debug.log`。章ログの `error:` / `error=`、
+debugログの失敗イベント・`error=`・Python ERROR/CRITICALを構文として検出し、
+タイトル・URL・detail中の単語 error、通常の再試行、WARNINGはエラーとしない。
+全追記履歴を対象とし、後の成功で過去のエラーを消さない。件数はログ記録数であり、
+同じ失敗の複数記録は統合しない。章ログは各ヘッダー区間の終了行 `done` も確認する。
+`done` 自体は取得成功を意味しない。`--json` とヘルプ以外のオプションは拒否する。
+
+`verify workflow` は標準UUID形式のRUN_IDと `--output-dir` を必須とする。
+指定した実行の全周回の選択URLの和集合を検証し、最後に選択された周回以降の
+最終試行が成功し、期待画像件数が1以上で、全画像の保存・スキップ記録に対応する
+通常ファイルが存在して非空なら合格とする。全件スキップは `existing_files`、
+新規保存を含む場合は `acquired` と表示する。未試行・部分成功・失敗・期待画像0件・
+欠損・空ファイルは `not_acquired`。途中で候補から削除されたURLも除外しない。
+`--config`、`--profile`、`--data-root`、`--json` はコマンド前後で指定できる。
+更新確認済みで選択0件なら「取得対象なし」と表示する。更新確認が成立していない場合や
+中断・タイムアウトは問題として報告し、残ったファイル記録も検査する。
+
+workflow検証は出力ルート以下の全章ログも検査する。URL別取得確認とログ結果は
+別欄であり、別実行の過去エラーも総合判定に影響する。
+ログ未検出・空・形式不明・未完了区間・不正UTF-8・読取り失敗、危険なパス・リンク・
+Windows reparse point、検査中の変更は `indeterminate`。旧履歴、履歴未保存・削除済み、
+照合記録不足も判定不能となる。旧履歴の状態と保存・スキップ件数は参考情報として表示する。
+
+今後のworkflow履歴は任意の `verification` フィールド（内部version=1）に、
+周回別選択URLキー、URL別最終試行・期待画像件数、保存/スキップ種別と安全な相対パス、
+記録の取得可否を残す。URLキーは伏字前URLのSHA-256で、表示が同じになるURLも区別する。
+ルート外・危険なパスや伏字処理で変わるパスは照合可能な記録として保存しない。
+旧履歴の読取りと既存の保持期限・容量制限は維持し、自動移行しない。
+
+JSONは一文書で `operation="verify"`、`resource="logs|workflow"`、`status`、`logs` を持つ。
+workflow検証は `run_id` と `workflow` も持つ。`logs` はファイル別 `errors` / `indeterminate` と集計、
+`workflow` はURL別結果・保存/スキップ件数・問題一覧と集計を返す。
+総合statusは `passed|failed|indeterminate`。終了コードは0=全検査合格、1=エラー記録または未取得、
+2=引数/設定不正、5=判定不能、130=中断。既知の問題と判定不能が併存する場合は5を優先し、両方を表示する。
+
+検証は通信・プラグイン実行・再取得・成果物変更・設定生成/書換えを行わない。
+workflow履歴の読取りに必要なロックとその親ディレクトリは作成され得る。
+「ログにエラー記録なし」は成果物の完全性を保証しない。画像のデコード・内容の正常性・
+保存後のバイト変更・配信元との一致は検査しない。ログ出力失敗で記録されなかったエラーも検出できない。

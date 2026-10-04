@@ -31,6 +31,10 @@ image-downloader workflow "https://example.test/feed"
 image-downloader workflow "https://example.test/feed" `
   --workflow-retries 2 --workflow-retry-delay 30 --workflow-retry-timeout 300
 
+# 保存済みログとworkflowの選択URLに対応する実ファイルを検査
+image-downloader verify logs "D:\Images"
+image-downloader verify workflow RUN_ID --output-dir "D:\Images" --json
+
 # 設定、plugin catalog、profile data path を診断
 image-downloader doctor --json
 ```

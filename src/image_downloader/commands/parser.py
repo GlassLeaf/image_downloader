@@ -11,7 +11,9 @@ from ..diagnostics import argument_error, safe_option
 from ..exceptions import ArgumentError
 from .options import OPTIONS
 
-_COMMAND_NAMES = frozenset(("download", "workflow", "inspect", "config", "plugin", "doctor", "cookie", "state"))
+_COMMAND_NAMES = frozenset(
+    ("download", "workflow", "inspect", "config", "plugin", "doctor", "cookie", "state", "verify")
+)
 
 
 def _negative_number(value: str) -> bool:
@@ -247,6 +249,8 @@ def _compatibility_command_args(args: argparse.Namespace) -> list[str]:
         elif action == "init" and args.destination is not None:
             result.append(args.destination)
         return result
+    if command == "verify":
+        return [args.verify_resource, args.target]
     if command == "plugin":
         return [action] + ([args.target] if getattr(args, "target", None) is not None else [])
     if command == "state":
@@ -266,7 +270,7 @@ def build_parser() -> argparse.ArgumentParser:
     for option in OPTIONS:
         option.add_to(parser)
     commands = parser.add_subparsers(dest="command", metavar="COMMAND")
-    for name in ("download", "workflow", "inspect", "doctor", "cookie", "config", "plugin", "state"):
+    for name in ("download", "workflow", "inspect", "doctor", "cookie", "config", "plugin", "state", "verify"):
         command = commands.add_parser(name, help=f"{name} operations")
         command.set_defaults(command_handler=name)
         # Help lists canonical options from the single root registry. Parsing
@@ -275,6 +279,13 @@ def build_parser() -> argparse.ArgumentParser:
         command.epilog = "Options may appear before, within, or after the command. See --help at the root."
         if name in {"download", "workflow", "inspect"}:
             command.add_argument("url")
+        elif name == "verify":
+            command.description = "Check recorded errors and file presence; does not validate image contents."
+            actions = command.add_subparsers(dest="verify_resource", required=True)
+            actions.add_parser("logs", help="Check all recorded errors, not artifact integrity").add_argument("target")
+            actions.add_parser("workflow", help="Check selected URLs and file presence using RUN_ID").add_argument(
+                "target"
+            )
         elif name == "cookie":
             actions = command.add_subparsers(dest="cookie_action", required=True, metavar=None)
             for action in ("export", "import", "browser-import"):

@@ -29,12 +29,14 @@ from .parser import _CliArgumentParser, build_parser
 from .plugin import PluginCommandHandler
 from .state import StateCommandHandler
 from .validation import CommandHandler, validate_arguments
+from .verify import VerifyCommandHandler
 from .workflow import WorkflowCommandHandler
 
 _COMMAND_HANDLERS: Mapping[str, CommandHandler] = {
     "download": DownloadCommandHandler(),
     "workflow": WorkflowCommandHandler(),
     "state": StateCommandHandler(),
+    "verify": VerifyCommandHandler(),
     "inspect": InspectCommandHandler(),
     "cookie": CookieCommandHandler(),
     "doctor": DoctorCommandHandler(),

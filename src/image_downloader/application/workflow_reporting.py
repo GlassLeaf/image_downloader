@@ -12,6 +12,7 @@ from ..exceptions import AuthenticationError, ConfigurationError, ErrorInfo, Plu
 from ..models import DownloadResult, WorkflowResult
 from ..privacy.log_safety import safe_exception_name, safe_relative_path, safe_url
 from .additional_files import additional_file_payload
+from .verification_recording import verification_evidence
 
 
 def stopped_status(error: BaseException) -> int:
@@ -87,6 +88,7 @@ def counts(download: DownloadResult | None) -> dict[str, int]:
 
 def history_details(result: WorkflowResult, root: Path) -> dict[str, object]:
     return {
+        "verification": verification_evidence(result, root),
         "download_scope": result.download_scope,
         "workflow_retries": result.workflow_retries,
         "workflow_retry_delay": result.workflow_retry_delay,

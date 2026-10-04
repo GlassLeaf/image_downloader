@@ -1,4 +1,4 @@
-"""Strict schema for persisted summaries; image and manifest fields are forbidden."""
+"""Strict schemas for summaries and minimal file-presence verification evidence."""
 
 from typing import Annotated, Literal
 
@@ -107,7 +107,38 @@ class RoundSummary(SummaryModel):
     error: ErrorSummary | None
 
 
+UrlKey = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
+
+
+class VerificationFile(SummaryModel):
+    path: str
+    kind: Literal["saved", "skipped"]
+
+
+class VerificationRound(SummaryModel):
+    round_number: Count
+    selection_established: bool
+    selected_url_keys: list[UrlKey]
+
+
+class VerificationItem(SummaryModel):
+    url_key: UrlKey
+    url: str
+    round_number: Count | None
+    status: Status
+    expected_images: Count | None
+    available: bool
+    files: list[VerificationFile]
+
+
+class VerificationEvidence(SummaryModel):
+    version: Literal[1]
+    rounds: list[VerificationRound]
+    items: list[VerificationItem]
+
+
 class HistoryDetails(SummaryModel):
+    verification: VerificationEvidence | None = None
     download_scope: Literal["all", "updated"]
     workflow_retries: Count
     workflow_retry_delay: Annotated[float, Field(ge=0)]

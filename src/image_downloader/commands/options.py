@@ -51,17 +51,18 @@ _PLUGIN = _PLUGIN_MUTATIONS | {"plugin list"}
 _STATE = frozenset("state workflow " + action for action in ("list", "show", "run", "history", "prune"))
 _CONFIG = frozenset({"config path", "config explain", "config init", "config profile init"})
 _RUNTIME = _DOWNLOAD | _INSPECT | _PLUGIN | {"doctor", "cookie"}
-_ALL = _RUNTIME | _STATE | _CONFIG
+_VERIFY_WORKFLOW = frozenset({"verify workflow"})
+_ALL = _RUNTIME | _STATE | _CONFIG | _VERIFY_WORKFLOW | {"verify logs"}
 _OVERRIDES = _DOWNLOAD | _INSPECT | {"doctor"}
 _FORMAT = _DOWNLOAD | {"doctor", "config explain"}
 _OUTPUT_NOOP = frozenset({"download --inspect-only", "download --list-updated-urls"})
 _IMAGE_FORMATS = ("ORIGINAL", "JPEG", "PNG", "WEBP")
 
 OPTIONS = (
-    OptionDefinition("config", _RUNTIME | _STATE | {"config explain", "config profile init"}, Path),
-    OptionDefinition("profile", _RUNTIME | _STATE | {"config explain"}),
+    OptionDefinition("config", _RUNTIME | _STATE | _VERIFY_WORKFLOW | {"config explain", "config profile init"}, Path),
+    OptionDefinition("profile", _RUNTIME | _STATE | _VERIFY_WORKFLOW | {"config explain"}),
     OptionDefinition("plugin-root", _RUNTIME | {"config explain", "config init"}, Path),
-    OptionDefinition("data-root", _RUNTIME | _STATE | {"config explain", "config init"}, Path),
+    OptionDefinition("data-root", _RUNTIME | _STATE | _VERIFY_WORKFLOW | {"config explain", "config init"}, Path),
     OptionDefinition(
         "yes",
         _RUNTIME | {"config init", "config profile init"},
@@ -87,7 +88,11 @@ OPTIONS = (
     OptionDefinition("image-format", _FORMAT, choices=_IMAGE_FORMATS),
     OptionDefinition("force-image-format", _DOWNLOAD, choices=_IMAGE_FORMATS),
     OptionDefinition(
-        "output-dir", _DOWNLOAD | {"download --inspect-only"}, Path, metavar="ABSOLUTE_PATH", no_effect=_OUTPUT_NOOP
+        "output-dir",
+        _DOWNLOAD | _VERIFY_WORKFLOW | {"download --inspect-only"},
+        Path,
+        metavar="ABSOLUTE_PATH",
+        no_effect=_OUTPUT_NOOP,
     ),
     OptionDefinition(
         "directory-format", _DOWNLOAD | {"download --inspect-only"}, metavar="FORMAT", no_effect=_OUTPUT_NOOP
