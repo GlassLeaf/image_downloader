@@ -53,16 +53,20 @@ def stable_file(filesystem: FileSystem, relative: Path) -> Iterator[BinaryIO]:
     before = filesystem._require_regular_file(path)
     descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_NOFOLLOW", 0))
     with os.fdopen(descriptor, "rb") as stream:
-        if _snapshot(os.fstat(stream.fileno())) != _snapshot(before):
+        opened = os.fstat(stream.fileno())
+        # Windows can report creation time via lstat and change time via fstat
+        # in st_ctime_ns (CPython issue #157671). Compare the common fields here,
+        # then retain each API's full snapshot for the checks after reading.
+        if _snapshot(opened)[:-1] != _snapshot(before)[:-1]:
             raise VerificationFileChangedError("file changed before verification")
-        filesystem._assert_regular(path, os.fstat(stream.fileno()))
+        filesystem._assert_regular(path, opened)
         yield stream
         filesystem._assert_safe_ancestors(path.parent)
         try:
             after = filesystem._require_regular_file(path)
         except FileNotFoundError as exc:
             raise VerificationFileChangedError("file disappeared during verification") from exc
-        if _snapshot(os.fstat(stream.fileno())) != _snapshot(before) or _snapshot(after) != _snapshot(before):
+        if _snapshot(os.fstat(stream.fileno())) != _snapshot(opened) or _snapshot(after) != _snapshot(before):
             raise VerificationFileChangedError("file changed during verification")
 
 

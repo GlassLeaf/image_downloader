@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -118,6 +119,47 @@ def test_file_modified_during_verification_is_rejected(tmp_path):
             stream.read()
             with path.open("ab") as writer:
                 writer.write(b"changed\n")
+
+
+@pytest.mark.parametrize("change", [None, "descriptor_ctime", "path_ctime"])
+def test_stat_and_fstat_ctime_difference_preserves_change_detection(tmp_path, monkeypatch, change):
+    path = tmp_path / "log.log"
+    path.write_text(HEADER + "done\n", encoding="utf-8")
+    filesystem = FileSystem(tmp_path)
+    original_fstat = os.fstat
+    original_require = filesystem._require_regular_file
+    reading_finished = False
+
+    def snapshot(value, ctime):
+        fields = ("st_dev", "st_ino", "st_size", "st_mtime_ns", "st_mode", "st_nlink", "st_file_attributes")
+        return SimpleNamespace(**{field: getattr(value, field, 0) for field in fields}, st_ctime_ns=ctime)
+
+    def descriptor_stat(descriptor):
+        value = original_fstat(descriptor)
+        # Reproduce Windows APIs disagreeing on ctime for an unchanged file.
+        ctime = path.lstat().st_ctime_ns + 1000
+        if reading_finished and change == "descriptor_ctime":
+            ctime += 1
+        return snapshot(value, ctime)
+
+    def path_stat(candidate):
+        value = original_require(candidate)
+        return snapshot(value, value.st_ctime_ns + int(reading_finished and change == "path_ctime"))
+
+    monkeypatch.setattr(os, "fstat", descriptor_stat)
+    monkeypatch.setattr(filesystem, "_require_regular_file", path_stat)
+
+    def read():
+        nonlocal reading_finished
+        with stable_file(filesystem, Path("log.log")) as stream:
+            assert stream.read() == path.read_bytes()
+            reading_finished = True
+
+    if change is None:
+        read()
+    else:
+        with pytest.raises(StorageSafetyError, match="file changed during verification"):
+            read()
 
 
 def test_symlink_is_not_followed(tmp_path):
