@@ -18,6 +18,7 @@ URL
        -> site transform_image                 [raw ImageTransportMetadata]
        -> core validation/normalisation
        -> configured processor transforms       [allow-list により raw/redacted metadata]
+       -> final image validation                [ORIGINAL でも既定で全フレームを検査]
        -> allocation and save
   -> processor cleanup_after_use
   -> selected site cleanup_after_use

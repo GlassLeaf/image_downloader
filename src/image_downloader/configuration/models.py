@@ -88,7 +88,7 @@ class Output(StrictModel):
 
 
 class Media(StrictModel):
-    input_validation: Literal["content_type", "decode", "both"] = "content_type"
+    input_validation: Literal["content_type", "decode", "both"] = "both"
     content_type_mismatch: Literal["accept", "error"] = "accept"
     # Opt-in only: arbitrary image dimensions remain accepted by default.
     max_image_pixels: StrictInt | None = Field(None, ge=1)

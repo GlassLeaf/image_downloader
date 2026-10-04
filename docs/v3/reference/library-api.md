@@ -131,6 +131,13 @@ DTO は frozen で、JSON-like mapping は read-only mapping、sequence は tupl
 `False` はOrientationを画素へ反映してからEXIFを削除する。TIFFの画像構造を表す必須タグは残る。
 `ORIGINAL`および`ImageProcessor.process()`の同形式・無変換のバイト保持経路では、元のEXIFもそのまま保持する。
 
+`ImageProcessor.inspect()`は構造検査後に全フレームの画素を読み込み、各フレームの画素数上限を
+検査する。読込み不能・切り詰めは`ImageDecodeError`、画素数上限超過は`ImageDimensionLimitError`になる。
+再エンコードは行わない。`ImageProcessor.process()`も変換／バイト保持の前に同じ全フレーム検査を行う。
+`DownloadService`の既定はMIMEと実体の両方を検査する`both`であり、
+ORIGINAL保存も対象になる。設定の許可範囲と既存設定の変更手順は
+[保存前の画像検査](configuration.md#image-input-validation)を参照する。
+
 <a id="api-public-methods"></a>
 <a id="api-configuration"></a>
 

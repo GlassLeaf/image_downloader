@@ -74,6 +74,12 @@ image-downloader plugin uninstall com.example.gallery `
 
 詳細は [v3 ドキュメント](docs/v3/README.md) を参照する。
 
+保存前の画像検査は既定で`media.input_validation: both`です。ORIGINAL保存でも全フレームを
+読み込み、空本文・不正画像・Pillowで検査できない形式を拒否します。既存設定に明示された
+`content_type`は自動変更しません。`image-downloader config explain --json`で有効値を確認し、
+必要に応じて`both`へ変更してください。対応形式と互換設定は
+[保存前の画像検査](docs/v3/reference/configuration.md#image-input-validation)を参照してください。
+
 ## Documentation
 
 - [CLI・ライブラリ・plugin FAQ](docs/v3/how-to/faq.md)

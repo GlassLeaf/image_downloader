@@ -106,11 +106,12 @@ class ImageProcessor:
 
 
 def _initialize_worker() -> None:
-    from PIL import Image
+    from PIL import Image, ImageFile
 
     # The application owns dimension policy inside its isolated worker. The
     # parent process and other Pillow consumers retain their own global value.
     Image.MAX_IMAGE_PIXELS = None
+    ImageFile.LOAD_TRUNCATED_IMAGES = False
 
 
 def _process_image(
@@ -124,9 +125,7 @@ def _process_image(
     try:
         from PIL import Image, ImageOps
 
-        with Image.open(io.BytesIO(data)) as image:
-            _check_dimensions(image.size, max_pixels)
-            image.verify()
+        _inspect_image(data, max_pixels)
         with Image.open(io.BytesIO(data)) as image:
             _check_dimensions(image.size, max_pixels)
             detected = (image.format or "").upper()
@@ -175,8 +174,12 @@ def _inspect_image(data: bytes, max_pixels: int | None) -> str:
             _check_dimensions(image.size, max_pixels)
             image.verify()
         with Image.open(io.BytesIO(data)) as image:
-            _check_dimensions(image.size, max_pixels)
-            return Image.MIME.get(image.format or "", "application/octet-stream").lower()
+            detected = Image.MIME.get(image.format or "", "application/octet-stream").lower()
+            for frame in range(getattr(image, "n_frames", 1)):
+                image.seek(frame)
+                _check_dimensions(image.size, max_pixels)
+                image.load()
+            return detected
     except ImageDimensionLimitError:
         raise
     except Exception as exc:

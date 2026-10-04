@@ -29,7 +29,7 @@
 #   max_component_length: null       # null or integer >= 16
 #   lock_timeout_seconds: 30         # finite number >= 0; 0 means do not wait
 # media:
-#   input_validation: content_type   # content_type, decode, both
+#   input_validation: both           # content_type, decode, both; decode/both load every frame
 #   content_type_mismatch: accept    # accept, error
 #   max_image_pixels: null           # null or integer >= 1
 # logging:

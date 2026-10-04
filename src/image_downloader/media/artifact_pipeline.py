@@ -10,7 +10,7 @@ from pathlib import PurePosixPath
 from urllib.parse import urlparse
 
 from ..configuration.models import AppConfig, ImageFormat
-from ..exceptions import ConfigurationError, ImageContentTypeError, ImageMimeMismatchError
+from ..exceptions import ConfigurationError, ImageContentTypeError, ImageDecodeError, ImageMimeMismatchError
 from ..media.image_processor import ImageProcessor
 from ..media.processor_chain import PreparedProcessor
 from ..models import (
@@ -250,9 +250,12 @@ class ArtifactPipeline:
         return ".bin"
 
     def _validate_input(self, artifact: ImageArtifact) -> None:
+        if not artifact.data:
+            raise ImageDecodeError("image data is empty")
         declared = artifact.content_type.lower().split(";", 1)[0].strip()
+        unspecified = declared in {"", "application/octet-stream"}
         if self.config.media.input_validation in {"content_type", "both"} and (
-            declared.startswith("text/") or declared in {"application/json", "application/xml"}
+            not unspecified and declared not in _CONTENT_TYPE_EXTENSIONS
         ):
             raise ImageContentTypeError("image request returned a non-image content type")
         if self.config.media.input_validation in {"decode", "both"} or (

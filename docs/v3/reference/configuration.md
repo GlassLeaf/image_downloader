@@ -60,7 +60,7 @@ mapping は再帰 merge、scalar/list/`null` は高い layer が置換する。I
 | `output.isolate_by_plugin` | strict boolean; `false` |
 | `output.max_component_length` | `null` or strict integer `>=16`; `null` |
 | `output.lock_timeout_seconds` | finite number `>=0`; `30`; zero は待機しない |
-| `media.input_validation` | `content_type|decode|both`; `content_type` |
+| `media.input_validation` | `content_type|decode|both`; `both` |
 | `media.content_type_mismatch` | `accept|error`; `accept` |
 | `media.max_image_pixels` | `null` or strict integer `>=1`; `null` |
 | `logging.console.enabled` | strict boolean; `true` |
@@ -224,6 +224,34 @@ origins; it does not accept download-only `--directory-format` or `--output-dir`
 chain 後の最終 artifact を core が decode/re-encode せず保存するモードである。
 `media.input_validation` は維持され、processor 完了後の artifact も検証する。extension
 は artifact、Content-Type、locator、`.bin` の順で決める。
+
+<a id="image-input-validation"></a>
+
+### 保存前の画像検査
+
+既定の`media.input_validation: both`は、site transform後とprocessor完了後の画像を検査する。
+空本文は全モードで拒否する。`content_type`／`both`では、許可された画像MIMEと形式未指定
+（Content-Typeなし・`application/octet-stream`）だけを受け付ける。許可する画像MIMEは
+`image/jpeg`、`image/png`、`image/webp`、`image/gif`、`image/bmp`、`image/tiff`、`image/x-icon`、
+`image/vnd.microsoft.icon`、`image/avif`、`image/heic`、`image/heif`、`image/svg+xml`である。
+未知の`image/*`、HTML、JSON等は拒否する。`decode`はこのMIME許可リストを適用しない。
+
+`decode`／`both`はPillowの構造検査に加え、全フレームの画素を読み込む。各フレームに
+`max_image_pixels`を適用し、切り詰めや読込み失敗は`image_decode_error`として保存を中止する。
+ORIGINALでも検査するが、正常な入力bytesを再エンコードしない。複数フレームや大きな画像では
+検査のCPU使用量・処理時間が増える。検査は利用環境のPillowが読める形式に限られ、
+SVG・HEIC等を読めない環境では既定で拒否する。
+
+`content_type_mismatch: accept`が既定で、正常な画像の宣言MIMEと実体の不一致は許容する。
+`error`では宣言が`image/*`の場合にデコードを行って一致を確認する。形式未指定は不一致判定の対象外。
+`content_type`だけを選択し、`accept`を維持した場合は非空本文の実体を検査しない。
+Pillow非対応形式をORIGINALで保存する必要がある利用者は、この弱い検査を明示的に選択できるが、
+本文が正常な画像であることは保証されない。
+
+既存設定は自動移行しない。初回操作で生成された設定snapshotに`content_type`が残る場合、
+アップデートだけでは`both`に変わらない。`image-downloader config explain --json`で有効値を確認し、
+使用しているmain／profile／site設定の`media.input_validation`を`both`へ変更する。
+これは保存前検査であり、保存済みファイルのhash検査や`verify workflow`の検査範囲は変更しない。
 
 <a id="config-plugin-settings"></a>
 

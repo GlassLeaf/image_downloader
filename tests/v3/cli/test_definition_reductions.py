@@ -185,7 +185,7 @@ def test_changed_option_type_is_enforced(change_definitions, capsys):
 @pytest.fixture
 def reduced_config(monkeypatch):
     class NarrowedMedia(Media):
-        input_validation: Literal["content_type", "decode"] = "decode"
+        input_validation: Literal["both", "decode"] = "decode"
         content_type_mismatch: Literal["accept", "reject"] = "accept"
 
     class NarrowedConfig(AppConfig):
@@ -197,7 +197,7 @@ def reduced_config(monkeypatch):
 
 
 @pytest.mark.parametrize("json_mode", [False, True])
-@pytest.mark.parametrize("field,old", [("input_validation", "both"), ("content_type_mismatch", "error")])
+@pytest.mark.parametrize("field,old", [("input_validation", "content_type"), ("content_type_mismatch", "error")])
 def test_removed_or_renamed_configuration_choice_is_specific_and_does_not_rewrite(
     reduced_config, tmp_path, field, old, json_mode, capsys
 ):
@@ -222,9 +222,9 @@ def test_changed_configuration_choices_and_defaults_take_effect(reduced_config):
     assert config.media.input_validation == "decode"
     assert config.media.content_type_mismatch == "reject"
     # Changing a model default alone does not change the higher-priority bundled
-    # baseline: its content_type remains valid and overrides the new decode.
+    # baseline: its both remains valid and overrides the new decode.
     effective = layers.resolve_application_config(None)
-    assert effective.config.media.input_validation == "content_type"
+    assert effective.config.media.input_validation == "both"
 
 
 def test_removed_configuration_field_follows_existing_unknown_key_cleanup(tmp_path, monkeypatch):
