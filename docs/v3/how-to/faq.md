@@ -391,6 +391,36 @@ listはfeedの概要、showは候補と最新結果の詳細、historyは実行�
 
 ## generic HTMLでworkflowを使うと何を更新確認するか？
 
+<a id="generic-html-encoding"></a>
+
+### HTMLの文字コードと修正による影響
+
+コアの`core.generic-html`は、BOM（UTF-8／UTF-16LE／UTF-16BE）、非ASCIIバイトを含む正常なUTF-8、
+HTTPのcharset、先頭1,024バイト内の最初の有効なmeta宣言、UTF-8の順に復号方法を選ぶ。
+metaはcharset属性とhttp-equiv="Content-Type"に対応する。Shift_JIS系はCP932拡張文字も扱う。
+ASCIIだけで構成されるISO-2022-JPは宣言を参照する。未知の宣言は飛ばし、復号エラーは置換する。
+metaのUTF-16はUTF-8、x-user-definedはWindows-1252として扱う。統計的な自動推測は行わない。
+UTF-8の既存結果を保つ優先順位であり、ブラウザの宣言優先方式とは一部異なる。
+
+この処理はコア提供のクラス本体だけに適用する。独自プラグインとGenericHtmlPluginを継承した別クラスは
+従来の復号方法を維持し、HTTP層の本文bytes・headersやプラグイン選択は変更しない。
+download・inspect・workflowも、独自プラグインを選択した場合は新しい復号処理を使わない。
+doctor・config・plugin・cookie・state workflow・verify・helpはHTMLを復号しない。
+webencodingsの必須依存追加は全利用者のインストール環境に関係する。
+
+旧文字コードを正しく読めるようになると、作品名・保存先名、画像URL・IDが変わり得る。
+旧フォルダーやworkflow状態は自動移行しない。新しい保存先に既存ファイルがあればexisting_file設定に従う。
+URL・IDの修正はrevisionを変えるが、タイトルだけの修正はrevisionを変えないため、完了済みupdatedでは再取得しない。
+修正後の結果を確認するには以下を使い、必要に応じて通常downloadかallで再取得する。
+
+```text
+image-downloader inspect URL --manifest-only --json
+image-downloader download URL
+image-downloader workflow URL --download-scope all
+```
+
+### 相対URLと更新対象
+
 画像の相対URLはリダイレクト後の最終レスポンスURLを基準に解決する。最初の`base href`が
 有効なHTTP(S) URLなら、その値（相対指定も可）を基準にする。空のhrefは最終レスポンスURLを使い、
 不正なURLやHTTP(S)以外のbaseは無視して最終レスポンスURLへ戻る。後続のbaseは採用しない。

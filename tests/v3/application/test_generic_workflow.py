@@ -65,7 +65,7 @@ def compose(tmp_path, *, allow_empty=False):
 
 def revision(html):
     async def execute(spec):
-        return SimpleNamespace(url=spec.url, body=html.encode())
+        return SimpleNamespace(url=spec.url, body=html.encode(), headers={})
 
     context = SimpleNamespace(requests=SimpleNamespace(execute=execute))
     return asyncio.run(GenericHtmlPlugin().check_updates(URL, context))
@@ -90,7 +90,7 @@ def test_generic_resolves_images_against_final_response_and_first_base(html, exp
 
     async def execute(spec):
         assert spec.url == URL
-        return SimpleNamespace(url=final_url, body=html.encode())
+        return SimpleNamespace(url=final_url, body=html.encode(), headers={})
 
     context = SimpleNamespace(requests=SimpleNamespace(execute=execute))
     manifest = asyncio.run(GenericHtmlPlugin().inspect(URL, context))

@@ -31,6 +31,18 @@ workflow both succeed. `allow_empty_chapter_manifest` controls zero chapters, no
 Plugins without update support raise public `UpdateCheckUnsupportedError`, a `PluginError` subclass,
 for checking, workflow and planning; its safe code is `update_check_unsupported` (CLI exit 4).
 
+The core `GenericHtmlPlugin` decodes HTML using BOM first, then strictly valid UTF-8 with non-ASCII bytes,
+HTTP charset, the first valid meta declaration in the first 1,024 bytes, and UTF-8 fallback, in that order.
+The non-ASCII requirement lets ASCII-only ISO-2022-JP use its declaration. UTF-8 precedence deliberately
+differs from browser encoding selection. Unknown declarations are skipped; decoding errors are replaced.
+Meta UTF-16 labels use UTF-8, and meta `x-user-defined` uses Windows-1252. There is no statistical detection.
+This policy applies only to the core class itself: independent plugins, including subclasses, retain their
+own decoding behavior. The HTTP byte/header DTO and plugin selection are unchanged. `webencodings` is now
+a required installation dependency for all users, but its decoding lookup is used only by this fallback.
+Corrected titles can change output directories; corrected image URLs or IDs can change update revisions.
+Title-only corrections do not change the revision. Existing files and workflow state are not migrated;
+inspect the manifest first and explicitly download again or use workflow `all` when needed.
+
 `WorkflowResult` contains `source_url`, `download_scope`, `snapshot`, workflow-history `changes`, ordered
 `items`, optional `stop_error`, and `cancelled`; `selected_urls` derives from items.
 `WorkflowItemResult` contains `url`, tuple `reasons`, `status`, optional `download: DownloadResult`,

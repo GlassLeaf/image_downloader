@@ -20,6 +20,7 @@ from ..models import (
     UpdateSnapshot,
 )
 from ..ports import PluginExecutionContext, TransformContext
+from .html_encoding import _decode_html
 
 
 class _ImageParser(HTMLParser):
@@ -92,7 +93,13 @@ class GenericHtmlPlugin:
     async def _load_manifest(self, url: str, context: PluginExecutionContext) -> DownloadManifest:
         response = await context.requests.execute(RequestSpec(url))
         parser = _ImageParser(response.url)
-        parser.feed(response.body.decode("utf-8", errors="replace"))
+        # Independent plugins, including subclasses, retain their own legacy policy.
+        html = (
+            _decode_html(response.body, response.headers)
+            if type(self) is GenericHtmlPlugin
+            else response.body.decode("utf-8", errors="replace")
+        )
+        parser.feed(html)
         parser.close()
         return DownloadManifest(parser.title, (Chapter(1, parser.title, images=tuple(parser.images)),))
 
