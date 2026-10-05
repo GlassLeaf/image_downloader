@@ -2,6 +2,47 @@
 
 <a id="logging-reference"></a>
 
+## Workflow execution files
+
+<a id="workflow-execution-files"></a>
+
+通常workflowのCLI・APIはprofileの`logs/workflow`に各周回の全取得予定を必須保存する。
+UTC開始日時と既存RUN_IDから`20261005T120000123456Z_<RUN_ID>_run1.plan.json`などを作る。
+run1はAPIの周回番号0、run2は1に対応し、過去の予定は更新しない。
+形式バージョン1、開始・確定日時、更新元URL・plugin ID、scope、比較履歴の有無、
+候補数、返却順の重複排除した選択URL全体・理由、追加／変更／削除の差分を記録する。
+理由は`all`・`added`・`changed`・`unfinished`で、追加周回の再試行対象も示す。
+未完了だけでは未取得か失敗かを断定できない。
+
+一時ファイルをflush・fsyncしてから同名ファイルを置き換えない原子的な公開を行う。
+公開には同じファイルシステム内のハードリンクを使用し、未対応の保存先では保存失敗となる。
+保存成功後にその周回のmanifest・画像取得を開始する。対象0件でも空の予定を保存する。
+更新確認・対象選択が未確定なら予定は作らない。予定保存失敗は`workflow_plan_log_error`、終了コード1で停止する。
+更新確認・認証通信、比較状態保存は先に行われるため、予定保存失敗時も最新一覧・未完了状態が残る場合がある。
+以前の予定・成果物は保持する。
+
+同じ日時・RUN_IDの`.jsonl`と`.log`には同じイベント番号で逐次追記する。
+実行開始、周回開始・予定保存、URL開始・終了・中断、再試行待機、対象削除、実行終了を記録する。
+開始しなかったURLは終了記録の未処理と試行回数で、中断したURLは`url_interrupted`で区別する。
+中断原因が未確定なら終了記録でキャンセル／期限終了を示す。
+CLIのservice closeで結果が変われば同じファイルへ`run_corrected`を追記する。
+各形式の作成・追記失敗は固定の安全な警告を出し、その形式への追記を停止する。
+取得・他方の記録・既存履歴保存は続行する。APIと通常JSONの`workflow_log`で各形式の欠落を確認できる。
+falseの保存状況は途中までの記録が存在する場合も含む。無効な形式のパス・保存状況はnullとなる。
+
+**専用ファイルは原文URLを含む。URL内の認証情報・署名付きクエリも残り得るため共有・保管先に注意する。**
+Cookie、認証ヘッダー、任意の例外文字列、画像データは記録しない。改行はJSONエスケープし形式を保つ。
+履歴・コンソール・通常`--json`には従来の伏字を適用する。
+`--output-dir`で記録先は変わらず、`--json`・`--no-console-log`も専用記録を無効化しない。
+`workflow_logging.progress_enabled: false`または`--workflow-progress-log disabled`は逐次ログのみを無効化する。
+予定ファイルは必須のままで、dry-runは予定・逐次ログを一切作らない。一括結果は既存`--json`を使用する。
+
+自動削除・ローテーションはなく、`workflow_history`の保持期間・容量や`state workflow prune`は適用しない。
+ログは増え続けるため手動で整理する。開始済み書込みはキャンセル時も確定まで待つ。
+OS I/O停止によって記録処理も無期限に待つ可能性があり、期限を指定してもプロセスの終了時刻は保証されない。
+強制終了・電源断では最後の記録やJSONL・テキストの一致を保証しない。
+終了記録がないことを実行中の証拠として扱わない。
+
 `image_downloader.observability.logging.__all__` is stable. Logging is diagnostic only; use `DownloadResult`, exceptions, and CLI exit status as the result source of truth.
 
 Exact constructor and callable signatures, including each `DownloadLogger` member,

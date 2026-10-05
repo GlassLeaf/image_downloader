@@ -315,6 +315,10 @@ class Download(StrictModel):
     allow_empty_chapter_manifest: StrictBool = False
 
 
+class WorkflowLogging(StrictModel):
+    progress_enabled: StrictBool = True
+
+
 class WorkflowHistory(StrictModel):
     max_age_days: StrictInt = Field(90, ge=1)
     max_size_bytes: StrictInt = Field(104857600, ge=1)
@@ -335,6 +339,7 @@ class AppConfig(StrictModel):
     plugin_settings: Mapping[str, PluginSettings] = Field(default_factory=dict)
     fallback: Fallback = Field(default_factory=Fallback)
     workflow_history: WorkflowHistory = Field(default_factory=WorkflowHistory)
+    workflow_logging: WorkflowLogging = Field(default_factory=WorkflowLogging)
 
     @field_validator("plugin_settings")
     @classmethod

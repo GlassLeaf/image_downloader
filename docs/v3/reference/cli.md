@@ -2,6 +2,20 @@
 
 <a id="cli-forms"></a>
 
+workflowは各周回の取得前にprofileの`logs/workflow`へ全取得予定を必須保存する。
+workflow専用の`--workflow-progress-log enabled|disabled`はJSONL・テキストの逐次ログを制御する。
+コマンド前後で受理し、明示値が設定に優先する。他コマンド・bare URL形式では拒否する。
+disabledでも予定は必須。dry-runは値を受理するが専用ファイルを作成しない。
+
+```text
+image-downloader workflow URL --workflow-progress-log disabled
+image-downloader --workflow-progress-log enabled workflow URL --json
+```
+
+予定保存失敗は終了コード1で、その周回の取得を開始しない。逐次ログ保存失敗は取得を継続し、
+通常JSONの`workflow_log`に保存状況・警告を返す。
+原文URLの記録と制限は[専用ログ](logging.md#workflow-execution-files)を参照する。
+
 Canonical command forms are:
 
 ```text

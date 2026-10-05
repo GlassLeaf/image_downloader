@@ -588,6 +588,22 @@ class WorkflowPlanResult:
 
 
 @dataclass(frozen=True, slots=True)
+class WorkflowLogResult:
+    plan_files: tuple[str, ...] = ()
+    progress_enabled: bool = True
+    jsonl_path: str | None = None
+    text_path: str | None = None
+    jsonl_saved: bool | None = None
+    text_saved: bool | None = None
+    warnings: tuple[str, ...] = ()
+    event_sequence: int = 0
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "plan_files", tuple(self.plan_files))
+        object.__setattr__(self, "warnings", tuple(self.warnings))
+
+
+@dataclass(frozen=True, slots=True)
 class WorkflowResult:
     source_url: str
     download_scope: Literal["all", "updated"]
@@ -604,6 +620,7 @@ class WorkflowResult:
     run_id: str | None = None
     history_saved: bool | None = None
     history_warning: str | None = None
+    workflow_log: WorkflowLogResult | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "changes", tuple(self.changes))

@@ -9,13 +9,14 @@ import math
 import sys
 from contextlib import nullcontext, redirect_stdout
 from dataclasses import asdict, replace
+from functools import partial
 from pathlib import Path
 from typing import Literal, cast
 from urllib.parse import urlparse
 
 from ..application.additional_files import additional_file_payload
 from ..application.composer import RuntimeComposer
-from ..application.workflow_recording import revise_result
+from ..application.workflow_recording import _settle, revise_result
 from ..application.workflow_reporting import stopped_status, workflow_outcome, workflow_status
 from ..application.workflow_selection import FIRST_RUN_NOTE, workflow_selection
 from ..configuration.models import AppConfig
@@ -30,6 +31,7 @@ from ..models import (
     WorkflowRoundResult,
 )
 from ..privacy.log_safety import safe_exception_name, safe_locator, safe_relative_path, safe_url
+from ..storage.workflow_logging import WorkflowLogWriter
 from .constants import (
     EXIT_SUCCESS,
 )
@@ -119,7 +121,8 @@ def _round_payload(round_result: WorkflowRoundResult, root: Path) -> dict[str, o
     }
 
 
-def workflow_payload(result: WorkflowResult, root: Path) -> dict[str, object]:
+def workflow_payload(result: WorkflowResult, root: Path, *, log_root: Path | None = None) -> dict[str, object]:
+    log_root = root if log_root is None else log_root
     items = [
         {
             "url": safe_url(item.url),
@@ -137,6 +140,18 @@ def workflow_payload(result: WorkflowResult, root: Path) -> dict[str, object]:
         "run_id": result.run_id,
         "history_saved": result.history_saved,
         "history_warning": result.history_warning,
+        "workflow_log": {
+            **asdict(result.workflow_log),
+            "plan_files": [safe_relative_path(path, log_root) for path in result.workflow_log.plan_files],
+            "jsonl_path": safe_relative_path(result.workflow_log.jsonl_path, log_root)
+            if result.workflow_log.jsonl_path
+            else None,
+            "text_path": safe_relative_path(result.workflow_log.text_path, log_root)
+            if result.workflow_log.text_path
+            else None,
+        }
+        if result.workflow_log is not None
+        else None,
         "source_url": safe_url(result.source_url),
         "download_scope": result.download_scope,
         "workflow_retries": result.workflow_retries,
@@ -242,6 +257,9 @@ class WorkflowCommandHandler:
                         workflow_retries=retries,
                         workflow_retry_delay=delay,
                         workflow_retry_timeout=timeout,
+                        workflow_progress_log=None
+                        if args.workflow_progress_log is None
+                        else args.workflow_progress_log == "enabled",
                         plugin_overrides=overrides,
                         fallback_override=_fallback(args),
                         plugin_id=args.plugin_id or args.force_plugin_id,
@@ -274,7 +292,9 @@ class WorkflowCommandHandler:
                             config, result, status, output_root or resolve_paths(config)["downloads"]
                         )
         assert result is not None
-        payload = workflow_payload(result, output_root or resolve_paths(config)["downloads"])
+        payload = workflow_payload(
+            result, output_root or resolve_paths(config)["downloads"], log_root=resolve_paths(config)["profile"]
+        )
         if args.json_output:
             print(json.dumps(payload, ensure_ascii=False))
         else:
@@ -387,9 +407,21 @@ async def _revise_after_close(
     config: AppConfig, result: WorkflowResult, status: int, root: Path
 ) -> tuple[WorkflowResult, int]:
     try:
-        return await revise_result(config, result, status, root), status
+        result = await revise_result(config, result, status, root)
     except asyncio.CancelledError as exc:
-        return getattr(exc, "workflow_result", replace(result, cancelled=True)), 130
+        result, status = getattr(exc, "workflow_result", replace(result, cancelled=True)), 130
+    writer = WorkflowLogWriter.resume(result)
+    if writer is not None:
+        cancellation = await _settle(partial(writer.finish, result, status, workflow_outcome(result), correction=True))
+        if cancellation is not None:
+            result, status = replace(result, cancelled=True, stop_error=None), 130
+            try:
+                result = await revise_result(config, result, status, root)
+            except asyncio.CancelledError as exc:
+                result = getattr(exc, "workflow_result", result)
+            await _settle(partial(writer.finish, result, status, workflow_outcome(result), correction=True))
+        result = replace(result, workflow_log=writer.result)
+    return result, status
 
 
 def _print_workflow(result: WorkflowResult, payload: dict[str, object]) -> None:

@@ -92,15 +92,22 @@ class WorkflowState:
     def prepare(
         self, plugin_id: str, url: str, snapshot: UpdateSnapshot, scope: str
     ) -> tuple[tuple[UpdateChange, ...], dict[str, tuple[str, ...]]]:
+        _, changes, selected = self.prepare_with_history(plugin_id, url, snapshot, scope)
+        return changes, selected
+
+    def prepare_with_history(
+        self, plugin_id: str, url: str, snapshot: UpdateSnapshot, scope: str
+    ) -> tuple[bool, tuple[UpdateChange, ...], dict[str, tuple[str, ...]]]:
         with self.lock(Path("workflow.lock")):
             document = self._read()
             feeds = document["sources"].setdefault(plugin_id, {})
             source_key = UpdateState._source_key(url)
+            history_absent = source_key not in feeds
             previous = feeds.get(source_key, {}).get("records", {})
             current, changes, selected = select_candidates(previous, snapshot, scope)
             feeds[source_key] = {"checked_at": snapshot.checked_at.isoformat(), "records": current}
             self._write(document)
-            return tuple(changes), selected
+            return history_absent, tuple(changes), selected
 
     def preview(
         self, plugin_id: str, url: str, snapshot: UpdateSnapshot, scope: str

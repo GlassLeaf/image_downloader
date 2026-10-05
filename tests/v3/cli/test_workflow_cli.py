@@ -30,6 +30,22 @@ TARGET = "https://example.test/a?token=secret"
 
 
 @pytest.mark.parametrize("before", [False, True])
+@pytest.mark.parametrize("value", ["enabled", "disabled"])
+def test_workflow_progress_log_before_and_after_command(before, value):
+    option = ["--workflow-progress-log", value]
+    args = build_parser().parse_args([*option, "workflow", URL] if before else ["workflow", URL, *option])
+    assert args.workflow_progress_log == value
+
+
+@pytest.mark.parametrize(
+    "arguments", [["download", URL], [URL], ["inspect", URL], ["state", "workflow", "list"], ["doctor"]]
+)
+def test_progress_log_rejected_on_other_commands(arguments, capsys):
+    assert main([*arguments, "--workflow-progress-log", "disabled", "--json"]) == 2
+    assert json.loads(capsys.readouterr().out)["error"]["code"] == "argument_error"
+
+
+@pytest.mark.parametrize("before", [False, True])
 def test_dry_run_supported_before_and_after_command(before):
     args = build_parser().parse_args(["--dry-run", "workflow", URL] if before else ["workflow", URL, "--dry-run"])
     assert args.dry_run and args.command_handler == "workflow"
@@ -260,6 +276,8 @@ def test_workflow_json_is_single_safe_document_and_keeps_partial_results(tmp_pat
         "--directory-format",
         "%CONTENT_TITLE%",
         "--json",
+        "--workflow-progress-log",
+        "disabled",
     ]
     assert main(arguments) == {None: 0, "storage": 1, "configuration": 2, "cancel": 130, "close": 1}[stop]
     output = capsys.readouterr()
@@ -268,6 +286,7 @@ def test_workflow_json_is_single_safe_document_and_keeps_partial_results(tmp_pat
     assert "diagnostic" in output.err
     assert payload["items"][0]["download"]["saved"]
     assert captured["download_scope"] == "updated"
+    assert captured["workflow_progress_log"] is False
     assert captured["config"].output.existing_file == "skip"
     assert captured["config"].output.image_format == "PNG"
     assert captured["config"].output.directory_format == "%CONTENT_TITLE%"

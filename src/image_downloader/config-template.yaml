@@ -93,6 +93,8 @@
 #     enabled: true
 
 # Profile-wide workflow execution summaries (positive integers).
+# workflow_logging:
+#   progress_enabled: true  # JSONL/text only; per-round plan files are always required.
 # workflow_history:
 #   max_age_days: 90
 #   max_size_bytes: 104857600

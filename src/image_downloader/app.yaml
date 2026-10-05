@@ -77,6 +77,8 @@ image_processors:
   chain: []
   transport_metadata_access: {}
 plugin_settings: {}
+workflow_logging:
+  progress_enabled: true
 fallback:
   generic_html:
     enabled: true

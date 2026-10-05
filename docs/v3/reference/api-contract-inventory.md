@@ -22,6 +22,8 @@ WorkflowAttemptResult
 WorkflowRoundResult
 WorkflowItemResult
 WorkflowResult
+WorkflowLogResult
+WorkflowPlanLogError
 WorkflowPlanItem
 WorkflowPlanResult
 WorkflowRunRecord
@@ -130,6 +132,7 @@ ImageProcessors
 GenericHtmlFallback
 Fallback
 WorkflowHistory
+WorkflowLogging
 StrictModel
 validate_config
 deep_merge

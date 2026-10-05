@@ -179,6 +179,11 @@ class StorageError(ImageDownloaderError):
     reason = "storage operation failed"
 
 
+class WorkflowPlanLogError(StorageError):
+    code = "workflow_plan_log_error"
+    reason = "workflow execution plan could not be saved"
+
+
 class OutputAllocationError(StorageError):
     code = "output_allocation_error"
     reason = "could not allocate a unique output filename"
@@ -259,6 +264,7 @@ ERROR_CATALOG: Final[tuple[ErrorCatalogEntry, ...]] = (
     ErrorCatalogEntry(ImageWorkerError),
     ErrorCatalogEntry(ImageProcessorClosedError),
     ErrorCatalogEntry(StorageError),
+    ErrorCatalogEntry(WorkflowPlanLogError),
     ErrorCatalogEntry(OutputAllocationError),
     ErrorCatalogEntry(ExistingFileConflictError, ("relative_path", "policy")),
     ErrorCatalogEntry(UpdateStateError),

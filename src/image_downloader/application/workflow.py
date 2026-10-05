@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Literal
 from uuid import uuid4
 
 from ..configuration.models import ImageFormat
+from ..configuration.paths import resolve_paths
 from ..exceptions import (
     AuthenticationError,
     ConfigurationError,
@@ -37,8 +38,9 @@ from ..plugins.lifecycle import PluginRecord
 from ..plugins.plugin_manifest import PluginConfigOverrides, PluginDownloadPolicyOverrides
 from ..ports import SitePlugin
 from ..storage.workflow import WorkflowState, finish_transaction
-from .workflow_recording import record_result
-from .workflow_reporting import stopped_status, workflow_status
+from ..storage.workflow_logging import WorkflowLogWriter, item_summary
+from .workflow_recording import _settle, record_result, revise_result
+from .workflow_reporting import stopped_status, workflow_outcome, workflow_status
 from .workflow_retry import ImageLedger
 
 if TYPE_CHECKING:
@@ -60,6 +62,7 @@ class _WorkflowExecution:
         retries: int,
         delay: float,
         timeout: float | None,
+        progress_log: bool | None,
     ) -> None:
         self.service, self.url, self.scope = service, url, scope
         self.overrides, self.fallback, self.plugin_id = overrides, fallback, plugin_id
@@ -75,6 +78,12 @@ class _WorkflowExecution:
         self.run_id = str(uuid4())
         self.started_at = datetime.now(UTC)
         self.feed_plugin_id: str | None = None
+        self.log = WorkflowLogWriter(
+            resolve_paths(service.config)["logs"] / "workflow",
+            self.run_id,
+            self.started_at,
+            service.config.workflow_logging.progress_enabled if progress_log is None else progress_log,
+        )
 
     def result(self, error: BaseException | None = None) -> WorkflowResult:
         return WorkflowResult(
@@ -91,6 +100,7 @@ class _WorkflowExecution:
             tuple(self.rounds),
             isinstance(error, WorkflowRetryTimeoutError),
             run_id=self.run_id,
+            workflow_log=self.log.result,
         )
 
     def pending(self) -> bool:
@@ -100,6 +110,19 @@ class _WorkflowExecution:
         )
 
     async def run(self) -> WorkflowResult:
+        await finish_transaction(
+            partial(
+                self.log.start,
+                {
+                    "source_url": self.url,
+                    "download_scope": self.scope,
+                    "started_at": self.started_at.isoformat(),
+                    "workflow_retries": self.retries,
+                    "workflow_retry_delay": self.delay,
+                    "workflow_retry_timeout": self.timeout,
+                },
+            )
+        )
         record, plugin = self.service._select_site_plugin(
             self.url, self.overrides, self.fallback, self.plugin_id, self.force_plugin
         )
@@ -116,6 +139,17 @@ class _WorkflowExecution:
                         for number in range(1, self.retries + 1):
                             if not self.pending():
                                 break
+                            await finish_transaction(
+                                partial(
+                                    self.log.event,
+                                    "retry_wait",
+                                    {
+                                        "round_number": number,
+                                        "run_number": number + 1,
+                                        "delay": self.delay,
+                                    },
+                                )
+                            )
                             await best_effort_diagnostic(
                                 self.service.logger.core,
                                 "workflow_retry_wait",
@@ -167,7 +201,16 @@ class _WorkflowExecution:
 
     def prepare(self, plugin_id: str, snapshot: UpdateSnapshot, number: int) -> dict[str, tuple[str, ...]]:
         # Publish the committed preparation even when its awaiter is cancelled.
-        changes, selected = self.state.prepare(plugin_id, self.url, snapshot, self.scope if number == 0 else "updated")
+        history_absent, changes, selected = self.state.prepare_with_history(
+            plugin_id, self.url, snapshot, self.scope if number == 0 else "updated"
+        )
+        retry_urls = {
+            url
+            for url in selected
+            if url in self.items
+            and self.items[url].status in {"partial", "failed", "unprocessed"}
+            and self.ledgers[url].needs_retry(self.items[url].error)
+        }
         if number:
             selected = {
                 url: reasons
@@ -193,10 +236,46 @@ class _WorkflowExecution:
                 )
         self.snapshot, self.changes = snapshot, changes
         self.rounds.append(WorkflowRoundResult(number, snapshot, changes, tuple(selected), removed))
+        self.log.plan(
+            number,
+            {
+                "source_url": self.url,
+                "plugin_id": plugin_id,
+                "download_scope": self.scope,
+                "workflow_history_absent": history_absent,
+                "candidates": len(snapshot.candidates),
+                "selected_urls": [
+                    {"url": url, "reasons": reasons, "retry": bool(number and url in retry_urls)}
+                    for url, reasons in selected.items()
+                ],
+                "selected_url_count": len(selected),
+                "changes": [
+                    {
+                        "kind": change.kind.value,
+                        "url": change.url,
+                        "content_id": change.content_id,
+                        "revision": change.revision,
+                    }
+                    for change in changes
+                ],
+            },
+        )
+        for url in dict.fromkeys((*removed, *(change.url for change in changes if change.kind.value == "removed"))):
+            self.log.event("target_removed", {"url": url, "round_number": number, "download_again": False})
         return selected
 
     async def round(self, number: int, selected_plugin: tuple[PluginRecord, SitePlugin]) -> None:
         try:
+            await finish_transaction(
+                partial(
+                    self.log.event,
+                    "round_started",
+                    {
+                        "round_number": number,
+                        "run_number": number + 1,
+                    },
+                )
+            )
             if number:
                 fresh = self.service._select_site_plugin(
                     self.url, self.overrides, self.fallback, self.plugin_id, self.force_plugin
@@ -214,9 +293,9 @@ class _WorkflowExecution:
                 )
             update, snapshot = await self.check(selected_plugin)
             selected = await finish_transaction(partial(self.prepare, update.plugin_id, snapshot, number))
-            for url in selected:
+            for url, reasons in selected.items():
                 self.reported = True
-                self.items[url] = await self.download(self.items[url], number)
+                self.items[url] = await self.download(self.items[url], number, reasons)
                 self.reported = False
                 if self.items[url].status == "success":
                     await finish_transaction(partial(self.state.complete, update.plugin_id, self.url, url))
@@ -228,7 +307,7 @@ class _WorkflowExecution:
                 self.rounds.append(WorkflowRoundResult(number, None, status="stopped", error=error))
             raise
 
-    async def download(self, item: WorkflowItemResult, number: int) -> WorkflowItemResult:
+    async def download(self, item: WorkflowItemResult, number: int, reasons: tuple[str, ...]) -> WorkflowItemResult:
         service = self.service
         ledger = self.ledgers[item.url]
         ledger.start_attempt()
@@ -236,6 +315,17 @@ class _WorkflowExecution:
         fatal: BaseException | None = None
         status: Literal["success", "partial", "failed", "unprocessed"] = "success"
         try:
+            await finish_transaction(
+                partial(
+                    self.log.event,
+                    "url_started",
+                    {
+                        "url": item.url,
+                        "round_number": number,
+                        "reasons": reasons,
+                    },
+                )
+            )
             async with OperationDiagnosticsScope(
                 service.logger, lambda: service.notifications.flush(source_url=item.url)
             ) as diagnostics:
@@ -275,6 +365,23 @@ class _WorkflowExecution:
         attempt = WorkflowAttemptResult(number, status, download, error, ledger.images())
         result = replace(item, status=status, download=download, error=error, attempts=(*item.attempts, attempt))
         self.items[item.url] = result
+        # Commit the ledger first, then settle recording even during cancellation.
+        try:
+            await finish_transaction(
+                partial(
+                    self.log.event,
+                    "url_interrupted" if fatal is not None else "url_finished",
+                    {
+                        "round_number": number,
+                        "interrupted": fatal is not None,
+                        **item_summary(result),
+                        "reasons": reasons,
+                    },
+                )
+            )
+        except asyncio.CancelledError:
+            if fatal is None:
+                raise
         if fatal is not None:
             raise fatal
         return result
@@ -293,6 +400,7 @@ async def execute_workflow(
     retries: int = 1,
     delay: float = 600.0,
     timeout: float | None = None,
+    progress_log: bool | None = None,
 ) -> WorkflowResult:
     execution = _WorkflowExecution(
         service,
@@ -307,6 +415,7 @@ async def execute_workflow(
         retries,
         delay,
         timeout,
+        progress_log,
     )
     failure: BaseException | None = None
     try:
@@ -345,6 +454,24 @@ async def execute_workflow(
             ),
         )
         failure = exc
+    # History persistence and dedicated progress recording are independent.
+    cancellation = await _settle(
+        partial(
+            execution.log.finish,
+            result,
+            stopped_status(failure) if failure is not None and not result.timed_out else workflow_status(result),
+            workflow_outcome(result),
+        )
+    )
+    if cancellation is not None:
+        failure = cancellation
+        result = replace(result, cancelled=True, stop_error=None)
+        try:
+            result = await revise_result(service.config, result, 130, service.outputs.root)
+        except asyncio.CancelledError as exc:
+            result = getattr(exc, "workflow_result", result)
+        await _settle(partial(execution.log.finish, result, 130, workflow_outcome(result), correction=True))
+    result = replace(result, workflow_log=execution.log.result)
     if failure is not None:
         failure.__dict__["workflow_result"] = result
         raise failure

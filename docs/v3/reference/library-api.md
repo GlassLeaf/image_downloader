@@ -256,6 +256,7 @@ No public runtime API converts `asyncio.CancelledError` to `DownloadResult`,
 | `ImageWorkerError` | `image_worker_error` | image worker process failed | — |
 | `ImageProcessorClosedError` | `image_processor_closed` | image processor is closed | — |
 | `StorageError` | `storage_error` | storage operation failed | — |
+| `WorkflowPlanLogError` | `workflow_plan_log_error` | workflow execution plan could not be saved | — |
 | `OutputAllocationError` | `output_allocation_error` | could not allocate a unique output filename | — |
 | `ExistingFileConflictError` | `existing_file_conflict` | output file already exists and existing-file=error prevents overwrite | `relative_path`, `policy` |
 | `UpdateStateError` | `update_state_error` | update state is invalid or cannot be read | — |
@@ -307,3 +308,23 @@ preview = state.prune_history(dry_run=True)
 `WorkflowResult`の末尾に省略可能な`run_id`、`history_saved`、`history_warning`を追加した。引数検証とサービスのopen検査を通過して開始したworkflowを記録し、失敗時は例外に付随する`workflow_result`にも保存状況を含める。CLIのservice closeで結果が変われば同じRUN_IDを更新する。APIはworkflow終了時の結果を記録し、呼出し側による後日のclose操作は別の操作である。
 
 履歴はURL別最終結果・選択理由・保存/skip/失敗件数・安全なエラー・回復前の試行結果と周回の対象/削除URL・差分・件数を持つ。全画像の試行結果、manifest、画像データは保存しない。履歴保存失敗は固定の安全な警告を出し、元の例外、成果物、完了状態、終了コードを変更しない。期限終了とユーザーキャンセルは別のフラグで記録する。
+
+## Workflow execution plan and progress files
+
+Normal CLI and API workflow calls write mandatory per-round plans in the profile's
+`logs/workflow`. `workflow_progress_log: bool | None = None` overrides
+`workflow_logging.progress_enabled`; it controls JSONL/text progress only.
+`WorkflowResult.workflow_log` is an optional immutable `WorkflowLogResult` with
+`plan_files`, `progress_enabled`, `jsonl_path`, `text_path`, independent nullable
+`jsonl_saved`/`text_saved` flags, fixed safe `warnings`, and `event_sequence`.
+Paths are absolute in the API; CLI JSON applies existing path masking. A false
+sink flag means recording stopped and the file may contain only a prefix.
+Disabled sinks have null paths/status. Plan errors raise `WorkflowPlanLogError`
+(a `StorageError`, exit 1), with the confirmed partial `workflow_result` attached.
+No target manifest or image is fetched before that round's complete plan is saved.
+Progress failures do not alter the workflow outcome or history persistence.
+The new files deliberately contain original source/target URLs; headers, cookies,
+image data and arbitrary exception strings are excluded. `plan_workflow()` creates
+none of these files. See [logging](logging.md#workflow-execution-files) for durability,
+retention and cancellation limitations. Later API `close()` is a separate operation;
+CLI close failures append a correction to the same run's progress files.

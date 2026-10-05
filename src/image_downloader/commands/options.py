@@ -132,6 +132,7 @@ OPTIONS = (
         help="preview workflow URL selection or history pruning",
     ),
     OptionDefinition("download-scope", frozenset({"workflow"}), choices=("all", "updated")),
+    OptionDefinition("workflow-progress-log", frozenset({"workflow"}), choices=("enabled", "disabled")),
     OptionDefinition("workflow-retries", frozenset({"workflow"}), int, help="extra workflow rounds (default: 1)"),
     OptionDefinition(
         "workflow-retry-delay", frozenset({"workflow"}), float, help="seconds before each retry round (default: 600)"

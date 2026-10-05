@@ -122,6 +122,13 @@ class FileSystem:
         return value
 
     def write_bytes_atomic(self, relative: str | Path, data: bytes) -> Path:
+        return self._write_bytes_atomic(relative, data, overwrite=True)
+
+    def write_bytes_atomic_new(self, relative: str | Path, data: bytes) -> Path:
+        """Publish a fully flushed file atomically, refusing an existing name."""
+        return self._write_bytes_atomic(relative, data, overwrite=False)
+
+    def _write_bytes_atomic(self, relative: str | Path, data: bytes, *, overwrite: bool) -> Path:
         path = self._prepare_file(relative, create_parent=True)
         existing = self._lstat(path)
         if existing is not None:
@@ -142,7 +149,11 @@ class FileSystem:
             if current is not None:
                 self._assert_regular(path, current)
             with _path_errors(path, creating=True):
-                os.replace(temporary, path)
+                if overwrite:
+                    os.replace(temporary, path)
+                else:
+                    os.link(temporary, path)
+                    os.unlink(temporary)
             return path
         except Exception:
             try:

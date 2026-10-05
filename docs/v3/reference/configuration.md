@@ -2,6 +2,19 @@
 
 <a id="config-layers"></a>
 
+workflowの逐次ログを制御する設定は次のとおり。
+
+```yaml
+workflow_logging:
+  progress_enabled: true
+```
+
+`workflow_logging.progress_enabled`は厳密なbool、既定true。CLIの`--workflow-progress-log enabled|disabled`と
+APIの`workflow_progress_log`が上書きする。falseでも周回ごとの実行予定ファイルは必須。
+保存先はprofileの`logs/workflow`で成果物の`--output-dir`に依存しない。
+`workflow_history`の期限・容量制御から独立し、自動削除しない。
+[記録内容・注意点](logging.md#workflow-execution-files)を参照する。
+
 この文書は YAML 設定、layer 解決、path safety、secret reference の正本である。完全なコメント付き雛形は [config-template.yaml](../../../src/image_downloader/config-template.yaml) である。`AppConfig` / `validate_config` への直接入力では unknown field を拒否する。user-managed YAML の layer 解決では obsolete/unknown static key を検証前に除外し、下記の rewrite 設定によってファイルから削除する場合がある。
 
 <a id="config-discovery"></a>

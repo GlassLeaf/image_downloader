@@ -784,6 +784,7 @@ class DownloadService:
         workflow_retries: int = 1,
         workflow_retry_delay: float = 600.0,
         workflow_retry_timeout: float | None = None,
+        workflow_progress_log: bool | None = None,
         plugin_overrides: PluginConfigOverrides | None = None,
         fallback_override: bool | None = None,
         plugin_id: str | None = None,
@@ -795,6 +796,8 @@ class DownloadService:
 
         if download_scope not in ("all", "updated"):
             raise ValueError("download_scope must be all or updated")
+        if workflow_progress_log is not None and type(workflow_progress_log) is not bool:
+            raise ValueError("workflow_progress_log must be bool or None")
         if type(workflow_retries) is not int or workflow_retries < 0:
             raise ValueError("workflow_retries must be a non-negative integer")
         for name, value, positive in (
@@ -824,6 +827,7 @@ class DownloadService:
                 workflow_retries,
                 workflow_retry_delay,
                 workflow_retry_timeout,
+                workflow_progress_log,
             )
 
     def _operation(

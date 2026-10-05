@@ -1,5 +1,10 @@
 # Runtime behavior reference
 
+通常workflowは各周回の更新確認・対象選択・比較状態保存後、取得前に全予定を
+profileの`logs/workflow`へ非上書きで保存する。予定保存に失敗した周回は取得を開始しない。
+状態・履歴のschema、取得条件、画像照合は変わらない。既存RUN_IDで履歴と対応し、履歴の保持・pruneから独立する。
+詳細は[workflow専用記録](logging.md#workflow-execution-files)を参照する。
+
 この文書は public API の型ではなく、transport、persistence、output safety の実行契約を定義する。callable signature は [library API reference](library-api.md) を参照する。
 
 ## HTTP transport

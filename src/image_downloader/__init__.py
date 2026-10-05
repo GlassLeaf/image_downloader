@@ -36,6 +36,7 @@ from .exceptions import (
     UnsupportedSiteFeature,
     UpdateCheckUnsupportedError,
     UpdateStateError,
+    WorkflowPlanLogError,
     WorkflowRetryTimeoutError,
 )
 from .models import (
@@ -76,6 +77,7 @@ from .models import (
     WorkflowAttemptResult,
     WorkflowImageResult,
     WorkflowItemResult,
+    WorkflowLogResult,
     WorkflowPlanItem,
     WorkflowPlanResult,
     WorkflowPruneResult,
@@ -120,6 +122,8 @@ __all__ = [
     "WorkflowRoundResult",
     "WorkflowItemResult",
     "WorkflowResult",
+    "WorkflowLogResult",
+    "WorkflowPlanLogError",
     "WorkflowPlanItem",
     "WorkflowPlanResult",
     "WorkflowRunRecord",

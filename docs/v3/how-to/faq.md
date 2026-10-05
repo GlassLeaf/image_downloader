@@ -2,6 +2,19 @@
 
 <a id="faq"></a>
 
+### workflowが取得を判断したURL全体と理由・結果を確認するには？
+
+profileの`logs/workflow`でUTC開始日時・RUN_IDごとの`_run1.plan.json`と`.jsonl`／`.log`を参照する。
+予定はその周回で選択したURL全体と理由を、逐次ログは取得結果・再試行・中断を記録する。
+初回はrun1（API周回番号0）、追加周回はrun2以降で別の予定を残す。
+`unfinished`は前回未完了であり、未取得とは限らない。専用記録には比較履歴の有無も記録するが、
+既存state履歴表示は初回かどうかを推測しない。
+
+予定保存失敗はその周回の取得を止める。逐次ログの片方が失敗しても取得と他方の記録は続く。
+`--workflow-progress-log disabled`は逐次ログだけを止め、予定は残す。dry-runはどちらも作らない。
+専用記録は原文URLを含み、自動削除されない。`state workflow prune`は専用ログを整理しない。
+書込みのOS I/O停止、強制終了時の欠落などは[専用ログ](../reference/logging.md#workflow-execution-files)を参照する。
+
 この FAQ は API v3 の利用時によくある判断を、CLI 利用者、Python ライブラリ利用者、plugin 開発者の観点から要約するものである。設定値、API signature、例外、hook の順序・回数・並行性はここで再定義しない。各回答からリンクする [Reference](../reference/configuration.md) と [execution lifecycle](../explanation/execution-lifecycle.md) が正本である。
 
 提示された質問には Q6 が含まれていないため、本書にも Q6 の項目はない。

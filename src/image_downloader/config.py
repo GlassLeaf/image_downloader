@@ -36,6 +36,7 @@ from .configuration.models import (
     Storage,
     StrictModel,
     WorkflowHistory,
+    WorkflowLogging,
 )
 from .configuration.paths import (
     default_data_root,
@@ -69,6 +70,7 @@ __all__ = [
     "GenericHtmlFallback",
     "Fallback",
     "WorkflowHistory",
+    "WorkflowLogging",
     "StrictModel",
     "validate_config",
     "deep_merge",
