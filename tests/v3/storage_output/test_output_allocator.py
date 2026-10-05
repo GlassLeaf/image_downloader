@@ -13,6 +13,46 @@ from image_downloader.runtime import OutputAllocator, OutputFormatContext
 from image_downloader.storage import FileSystem
 
 
+def test_visually_similar_replacements_and_extension_roundtrip(tmp_path: Path) -> None:
+    from image_downloader.storage import safe_name
+
+    assert safe_name('"*/:<>?\\|') == "”＊／：＜＞？＼｜"
+    assert safe_name("ordinary.png") == "ordinary.png"
+    assert safe_name("CON.txt") == "_CON.txt"
+    assert safe_name("control\x00name") == "control_name"
+
+    async def scenario() -> None:
+        config = AppConfig.model_validate(
+            {"output": {"directory_format": "%CONTENT_TITLE%", "filename_format": "%CHAPTER_TITLE%.%EXT%"}}
+        )
+        allocator = OutputAllocator(FileSystem(tmp_path), config)
+        chapter = Chapter(1, 'v1.2."*/:<>?\\|')
+        manifest = DownloadManifest(chapter.title, (chapter,))
+        context = OutputFormatContext(
+            manifest, chapter, "https://example.test/", "test.site", ImageResource("image:1"), ".png"
+        )
+        directory = allocator.chapter_directory(context)
+        assert directory.name == "v1．2．”＊／：＜＞？＼｜"
+        allocator.filesystem.ensure_directory(directory)
+        allocation = await allocator.allocate(directory, context)
+        assert allocation.relative_path.name == "v1．2．”＊／：＜＞？＼｜.png"
+        allocator.filesystem.write_bytes_atomic(allocation.relative_path, b"original")
+        assert allocator.filesystem.read_bytes_bounded(allocation.relative_path, 8) == b"original"
+        await allocation.commit()
+        assert manifest.title == chapter.title
+
+    asyncio.run(scenario())
+
+
+def test_title_dots_are_converted_without_an_extension_token(tmp_path: Path) -> None:
+    allocator = OutputAllocator(FileSystem(tmp_path), _config("overwrite", filename_format="%CHAPTER_TITLE%"))
+    chapter = Chapter(1, "v1.2.")
+    result = allocator._format_filename(
+        "%CHAPTER_TITLE%", _context(chapter, ImageResource("image:1"), ".png"), original_filename=None
+    )
+    assert result == "v1．2．"
+
+
 def _config(mode: str, *, filename_format: str = "%IMAGE_INDEX%.%EXT%", max_length: int | None = None) -> AppConfig:
     output: dict[str, object] = {"existing_file": mode, "filename_format": filename_format}
     if max_length is not None:
@@ -199,7 +239,7 @@ def test_missing_plugin_token_remains_literal_and_context_values_are_frozen(tmp_
         filesystem.ensure_directory(directory)
         allocation = await allocator.allocate(directory, context)
 
-        assert allocation.relative_path.name == "%PLUGIN[com.example.absent_FILTER_NAME]%.jpeg"
+        assert allocation.relative_path.name == "%PLUGIN[com．example．absent：FILTER_NAME]%.jpeg"
         with pytest.raises(TypeError):
             context.plugin_values["com.example.other"] = {}  # type: ignore[index]
         with pytest.raises(TypeError):

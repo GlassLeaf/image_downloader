@@ -13,6 +13,7 @@ from ..exceptions import ConfigurationError, ExistingFileConflictError, OutputAl
 from ..immutable import freeze_json
 from ..models import Chapter, DownloadManifest, ImageResource
 from ..storage import FileSystem, safe_component
+from ..storage._path_limits import _component_limit, _ComponentLimit
 from .format_tokens import PLUGIN_TOKEN_PATTERN
 from .original_filename import original_filename_parts
 
@@ -103,6 +104,7 @@ class OutputAllocator:
         self._known_files: dict[str, Path] = {}
         self._loaded_parents: set[str] = set()
         self._committed_by_operation: set[str] = set()
+        self._native_limits: dict[Path, _ComponentLimit] = {}
 
     async def refresh_directory(self, directory: Path) -> None:
         """Re-read the directory while the caller holds its inter-process lock."""
@@ -134,6 +136,7 @@ class OutputAllocator:
             self.config.output.filename_format,
             context,
             original_filename=source_name,
+            parent=self.filesystem.path(chapter_directory),
         )
         return await self.allocate_relative(base)
 
@@ -229,7 +232,8 @@ class OutputAllocator:
         tail = f"_{suffix}{candidate.suffix}"
         limit = self.config.output.max_component_length
         if limit is None:
-            return candidate.with_name(f"{candidate.stem}{tail}")
+            name = f"{candidate.stem}{tail}"
+            return candidate.with_name(self._fit_native(name, self.filesystem.root / candidate.parent, tail=tail))
         available = limit - len(tail)
         if available <= 0:
             raise ConfigurationError("output component limit is too short for a collision suffix")
@@ -237,10 +241,13 @@ class OutputAllocator:
         if len(stem) > available:
             digest = hashlib.sha256(candidate.name.encode("utf-8")).hexdigest()[:8]
             stem = f"{stem[: available - 9].rstrip(' .')}_{digest}" if available > 9 else digest[:available]
-        return candidate.with_name(f"{stem}{tail}")
+        return candidate.with_name(
+            self._fit_native(f"{stem}{tail}", self.filesystem.root / candidate.parent, tail=tail)
+        )
 
     def _format_directory(self, template: str, context: OutputFormatContext) -> str:
-        return self._safe_format_component(self._render(template, context, extension="jpeg"))
+        name = self._safe_format_component(self._render(template, context, extension="jpeg"))
+        return self._fit_native(name, self.filesystem.root)
 
     def _format_filename(
         self,
@@ -248,12 +255,13 @@ class OutputAllocator:
         context: OutputFormatContext,
         *,
         original_filename: str | None,
+        parent: Path | None = None,
     ) -> str:
         image = context.image
         if image is None or context.extension is None:
             raise ValueError("filename formatting requires image and extension in OutputFormatContext")
         source_filename, source_stem, source_extension = original_filename_parts(original_filename, image.index)
-        return self._safe_format_component(
+        name = self._safe_format_component(
             self._render(
                 template,
                 context,
@@ -261,8 +269,15 @@ class OutputAllocator:
                 original_stem=source_stem,
                 original_filename=source_filename,
                 original_extension=source_extension,
-            )
+            ),
+            preserve_suffix=True,
         )
+        return self._fit_native(name, parent or self.filesystem.root, tail=Path(name).suffix)
+
+    def _fit_native(self, name: str, parent: Path, *, tail: str = "") -> str:
+        if parent not in self._native_limits:
+            self._native_limits[parent] = _component_limit(parent)
+        return self._native_limits[parent].shorten(name, tail=tail)
 
     @staticmethod
     def _render(
@@ -278,11 +293,11 @@ class OutputAllocator:
         core_values = {
             "CHAPTER_NUMBER": f"{context.chapter.number:04d}",
             "IMAGE_INDEX": image_index,
-            "CONTENT_TITLE": context.manifest.title,
-            "CHAPTER_TITLE": context.chapter.title,
-            "CHAPTER_SUBTITLE": context.chapter.subtitle,
+            "CONTENT_TITLE": context.manifest.title.replace(".", "\uff0e"),
+            "CHAPTER_TITLE": context.chapter.title.replace(".", "\uff0e"),
+            "CHAPTER_SUBTITLE": context.chapter.subtitle.replace(".", "\uff0e"),
             "EXT": extension,
-            "ORIGINAL_STEM": original_stem,
+            "ORIGINAL_STEM": original_stem.replace(".", "\uff0e"),
             "ORIGINAL_FILENAME": original_filename,
             "ORIGINAL_EXT": original_extension,
         }
@@ -297,8 +312,17 @@ class OutputAllocator:
 
         return _FORMAT_TOKEN_PATTERN.sub(replace, template)
 
-    def _safe_format_component(self, value: str) -> str:
+    def _safe_format_component(self, value: str, *, preserve_suffix: bool = False) -> str:
+        value = value.replace("__", "_").rstrip("_")
+        if not preserve_suffix:
+            value = value.replace(".", "\uff0e")
+        else:
+            suffix = Path(value).suffix
+            if suffix:
+                value = value[: -len(suffix)].replace(".", "\uff0e") + suffix
+            else:
+                value = value.replace(".", "\uff0e")
         return safe_component(
-            value.replace("__", "_").rstrip("_"),
+            value,
             max_length=self.config.output.max_component_length,
         )

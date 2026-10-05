@@ -234,8 +234,8 @@ def test_missing_plugin_hook_or_key_keeps_the_safe_literal_token(tmp_path: Path)
             await service.close()
 
         saved = Path(result.chapters[0].outcomes[0].path or "")
-        assert saved.parent.name == f"0001_%PLUGIN[{SITE_ID}_MISSING]%"
-        assert saved.name == "0001%PLUGIN[com.example.absent_FILTER_NAME]%.png"
+        assert saved.parent.name == f"0001_%PLUGIN[{SITE_ID.replace('.', '．')}：MISSING]%"
+        assert saved.name == "0001%PLUGIN[com．example．absent：FILTER_NAME]%.png"
 
     asyncio.run(scenario())
 

@@ -289,6 +289,15 @@ class ErrorInfo:
     output_path: str | None = None
 
 
+_PATH_LENGTH_MESSAGES = {
+    "component": "A file or directory name exceeds the filesystem limit. Shorten the output name or configured path.",
+    "path": "The storage path exceeds a path length limit. Use a shorter --output-dir for downloads "
+    "or storage.data_root for profile data; on Windows, check long-path support.",
+    "possible": "The parent directory exists, but creation failed on a long Windows path. A path length limit may be "
+    "responsible. Use a shorter --output-dir or storage.data_root and check Windows long-path support.",
+}
+
+
 def error_info_for(error: BaseException) -> ErrorInfo:
     """Return the stable public view of an error without exposing ``str(error)``."""
 
@@ -305,7 +314,12 @@ def error_info_for(error: BaseException) -> ErrorInfo:
     output_path = str(error.relative_path) if isinstance(error, ExistingFileConflictError) else None
     response_url = getattr(error, "response_url", None)
     http_status = getattr(error, "http_status", getattr(error, "status", None))
-    return ErrorInfo(code, reason, exception, reason, response_url, http_status, output_path)
+    message = reason
+    if type(error) is StorageError:
+        diagnostic = error.__dict__.get("_path_length_diagnostic")
+        if isinstance(diagnostic, str):
+            message = _PATH_LENGTH_MESSAGES.get(diagnostic, reason)
+    return ErrorInfo(code, reason, exception, message, response_url, http_status, output_path)
 
 
 def error_catalog_markdown() -> str:

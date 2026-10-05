@@ -72,6 +72,7 @@ from ..plugins.plugin_manifest import PluginConfigOverrides, PluginDownloadPolic
 from ..plugins.runtime import PluginRuntime, safe_app_settings
 from ..ports import PluginExecutionContext, SitePlugin, UpdateProvider
 from ..storage import FileSystem, safe_component
+from ..storage._path_limits import _component_limit
 from ..transport.gateway import OperationRequestGateway, RequestGateway
 from .additional_files import AdditionalFiles
 from .dependencies import _RuntimeDependencies
@@ -1002,7 +1003,10 @@ class DownloadService:
         # ``site_file_name`` is already the safe canonical spelling used by the
         # configuration tree; omit only the YAML suffix for output directories.
         host_component = site_file_name(host).removesuffix(".yaml")
-        relative = Path(host_component) / safe_component(record.id, max_length=self.config.output.max_component_length)
+        host_component = _component_limit(self.outputs.root).shorten(host_component)
+        plugin_component = safe_component(record.id, max_length=self.config.output.max_component_length)
+        plugin_component = _component_limit(self.outputs.root / host_component).shorten(plugin_component)
+        relative = Path(host_component) / plugin_component
         self.outputs.ensure_directory(relative)
         return FileSystem(self.outputs.path(relative))
 

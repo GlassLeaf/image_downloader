@@ -133,7 +133,7 @@ def test_output_allocator_expands_original_filename_tokens_and_keeps_final_exten
                 ".jpeg",
             ),
         )
-        assert allocation.relative_path.name == "archive.tar.jpeg"
+        assert allocation.relative_path.name == "archive\uff0etar.jpeg"
         await allocation.abort()
 
         image = ImageResource("image:format", index=1)
@@ -152,7 +152,7 @@ def test_output_allocator_expands_original_filename_tokens_and_keeps_final_exten
                 context,
                 original_filename="archive.tar.webp",
             )
-            == "archive.tar.webp"
+            == "archive\uff0etar.webp"
         )
         assert (
             allocator._format_filename(

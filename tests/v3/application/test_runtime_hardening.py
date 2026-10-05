@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import io
 from concurrent.futures.process import BrokenProcessPool
 from dataclasses import replace
@@ -266,7 +267,13 @@ def test_image_worker_failure_is_reported_as_image_worker_error(monkeypatch: pyt
         processor.close()
 
 
-def test_filename_truncation_is_disabled_by_default_and_opt_in(tmp_path: Path) -> None:
+def test_legacy_shortening_is_opt_in_but_native_overflow_is_always_fitted(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import image_downloader.output.output_allocator as module
+    from image_downloader.storage._path_limits import _ComponentLimit
+
+    monkeypatch.setattr(module, "_component_limit", lambda parent: _ComponentLimit(255, False))
     title = "a" * 300
     assert safe_component(title) == title
     chapter = Chapter(1, title)
@@ -275,7 +282,15 @@ def test_filename_truncation_is_disabled_by_default_and_opt_in(tmp_path: Path) -
     )
 
     unlimited = OutputAllocator(FileSystem(tmp_path.resolve()), AppConfig())
-    assert unlimited.chapter_directory(context).name.endswith(title)
+    original = "0001_content_" + title
+    assert unlimited.chapter_directory(context).name == (
+        original[:246] + "_" + hashlib.sha256(original.encode()).hexdigest()[:8]
+    )
+    short_chapter = Chapter(1, "short title")
+    short_context = OutputFormatContext(
+        DownloadManifest("content", (short_chapter,)), short_chapter, "https://example.test/content", "com.example.site"
+    )
+    assert unlimited.chapter_directory(short_context).name == "0001_content_short title"
 
     limited_config = AppConfig.model_validate(
         {"output": {"directory_format": "%CHAPTER_TITLE%", "max_component_length": 16}}

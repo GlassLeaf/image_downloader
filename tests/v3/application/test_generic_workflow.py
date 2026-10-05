@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import io
 from collections import Counter
+from pathlib import Path
 from types import SimpleNamespace
 
 import httpx
@@ -181,6 +182,37 @@ def test_real_builtin_regular_workflow_updated_and_all_match(tmp_path, monkeypat
             assert changed.items[0].reasons == ("changed",)
             assert len(changed.items[0].download.saved_files) == 3
             assert all(i.completed for i in WorkflowStateService(service.config).get_workflow(URL)[0].items)
+
+    asyncio.run(scenario())
+
+
+def test_native_shortened_title_preserves_inspect_revision_original_bytes_and_workflow(tmp_path, monkeypatch):
+    page = Page(monkeypatch)
+    title = "😀" * 300
+    page.html = HTML.replace("gallery", title)
+    original_revision = revision(page.html).candidates
+    assert original_revision == revision(HTML).candidates
+
+    async def scenario():
+        async with compose(tmp_path) as service:
+            inspection = await service.inspect(URL)
+            assert inspection.manifest.title == title
+            regular = await service.run(URL)
+            assert len(regular.saved_files) == 2
+            paths = tuple(Path(value) for value in regular.saved_files)
+            contents = {path.name: path.read_bytes() for path in paths}
+            data = io.BytesIO()
+            Image.new("RGB", (2, 2), "red").save(data, "PNG")
+            assert set(contents.values()) == {data.getvalue()}
+            assert all(path.parent.name != "0001_" + title + "_" + title for path in paths)
+            first = await service.workflow(URL, workflow_retries=0)
+            assert first.items[0].status == "success"
+            assert first.items[0].download.saved_files == regular.saved_files
+            assert (await service.workflow(URL, workflow_retries=0)).selected_urls == ()
+            all_result = await service.workflow(URL, download_scope="all", workflow_retries=0)
+            assert all_result.items[0].status == "success"
+            assert {path.name: path.read_bytes() for path in paths} == contents
+            assert all(item.completed for item in WorkflowStateService(service.config).get_workflow(URL)[0].items)
 
     asyncio.run(scenario())
 

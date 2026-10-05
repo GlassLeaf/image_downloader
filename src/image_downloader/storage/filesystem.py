@@ -10,12 +10,26 @@ from pathlib import Path, PurePath
 from typing import TextIO
 
 from ..exceptions import StorageSafetyError
+from ._path_limits import _path_errors
 
 _RESERVED_NAMES = {"CON", "PRN", "AUX", "NUL"}
+_WINDOWS_CHARACTER_REPLACEMENTS = str.maketrans(
+    {
+        '"': "\u201d",
+        "*": "\uff0a",
+        "/": "\uff0f",
+        ":": "\uff1a",
+        "<": "\uff1c",
+        ">": "\uff1e",
+        "?": "\uff1f",
+        "\\": "\uff3c",
+        "|": "\uff5c",
+    }
+)
 
 
 def safe_name(value: str) -> str:
-    value = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", value).strip(" .")
+    value = re.sub(r"[\x00-\x1f]", "_", value.translate(_WINDOWS_CHARACTER_REPLACEMENTS)).strip(" .")
     stem = value.split(".", 1)[0].upper()
     if stem in _RESERVED_NAMES or (stem[:3] in {"COM", "LPT"} and stem[3:].isdigit()):
         value = f"_{value}"
@@ -45,14 +59,16 @@ class FileSystem:
 
     def ensure_directory(self, relative: str | Path = Path(".")) -> Path:
         parts = self._parts(relative, allow_empty=True)
-        self.root.mkdir(parents=True, exist_ok=True)
+        with _path_errors(self.root, creating=True):
+            self.root.mkdir(parents=True, exist_ok=True)
         self._assert_directory(self.root)
         current = self.root
         for part in parts:
             current = current / part
             state = self._lstat(current)
             if state is None:
-                current.mkdir(exist_ok=True)
+                with _path_errors(current, creating=True):
+                    current.mkdir(exist_ok=True)
             self._assert_directory(current)
         return current
 
@@ -113,7 +129,8 @@ class FileSystem:
         parent_state = self._lstat(path.parent)
         if parent_state is None:
             raise StorageSafetyError("storage parent disappeared during write")
-        fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+        with _path_errors(path.parent / ".id-temporary", creating=True):
+            fd, temporary = tempfile.mkstemp(prefix=".id-", dir=path.parent)
         try:
             with os.fdopen(fd, "wb") as stream:
                 stream.write(data)
@@ -124,12 +141,13 @@ class FileSystem:
             current = self._lstat(path)
             if current is not None:
                 self._assert_regular(path, current)
-            os.replace(temporary, path)
+            with _path_errors(path, creating=True):
+                os.replace(temporary, path)
             return path
         except Exception:
             try:
                 os.unlink(temporary)
-            except OSError:
+            except (OSError, ValueError):
                 pass
             raise
 
@@ -141,7 +159,8 @@ class FileSystem:
         parent_state = self._lstat(path.parent)
         if parent_state is None:
             raise StorageSafetyError("storage parent disappeared during append")
-        descriptor = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT)
+        with _path_errors(path, creating=True):
+            descriptor = os.open(path, os.O_WRONLY | os.O_APPEND | os.O_CREAT)
         try:
             self._assert_same(path.parent, parent_state)
             opened = os.fstat(descriptor)
@@ -205,7 +224,8 @@ class FileSystem:
     @staticmethod
     def _lstat(path: Path) -> os.stat_result | None:
         try:
-            return path.lstat()
+            with _path_errors(path):
+                return path.lstat()
         except FileNotFoundError:
             return None
 
@@ -226,17 +246,20 @@ class FileSystem:
 
 
 def atomic_write(path: Path, data: bytes) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+    with _path_errors(path.parent, creating=True):
+        path.parent.mkdir(parents=True, exist_ok=True)
+    with _path_errors(path.parent / ".id-temporary", creating=True):
+        fd, temporary = tempfile.mkstemp(prefix=".id-", dir=path.parent)
     try:
         with os.fdopen(fd, "wb") as stream:
             stream.write(data)
             stream.flush()
             os.fsync(stream.fileno())
-        os.replace(temporary, path)
+        with _path_errors(path, creating=True):
+            os.replace(temporary, path)
     except Exception:
         try:
             os.unlink(temporary)
-        except OSError:
+        except (OSError, ValueError):
             pass
         raise

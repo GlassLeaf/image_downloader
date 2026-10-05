@@ -58,7 +58,7 @@ mapping は再帰 merge、scalar/list/`null` は高い layer が置換する。I
 | `output.existing_file` | `overwrite|skip|rename|error`; `overwrite` |
 | `output.image_format` | `ORIGINAL|JPEG|PNG|WEBP`; `ORIGINAL`。`ORIGINAL` は plugin transform/processor 完了後の artifact bytes を core が再エンコードせず保存する |
 | `output.isolate_by_plugin` | strict boolean; `false` |
-| `output.max_component_length` | `null` or strict integer `>=16`; `null` |
+| `output.max_component_length` | `null` or strict integer `>=16`; `null`。利用者指定のPython文字数による短縮。OSの要素上限対策は別途適用 |
 | `output.lock_timeout_seconds` | finite number `>=0`; `30`; zero は待機しない |
 | `media.input_validation` | `content_type|decode|both`; `both` |
 | `media.content_type_mismatch` | `accept|error`; `accept` |
