@@ -1,0 +1,38 @@
+﻿規則,ファイル,行,検出,判定,根拠
+S101,src/image_downloader/application/additional_files.py,222,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S101,src/image_downloader/application/additional_files.py,263,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S101,src/image_downloader/application/service.py,1238,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S110,src/image_downloader/application/workflow_recording.py,28,"`try`-`except`-`pass` detected, consider logging the exception",確定脆弱性として採用しない,既存の主例外・保存結果を優先し、二次的な診断・stderr失敗を抑制する意図。関連v3異常系テストも成功。
+S101,src/image_downloader/application/workflow_recording.py,40,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S101,src/image_downloader/application/workflow_recording.py,107,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S101,src/image_downloader/commands/inspect.py,170,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S105,src/image_downloader/commands/parser.py,85,"Possible hardcoded password assigned to: ""token""",確定脆弱性として採用しない,tokenはCLI引数または出力書式の予約文字列。認証パスワードの固定値ではない。
+S105,src/image_downloader/commands/parser.py,92,"Possible hardcoded password assigned to: ""token""",確定脆弱性として採用しない,tokenはCLI引数または出力書式の予約文字列。認証パスワードの固定値ではない。
+S105,src/image_downloader/commands/parser.py,117,"Possible hardcoded password assigned to: ""token""",確定脆弱性として採用しない,tokenはCLI引数または出力書式の予約文字列。認証パスワードの固定値ではない。
+S101,src/image_downloader/commands/reporting.py,94,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S101,src/image_downloader/commands/reporting.py,109,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S101,src/image_downloader/commands/reporting.py,114,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S101,src/image_downloader/commands/reporting.py,116,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S101,src/image_downloader/commands/reporting.py,123,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S101,src/image_downloader/commands/reporting.py,129,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S101,src/image_downloader/commands/reporting.py,131,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S101,src/image_downloader/commands/setup.py,55,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S101,src/image_downloader/commands/setup.py,145,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S101,src/image_downloader/commands/setup.py,190,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S101,src/image_downloader/commands/setup.py,239,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S101,src/image_downloader/commands/setup.py,343,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S101,src/image_downloader/commands/validation.py,131,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S101,src/image_downloader/commands/validation.py,238,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S101,src/image_downloader/commands/workflow.py,294,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S101,src/image_downloader/configuration/layers.py,181,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S105,src/image_downloader/configuration/models.py,39,"Possible hardcoded password assigned to: ""_IMAGE_INDEX_TOKEN""",確定脆弱性として採用しない,tokenはCLI引数または出力書式の予約文字列。認証パスワードの固定値ではない。
+S101,src/image_downloader/media/image_processor.py,154,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S110,src/image_downloader/media/processor_chain.py,103,"`try`-`except`-`pass` detected, consider logging the exception",確定脆弱性として採用しない,既存の主例外・保存結果を優先し、二次的な診断・stderr失敗を抑制する意図。関連v3異常系テストも成功。
+S101,src/image_downloader/observability/chapter_reporter.py,91,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S110,src/image_downloader/observability/diagnostic_safety.py,13,"`try`-`except`-`pass` detected, consider logging the exception",確定脆弱性として採用しない,既存の主例外・保存結果を優先し、二次的な診断・stderr失敗を抑制する意図。関連v3異常系テストも成功。
+S105,src/image_downloader/output/format_tokens.py,12,"Possible hardcoded password assigned to: ""PLUGIN_TOKEN_PREFIX""",確定脆弱性として採用しない,tokenはCLI引数または出力書式の予約文字列。認証パスワードの固定値ではない。
+S110,src/image_downloader/output/output_lock.py,50,"`try`-`except`-`pass` detected, consider logging the exception",確定脆弱性として採用しない,既存の主例外・保存結果を優先し、二次的な診断・stderr失敗を抑制する意図。関連v3異常系テストも成功。
+S101,src/image_downloader/plugins/plugin_invoker.py,206,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S101,src/image_downloader/plugins/plugin_invoker.py,302,Use of `assert` detected,確定脆弱性として採用しない,外部入力は別の明示検証があり、assertは内部の型・状態不変条件。最適化で除去されるが、今回の精読では単独の認証・範囲検査回避を確認しない。
+S110,src/image_downloader/storage/workflow_logging.py,100,"`try`-`except`-`pass` detected, consider logging the exception",確定脆弱性として採用しない,既存の主例外・保存結果を優先し、二次的な診断・stderr失敗を抑制する意図。関連v3異常系テストも成功。
+S311,src/image_downloader/transport/gateway.py,292,Standard pseudo-random generators are not suitable for cryptographic purposes,確定脆弱性として採用しない,random.uniformは再試行待機のjitterにのみ使用。鍵・nonce・認証tokenの生成ではない。

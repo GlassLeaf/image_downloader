@@ -1,0 +1,20 @@
+{"probe": "QS-001-cache", "strict_verification_passed": true, "unsigned_marker_executed": true, "signed_source_unchanged": true}
+.{"probe": "QS-001-recheck", "changed_source_executed": true, "scheduling": "deterministic boundary substitution"}
+.{"probe": "QS-002", "cross_origin_http_referrer": "https://audit-user:audit-pass@gallery.test/?token=audit-token#private=audit-fragment"}
+.{"probe": "QS-003", "default_pixel_limit": null, "per_frame_limit": 4, "accepted_total_frame_pixels": 12, "future_result_timeout": null, "resource_exhaustion_actually_executed": false}
+.{"probe": "QS-004", "identical_path": true, "previous_bytes_overwritten": true}
+.{"probe": "QS-005", "empty_status": "success", "completed": true, "repeat_selected": 0}
+.{"probe": "QS-006", "removed": ["network.max_retries", "network.requset_timeout_seconds"], "sanitized": {"network": {}}}
+.{"probe": "QS-006-rewrite", "unknown_keys_removed_from_file": true, "valid_setting_preserved": true}
+.{"probe": "QS-007", "nonimage_verification": "passed"}
+.{"probe": "QS-008", "file_missing": true, "repeat_selected": 0}
+.{"probe": "QS-009", "original_frames": 2, "converted_frames": 1}
+.{"probe": "QS-010", "large_integer_exception": "OverflowError", "usual_invalid_values": "ConfigurationError"}
+.{"probe": "QS-011", "invalid_json_root_exception": "AttributeError", "credential_store_accessed": false}
+.{"probe": "QS-011-record", "missing_field_exception": "KeyError", "scope": "valid AES-GCM container, fake key"}
+.{"probe": "QS-013", "modules_retained_after_composition_failure": 2}
+.{"probe": "QS-016", "distinct_valid_plugin_ids": ["com.example.a-b", "com.example.a.b"], "secret_environment_name_collides": true, "credential_store_accessed": false}
+.{"probe": "QS-012", "rejected_recipient_count": 1, "returned_without_error": true, "real_email_sent": false}
+.{"probe": "positive-controls", "cross_origin_auth_removed": true, "oversized_response_rejected": true}
+.
+18 passed in 9.35s

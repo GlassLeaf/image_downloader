@@ -1,0 +1,705 @@
+[
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 15,
+      "row": 222
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\application\\additional_files.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 222
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 222,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 15,
+      "row": 263
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\application\\additional_files.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 263
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 263,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 23,
+      "row": 1238
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\application\\service.py",
+    "fix": null,
+    "location": {
+      "column": 17,
+      "row": 1238
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 1238,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S110",
+    "end_location": {
+      "column": 13,
+      "row": 29
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\application\\workflow_recording.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 28
+    },
+    "message": "`try`-`except`-`pass` detected, consider logging the exception",
+    "name": "try-except-pass",
+    "noqa_row": 28,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/try-except-pass"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 11,
+      "row": 40
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\application\\workflow_recording.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 40
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 40,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 19,
+      "row": 107
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\application\\workflow_recording.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 107
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 107,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 11,
+      "row": 170
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\commands\\inspect.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 170
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 170,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S105",
+    "end_location": {
+      "column": 29,
+      "row": 85
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\commands\\parser.py",
+    "fix": null,
+    "location": {
+      "column": 25,
+      "row": 85
+    },
+    "message": "Possible hardcoded password assigned to: \"token\"",
+    "name": "hardcoded-password-string",
+    "noqa_row": 85,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/hardcoded-password-string"
+  },
+  {
+    "cell": null,
+    "code": "S105",
+    "end_location": {
+      "column": 57,
+      "row": 92
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\commands\\parser.py",
+    "fix": null,
+    "location": {
+      "column": 54,
+      "row": 92
+    },
+    "message": "Possible hardcoded password assigned to: \"token\"",
+    "name": "hardcoded-password-string",
+    "noqa_row": 92,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/hardcoded-password-string"
+  },
+  {
+    "cell": null,
+    "code": "S105",
+    "end_location": {
+      "column": 29,
+      "row": 117
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\commands\\parser.py",
+    "fix": null,
+    "location": {
+      "column": 25,
+      "row": 117
+    },
+    "message": "Possible hardcoded password assigned to: \"token\"",
+    "name": "hardcoded-password-string",
+    "noqa_row": 117,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/hardcoded-password-string"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 11,
+      "row": 94
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\commands\\reporting.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 94
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 94,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 19,
+      "row": 109
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\commands\\reporting.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 109
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 109,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 11,
+      "row": 114
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\commands\\reporting.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 114
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 114,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 15,
+      "row": 116
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\commands\\reporting.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 116
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 116,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 15,
+      "row": 123
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\commands\\reporting.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 123
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 123,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 11,
+      "row": 129
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\commands\\reporting.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 129
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 129,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 15,
+      "row": 131
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\commands\\reporting.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 131
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 131,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 11,
+      "row": 55
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\commands\\setup.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 55
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 55,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 15,
+      "row": 145
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\commands\\setup.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 145
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 145,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 15,
+      "row": 190
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\commands\\setup.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 190
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 190,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 15,
+      "row": 239
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\commands\\setup.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 239
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 239,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 15,
+      "row": 343
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\commands\\setup.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 343
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 343,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 15,
+      "row": 131
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\commands\\validation.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 131
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 131,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 19,
+      "row": 238
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\commands\\validation.py",
+    "fix": null,
+    "location": {
+      "column": 13,
+      "row": 238
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 238,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 15,
+      "row": 294
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\commands\\workflow.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 294
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 294,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 11,
+      "row": 181
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\configuration\\layers.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 181
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 181,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S105",
+    "end_location": {
+      "column": 37,
+      "row": 39
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\configuration\\models.py",
+    "fix": null,
+    "location": {
+      "column": 22,
+      "row": 39
+    },
+    "message": "Possible hardcoded password assigned to: \"_IMAGE_INDEX_TOKEN\"",
+    "name": "hardcoded-password-string",
+    "noqa_row": 39,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/hardcoded-password-string"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 23,
+      "row": 154
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\media\\image_processor.py",
+    "fix": null,
+    "location": {
+      "column": 17,
+      "row": 154
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 154,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S110",
+    "end_location": {
+      "column": 29,
+      "row": 104
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\media\\processor_chain.py",
+    "fix": null,
+    "location": {
+      "column": 21,
+      "row": 103
+    },
+    "message": "`try`-`except`-`pass` detected, consider logging the exception",
+    "name": "try-except-pass",
+    "noqa_row": 103,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/try-except-pass"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 23,
+      "row": 91
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\observability\\chapter_reporter.py",
+    "fix": null,
+    "location": {
+      "column": 17,
+      "row": 91
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 91,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S110",
+    "end_location": {
+      "column": 13,
+      "row": 14
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\observability\\diagnostic_safety.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 13
+    },
+    "message": "`try`-`except`-`pass` detected, consider logging the exception",
+    "name": "try-except-pass",
+    "noqa_row": 13,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/try-except-pass"
+  },
+  {
+    "cell": null,
+    "code": "S105",
+    "end_location": {
+      "column": 33,
+      "row": 12
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\output\\format_tokens.py",
+    "fix": null,
+    "location": {
+      "column": 23,
+      "row": 12
+    },
+    "message": "Possible hardcoded password assigned to: \"PLUGIN_TOKEN_PREFIX\"",
+    "name": "hardcoded-password-string",
+    "noqa_row": 12,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/hardcoded-password-string"
+  },
+  {
+    "cell": null,
+    "code": "S110",
+    "end_location": {
+      "column": 25,
+      "row": 51
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\output\\output_lock.py",
+    "fix": null,
+    "location": {
+      "column": 17,
+      "row": 50
+    },
+    "message": "`try`-`except`-`pass` detected, consider logging the exception",
+    "name": "try-except-pass",
+    "noqa_row": 50,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/try-except-pass"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 15,
+      "row": 206
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\plugins\\plugin_invoker.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 206
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 206,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S101",
+    "end_location": {
+      "column": 15,
+      "row": 302
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\plugins\\plugin_invoker.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 302
+    },
+    "message": "Use of `assert` detected",
+    "name": "assert",
+    "noqa_row": 302,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/assert"
+  },
+  {
+    "cell": null,
+    "code": "S110",
+    "end_location": {
+      "column": 17,
+      "row": 101
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\workflow_logging.py",
+    "fix": null,
+    "location": {
+      "column": 9,
+      "row": 100
+    },
+    "message": "`try`-`except`-`pass` detected, consider logging the exception",
+    "name": "try-except-pass",
+    "noqa_row": 100,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/try-except-pass"
+  },
+  {
+    "cell": null,
+    "code": "S311",
+    "end_location": {
+      "column": 78,
+      "row": 292
+    },
+    "filename": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\transport\\gateway.py",
+    "fix": null,
+    "location": {
+      "column": 51,
+      "row": 292
+    },
+    "message": "Standard pseudo-random generators are not suitable for cryptographic purposes",
+    "name": "suspicious-non-cryptographic-random-usage",
+    "noqa_row": 292,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/suspicious-non-cryptographic-random-usage"
+  }
+]

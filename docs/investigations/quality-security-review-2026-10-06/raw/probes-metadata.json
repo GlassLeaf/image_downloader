@@ -1,0 +1,13 @@
+{
+  "command": [
+    "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+    "-m",
+    "pytest",
+    "docs/investigations/quality-security-review-2026-10-06/behavior_probe.py",
+    "-q",
+    "-s",
+    "--junitxml=docs\\investigations\\quality-security-review-2026-10-06\\raw\\probes.xml"
+  ],
+  "exit_code": 0,
+  "seconds": 10.797
+}

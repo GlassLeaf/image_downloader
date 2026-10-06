@@ -1,0 +1,566 @@
+{
+  "started_utc": "2026-10-05T16:26:54.451969+00:00",
+  "user_date": "2026-10-06",
+  "user_timezone": "Asia/Tokyo",
+  "commit": "afd7581a615975cf16bf366335b32eda3d66c4ed",
+  "initial_status_before_audit_files": "?? docs/investigations/implementation-review-2026-10-05/",
+  "status_at_runner_start": "?? docs/investigations/implementation-review-2026-10-05/\n?? docs/investigations/quality-security-review-2026-10-06/\n",
+  "platform": "Windows-10-10.0.19045-SP0",
+  "python": "3.11.4 (tags/v3.11.4:d2340ef, Jun  7 2023, 05:45:37) [MSC v.1934 64 bit (AMD64)]",
+  "executable": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+  "tools": {
+    "ruff": "0.16.5",
+    "mypy": "2.3.1",
+    "pytest": "9.1.1",
+    "pytest-cov": "7.1.0"
+  },
+  "inventory": [
+    {
+      "path": "src/image_downloader/__init__.py",
+      "sha256": "795bec9178854f692a42e91f770d7f0bfa006bcd0d24f26884268ffe37dc9eaf",
+      "lines": 208
+    },
+    {
+      "path": "src/image_downloader/__main__.py",
+      "sha256": "935a1c1166b0c1ea35a82256345000bf2c73ded718d77773bc27a71ecce28f7d",
+      "lines": 3
+    },
+    {
+      "path": "src/image_downloader/application/__init__.py",
+      "sha256": "debb37c467d80208cef63389f7b8fd2b9de3c084b6e1fedab1aebff9d6fe9b1b",
+      "lines": 1
+    },
+    {
+      "path": "src/image_downloader/application/additional_files.py",
+      "sha256": "b02f37e6a70f147356e6a4a22523a77a05c85c347063e923090ef4de7ef4d1ec",
+      "lines": 330
+    },
+    {
+      "path": "src/image_downloader/application/composer.py",
+      "sha256": "cb0228517233ad2334237c88f62947376d9106f4db84031a889ef1c2dd67a809",
+      "lines": 121
+    },
+    {
+      "path": "src/image_downloader/application/dependencies.py",
+      "sha256": "94b03c98ab477cd08eb1586652525561b140ccb73517757cf7dde5f0aef6ce16",
+      "lines": 37
+    },
+    {
+      "path": "src/image_downloader/application/log_verification.py",
+      "sha256": "372b751ef1af915a44af0e10eb9e7b0346c23e560babec329aa1804eebc226d1",
+      "lines": 233
+    },
+    {
+      "path": "src/image_downloader/application/service.py",
+      "sha256": "ecb4175a8a405fa46d6e79aa9121b1849e2f86e951c5dea61d1a3cb0b254970c",
+      "lines": 1514
+    },
+    {
+      "path": "src/image_downloader/application/verification_recording.py",
+      "sha256": "6486c0096e16f68f7f76c1351722198f58119960542bb3375938402afee75398",
+      "lines": 67
+    },
+    {
+      "path": "src/image_downloader/application/workflow.py",
+      "sha256": "1218f0216061313f9e2f318acbb8d08e89d0286f1d9e92e26ff70d93701d36e1",
+      "lines": 505
+    },
+    {
+      "path": "src/image_downloader/application/workflow_plan.py",
+      "sha256": "cf0797ab27e6ce5edb32613a59550c118de922117081576a8dda7beda2a2e468",
+      "lines": 104
+    },
+    {
+      "path": "src/image_downloader/application/workflow_recording.py",
+      "sha256": "895d65a6b67f910d70070e15b6b51341deca362cc885ba3139d20cd46b83041f",
+      "lines": 155
+    },
+    {
+      "path": "src/image_downloader/application/workflow_reporting.py",
+      "sha256": "4d50d36180388c1c2f784c27c672a0f13651343fd49f398ef1e161f13f94cb56",
+      "lines": 167
+    },
+    {
+      "path": "src/image_downloader/application/workflow_retry.py",
+      "sha256": "88a895290268a930f3eec4bb8870f61e2452cfc92fe550c91a9cc06cbf5b40d3",
+      "lines": 170
+    },
+    {
+      "path": "src/image_downloader/application/workflow_selection.py",
+      "sha256": "ee8a102a263010bf8a178277499ff4fb3fb04221240ac4ec4fea48b2e0526fd2",
+      "lines": 81
+    },
+    {
+      "path": "src/image_downloader/application/workflow_state.py",
+      "sha256": "599db916b5b60b53cf1d2889367d376b0c24d9557d023294a3adf7b5bb790c66",
+      "lines": 87
+    },
+    {
+      "path": "src/image_downloader/application/workflow_verification.py",
+      "sha256": "ef466ec1367473a10509a66499396acbdac124d195d1b4cffdb5c5470532882d",
+      "lines": 156
+    },
+    {
+      "path": "src/image_downloader/cli.py",
+      "sha256": "d312732c0214b43c4c2225bd903797ca4582826960fff3dcefabc76209cad595",
+      "lines": 30
+    },
+    {
+      "path": "src/image_downloader/commands/__init__.py",
+      "sha256": "a386d2839cbafeca876d1cb91e276e69d7620606e34f48c8f72fe79a8b99bfb1",
+      "lines": 1
+    },
+    {
+      "path": "src/image_downloader/commands/config.py",
+      "sha256": "be049b7326c1b06abc67f5e1f120bc2b9e15353a5aff74eaddb0285791a11d07",
+      "lines": 251
+    },
+    {
+      "path": "src/image_downloader/commands/constants.py",
+      "sha256": "1d151b011b7842214d8ea27d8e82535203642ec4c2cd7b9f46c22dcffe5444d4",
+      "lines": 3
+    },
+    {
+      "path": "src/image_downloader/commands/cookie.py",
+      "sha256": "b0045d300f130f763c090b03ac3bf4a87eac5d56a9277c32ae09bcf854dd3845",
+      "lines": 78
+    },
+    {
+      "path": "src/image_downloader/commands/dispatch.py",
+      "sha256": "3d1c23431ddceee007aaab10205d689c7fd5c54816766b9c7021844854b6ad54",
+      "lines": 140
+    },
+    {
+      "path": "src/image_downloader/commands/doctor.py",
+      "sha256": "6d370662cf26416fb434a48ec9861f9a86a8c140d96fbf9f79867bdf93561c77",
+      "lines": 163
+    },
+    {
+      "path": "src/image_downloader/commands/download.py",
+      "sha256": "c92fd990cd24d44097926daacd0a9c4ca869dab4e009a1f4ceebb6d6206c0a0a",
+      "lines": 140
+    },
+    {
+      "path": "src/image_downloader/commands/inspect.py",
+      "sha256": "9899cd79300f390c7f74be09e02ad6ca1e9b2ea06233aa81df111e514b0eff16",
+      "lines": 211
+    },
+    {
+      "path": "src/image_downloader/commands/options.py",
+      "sha256": "a9617c284984b74e6c719b06c83cdf36319454fe4b89fb49fefe4f5c5d83a951",
+      "lines": 157
+    },
+    {
+      "path": "src/image_downloader/commands/parser.py",
+      "sha256": "d1c03f0af61b46f90e7960190ba5ef4a31f3583c1c9acaafd56930983423bfb7",
+      "lines": 314
+    },
+    {
+      "path": "src/image_downloader/commands/plugin.py",
+      "sha256": "d59f89e69ae4493b1e36e0afb309c7c6b7b5601b92601050f39cbb78566d0e9b",
+      "lines": 181
+    },
+    {
+      "path": "src/image_downloader/commands/reporting.py",
+      "sha256": "6cea3d261564d74c7379a4da103525057055366383b5ca523bf205188220353b",
+      "lines": 133
+    },
+    {
+      "path": "src/image_downloader/commands/setup.py",
+      "sha256": "86488df06460e6eb94baeb17616c8380df6d02a47231473908ff981b9480848e",
+      "lines": 348
+    },
+    {
+      "path": "src/image_downloader/commands/state.py",
+      "sha256": "762545b90ad1760981573af2113c0fa0f8f7df1f8bf565c931cdc3954f57aca1",
+      "lines": 136
+    },
+    {
+      "path": "src/image_downloader/commands/state_formatting.py",
+      "sha256": "42735dd5981dca2c554849239e08ea4fd5303278343fe0944fcd2f502bb9dab7",
+      "lines": 148
+    },
+    {
+      "path": "src/image_downloader/commands/validation.py",
+      "sha256": "5fe23e433e6559fe76ccb5ffa05f7d3a105a7a4d844c43bc96a9ef9562e0ac2a",
+      "lines": 302
+    },
+    {
+      "path": "src/image_downloader/commands/verify.py",
+      "sha256": "24b6f9f3353131f4a204b0c0885b40d9583dcd99f41579608a99a871e02fcf37",
+      "lines": 76
+    },
+    {
+      "path": "src/image_downloader/commands/workflow.py",
+      "sha256": "3d9cc9ec57274d3d72a6a785f3b8781479836359bc4aeebb6f3e44bc3e441b16",
+      "lines": 441
+    },
+    {
+      "path": "src/image_downloader/config.py",
+      "sha256": "9b01551b1838aafbd2037360b77429046828f6f8c26e8483fd9cb34622dd484b",
+      "lines": 91
+    },
+    {
+      "path": "src/image_downloader/configuration/__init__.py",
+      "sha256": "6d3a944b311d544cf974137d5e63dce54901c53355ff2c06ceb60d49dc89f6c5",
+      "lines": 1
+    },
+    {
+      "path": "src/image_downloader/configuration/hosts.py",
+      "sha256": "1ebab057bd78fbd8b0a7f0b8d2fb1c05d284ddafdeee5116392b96fea65ca503",
+      "lines": 66
+    },
+    {
+      "path": "src/image_downloader/configuration/layers.py",
+      "sha256": "b0517fe2c84605369e2eada926ce8f95cdd1bb969378507ffbc8ead23feda84d",
+      "lines": 600
+    },
+    {
+      "path": "src/image_downloader/configuration/models.py",
+      "sha256": "2fd256fed5b797a43f3115b5e8cdbd511696a6e0e9317c656453a756b618572f",
+      "lines": 355
+    },
+    {
+      "path": "src/image_downloader/configuration/paths.py",
+      "sha256": "943a6d821b4e9047b77389b9ee01a7a015dd5ef1d531fa2d2a2f406221dd56ac",
+      "lines": 58
+    },
+    {
+      "path": "src/image_downloader/credentials/__init__.py",
+      "sha256": "9c4a3ad782610efaed27fca550da6ce1942ae06e094ba273313f00aa833e146d",
+      "lines": 1
+    },
+    {
+      "path": "src/image_downloader/credentials/keyring.py",
+      "sha256": "9745578511c7f468095ce30b253dfc0e77996d9b6ce1f30bb29d9645dec3b3fc",
+      "lines": 12
+    },
+    {
+      "path": "src/image_downloader/credentials/plugin_secrets.py",
+      "sha256": "60f1eeb5db6ac98ddc0b243525300fd60d5f23567aa019f3d679aa5cc19ced50",
+      "lines": 29
+    },
+    {
+      "path": "src/image_downloader/diagnostics.py",
+      "sha256": "e8f82ef52cbeef2395c38f20c10f873839fab5e874b3e5be380a5b60f5225d7f",
+      "lines": 149
+    },
+    {
+      "path": "src/image_downloader/exceptions.py",
+      "sha256": "ef7a850e716ebea0a23a2967ff1c24bbb40892f5133296a7b24a4c31a828d941",
+      "lines": 346
+    },
+    {
+      "path": "src/image_downloader/immutable.py",
+      "sha256": "35e4d82dd5d9292d3fc944605d2995218c683e673af0b9908263ecd69fb02e6b",
+      "lines": 33
+    },
+    {
+      "path": "src/image_downloader/media/__init__.py",
+      "sha256": "e0854fc7d5308cc073968bf3831ffec48e84652a311e7a8e19af6eddaa6c891f",
+      "lines": 5
+    },
+    {
+      "path": "src/image_downloader/media/artifact_pipeline.py",
+      "sha256": "6649bc6ae334976c4908adba0b2539abbe02c4cc91465c8d398d8a7cc7b9ab8d",
+      "lines": 286
+    },
+    {
+      "path": "src/image_downloader/media/image_processor.py",
+      "sha256": "c9c610a2e879f9bf3a525f65ee9a0ea9572e310d3c338111271f433cbb96f900",
+      "lines": 235
+    },
+    {
+      "path": "src/image_downloader/media/processor_chain.py",
+      "sha256": "e1a15bd99d36941cced9ca77ada3580cddb8e894fe9d70bbcc271d78673e57ff",
+      "lines": 106
+    },
+    {
+      "path": "src/image_downloader/models.py",
+      "sha256": "6b0477d3154039a0dfda606ff1d65e1441799a0a8fa2ddc89afd35527d8bc7d5",
+      "lines": 749
+    },
+    {
+      "path": "src/image_downloader/observability/__init__.py",
+      "sha256": "2b84a19c04889b0330ec518418100c9af98c7b3a9cd193c8145ea1c53548972b",
+      "lines": 21
+    },
+    {
+      "path": "src/image_downloader/observability/chapter_reporter.py",
+      "sha256": "784fbf24960c995c0424cb3e407a32ca7f8c9706bf8420a4ca52377d3de95c19",
+      "lines": 122
+    },
+    {
+      "path": "src/image_downloader/observability/diagnostic_safety.py",
+      "sha256": "777fabef8a496af0f47bddfc3c2c2708a8fce0a0a0312e47a56338393808dc90",
+      "lines": 30
+    },
+    {
+      "path": "src/image_downloader/observability/events.py",
+      "sha256": "305e5e2f01a6d9ca8c71d2c6a5286532b4989ebfea2cad0cb762403ee83f628b",
+      "lines": 192
+    },
+    {
+      "path": "src/image_downloader/observability/logging.py",
+      "sha256": "27e87c5c93202811a34f5ccfe08c5a25609b28c23495dbed97904fa35b249ad3",
+      "lines": 520
+    },
+    {
+      "path": "src/image_downloader/observability/notifications.py",
+      "sha256": "d50611a4bdfbb2e2dd93f9c8c4c2ac18d492d86f452a8c6c8c22e7dfdcada606",
+      "lines": 406
+    },
+    {
+      "path": "src/image_downloader/observability/scope.py",
+      "sha256": "b17da6451f1252e3c083c7129f73d5f4a35cced1699bab4ac2a5cda5c9ab4135",
+      "lines": 58
+    },
+    {
+      "path": "src/image_downloader/output/__init__.py",
+      "sha256": "e3c2e96a90016e6b5149069c35848c97a6224bd8f3801f13fbcf66621cdeadb4",
+      "lines": 1
+    },
+    {
+      "path": "src/image_downloader/output/format_tokens.py",
+      "sha256": "47e1ef0b051d9815d5eaa8e574cb2ed202d8d44cad6bbff9866ea629051d6e7b",
+      "lines": 25
+    },
+    {
+      "path": "src/image_downloader/output/original_filename.py",
+      "sha256": "5d8cdb3c9b5bccfb94266639520f7b2575c5be3dab1ea1f3cf0ddc6591e5237b",
+      "lines": 164
+    },
+    {
+      "path": "src/image_downloader/output/output_allocator.py",
+      "sha256": "760f9a748a2a4a6bad43882e4fc30b31ca5e5d15f9d87cf83a7e36887c3f6e4b",
+      "lines": 328
+    },
+    {
+      "path": "src/image_downloader/output/output_lock.py",
+      "sha256": "8a768fc9bcd9945dcdf225efd487af7f258e6afac8db1ef36dee140976e2335a",
+      "lines": 54
+    },
+    {
+      "path": "src/image_downloader/plugins/__init__.py",
+      "sha256": "cbc06f0981cfd7dc8388eed756db6c2b3ea579668f60e9ac3561a08ea81cea01",
+      "lines": 1
+    },
+    {
+      "path": "src/image_downloader/plugins/builtin.py",
+      "sha256": "73094c56426a5a450af7808bb88f7d858903e6bb38f8ceaeff00b218afbf935f",
+      "lines": 129
+    },
+    {
+      "path": "src/image_downloader/plugins/format_values.py",
+      "sha256": "1c973e01e6b0e357e7cf79033d449426860d21c0d4420197859479e16c224a13",
+      "lines": 47
+    },
+    {
+      "path": "src/image_downloader/plugins/html_encoding.py",
+      "sha256": "02c93fe059413ecfebca58d6af8990f204b34853d1a60bb89ade2e64b347f211",
+      "lines": 83
+    },
+    {
+      "path": "src/image_downloader/plugins/lifecycle.py",
+      "sha256": "3cd20520bd840d5278d49aa2d49d3498a31a73321ffdc8278f59216aa4f82e66",
+      "lines": 379
+    },
+    {
+      "path": "src/image_downloader/plugins/management.py",
+      "sha256": "d5c92fa213fa79132ab61e86f2e262b0f7922d8a21e586c97b43fd816625e279",
+      "lines": 316
+    },
+    {
+      "path": "src/image_downloader/plugins/plugin_invoker.py",
+      "sha256": "445a28dab501f9cf54abaadfde2a107c82cf3fccd7facfb6cb2ee6702b0f57f1",
+      "lines": 484
+    },
+    {
+      "path": "src/image_downloader/plugins/plugin_manifest.py",
+      "sha256": "b624c8585b7d646d402f7c37fbe4f4a8265442a6429fbf55b1b6d97fdfa89193",
+      "lines": 608
+    },
+    {
+      "path": "src/image_downloader/plugins/runtime.py",
+      "sha256": "1f5d0f0ee7f23603312377ba45db1e899aac446c2a1edea4e28a2c8b9c1eca8a",
+      "lines": 454
+    },
+    {
+      "path": "src/image_downloader/ports.py",
+      "sha256": "843c215fd9774b5f698e953d64d064027c09394d7f3a226f5f06e9d9ee7b3b21",
+      "lines": 356
+    },
+    {
+      "path": "src/image_downloader/privacy/__init__.py",
+      "sha256": "4af4d03d28b58867f33b0fbb10c1300585eb7578d0dabe7a91dcb6a3837323db",
+      "lines": 1
+    },
+    {
+      "path": "src/image_downloader/privacy/log_safety.py",
+      "sha256": "fc8692e386f851c3900f3550ace74610795e52300fef228f807cfd2b44ea693f",
+      "lines": 167
+    },
+    {
+      "path": "src/image_downloader/privacy/sensitive_values.py",
+      "sha256": "2f75f570a0acda4925596688baef73fa254efd8c00f08cd68a1a8ff7034ed3ae",
+      "lines": 65
+    },
+    {
+      "path": "src/image_downloader/runtime.py",
+      "sha256": "ddb1c22b9afb1e188ce5bc9450bed3c33c3c3a223d04ecc4c1ad23cb64498cfe",
+      "lines": 25
+    },
+    {
+      "path": "src/image_downloader/security.py",
+      "sha256": "14b2b8cbe8aed0a7365a3850c83170535acfe304984dc1ca0d46608cb2c88e00",
+      "lines": 77
+    },
+    {
+      "path": "src/image_downloader/storage/__init__.py",
+      "sha256": "e3d3985e9cf715f2128cb1d56c433d9db09f858c7d2f06bd29c870cb7dc7581e",
+      "lines": 5
+    },
+    {
+      "path": "src/image_downloader/storage/_path_limits.py",
+      "sha256": "c34c9803e766f9ea0cb5f24de556251e62b8adbd6f5c5b31d3e7b636b14183ac",
+      "lines": 150
+    },
+    {
+      "path": "src/image_downloader/storage/cookies.py",
+      "sha256": "d168945e694db21f1ff52e3a51b853c4be5192b657d9c4cf36d7342a775acd57",
+      "lines": 326
+    },
+    {
+      "path": "src/image_downloader/storage/filesystem.py",
+      "sha256": "a1bd9ff3e5a92f2056abbe86276dc4a2bfc40db7a7af213cbcbed7142730d434",
+      "lines": 276
+    },
+    {
+      "path": "src/image_downloader/storage/interprocess_lock.py",
+      "sha256": "a42aa7fb0a2038d8fc68a07942d4b385ad0bea240afbce7a95e828fc02e0f21f",
+      "lines": 166
+    },
+    {
+      "path": "src/image_downloader/storage/path_safety.py",
+      "sha256": "e58d33930d74d5f8292d440818845cde715a7ee2fa82df45b080a642272e13fc",
+      "lines": 81
+    },
+    {
+      "path": "src/image_downloader/storage/state.py",
+      "sha256": "e952fb6589a6a68625b1314c4a1218e0f7d221978bc36d0372d8a0732f0e039b",
+      "lines": 227
+    },
+    {
+      "path": "src/image_downloader/storage/workflow.py",
+      "sha256": "eb329bb36f0eb98d4e95a84d76f210745dce32181ac990ca02b9803ed53365b2",
+      "lines": 179
+    },
+    {
+      "path": "src/image_downloader/storage/workflow_history.py",
+      "sha256": "ec31093a7173c9ba65713a353cf185f2746f180feee446b8a5b2ab2311383194",
+      "lines": 198
+    },
+    {
+      "path": "src/image_downloader/storage/workflow_history_schema.py",
+      "sha256": "041bd798eb9d84b7973103bcd029d67c8f2c128cadcfc8da6850a891bd112a24",
+      "lines": 151
+    },
+    {
+      "path": "src/image_downloader/storage/workflow_logging.py",
+      "sha256": "632becc1f3e63f8347169f857059fc79a214ba59b4f92c698ac11ddc9952b128",
+      "lines": 190
+    },
+    {
+      "path": "src/image_downloader/transport/__init__.py",
+      "sha256": "5b2b795bbf0b72dc2874c08852bfff67c504f23c1b144705e8f7c4d80f671ac0",
+      "lines": 1
+    },
+    {
+      "path": "src/image_downloader/transport/gateway.py",
+      "sha256": "d2b4945c0817e2389f0756b950cf04f9f6f9a579ec001bc83c9e35d5e7c11735",
+      "lines": 677
+    }
+  ],
+  "checks": [
+    {
+      "name": "ruff-project",
+      "command": [
+        "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+        "-m",
+        "ruff",
+        "check",
+        "src/image_downloader",
+        "--output-format",
+        "json"
+      ],
+      "exit_code": 0,
+      "seconds": 0.485
+    },
+    {
+      "name": "ruff-security",
+      "command": [
+        "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+        "-m",
+        "ruff",
+        "check",
+        "src/image_downloader",
+        "--select",
+        "S",
+        "--ignore-noqa",
+        "--output-format",
+        "json"
+      ],
+      "exit_code": 1,
+      "seconds": 0.453
+    },
+    {
+      "name": "ruff-pep8",
+      "command": [
+        "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+        "-m",
+        "ruff",
+        "check",
+        "src/image_downloader",
+        "--select",
+        "E,W,N",
+        "--line-length",
+        "79",
+        "--ignore-noqa",
+        "--config",
+        "lint.ignore=[]",
+        "--output-format",
+        "json"
+      ],
+      "exit_code": 1,
+      "seconds": 0.547
+    },
+    {
+      "name": "mypy",
+      "command": [
+        "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+        "-m",
+        "mypy",
+        "src/image_downloader"
+      ],
+      "exit_code": 0,
+      "seconds": 5.547
+    },
+    {
+      "name": "pytest-v3",
+      "command": [
+        "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+        "-m",
+        "pytest",
+        "tests/v3",
+        "-q",
+        "--cov=image_downloader",
+        "--cov-branch",
+        "--cov-report=term-missing",
+        "--cov-report=json:C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\raw\\coverage.json"
+      ],
+      "exit_code": 0,
+      "seconds": 628.75
+    }
+  ],
+  "finished_utc": "2026-10-05T16:37:30.675521+00:00"
+}
