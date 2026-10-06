@@ -308,7 +308,7 @@
       "run": 37477284634,
       "job": 112315901780,
       "case": "test_parallel_processes_commit_feed_updates_without_lost_history[False]",
-      "error": "Child process failed; inspect log for underlying Windows lock error."
+      "error": "Child process termination assertion failed; the underlying cause is undetermined from the log."
     }
   ],
   "cancelled_unexecuted_macos": [
