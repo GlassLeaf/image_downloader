@@ -47,4 +47,21 @@ ID と reference の境界は1個の `_` で区切られ、符号化した各フ
 
 [実行環境・コマンド・基準コミットと作業ツリー状態・対象 SHA-256](raw/qs-016-validation-metadata.json) を保存した。全体検証の前後で本体94ファイルと追加テストの内容が一致することを照合した。修正コミットは本記録と実装・テストを含むブランチの Git 履歴および PR の head で特定できる。
 
-既存 CI は [修正ブランチの Actions](https://github.com/GlassLeaf/image_downloader/actions?query=branch%3Acodex%2Ffix-qs-016-secret-env) で 3 OS × Python 3.11～3.14 と package smoke を確認する。
+## CI 確認結果（2026-10-07 JST）
+
+検証した実装コミットは `aee66c92733270fe6434da1e59610e00eac5e466` である。[PR #11 の CI](https://github.com/GlassLeaf/image_downloader/actions/runs/37478431497) は、再実行を含めて15ジョブすべて成功した。
+
+| CI 対象 | 結果 |
+| --- | --- |
+| Ubuntu・macOS × Python 3.11～3.14 | 各1,626成功・13スキップ、coverage 87.90～87.98% |
+| Windows × Python 3.11～3.14 | 各1,627成功・12スキップ、coverage 88.13～88.21% |
+| Ruff・mypy・pip check | 全12組合せで成功 |
+| sdist/wheel build・非 editable install の package smoke | 3 OS で成功 |
+
+[ジョブ ID・検証済みコミット・結果抜粋・初回失敗の記録](raw/qs-016-ci-results.json) も保存した。CI の13スキップは Mailpit の12件と Unix で適用されない Windows 専用1件、Windows の12スキップは Mailpit の12件である。CI の symlink テストは成功した。
+
+初回の成功だけを示した結果ではない。PR の Windows 3.14 は、変更していない `InterProcessFileLock._ensure_lock_byte()` の `flush()` で `PermissionError` が発生し、子プロセス終了後の親側 queue がタイムアウトした。同じ実装コミットで該当ジョブを1回再実行して成功した。未実行でキャンセルされた macOS の3組合せも再開して成功した。
+
+先行する [push 実行](https://github.com/GlassLeaf/image_downloader/actions/runs/37477284634) では Windows 3.12・3.14 の既存 workflow タイムアウトテストと、3.13 の既存並行更新テストの子プロセス終了判定が失敗した。同じコミットの PR 実行ではそれらも成功した。今回、該当する本体・既存テストは変更しておらず、これら Windows の待機・競合経路の不安定性は別課題として残る。
+
+この CI 結果の追記は検証記録だけの後続コミットであり、検証済みの本体・テストは上記実装コミットと同じ内容である。後続コミットでは CI の再実行を抑止し、文書検証と対象 SHA-256 の照合を行う。

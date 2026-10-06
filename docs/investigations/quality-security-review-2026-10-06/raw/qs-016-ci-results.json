@@ -1,0 +1,321 @@
+{
+  "verified_implementation_commit": "aee66c92733270fe6434da1e59610e00eac5e466",
+  "verification_date_jst": "2026-10-07",
+  "pull_request": "https://github.com/GlassLeaf/image_downloader/pull/11",
+  "workflow_run": {
+    "id": 37478431497,
+    "url": "https://github.com/GlassLeaf/image_downloader/actions/runs/37478431497",
+    "jobs": [
+      {
+        "id": 112333600297,
+        "name": "test (macos-latest, 3.13)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 112333600526,
+        "name": "test (ubuntu-latest, 3.11)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 112333600604,
+        "name": "test (macos-latest, 3.14)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 112333601012,
+        "name": "test (ubuntu-latest, 3.13)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 112333601036,
+        "name": "test (macos-latest, 3.12)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 112333601749,
+        "name": "package-smoke (windows-latest)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 112333601791,
+        "name": "test (windows-latest, 3.13)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 112333602066,
+        "name": "test (windows-latest, 3.12)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 112333602083,
+        "name": "test (windows-latest, 3.14)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 112333602241,
+        "name": "package-smoke (macos-latest)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 112333602556,
+        "name": "test (macos-latest, 3.11)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 112333643070,
+        "name": "test (windows-latest, 3.11)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 112333653416,
+        "name": "test (ubuntu-latest, 3.14)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 112333656312,
+        "name": "test (ubuntu-latest, 3.12)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 112333666078,
+        "name": "package-smoke (ubuntu-latest)",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ]
+  },
+  "matrix": [
+    {
+      "os": "ubuntu-latest",
+      "python": "3.11",
+      "job_id": 112319950471,
+      "url": "https://github.com/GlassLeaf/image_downloader/actions/runs/37478431497/job/112319950471",
+      "conclusion": "success",
+      "summary": [
+        "2026-10-06T14:23:35.2222711Z All checks passed!",
+        "2026-10-06T14:23:39.4548185Z Success: no issues found in 94 source files",
+        "2026-10-06T14:24:46.2517748Z Required test coverage of 75.0% reached. Total coverage: 87.98%",
+        "2026-10-06T14:24:46.2518622Z 1626 passed, 13 skipped in 65.77s (0:01:05)"
+      ]
+    },
+    {
+      "os": "ubuntu-latest",
+      "python": "3.12",
+      "job_id": 112319950433,
+      "url": "https://github.com/GlassLeaf/image_downloader/actions/runs/37478431497/job/112319950433",
+      "conclusion": "success",
+      "summary": [
+        "2026-10-06T14:23:03.1462863Z All checks passed!",
+        "2026-10-06T14:23:07.5430571Z Success: no issues found in 94 source files",
+        "2026-10-06T14:24:15.7022635Z Required test coverage of 75.0% reached. Total coverage: 87.98%",
+        "2026-10-06T14:24:15.7023231Z 1626 passed, 13 skipped, 174 warnings in 67.31s (0:01:07)"
+      ]
+    },
+    {
+      "os": "ubuntu-latest",
+      "python": "3.13",
+      "job_id": 112319950494,
+      "url": "https://github.com/GlassLeaf/image_downloader/actions/runs/37478431497/job/112319950494",
+      "conclusion": "success",
+      "summary": [
+        "2026-10-06T14:23:00.1218960Z All checks passed!",
+        "2026-10-06T14:23:03.1051455Z Success: no issues found in 94 source files",
+        "2026-10-06T14:23:48.7408003Z Required test coverage of 75.0% reached. Total coverage: 87.98%",
+        "2026-10-06T14:23:48.7408426Z 1626 passed, 13 skipped, 174 warnings in 44.43s"
+      ]
+    },
+    {
+      "os": "ubuntu-latest",
+      "python": "3.14",
+      "job_id": 112319950399,
+      "url": "https://github.com/GlassLeaf/image_downloader/actions/runs/37478431497/job/112319950399",
+      "conclusion": "success",
+      "summary": [
+        "2026-10-06T14:23:13.1492957Z All checks passed!",
+        "2026-10-06T14:23:18.6647035Z Success: no issues found in 94 source files",
+        "2026-10-06T14:25:16.6754519Z Required test coverage of 75.0% reached. Total coverage: 87.90%",
+        "2026-10-06T14:25:16.6755102Z 1626 passed, 13 skipped, 1 warning in 114.88s (0:01:54)"
+      ]
+    },
+    {
+      "os": "windows-latest",
+      "python": "3.11",
+      "job_id": 112319950508,
+      "url": "https://github.com/GlassLeaf/image_downloader/actions/runs/37478431497/job/112319950508",
+      "conclusion": "success",
+      "summary": [
+        "2026-10-06T14:23:28.8167853Z All checks passed!",
+        "2026-10-06T14:23:34.4831150Z Success: no issues found in 94 source files",
+        "2026-10-06T14:28:20.5595127Z Required test coverage of 75.0% reached. Total coverage: 88.19%",
+        "2026-10-06T14:28:20.5595838Z 1627 passed, 12 skipped in 284.38s (0:04:44)"
+      ]
+    },
+    {
+      "os": "windows-latest",
+      "python": "3.12",
+      "job_id": 112319950594,
+      "url": "https://github.com/GlassLeaf/image_downloader/actions/runs/37478431497/job/112319950594",
+      "conclusion": "success",
+      "summary": [
+        "2026-10-06T14:23:38.4335770Z All checks passed!",
+        "2026-10-06T14:23:42.8783138Z Success: no issues found in 94 source files",
+        "2026-10-06T14:28:59.8798431Z Required test coverage of 75.0% reached. Total coverage: 88.19%",
+        "2026-10-06T14:28:59.8798879Z 1627 passed, 12 skipped in 315.38s (0:05:15)"
+      ]
+    },
+    {
+      "os": "windows-latest",
+      "python": "3.13",
+      "job_id": 112319950420,
+      "url": "https://github.com/GlassLeaf/image_downloader/actions/runs/37478431497/job/112319950420",
+      "conclusion": "success",
+      "summary": [
+        "2026-10-06T14:23:36.2664113Z All checks passed!",
+        "2026-10-06T14:23:42.2009189Z Success: no issues found in 94 source files",
+        "2026-10-06T14:28:09.5381363Z Required test coverage of 75.0% reached. Total coverage: 88.21%",
+        "2026-10-06T14:28:09.5382013Z 1627 passed, 12 skipped in 265.59s (0:04:25)"
+      ]
+    },
+    {
+      "os": "windows-latest",
+      "python": "3.14",
+      "job_id": 112330015614,
+      "url": "https://github.com/GlassLeaf/image_downloader/actions/runs/37478431497/job/112330015614",
+      "conclusion": "success",
+      "summary": [
+        "2026-10-06T14:44:17.9418435Z All checks passed!",
+        "2026-10-06T14:44:22.2608795Z Success: no issues found in 94 source files",
+        "2026-10-06T14:47:02.4589917Z Required test coverage of 75.0% reached. Total coverage: 88.13%",
+        "2026-10-06T14:47:02.4590299Z 1627 passed, 12 skipped, 1 warning in 158.67s (0:02:38)"
+      ]
+    },
+    {
+      "os": "macos-latest",
+      "python": "3.11",
+      "job_id": 112319950694,
+      "url": "https://github.com/GlassLeaf/image_downloader/actions/runs/37478431497/job/112319950694",
+      "conclusion": "success",
+      "summary": [
+        "2026-10-06T14:23:24.6174010Z All checks passed!",
+        "2026-10-06T14:23:26.6500660Z Success: no issues found in 94 source files",
+        "2026-10-06T14:25:02.0315570Z Required test coverage of 75.0% reached. Total coverage: 87.98%",
+        "2026-10-06T14:25:02.0315910Z 1626 passed, 13 skipped in 94.85s (0:01:34)"
+      ]
+    },
+    {
+      "os": "macos-latest",
+      "python": "3.12",
+      "job_id": 112333601036,
+      "url": "https://github.com/GlassLeaf/image_downloader/actions/runs/37478431497/job/112333601036",
+      "conclusion": "success",
+      "summary": [
+        "2026-10-06T14:58:39.2076870Z All checks passed!",
+        "2026-10-06T14:58:43.8342650Z Success: no issues found in 94 source files",
+        "2026-10-06T15:01:30.9365200Z Required test coverage of 75.0% reached. Total coverage: 87.98%",
+        "2026-10-06T15:01:30.9365540Z 1626 passed, 13 skipped in 165.81s (0:02:45)"
+      ]
+    },
+    {
+      "os": "macos-latest",
+      "python": "3.13",
+      "job_id": 112333600297,
+      "url": "https://github.com/GlassLeaf/image_downloader/actions/runs/37478431497/job/112333600297",
+      "conclusion": "success",
+      "summary": [
+        "2026-10-06T14:51:37.1959910Z All checks passed!",
+        "2026-10-06T14:51:39.5844750Z Success: no issues found in 94 source files",
+        "2026-10-06T14:53:13.8411060Z Required test coverage of 75.0% reached. Total coverage: 87.98%",
+        "2026-10-06T14:53:13.8411380Z 1626 passed, 13 skipped in 93.69s (0:01:33)"
+      ]
+    },
+    {
+      "os": "macos-latest",
+      "python": "3.14",
+      "job_id": 112333600604,
+      "url": "https://github.com/GlassLeaf/image_downloader/actions/runs/37478431497/job/112333600604",
+      "conclusion": "success",
+      "summary": [
+        "2026-10-06T14:51:36.9920980Z All checks passed!",
+        "2026-10-06T14:51:39.1906290Z Success: no issues found in 94 source files",
+        "2026-10-06T14:53:11.5055060Z Required test coverage of 75.0% reached. Total coverage: 87.90%",
+        "2026-10-06T14:53:11.5055340Z 1626 passed, 13 skipped, 1 warning in 91.76s (0:01:31)"
+      ]
+    }
+  ],
+  "package_smoke": [
+    {
+      "os": "ubuntu-latest",
+      "job_id": 112319950450,
+      "conclusion": "success",
+      "summary": [
+        "2026-10-06T14:22:52.7480295Z Successfully built image_downloader-0.0.0.1b0.tar.gz and image_downloader-0.0.0.1b0-py3-none-any.whl",
+        "2026-10-06T14:23:06.0034059Z release smoke passed: 0.0.0.1b0"
+      ]
+    },
+    {
+      "os": "windows-latest",
+      "job_id": 112319950453,
+      "conclusion": "success",
+      "summary": [
+        "2026-10-06T14:23:06.6290357Z Successfully built image_downloader-0.0.0.1b0.tar.gz and image_downloader-0.0.0.1b0-py3-none-any.whl",
+        "2026-10-06T14:23:24.9694623Z release smoke passed: 0.0.0.1b0"
+      ]
+    },
+    {
+      "os": "macos-latest",
+      "job_id": 112319949996,
+      "conclusion": "success",
+      "summary": [
+        "2026-10-06T14:22:56.3618740Z Successfully built image_downloader-0.0.0.1b0.tar.gz and image_downloader-0.0.0.1b0-py3-none-any.whl",
+        "2026-10-06T14:23:03.3398720Z release smoke passed: 0.0.0.1b0"
+      ]
+    }
+  ],
+  "initial_failures": [
+    {
+      "run": 37478431497,
+      "job": 112319950658,
+      "case": "test_two_processes_apply_existing_file_policy[overwrite]",
+      "error": "PermissionError in InterProcessFileLock._ensure_lock_byte/flush; child InterProcessLockError, parent queue.Empty. Unchanged storage implementation; rerun only failed job once."
+    },
+    {
+      "run": 37477284634,
+      "job": 112315901225,
+      "case": "test_cancel_or_timeout_distinguishes_interrupted_and_not_started[True]",
+      "error": "TimeoutError; unchanged timing-sensitive test."
+    },
+    {
+      "run": 37477284634,
+      "job": 112315901500,
+      "case": "test_cancel_or_timeout_distinguishes_interrupted_and_not_started[True]",
+      "error": "TimeoutError; unchanged timing-sensitive test."
+    },
+    {
+      "run": 37477284634,
+      "job": 112315901780,
+      "case": "test_parallel_processes_commit_feed_updates_without_lost_history[False]",
+      "error": "Child process failed; inspect log for underlying Windows lock error."
+    }
+  ],
+  "cancelled_unexecuted_macos": [
+    "3.12",
+    "3.13",
+    "3.14"
+  ],
+  "reruns": "The same implementation commit was used throughout. PR Windows 3.14 succeeded on one rerun. Cancelled, unexecuted macOS jobs were then rerun using the failed-jobs endpoint and all succeeded. Initial failure history remains visible.",
+  "limits": "Existing Windows timing/process coordination failures remain a separate concern; this change modifies only secret environment naming, tests and documentation."
+}
