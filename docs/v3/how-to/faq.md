@@ -437,11 +437,25 @@ image-downloader workflow URL --download-scope all
 画像の相対URLはリダイレクト後の最終レスポンスURLを基準に解決する。最初の`base href`が
 有効なHTTP(S) URLなら、その値（相対指定も可）を基準にする。空のhrefは最終レスポンスURLを使い、
 不正なURLやHTTP(S)以外のbaseは無視して最終レスポンスURLへ戻る。後続のbaseは採用しない。
-画像のRefererはbaseのURLではなく最終レスポンスURLである。
+画像の自動RefererはbaseのURLではなく最終レスポンスURLを参照元とする。
+コア提供の`GenericHtmlPlugin`クラス本体では、userinfo・fragmentを常に除去し、
+同一オリジンにはパス・クエリを保持したURL、別オリジンには`scheme://host[:port]/`だけを使う。
+HTTPSからHTTPへの画像要求では自動Refererを省略する。サブドメイン・異なるportも別オリジンである。
+manifest／RequestSpecの`referer`がoriginや`None`に変わるため、完全なページURLを要求するCDNは403等になり得る。
+403やHTMLの宣言を理由に完全URLへ戻す処理はない。必要なサイトでは独自プラグインがRefererを明示する。
+
+独自プラグイン・継承クラスと、プラグインや設定で明示したRefererは従来の扱いを維持する。
+自動値が`None`でも、`network.headers`の明示Refererがあれば送信される。
+同一オリジンのクエリと明示Refererの秘密部分は保持される。[自動値の保証範囲](../reference/runtime-behavior.md#組込み汎用htmlの自動referer)を参照する。
 
 `core.generic-html`は指定ページ自身を1件の候補として返し、リンク先を巡回しない。初回・未完了・`all`ではページを取得し、完了済みの`updated`では画像一覧が変わったときだけ取得する。revisionはURL・index・image_idの返却順の一覧（重複を含む）を固定JSONにしてSHA-256を計算する。本文・タイトル・保存設定の変更は対象外。画像追加・削除・順序・ID・署名クエリを含むURLの変更は対象になる。
 
 これは画像データのハッシュではないため、URLが同じまま画像内容だけが変わる場合は検出できない。更新確認と選択後のmanifest取得でHTMLを別々に取得するため、両者の間にページが変わることもある。追加周回の成功画像保持・再取得条件は従来どおり。画像0件でもgenericは1章を返すため、通常取得とworkflowはいずれも成功する。空manifest許可設定が制御するのは章0件である。
+
+Referer制限は画像URL・index・image_idとrevisionの計算方式を変えず、既存の完了状態を移行しない。
+完了済みの`updated`を一律に再取得させる変更ではない。追加周回では`ImageResource`全体の比較を維持するため、
+別オリジン画像の自動Refererが同じoriginに留まれば、ページのクエリ変更だけでは成功画像を再取得しなくなる。
+同一オリジン画像ではページのクエリを保持するので、その変化は従来どおり再取得条件になる。
 
 `--dry-run`はHTMLによる一覧確認だけを行い、対象manifest・画像を取得せず履歴も保存しない。別のプラグインが更新確認に非対応なら、安全な固定エラー`update_check_unsupported`（終了コード4）で停止する。古い履歴の`plugin_error`は書き換えない。詳しくは[CLI](../reference/cli.md)と[API](../reference/library-api.md)を参照。
 

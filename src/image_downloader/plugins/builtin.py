@@ -7,7 +7,10 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from hashlib import sha256
 from html.parser import HTMLParser
+from ipaddress import IPv6Address
 from urllib.parse import urljoin, urlparse
+
+import httpx
 
 from ..models import (
     Chapter,
@@ -21,6 +24,36 @@ from ..models import (
 )
 from ..ports import PluginExecutionContext, TransformContext
 from .html_encoding import _decode_html
+
+
+def _referer_origin(url: httpx.URL) -> tuple[str, bytes, int]:
+    host = url.raw_host
+    if b":" in host:
+        host = IPv6Address(host.decode("ascii")).compressed.encode("ascii")
+    port = url.port if url.port is not None else (443 if url.scheme == "https" else 80)
+    return url.scheme, host, port
+
+
+def _automatic_referer(source_url: str, target_url: str) -> str | None:
+    """Limit only the built-in HTML plugin's automatically generated Referer."""
+    try:
+        source, target = httpx.URL(source_url), httpx.URL(target_url)
+        for value, url in ((source_url, source), (target_url, target)):
+            parsed = urlparse(value)
+            if (
+                url.scheme not in {"http", "https"}
+                or not url.is_absolute_url
+                or (parsed.port is not None and not 0 <= parsed.port <= 65535)
+            ):
+                return None
+        if source.scheme == "https" and target.scheme == "http":
+            return None
+        clean = source.copy_with(username=None, password=None, fragment=None)
+        if _referer_origin(source) == _referer_origin(target):
+            return str(clean)
+        return str(clean.copy_with(path="/", query=None))
+    except (httpx.InvalidURL, ValueError):
+        return None
 
 
 class _ImageParser(HTMLParser):
@@ -101,7 +134,10 @@ class GenericHtmlPlugin:
         )
         parser.feed(html)
         parser.close()
-        return DownloadManifest(parser.title, (Chapter(1, parser.title, images=tuple(parser.images)),))
+        images = parser.images
+        if type(self) is GenericHtmlPlugin:
+            images = [replace(image, referer=_automatic_referer(response.url, image.url)) for image in images]
+        return DownloadManifest(parser.title, (Chapter(1, parser.title, images=tuple(images)),))
 
     async def check_updates(self, url: str, context: PluginExecutionContext) -> UpdateSnapshot:
         manifest = await self._load_manifest(url, context)

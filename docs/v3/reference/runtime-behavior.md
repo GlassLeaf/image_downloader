@@ -22,6 +22,29 @@ GET、HEAD、OPTIONS、TRACE は retry 対象である。429、500、502、503�
 
 redirect は hop ごとに policy を検査する。anonymous cross-origin redirect には Cookie、Referer、plugin-specific header、application header を引き継がない。response body は streaming で読み、宣言済みサイズと受信済みサイズのいずれも `network.max_response_bytes` を超えると `ResponseSizeLimitError` で止める。
 
+### 組込み汎用HTMLの自動Referer
+
+`core.generic-html`のクラス本体は、HTML解析と画像URL解決後に、最終ページURLから画像ごとの
+自動Refererを生成する。`base href`は画像URLの解決に使い、Refererの参照元には使わない。
+
+| 最終ページと画像取得先の関係 | 自動Referer |
+| --- | --- |
+| 同一オリジン | userinfo・fragmentを除いたページURL。パス・クエリは保持 |
+| 別オリジン、HTTPS→HTTP以外 | ページの`scheme://host[:port]/`のみ |
+| HTTPS→HTTP | 省略（`None`） |
+| HTTP(S)以外・解析不能・不正ポート | 省略。画像URL自体の既存検証・失敗処理は維持 |
+
+オリジンはscheme・正規化したhost・実効portで比較する。サブドメインや異なるportは別オリジンである。
+manifestの`ImageResource.referer`、組込みの`RequestSpec.referer`、明示ヘッダーがない場合の
+effective previewと実送信に同じ値を使う。HTMLの`Referrer-Policy`／meta／`referrerpolicy`でこの方針を
+緩和せず、403でも完全URLへ自動的に戻さない。完全なページRefererが必要なサイトは、独自プラグインで明示する。
+
+独自プラグイン、`GenericHtmlPlugin`の継承クラス、共有HTML parser、明示されたRefererは従来の扱いを維持する。
+ヘッダー名の大小文字によらず`RequestSpec.headers`のRefererが`RequestSpec.referer`より優先され、
+どちらもない場合は`network.headers`の明示Refererが使われる。自動値が`None`でもこの設定値は送信される。
+明示値に含まれる秘密情報と、同一オリジンへ保持するクエリは、この自動値の制限では除去されない。
+認証・cookie・リダイレクトの既存方針、公開DTO・設定schema、詳細inspection出力の契約は維持する。
+
 ## Cookies
 
 <a id="runtime-cookies"></a>
