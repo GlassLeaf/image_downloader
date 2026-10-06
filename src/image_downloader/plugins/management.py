@@ -10,7 +10,7 @@ from pathlib import Path
 from ..configuration.models import AppConfig
 from ..exceptions import ConfigurationError, PluginError
 from ..storage.path_safety import existing_directory
-from .lifecycle import PluginRecord
+from .lifecycle import PluginRecord, _bind_record_sources
 from .plugin_manifest import (
     CatalogEntry,
     PluginCatalog,
@@ -21,6 +21,7 @@ from .plugin_manifest import (
     _write_catalog_unlocked,
     author_config,
     catalog_path,
+    collect_plugin_file_tree,
     plugin_content_digest,
     read_manifest,
     verify_signed_plugin_source,
@@ -245,6 +246,8 @@ def install_plugin(
         if mode != "bypass-all":
             checker = PluginRuntime(AppConfig(), stage_root, mode="bypass-all")
             candidate = PluginRecord(staged_manifest, author_config(staged_manifest), None)
+            if mode == "bypass-signature":
+                _bind_record_sources(candidate, collect_plugin_file_tree(staged))
             try:
                 if candidate.kind == "site_plugin":
                     checker.site_instance(candidate)
