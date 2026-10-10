@@ -7,6 +7,28 @@ profileの`logs/workflow`へ非上書きで保存する。予定保存に失敗�
 
 この文書は public API の型ではなく、transport、persistence、output safety の実行契約を定義する。callable signature は [library API reference](library-api.md) を参照する。
 
+## Runtime組立て時の所有権
+
+<a id="runtime-construction"></a>
+
+`RuntimeComposer`は、通常download・CLI inspection・workflow planの組立て中に作成した
+registry、log sink／logger、HTTP gateway、画像processorを所有する。serviceの構築が
+成功したときだけ、完成した`DownloadService`へ終了処理の所有権を移す。
+`compose_registry()`だけを成功させた場合は、返されたruntimeをcallerが閉じる。
+
+組立てに失敗した場合は、作成済み資源の解放を試み、元の例外・中断を再送出する。
+serviceを返さないため、callerによる部分的なserviceのcloseは不要である。
+途中の資源はまだ通信・画像処理に使われておらず、cookie保存や通知送信も行わない。
+正常に完成したserviceの`close()`によるcookie delta保存と通常の終了処理は維持する。
+
+`compose()`の同期APIは維持する。呼出元に動作中のasyncio event loopがあるときは、
+失敗時の非同期cleanupだけを一時スレッドの独立loopで実行し、完了を待つ。
+後始末の一つが失敗しても残りを試み、元のエラーを置き換えず、固定文言と固定の資源区分で警告する。
+後始末自体が失敗した資源の完全解放は保証できない。
+
+本体が構築した未使用資源だけが対象であり、利用済みclientや独自依存の汎用的なloop移動機能ではない。
+当該runtime以外のplugin moduleやfinder登録は保持する。作成済みディレクトリ・log・lockファイルは削除しない。
+
 ## HTTP transport
 
 <a id="runtime-transport"></a>

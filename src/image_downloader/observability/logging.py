@@ -130,6 +130,7 @@ class ChapterFileSink(LogSink):
         self, path: Path | None = None, *, filesystem: FileSystem | None = None, relative_path: Path | None = None
     ) -> None:
         self.path = path
+        self._lock = asyncio.Lock()
         if filesystem is not None and relative_path is not None:
             self._stream = filesystem.open_text_append(relative_path, encoding="utf-8", newline="")
         elif path is not None:
@@ -137,7 +138,6 @@ class ChapterFileSink(LogSink):
             self._stream = path.open("a", encoding="utf-8", newline="")
         else:
             raise ValueError("ChapterFileSink requires path or filesystem with relative_path")
-        self._lock = asyncio.Lock()
 
     async def write(self, record: LogRecord) -> None:
         async with self._lock:

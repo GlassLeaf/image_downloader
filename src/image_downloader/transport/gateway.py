@@ -183,6 +183,16 @@ class RequestGateway:
             write=network.write_timeout_seconds or network.request_timeout_seconds,
             pool=network.pool_timeout_seconds or network.request_timeout_seconds,
         )
+        self._global = asyncio.Semaphore(network.request_concurrency)
+        self._hosts: defaultdict[str, asyncio.Semaphore] = defaultdict(
+            lambda: asyncio.Semaphore(network.origin_request_concurrency or network.request_concurrency)
+        )
+        self._sites: defaultdict[str, asyncio.Semaphore] = defaultdict(
+            lambda: asyncio.Semaphore(network.registrable_domain_request_concurrency or network.request_concurrency)
+        )
+        self._interval_lock = asyncio.Lock()
+        self._last_request = 0.0
+        self._logger = logger
         self.client = httpx.AsyncClient(
             http2=network.http2,
             timeout=timeout,
@@ -196,16 +206,6 @@ class RequestGateway:
             headers=dict(network.headers),
             cookies=cookie_jar,
         )
-        self._global = asyncio.Semaphore(network.request_concurrency)
-        self._hosts: defaultdict[str, asyncio.Semaphore] = defaultdict(
-            lambda: asyncio.Semaphore(network.origin_request_concurrency or network.request_concurrency)
-        )
-        self._sites: defaultdict[str, asyncio.Semaphore] = defaultdict(
-            lambda: asyncio.Semaphore(network.registrable_domain_request_concurrency or network.request_concurrency)
-        )
-        self._interval_lock = asyncio.Lock()
-        self._last_request = 0.0
-        self._logger = logger
 
     def operation(
         self,

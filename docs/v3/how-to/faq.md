@@ -278,6 +278,12 @@ async with RuntimeComposer(
 
 import と設定ロードを含む完全な例は [embedded download tutorial](../tutorials/embedded-download.md) を参照する。
 
+`compose()`自体が失敗してserviceを返さなかった場合は、composerが作成済みの資源を解放し、
+元の例外・中断を再送出する。callerが部分的なserviceを閉じる必要はない。
+失敗時はcookie保存・通知送信を行わず、作成済みのlogやdirectoryは残す。
+動作中のasyncio event loop内からでも同期APIを使えるが、失敗時はcleanupの完了を待つ。
+詳細は[組立て時の所有権](../reference/runtime-behavior.md#runtime-construction)を参照する。
+
 ### 2. `DownloadResult` と例外はどう使い分けるか？
 
 通常の fetch/process/save failure は、`continue_on_image_error=true` なら `ImageOutcome.failure` に入り、`DownloadResult` は返る。authentication、configuration、plugin、storage safety、lock、cancellation の失敗は部分 result を返さず例外になる。catch する例外と stable code/reason は [caller outcomes](../reference/library-api.md#api-call-outcomes) と [error catalog](../reference/library-api.md#api-errors) を参照する。
