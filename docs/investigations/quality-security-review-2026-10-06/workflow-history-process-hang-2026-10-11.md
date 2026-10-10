@@ -290,3 +290,13 @@ Windowsの`msvcrt.locking`はEOFを越える範囲もlockできるため、1バ�
 後者を保証する場合はI/O取消と所有handleの後始末を含む別の設計が必要になる。
 [CreateFileWの公式仕様](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew)には取得期限の引数がない。
 セキュリティ製品の停止や一括除外をアプリの修正方法にはしない。
+
+## 別環境での追加確認
+
+同日、Windows build 26200・Python 3.11.4・セキュリティー製品を使用していないとの申告がある
+別マシンで[追加調査](workflow-history-alternate-environment-2026-10-11.md)を行った。
+元の履歴保存テストでは open 停止も初期化失敗も観測しなかったが、同時取得の開始を揃えた
+専用試験では、サンドボックス外でも600回中5回が初期化 flush の PermissionError になった。
+初期化を省いた隔離コピーは600回すべて成功した。
+初期化失敗には COMODO の存在が必須ではないという追加根拠になる。
+open の長時間停止は別環境で再現せず、Windows のバージョンも異なるため、その内部原因の評価は維持する。
