@@ -93,6 +93,29 @@ historical probeは修正前の問題をassertするため、修正後には失�
 sandboxが原因と断定せず、ローカル全体が全件成功したとも判定しない。
 該当テスト・履歴保存・interprocess lockの実装は今回変更していない。
 
+2026-10-11の[追加調査](workflow-history-process-hang-2026-10-11.md)で、停止がlockファイルの
+Windows open内部にあり、期限の設定前であると確認した。初期化用1バイトの排他外書込みを省く隔離試作では
+10回成功し、同じコピーで復元すると6回中4回停止した。プログラム側の初期化競合と、
+COMODOのmoduleを含むWindows I/O経路の未確定な内部要因を区別して記録した。
+
+同日、ユーザーがCOMODO Internet Security Premiumの停止可能な機能をすべて一時停止した条件で
+[再調査](workflow-history-process-hang-2026-10-11.md#comodo一時停止後の再調査)した。
+未作成lockの38試行では従来のopen停止を観測しなかったが、初期化flushのPermissionErrorが3試行に残った。
+関連テストは1 failed / 93 passedで、失敗は同じ履歴workerの初期化、QS-013の64件は成功した。
+この調査時点ではCOMODOがopen停止の再現条件に影響した可能性を支持するが、再有効化との比較はなかった。
+停止後もguard64.dllは新規Pythonに読み込まれていた。
+本体側の排他外初期化の問題は残り、ローカル全体が全件成功したとの判定は変更しない。
+状態のraw値と結果は[一時停止後の証拠](raw/workflow-history-security-paused-evidence.json)に保存した。
+
+同日06:19 JSTからの[再有効化後の調査](workflow-history-process-hang-2026-10-11.md#comodo再有効化後の再調査)では、
+元の60秒待機の単独テストで再びopen停止を観測した。未作成・空ファイルの比較はそれぞれ6回中3回停止し、
+1バイトの事前作成は6回成功した。停止は初回と同じguard64.dll／NtCreateFileを通る経路で、
+その間にも別プロセスが同じbyte lockを取得・解放できた。
+初期化呼出しを省いた同じ隔離試作は、再有効化後も20回成功した（55.45秒）。
+有効時・一時停止中・再有効化後の比較から、保護環境との相互作用がopen停止に影響する根拠が強まった。
+Windows Defenderの登録値も同時に変化しており、COMODO単独の特定機能の欠陥までは確定していない。
+詳細と出典は[再有効化後の証拠](raw/workflow-history-security-reenabled-evidence.json)へ保存した。
+
 ローカル17 skipはMailpit opt-inの12件と、実行環境のsymlink作成権限に依存する5件である。
 srcおよびtests/v3の175ファイルについて、全体テスト開始後のSHA-256比較で変更がないことを確認した。
 元のログ・カバレッジJSON・基準コピーはignore対象の`.runtime/qs013-verification/`に保存した。

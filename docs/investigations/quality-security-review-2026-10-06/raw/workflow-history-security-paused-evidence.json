@@ -1,0 +1,383 @@
+{
+  "recorded_at": "2026-10-11T05:40:42.981466+09:00",
+  "commit": "b5c1a453ab54563cb5af598ff3fa4a15762cf0a3",
+  "production_and_test_source_changed": false,
+  "source_sha256": {
+    "src\\image_downloader\\storage\\interprocess_lock.py": "a42aa7fb0a2038d8fc68a07942d4b385ad0bea240afbce7a95e828fc02e0f21f",
+    "src\\image_downloader\\storage\\workflow_history.py": "ec31093a7173c9ba65713a353cf185f2746f180feee446b8a5b2ab2311383194",
+    "tests\\v3\\application\\test_workflow_history.py": "a1b6e402a6460a0d3697a73be6967bb6c1c19ab0f3839712c1e21e2cce5488ad"
+  },
+  "matches_initial_investigation_source_hashes": true,
+  "environment": {
+    "platform": "Windows-10-10.0.19045-SP0",
+    "python": "3.11.4 (tags/v3.11.4:d2340ef, Jun  7 2023, 05:45:37) [MSC v.1934 64 bit (AMD64)]",
+    "packages": {
+      "pytest": "9.1.1",
+      "pytest-cov": "7.1.0",
+      "httpx": "0.28.1",
+      "ruff": "0.16.5"
+    },
+    "imported_package": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\__init__.py"
+  },
+  "security_condition": {
+    "reported_by": "user",
+    "user_statement": "COMODO Internet Security Premium , ユーザーが停止可能な機能は全て一時停止済み",
+    "read_only_observation": {
+      "observed_at": "2026-10-11T05:37:40.0449490+09:00",
+      "source": "root/SecurityCenter2:AntiVirusProduct",
+      "products": [
+        {
+          "displayName": "Windows Defender",
+          "productState": 397568,
+          "productState_hex": "0x61100"
+        },
+        {
+          "displayName": "COMODO Antivirus",
+          "productState": 393216,
+          "productState_hex": "0x60000"
+        }
+      ],
+      "comodo_processes": [
+        {
+          "ProcessName": "cis",
+          "Id": 42648
+        },
+        {
+          "ProcessName": "cis",
+          "Id": 44068
+        },
+        {
+          "ProcessName": "cis",
+          "Id": 46548
+        },
+        {
+          "ProcessName": "cmdagent",
+          "Id": 3228
+        },
+        {
+          "ProcessName": "cmdagent",
+          "Id": 4092
+        }
+      ]
+    },
+    "guard64_loaded_in_fresh_python": true,
+    "guard64_observed_at": "2026-10-11T05:40:43.433514+09:00",
+    "productState_interpretation": "raw values only; not proof of the status of every COMODO feature",
+    "settings_changed_by_investigator": false,
+    "reactivation_control_performed": false,
+    "not_an_uninstall_or_driver_unload": true
+  },
+  "experiment_conditions": {
+    "pytest_plugin_autoload": false,
+    "worker_count_per_history_test": 3,
+    "test_assertions": "unmodified existing history merge assertions",
+    "source_check": "the loaded lock module and initialization-call presence were recorded",
+    "initial_overlap": "the first six-case run and single documented probe overlapped",
+    "comparison_scope": "targeted repetitions; not a rerun of the complete v3 suite"
+  },
+  "experiments": [
+    {
+      "run": "history-security-paused-comparison",
+      "variant": "original",
+      "exitcode": 0,
+      "summary": "6 passed in 29.77s",
+      "stalled_open_processes": 0,
+      "source_check": {
+        "lock_module": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py",
+        "test_module": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\qs013-verification\\test_history_variants_probe.py",
+        "initialize_byte_called": true
+      },
+      "parent_join_seconds": 12,
+      "product_lock_timeout_seconds": 30
+    },
+    {
+      "run": "history-security-paused-comparison",
+      "variant": "empty",
+      "exitcode": 0,
+      "summary": "6 passed in 22.72s",
+      "stalled_open_processes": 0,
+      "source_check": {
+        "lock_module": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py",
+        "test_module": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\qs013-verification\\test_history_variants_probe.py",
+        "initialize_byte_called": true
+      },
+      "parent_join_seconds": 12,
+      "product_lock_timeout_seconds": 30
+    },
+    {
+      "run": "history-security-paused-comparison",
+      "variant": "seeded",
+      "exitcode": 0,
+      "summary": "6 passed in 26.42s",
+      "stalled_open_processes": 0,
+      "source_check": {
+        "lock_module": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py",
+        "test_module": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\qs013-verification\\test_history_variants_probe.py",
+        "initialize_byte_called": true
+      },
+      "parent_join_seconds": 12,
+      "product_lock_timeout_seconds": 30
+    },
+    {
+      "run": "history-security-paused-repeat-20",
+      "variant": "original",
+      "exitcode": 1,
+      "summary": "2 failed, 18 passed in 64.54s (0:01:04)",
+      "stalled_open_processes": 0,
+      "source_check": {
+        "lock_module": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py",
+        "test_module": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\qs013-verification\\test_history_variants_probe.py",
+        "initialize_byte_called": true
+      },
+      "parent_join_seconds": 12,
+      "product_lock_timeout_seconds": 30
+    },
+    {
+      "run": "history-security-paused-no-initialization-20",
+      "variant": "original",
+      "exitcode": 0,
+      "summary": "20 passed in 72.42s (0:01:12)",
+      "stalled_open_processes": 0,
+      "source_check": {
+        "lock_module": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\qs013-verification\\history-no-initialization\\src\\image_downloader\\storage\\interprocess_lock.py",
+        "test_module": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\qs013-verification\\test_history_variants_probe.py",
+        "initialize_byte_called": false
+      },
+      "parent_join_seconds": 12,
+      "product_lock_timeout_seconds": 30
+    }
+  ],
+  "unmodified_sixty_second_test_runs": [
+    {
+      "run": "security-paused-native-observation-1",
+      "parent_join_seconds": 60,
+      "pytest_summary": "1 passed in 3.93s",
+      "native_capture_created": false,
+      "stalled_lock_stacks": []
+    },
+    {
+      "run": "security-paused-native-observation-2",
+      "parent_join_seconds": 60,
+      "pytest_summary": "1 passed in 4.10s",
+      "native_capture_created": false,
+      "stalled_lock_stacks": []
+    },
+    {
+      "run": "security-paused-native-observation-3",
+      "parent_join_seconds": 60,
+      "pytest_summary": "1 passed in 4.18s",
+      "native_capture_created": false,
+      "stalled_lock_stacks": []
+    },
+    {
+      "run": "security-paused-native-observation-4",
+      "parent_join_seconds": 60,
+      "pytest_summary": "1 passed in 3.76s",
+      "native_capture_created": false,
+      "stalled_lock_stacks": []
+    },
+    {
+      "run": "security-paused-native-observation-5",
+      "parent_join_seconds": 60,
+      "pytest_summary": "1 passed in 3.66s",
+      "native_capture_created": false,
+      "stalled_lock_stacks": []
+    },
+    {
+      "run": "security-paused-native-observation-6",
+      "parent_join_seconds": 60,
+      "pytest_summary": "1 passed in 5.15s",
+      "native_capture_created": false,
+      "stalled_lock_stacks": []
+    },
+    {
+      "run": "security-paused-native-observation-7",
+      "parent_join_seconds": 60,
+      "pytest_summary": "1 passed in 5.50s",
+      "native_capture_created": false,
+      "stalled_lock_stacks": []
+    },
+    {
+      "run": "security-paused-native-observation-8",
+      "parent_join_seconds": 60,
+      "pytest_summary": "1 passed in 4.13s",
+      "native_capture_created": false,
+      "stalled_lock_stacks": []
+    },
+    {
+      "run": "security-paused-native-observation-9",
+      "parent_join_seconds": 60,
+      "pytest_summary": "1 passed in 3.73s",
+      "native_capture_created": false,
+      "stalled_lock_stacks": []
+    },
+    {
+      "run": "security-paused-native-observation-10",
+      "parent_join_seconds": 60,
+      "pytest_summary": "1 passed in 3.81s",
+      "native_capture_created": false,
+      "stalled_lock_stacks": []
+    }
+  ],
+  "documented_probe": {
+    "pytest_exitcode": 0,
+    "blocked_lock_stacks": [],
+    "output": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\qs013-verification\\security-paused-documented-probe"
+  },
+  "unchanged_source_missing_file_cases": {
+    "trials": 37,
+    "passed": 35,
+    "failed": 2,
+    "scope": "dedicated repetitions excluding the related-test batch",
+    "open_stalls_observed": 0,
+    "failures": "PermissionError(errno=13) at initialization flush",
+    "failed_attempts_in_twenty_case_run": [
+      15,
+      17
+    ]
+  },
+  "related_tests": {
+    "summary": "1 failed, 93 passed in 39.94s",
+    "passed": 93,
+    "failed": 1,
+    "failure": "the same history worker initialization flush raised PermissionError(errno=13)",
+    "parent_join_seconds": 60,
+    "test_modules": [
+      "tests/v3/storage_output/test_interprocess_lock.py",
+      "tests/v3/application/test_workflow_history.py",
+      "tests/v3/application/test_composition_cleanup.py"
+    ]
+  },
+  "total_missing_file_history_test_cases": {
+    "trials": 38,
+    "passed": 35,
+    "failed": 3,
+    "historical_open_stall_observed": false
+  },
+  "initialization_error_excerpt": "Process SpawnProcess-48:\n\nTraceback (most recent call last):\n\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n\n    self._ensure_lock_byte(stream)\n\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n\n    stream.flush()\n\nPermissionError: [Errno 13] Permission denied\n\n\n\nThe above exception was the direct cause of the following exception:\n\n\n\nTraceback (most recent call last):\n\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314, in _bootstrap\n\n    self.run()\n\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108, in run\n\n    self._target(*self._args, **self._kwargs)\n\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\tests\\v3\\application\\test_workflow_history.py\", line 115, in _process_save\n\n    history.save(record(plugin=name), now=NOW)\n\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\workflow_history.py\", line 167, in save\n\n    with self.lock():\n\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n\n    self.acquire()\n\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\n\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\pc01\\AppData\\Local\\Temp\\pytest-of-pc01\\pytest-1307\\test_history_variant_15_0\\workflow-history.lock",
+  "prototype": {
+    "source_sha256": "b3fe2c6a833789db7c68bd9282c6dbdd78bea6a8dbfe04d8e382612d82811d94",
+    "difference_from_production": [
+      "--- worktree",
+      "+++ isolated-prototype",
+      "@@ -94,7 +94,7 @@",
+      "         stream: BinaryIO | None = None",
+      "         try:",
+      "             stream = self.path.open(\"a+b\")",
+      "-            self._ensure_lock_byte(stream)",
+      "+            # Diagnostic prototype: no unlocked lock-byte initialization.",
+      "             deadline = time.monotonic() + self.timeout_seconds",
+      "             while not self._backend.try_acquire(stream):",
+      "                 remaining = deadline - time.monotonic()",
+      "@@ -118,7 +118,7 @@",
+      "         stream: BinaryIO | None = None",
+      "         try:",
+      "             stream = self.path.open(\"a+b\")",
+      "-            self._ensure_lock_byte(stream)",
+      "+            # Diagnostic prototype: no unlocked lock-byte initialization.",
+      "             deadline = time.monotonic() + self.timeout_seconds",
+      "             while not self._backend.try_acquire(stream):",
+      "                 remaining = deadline - time.monotonic()"
+    ]
+  },
+  "confirmed": [
+    "initialization flush can still fail after user-stoppable features are paused",
+    "the historical open stall was not observed in 37 unchanged-source dedicated trials",
+    "guard64.dll remains loaded in a fresh Python process after the user-reported pause"
+  ],
+  "inference": "COMODO enabled protections may influence the reproduction of the open stall; the pause did not eliminate the initialization failure",
+  "not_confirmed": [
+    "COMODO is the sole cause or has a specific defect",
+    "which individual COMODO feature or driver causes the wait",
+    "all COMODO hooks and kernel drivers are disabled",
+    "the open stall can no longer occur",
+    "the entire local v3 suite passes after the pause"
+  ],
+  "logs": [
+    {
+      "path": ".runtime\\qs013-verification\\history-security-paused-comparison\\original.log",
+      "sha256": "03ecda648cec88d8a593eaa85ff312bc49131b8aa0903c1ea6a1a5a8d6332e8a",
+      "summary": "6 passed in 29.77s"
+    },
+    {
+      "path": ".runtime\\qs013-verification\\history-security-paused-comparison\\empty.log",
+      "sha256": "04dc06cc7e3aab4bb87303cd9dd159e70ab2e3fdefee966f4d1913502dc2f94d",
+      "summary": "6 passed in 22.72s"
+    },
+    {
+      "path": ".runtime\\qs013-verification\\history-security-paused-comparison\\seeded.log",
+      "sha256": "fbd0ebc2a5b6773522f6c346dbba19013c239e191ce379cf467e603c65db7fae",
+      "summary": "6 passed in 26.42s"
+    },
+    {
+      "path": ".runtime\\qs013-verification\\history-security-paused-repeat-20\\original.log",
+      "sha256": "8b9b2a70e9b4753e163161bf3ed411c98c77b3f267d57542da08d86a3c126fec",
+      "summary": "2 failed, 18 passed in 64.54s (0:01:04)"
+    },
+    {
+      "path": ".runtime\\qs013-verification\\history-security-paused-no-initialization-20\\original.log",
+      "sha256": "5c65ca6ef55648edfbef8c60ab63ec6c093b575c306c1940ad13cdbc72967d78",
+      "summary": "20 passed in 72.42s (0:01:12)"
+    },
+    {
+      "path": ".runtime\\qs013-verification\\security-paused-native-observation-1\\pytest.log",
+      "sha256": "da6b5b1faed3a8f1e18517624a651d87638686d2952d82c2653866cf4febff11",
+      "summary": "1 passed in 3.93s"
+    },
+    {
+      "path": ".runtime\\qs013-verification\\security-paused-native-observation-2\\pytest.log",
+      "sha256": "d26ee46cb6c3ec5c3669e49afd1b2a4946f399be89c78ad6e8a93a2da0b5a3c1",
+      "summary": "1 passed in 4.10s"
+    },
+    {
+      "path": ".runtime\\qs013-verification\\security-paused-native-observation-3\\pytest.log",
+      "sha256": "75f9220fb3f93111db68e79f7a6dfa249d757365dc6b795f1c016505304860bc",
+      "summary": "1 passed in 4.18s"
+    },
+    {
+      "path": ".runtime\\qs013-verification\\security-paused-native-observation-4\\pytest.log",
+      "sha256": "07e16d1536d13a546d0b30bca304e77e66015d482ebb25354e67f77b6484efad",
+      "summary": "1 passed in 3.76s"
+    },
+    {
+      "path": ".runtime\\qs013-verification\\security-paused-native-observation-5\\pytest.log",
+      "sha256": "d0c08932d9df9cb3b525da337ac491e8c02a14b3da5e270b7e599c340dbd420c",
+      "summary": "1 passed in 3.66s"
+    },
+    {
+      "path": ".runtime\\qs013-verification\\security-paused-native-observation-6\\pytest.log",
+      "sha256": "4ec5281b8539f73c5b8b9e15bfcb8f2063e4874eb0c2983cb429603dba30ac49",
+      "summary": "1 passed in 5.15s"
+    },
+    {
+      "path": ".runtime\\qs013-verification\\security-paused-native-observation-7\\pytest.log",
+      "sha256": "23e28b1f83bcf8bdcb1ffca2eb3f055dd9700c64b0634315735da8534fb90d71",
+      "summary": "1 passed in 5.50s"
+    },
+    {
+      "path": ".runtime\\qs013-verification\\security-paused-native-observation-8\\pytest.log",
+      "sha256": "117a59b713d8d497f7a02bf19439e2f48a9d4744ad22f6fef27c0a552cf71210",
+      "summary": "1 passed in 4.13s"
+    },
+    {
+      "path": ".runtime\\qs013-verification\\security-paused-native-observation-9\\pytest.log",
+      "sha256": "e7c96cbf8643fb358467d26b067d6c1a813c605a78776ade8803019775135628",
+      "summary": "1 passed in 3.73s"
+    },
+    {
+      "path": ".runtime\\qs013-verification\\security-paused-native-observation-10\\pytest.log",
+      "sha256": "283bac1662ca136f4812eaae770042432f4a27627dc0af36cc653147f8295584",
+      "summary": "1 passed in 3.81s"
+    },
+    {
+      "path": ".runtime\\qs013-verification\\security-paused-documented-probe\\pytest.log",
+      "sha256": "8263067472f5f4c402c19683dc665febd7c0daeab688f3edf3d49d775d6b4a0a",
+      "summary": "1 passed in 7.70s"
+    },
+    {
+      "path": ".runtime\\qs013-verification\\security-paused-related-tests.log",
+      "sha256": "13e32d595ff2af7b4276527d69861b86c4517ca40d77913882cbd07125b54e2d",
+      "summary": "1 failed, 93 passed in 39.94s"
+    }
+  ]
+}
