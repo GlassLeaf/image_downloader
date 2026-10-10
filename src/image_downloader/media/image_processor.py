@@ -47,9 +47,9 @@ class ImageProcessor:
     """Run all Pillow work in one service-owned, long-lived worker process."""
 
     def __init__(self) -> None:
-        self._executor = ProcessPoolExecutor(max_workers=1, initializer=_initialize_worker)
         self._lifecycle_lock = threading.Lock()
         self._closed = False
+        self._executor = ProcessPoolExecutor(max_workers=1, initializer=_initialize_worker)
 
     def process(
         self,

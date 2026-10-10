@@ -1,0 +1,1541 @@
+{
+  "recorded_at": "2026-10-11T07:57:24.619032+09:00",
+  "commit": "0d63138526eacc5cb128cb17084fd1f72a4fcc39",
+  "environment": {
+    "python": "3.11.4 (tags/v3.11.4:d2340ef, Jun  7 2023, 05:45:37) [MSC v.1934 64 bit (AMD64)]",
+    "executable": "C:\\Program Files\\Python311\\python.exe",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "windows": {
+      "EditionID": "Core",
+      "DisplayVersion": "25H2",
+      "CurrentBuildNumber": "26200",
+      "UBR": 9457
+    },
+    "requirements_path": "C:\\Users\\user\\Downloads\\requirements.txt",
+    "requirements_sha256": "92d0b5a48b9ec08a195523195790d91cf4030fa390e414fa32dad7511ab36a20",
+    "requirements_count": 106,
+    "differences": {},
+    "additional_packages": {
+      "aiohappyeyeballs": "2.6.1",
+      "aiohttp": "3.13.2",
+      "aiosignal": "1.4.0",
+      "attrs": "25.4.0",
+      "cuda-bindings": "13.1.1",
+      "cuda-pathfinder": "1.3.4",
+      "cuda-python": "13.1.1",
+      "filelock": "3.13.1",
+      "frozenlist": "1.8.0",
+      "fsspec": "2024.2.0",
+      "gmpy2": "2.2.1",
+      "memory-profiler": "0.61.0",
+      "mpmath": "1.3.0",
+      "multidict": "6.7.0",
+      "networkx": "3.2.1",
+      "pandas": "2.2.3",
+      "pip-review": "1.3.0",
+      "propcache": "0.4.1",
+      "pyasn1": "0.6.1",
+      "pytz": "2024.2",
+      "py-spy": "0.4.0",
+      "rsa": "4.9",
+      "sympy": "1.14.0",
+      "torch": "2.10.0",
+      "torchaudio": "2.5.1+cu118",
+      "torchvision": "0.20.1+cu118",
+      "tzdata": "2024.2",
+      "wheel": "0.45.1",
+      "yarl": "1.22.0",
+      "pip": "23.2.1",
+      "setuptools": "65.5.0"
+    },
+    "pytest_plugin_autoload": false
+  },
+  "protocol": {
+    "pairs": 5,
+    "rounds_per_condition": 200,
+    "workers": 3,
+    "history_tests_before_each_pair": 2,
+    "history_tests_after_each_pair": 2,
+    "sequential": true,
+    "order": "alternating; current first on odd pairs",
+    "protected_delay_seconds": 0.001,
+    "record_all_errors": true,
+    "execution_environment": "outside Codex sandbox"
+  },
+  "source_sha256_before": {
+    "src/image_downloader/storage/interprocess_lock.py": "44351ca7843c35b87924f47827af16c305ef22e2ef0e146c78b0e65c3d37e70f",
+    "src/image_downloader/storage/workflow_history.py": "ec31093a7173c9ba65713a353cf185f2746f180feee446b8a5b2ab2311383194",
+    "tests/v3/application/test_workflow_history.py": "a1b6e402a6460a0d3697a73be6967bb6c1c19ab0f3839712c1e21e2cce5488ad"
+  },
+  "probe_sha256": {
+    "history_lock_repeatability.py": "78e16c3af1f80e3bd6258bd1f58a84de193e02d929133a8f39db40542cd8c395",
+    "history_lock_contention.py": "ebcc611eec0805d9356268838092d4a1565fe2632d2f76c438707b7bcb65a200",
+    "history_process_stacks.py": "fb2c640dc8ca66d0aa43e7460fa5151fb48a37fff4210d2bf65b1a400fe5dfee"
+  },
+  "history_tests": [
+    {
+      "label": "pair-01-history-before-1",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_process_stacks.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-01-history-before-1",
+        "--no-autoload"
+      ],
+      "exitcode": 0,
+      "seconds": 3.016,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-01-history-before-1.log",
+      "log_sha256": "b5677d18ce0232fdb281f556608a8e7365ee93058169b32f4f3e8e403e93f97e",
+      "observation": {
+        "pytest_exitcode": 0,
+        "blocked_lock_stacks": [],
+        "output": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-01-history-before-1",
+        "pytest_summary": "1 passed in 1.38s",
+        "pytest_log_sha256": "905233d4fdb4513ba1681e03184c4d5b7c5786fb6790b000275624c00771b4b1"
+      }
+    },
+    {
+      "label": "pair-01-history-before-2",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_process_stacks.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-01-history-before-2",
+        "--no-autoload"
+      ],
+      "exitcode": 0,
+      "seconds": 3.0,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-01-history-before-2.log",
+      "log_sha256": "d8316f7df817f9f5828a9e58d615bcdbd2c5d0d6e466a55aa6387bb9ca1bd390",
+      "observation": {
+        "pytest_exitcode": 0,
+        "blocked_lock_stacks": [],
+        "output": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-01-history-before-2",
+        "pytest_summary": "1 passed in 1.31s",
+        "pytest_log_sha256": "7f7fd0746504f9beed5b82ad674e06c38edc08af7b96466d64a5f7d677f346bd"
+      }
+    },
+    {
+      "label": "pair-01-history-after-1",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_process_stacks.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-01-history-after-1",
+        "--no-autoload"
+      ],
+      "exitcode": 0,
+      "seconds": 3.0,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-01-history-after-1.log",
+      "log_sha256": "1b022aa661ad45a738d765eb6f197ce6f18bd696bd742ea46113566efd264bca",
+      "observation": {
+        "pytest_exitcode": 0,
+        "blocked_lock_stacks": [],
+        "output": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-01-history-after-1",
+        "pytest_summary": "1 passed in 1.32s",
+        "pytest_log_sha256": "669b423a3b2c9d76743e19e8defaa52fb5ec24a9ba7825b7509a33002a5a411d"
+      }
+    },
+    {
+      "label": "pair-01-history-after-2",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_process_stacks.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-01-history-after-2",
+        "--no-autoload"
+      ],
+      "exitcode": 0,
+      "seconds": 3.015,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-01-history-after-2.log",
+      "log_sha256": "a393900809d5e8c60b9a11818bba4b14f5ecc3306bdfd5fb0910bf1a6dbd2c0b",
+      "observation": {
+        "pytest_exitcode": 0,
+        "blocked_lock_stacks": [],
+        "output": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-01-history-after-2",
+        "pytest_summary": "1 passed in 1.31s",
+        "pytest_log_sha256": "7f7fd0746504f9beed5b82ad674e06c38edc08af7b96466d64a5f7d677f346bd"
+      }
+    },
+    {
+      "label": "pair-02-history-before-1",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_process_stacks.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-history-before-1",
+        "--no-autoload"
+      ],
+      "exitcode": 0,
+      "seconds": 3.0,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-history-before-1.log",
+      "log_sha256": "658440dabcee2466e1ef6848365cf42e423dc0735f67b82b856d1ae38395c5bd",
+      "observation": {
+        "pytest_exitcode": 0,
+        "blocked_lock_stacks": [],
+        "output": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-history-before-1",
+        "pytest_summary": "1 passed in 1.31s",
+        "pytest_log_sha256": "7f7fd0746504f9beed5b82ad674e06c38edc08af7b96466d64a5f7d677f346bd"
+      }
+    },
+    {
+      "label": "pair-02-history-before-2",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_process_stacks.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-history-before-2",
+        "--no-autoload"
+      ],
+      "exitcode": 0,
+      "seconds": 3.0,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-history-before-2.log",
+      "log_sha256": "35d66a077f8cb97111345e27bce4deec1f7d476a5dd39265dc985efce765e07d",
+      "observation": {
+        "pytest_exitcode": 0,
+        "blocked_lock_stacks": [],
+        "output": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-history-before-2",
+        "pytest_summary": "1 passed in 1.32s",
+        "pytest_log_sha256": "669b423a3b2c9d76743e19e8defaa52fb5ec24a9ba7825b7509a33002a5a411d"
+      }
+    },
+    {
+      "label": "pair-02-history-after-1",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_process_stacks.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-history-after-1",
+        "--no-autoload"
+      ],
+      "exitcode": 0,
+      "seconds": 3.015,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-history-after-1.log",
+      "log_sha256": "c21c1979530a28b23c8a3f11af47481cb51f2de713f913959702830b84d88700",
+      "observation": {
+        "pytest_exitcode": 0,
+        "blocked_lock_stacks": [],
+        "output": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-history-after-1",
+        "pytest_summary": "1 passed in 1.31s",
+        "pytest_log_sha256": "7f7fd0746504f9beed5b82ad674e06c38edc08af7b96466d64a5f7d677f346bd"
+      }
+    },
+    {
+      "label": "pair-02-history-after-2",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_process_stacks.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-history-after-2",
+        "--no-autoload"
+      ],
+      "exitcode": 0,
+      "seconds": 3.0,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-history-after-2.log",
+      "log_sha256": "97b40646bb082ab7aba2225845f37c92eb16a2cac4a5971bed3921646bafe616",
+      "observation": {
+        "pytest_exitcode": 0,
+        "blocked_lock_stacks": [],
+        "output": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-history-after-2",
+        "pytest_summary": "1 passed in 1.38s",
+        "pytest_log_sha256": "905233d4fdb4513ba1681e03184c4d5b7c5786fb6790b000275624c00771b4b1"
+      }
+    },
+    {
+      "label": "pair-03-history-before-1",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_process_stacks.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-03-history-before-1",
+        "--no-autoload"
+      ],
+      "exitcode": 0,
+      "seconds": 3.016,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-03-history-before-1.log",
+      "log_sha256": "b14404a8feff3b8bb823fb83215272174500935e77c12b73ec1a717d7292bcc1",
+      "observation": {
+        "pytest_exitcode": 0,
+        "blocked_lock_stacks": [],
+        "output": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-03-history-before-1",
+        "pytest_summary": "1 passed in 1.31s",
+        "pytest_log_sha256": "7f7fd0746504f9beed5b82ad674e06c38edc08af7b96466d64a5f7d677f346bd"
+      }
+    },
+    {
+      "label": "pair-03-history-before-2",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_process_stacks.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-03-history-before-2",
+        "--no-autoload"
+      ],
+      "exitcode": 0,
+      "seconds": 3.0,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-03-history-before-2.log",
+      "log_sha256": "72ec06c5da74d9abf2670ba6d7deec2c15559b0bb429344c07fab9c0b6dcf989",
+      "observation": {
+        "pytest_exitcode": 0,
+        "blocked_lock_stacks": [],
+        "output": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-03-history-before-2",
+        "pytest_summary": "1 passed in 1.31s",
+        "pytest_log_sha256": "7f7fd0746504f9beed5b82ad674e06c38edc08af7b96466d64a5f7d677f346bd"
+      }
+    },
+    {
+      "label": "pair-03-history-after-1",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_process_stacks.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-03-history-after-1",
+        "--no-autoload"
+      ],
+      "exitcode": 0,
+      "seconds": 3.0,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-03-history-after-1.log",
+      "log_sha256": "fcd3caf54d67ffe898b5dfc34b810d9dcb4163732b028c661a42c2346e57d188",
+      "observation": {
+        "pytest_exitcode": 0,
+        "blocked_lock_stacks": [],
+        "output": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-03-history-after-1",
+        "pytest_summary": "1 passed in 1.36s",
+        "pytest_log_sha256": "88cc14068cf549aa4579a6c4d6836ababcff4d3fd0e8109cd7e4b4e035a328bd"
+      }
+    },
+    {
+      "label": "pair-03-history-after-2",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_process_stacks.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-03-history-after-2",
+        "--no-autoload"
+      ],
+      "exitcode": 0,
+      "seconds": 3.016,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-03-history-after-2.log",
+      "log_sha256": "5061430f8d3f427ecbd5b58fe97923c5bc16b3ea37a65b5b1055d9cf74e0c64c",
+      "observation": {
+        "pytest_exitcode": 0,
+        "blocked_lock_stacks": [],
+        "output": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-03-history-after-2",
+        "pytest_summary": "1 passed in 1.33s",
+        "pytest_log_sha256": "951021ecca1977cc9a700a0c396457e710fa58d60a69ddd5466ac116b5d75334"
+      }
+    },
+    {
+      "label": "pair-04-history-before-1",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_process_stacks.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-history-before-1",
+        "--no-autoload"
+      ],
+      "exitcode": 0,
+      "seconds": 3.0,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-history-before-1.log",
+      "log_sha256": "39473013d7195f4945b61c7576b3084115afcadf30f11f3e538915e272031da5",
+      "observation": {
+        "pytest_exitcode": 0,
+        "blocked_lock_stacks": [],
+        "output": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-history-before-1",
+        "pytest_summary": "1 passed in 1.32s",
+        "pytest_log_sha256": "669b423a3b2c9d76743e19e8defaa52fb5ec24a9ba7825b7509a33002a5a411d"
+      }
+    },
+    {
+      "label": "pair-04-history-before-2",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_process_stacks.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-history-before-2",
+        "--no-autoload"
+      ],
+      "exitcode": 0,
+      "seconds": 3.015,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-history-before-2.log",
+      "log_sha256": "cc61fc4573971319c34fad837d90bba73ed676a5fa004cf4ee574008a5b8f30d",
+      "observation": {
+        "pytest_exitcode": 0,
+        "blocked_lock_stacks": [],
+        "output": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-history-before-2",
+        "pytest_summary": "1 passed in 1.31s",
+        "pytest_log_sha256": "7f7fd0746504f9beed5b82ad674e06c38edc08af7b96466d64a5f7d677f346bd"
+      }
+    },
+    {
+      "label": "pair-04-history-after-1",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_process_stacks.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-history-after-1",
+        "--no-autoload"
+      ],
+      "exitcode": 0,
+      "seconds": 3.0,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-history-after-1.log",
+      "log_sha256": "c897d3b9674a721b1038ea1622f236c460dc7dc7ddb183d6bfaea71702c1a02c",
+      "observation": {
+        "pytest_exitcode": 0,
+        "blocked_lock_stacks": [],
+        "output": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-history-after-1",
+        "pytest_summary": "1 passed in 1.34s",
+        "pytest_log_sha256": "4ee7f383f784b8eefce3633ee310a071a180eff115ea7b5024c13335652a74cc"
+      }
+    },
+    {
+      "label": "pair-04-history-after-2",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_process_stacks.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-history-after-2",
+        "--no-autoload"
+      ],
+      "exitcode": 0,
+      "seconds": 3.0,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-history-after-2.log",
+      "log_sha256": "0909adba38a857747417ed1f4ac6db0487a69eaae678846ae70cb10e47e3fa82",
+      "observation": {
+        "pytest_exitcode": 0,
+        "blocked_lock_stacks": [],
+        "output": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-history-after-2",
+        "pytest_summary": "1 passed in 1.32s",
+        "pytest_log_sha256": "669b423a3b2c9d76743e19e8defaa52fb5ec24a9ba7825b7509a33002a5a411d"
+      }
+    },
+    {
+      "label": "pair-05-history-before-1",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_process_stacks.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-history-before-1",
+        "--no-autoload"
+      ],
+      "exitcode": 0,
+      "seconds": 3.0,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-history-before-1.log",
+      "log_sha256": "5d8638620381df529e8e97914d8563d655dbf1d9b3de84efc5b4d12b0f1efe95",
+      "observation": {
+        "pytest_exitcode": 0,
+        "blocked_lock_stacks": [],
+        "output": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-history-before-1",
+        "pytest_summary": "1 passed in 1.31s",
+        "pytest_log_sha256": "7f7fd0746504f9beed5b82ad674e06c38edc08af7b96466d64a5f7d677f346bd"
+      }
+    },
+    {
+      "label": "pair-05-history-before-2",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_process_stacks.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-history-before-2",
+        "--no-autoload"
+      ],
+      "exitcode": 0,
+      "seconds": 3.0,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-history-before-2.log",
+      "log_sha256": "af8e90c3ffbc499331fe2e453a5873ed79a3a4061e6e10b453b68ac0ed5675f3",
+      "observation": {
+        "pytest_exitcode": 0,
+        "blocked_lock_stacks": [],
+        "output": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-history-before-2",
+        "pytest_summary": "1 passed in 1.32s",
+        "pytest_log_sha256": "669b423a3b2c9d76743e19e8defaa52fb5ec24a9ba7825b7509a33002a5a411d"
+      }
+    },
+    {
+      "label": "pair-05-history-after-1",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_process_stacks.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-history-after-1",
+        "--no-autoload"
+      ],
+      "exitcode": 0,
+      "seconds": 3.0,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-history-after-1.log",
+      "log_sha256": "07da66d60d85f807464e37344e669dc9d27b9a97d78245fba493d09474b81905",
+      "observation": {
+        "pytest_exitcode": 0,
+        "blocked_lock_stacks": [],
+        "output": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-history-after-1",
+        "pytest_summary": "1 passed in 1.32s",
+        "pytest_log_sha256": "669b423a3b2c9d76743e19e8defaa52fb5ec24a9ba7825b7509a33002a5a411d"
+      }
+    },
+    {
+      "label": "pair-05-history-after-2",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_process_stacks.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-history-after-2",
+        "--no-autoload"
+      ],
+      "exitcode": 0,
+      "seconds": 3.0,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-history-after-2.log",
+      "log_sha256": "4726fea49e65a7b02b08c4a33b9df82fe504d16426d75f5c23ec4f791e5d1cff",
+      "observation": {
+        "pytest_exitcode": 0,
+        "blocked_lock_stacks": [],
+        "output": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-history-after-2",
+        "pytest_summary": "1 passed in 1.38s",
+        "pytest_log_sha256": "905233d4fdb4513ba1681e03184c4d5b7c5786fb6790b000275624c00771b4b1"
+      }
+    }
+  ],
+  "pairs": [
+    {
+      "pair": 1,
+      "order": [
+        "missing",
+        "no-initialization"
+      ],
+      "label": "pair-01-contention",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-01-contention",
+        "--rounds",
+        "200",
+        "--record-all-errors",
+        "--variants",
+        "missing",
+        "no-initialization"
+      ],
+      "exitcode": 0,
+      "seconds": 84.031,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-01-contention.log",
+      "log_sha256": "e55911c229adc5f5ec3c24761cbc1bcb51809b2a13dce2b9784499f00227ce1c",
+      "observations": [
+        {
+          "variant": "missing",
+          "rounds": 200,
+          "worker_count": 3,
+          "workers": [
+            {
+              "worker": 2,
+              "successes": 197,
+              "errors": 3,
+              "samples": [
+                {
+                  "iteration": 26,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-01-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 88,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-01-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 172,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-01-contention\\missing\\shared.lock\n"
+                }
+              ],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": true
+            },
+            {
+              "worker": 1,
+              "successes": 198,
+              "errors": 2,
+              "samples": [
+                {
+                  "iteration": 11,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-01-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 60,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-01-contention\\missing\\shared.lock\n"
+                }
+              ],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": true
+            },
+            {
+              "worker": 0,
+              "successes": 198,
+              "errors": 2,
+              "samples": [
+                {
+                  "iteration": 156,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-01-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 175,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-01-contention\\missing\\shared.lock\n"
+                }
+              ],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": true
+            }
+          ],
+          "counter": 593,
+          "successful_acquisitions": 593,
+          "errors": 7,
+          "record_all_errors": true,
+          "parent_error": null,
+          "process_exitcodes": [
+            0,
+            0,
+            0
+          ],
+          "seconds": 40.688,
+          "final_lock_size": 2,
+          "sampled_lock_stacks": [
+            "worker-0.stack.txt",
+            "worker-1.stack.txt",
+            "worker-2.stack.txt"
+          ]
+        },
+        {
+          "variant": "no-initialization",
+          "rounds": 200,
+          "worker_count": 3,
+          "workers": [
+            {
+              "worker": 2,
+              "successes": 200,
+              "errors": 0,
+              "samples": [],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-01-contention\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": false
+            },
+            {
+              "worker": 0,
+              "successes": 200,
+              "errors": 0,
+              "samples": [],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-01-contention\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": false
+            },
+            {
+              "worker": 1,
+              "successes": 200,
+              "errors": 0,
+              "samples": [],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-01-contention\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": false
+            }
+          ],
+          "counter": 600,
+          "successful_acquisitions": 600,
+          "errors": 0,
+          "record_all_errors": true,
+          "parent_error": null,
+          "process_exitcodes": [
+            0,
+            0,
+            0
+          ],
+          "seconds": 41.562,
+          "final_lock_size": 0,
+          "sampled_lock_stacks": [
+            "worker-0.stack.txt",
+            "worker-1.stack.txt",
+            "worker-2.stack.txt"
+          ]
+        }
+      ]
+    },
+    {
+      "pair": 2,
+      "order": [
+        "no-initialization",
+        "missing"
+      ],
+      "label": "pair-02-contention",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-contention",
+        "--rounds",
+        "200",
+        "--record-all-errors",
+        "--variants",
+        "no-initialization",
+        "missing"
+      ],
+      "exitcode": 0,
+      "seconds": 84.016,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-contention.log",
+      "log_sha256": "7bda72208812f2e07ace5b22911298cfc467b527cb7fd52d6f60e531a925f442",
+      "observations": [
+        {
+          "variant": "no-initialization",
+          "rounds": 200,
+          "worker_count": 3,
+          "workers": [
+            {
+              "worker": 2,
+              "successes": 200,
+              "errors": 0,
+              "samples": [],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-contention\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": false
+            },
+            {
+              "worker": 1,
+              "successes": 200,
+              "errors": 0,
+              "samples": [],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-contention\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": false
+            },
+            {
+              "worker": 0,
+              "successes": 200,
+              "errors": 0,
+              "samples": [],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-contention\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": false
+            }
+          ],
+          "counter": 600,
+          "successful_acquisitions": 600,
+          "errors": 0,
+          "record_all_errors": true,
+          "parent_error": null,
+          "process_exitcodes": [
+            0,
+            0,
+            0
+          ],
+          "seconds": 41.657,
+          "final_lock_size": 0,
+          "sampled_lock_stacks": [
+            "worker-0.stack.txt",
+            "worker-1.stack.txt",
+            "worker-2.stack.txt"
+          ]
+        },
+        {
+          "variant": "missing",
+          "rounds": 200,
+          "worker_count": 3,
+          "workers": [
+            {
+              "worker": 2,
+              "successes": 197,
+              "errors": 3,
+              "samples": [
+                {
+                  "iteration": 135,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 164,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 183,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-contention\\missing\\shared.lock\n"
+                }
+              ],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": true
+            },
+            {
+              "worker": 1,
+              "successes": 197,
+              "errors": 3,
+              "samples": [
+                {
+                  "iteration": 17,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 163,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 180,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-contention\\missing\\shared.lock\n"
+                }
+              ],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": true
+            },
+            {
+              "worker": 0,
+              "successes": 197,
+              "errors": 3,
+              "samples": [
+                {
+                  "iteration": 1,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 44,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 76,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-02-contention\\missing\\shared.lock\n"
+                }
+              ],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": true
+            }
+          ],
+          "counter": 591,
+          "successful_acquisitions": 591,
+          "errors": 9,
+          "record_all_errors": true,
+          "parent_error": null,
+          "process_exitcodes": [
+            0,
+            0,
+            0
+          ],
+          "seconds": 40.5,
+          "final_lock_size": 1,
+          "sampled_lock_stacks": [
+            "worker-0.stack.txt",
+            "worker-1.stack.txt",
+            "worker-2.stack.txt"
+          ]
+        }
+      ]
+    },
+    {
+      "pair": 3,
+      "order": [
+        "missing",
+        "no-initialization"
+      ],
+      "label": "pair-03-contention",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-03-contention",
+        "--rounds",
+        "200",
+        "--record-all-errors",
+        "--variants",
+        "missing",
+        "no-initialization"
+      ],
+      "exitcode": 0,
+      "seconds": 84.031,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-03-contention.log",
+      "log_sha256": "00633f7a1ea7087f89868f390383c696a8d7fc66c9b4da0e60ec7482ffa303b0",
+      "observations": [
+        {
+          "variant": "missing",
+          "rounds": 200,
+          "worker_count": 3,
+          "workers": [
+            {
+              "worker": 2,
+              "successes": 198,
+              "errors": 2,
+              "samples": [
+                {
+                  "iteration": 8,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-03-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 29,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-03-contention\\missing\\shared.lock\n"
+                }
+              ],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": true
+            },
+            {
+              "worker": 1,
+              "successes": 200,
+              "errors": 0,
+              "samples": [],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": true
+            },
+            {
+              "worker": 0,
+              "successes": 195,
+              "errors": 5,
+              "samples": [
+                {
+                  "iteration": 52,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-03-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 71,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-03-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 82,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-03-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 110,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-03-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 192,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-03-contention\\missing\\shared.lock\n"
+                }
+              ],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": true
+            }
+          ],
+          "counter": 593,
+          "successful_acquisitions": 593,
+          "errors": 7,
+          "record_all_errors": true,
+          "parent_error": null,
+          "process_exitcodes": [
+            0,
+            0,
+            0
+          ],
+          "seconds": 40.719,
+          "final_lock_size": 1,
+          "sampled_lock_stacks": [
+            "worker-0.stack.txt",
+            "worker-1.stack.txt",
+            "worker-2.stack.txt"
+          ]
+        },
+        {
+          "variant": "no-initialization",
+          "rounds": 200,
+          "worker_count": 3,
+          "workers": [
+            {
+              "worker": 1,
+              "successes": 200,
+              "errors": 0,
+              "samples": [],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-03-contention\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": false
+            },
+            {
+              "worker": 2,
+              "successes": 200,
+              "errors": 0,
+              "samples": [],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-03-contention\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": false
+            },
+            {
+              "worker": 0,
+              "successes": 200,
+              "errors": 0,
+              "samples": [],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-03-contention\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": false
+            }
+          ],
+          "counter": 600,
+          "successful_acquisitions": 600,
+          "errors": 0,
+          "record_all_errors": true,
+          "parent_error": null,
+          "process_exitcodes": [
+            0,
+            0,
+            0
+          ],
+          "seconds": 41.546,
+          "final_lock_size": 0,
+          "sampled_lock_stacks": [
+            "worker-0.stack.txt",
+            "worker-1.stack.txt",
+            "worker-2.stack.txt"
+          ]
+        }
+      ]
+    },
+    {
+      "pair": 4,
+      "order": [
+        "no-initialization",
+        "missing"
+      ],
+      "label": "pair-04-contention",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-contention",
+        "--rounds",
+        "200",
+        "--record-all-errors",
+        "--variants",
+        "no-initialization",
+        "missing"
+      ],
+      "exitcode": 0,
+      "seconds": 84.016,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-contention.log",
+      "log_sha256": "8aedd8e4baa6ec73460a84385d10090ce0af3c98d718a226e71b72f6d314d08a",
+      "observations": [
+        {
+          "variant": "no-initialization",
+          "rounds": 200,
+          "worker_count": 3,
+          "workers": [
+            {
+              "worker": 1,
+              "successes": 200,
+              "errors": 0,
+              "samples": [],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-contention\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": false
+            },
+            {
+              "worker": 0,
+              "successes": 200,
+              "errors": 0,
+              "samples": [],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-contention\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": false
+            },
+            {
+              "worker": 2,
+              "successes": 200,
+              "errors": 0,
+              "samples": [],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-contention\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": false
+            }
+          ],
+          "counter": 600,
+          "successful_acquisitions": 600,
+          "errors": 0,
+          "record_all_errors": true,
+          "parent_error": null,
+          "process_exitcodes": [
+            0,
+            0,
+            0
+          ],
+          "seconds": 41.562,
+          "final_lock_size": 0,
+          "sampled_lock_stacks": [
+            "worker-0.stack.txt",
+            "worker-1.stack.txt",
+            "worker-2.stack.txt"
+          ]
+        },
+        {
+          "variant": "missing",
+          "rounds": 200,
+          "worker_count": 3,
+          "workers": [
+            {
+              "worker": 0,
+              "successes": 196,
+              "errors": 4,
+              "samples": [
+                {
+                  "iteration": 106,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 116,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 138,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 175,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-contention\\missing\\shared.lock\n"
+                }
+              ],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": true
+            },
+            {
+              "worker": 2,
+              "successes": 196,
+              "errors": 4,
+              "samples": [
+                {
+                  "iteration": 9,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 19,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 41,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 126,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-contention\\missing\\shared.lock\n"
+                }
+              ],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": true
+            },
+            {
+              "worker": 1,
+              "successes": 197,
+              "errors": 3,
+              "samples": [
+                {
+                  "iteration": 100,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 117,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 131,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-04-contention\\missing\\shared.lock\n"
+                }
+              ],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": true
+            }
+          ],
+          "counter": 589,
+          "successful_acquisitions": 589,
+          "errors": 11,
+          "record_all_errors": true,
+          "parent_error": null,
+          "process_exitcodes": [
+            0,
+            0,
+            0
+          ],
+          "seconds": 40.297,
+          "final_lock_size": 1,
+          "sampled_lock_stacks": [
+            "worker-0.stack.txt",
+            "worker-1.stack.txt",
+            "worker-2.stack.txt"
+          ]
+        }
+      ]
+    },
+    {
+      "pair": 5,
+      "order": [
+        "missing",
+        "no-initialization"
+      ],
+      "label": "pair-05-contention",
+      "command": [
+        "C:\\Program Files\\Python311\\python.exe",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py",
+        "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-contention",
+        "--rounds",
+        "200",
+        "--record-all-errors",
+        "--variants",
+        "missing",
+        "no-initialization"
+      ],
+      "exitcode": 0,
+      "seconds": 84.016,
+      "log": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-contention.log",
+      "log_sha256": "e49f49b0c1f565c507f7c1cf46cd40845cbe3913ca4d2aedc6e8dba5c4ebc77c",
+      "observations": [
+        {
+          "variant": "missing",
+          "rounds": 200,
+          "worker_count": 3,
+          "workers": [
+            {
+              "worker": 0,
+              "successes": 196,
+              "errors": 4,
+              "samples": [
+                {
+                  "iteration": 10,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 24,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 66,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 136,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-contention\\missing\\shared.lock\n"
+                }
+              ],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": true
+            },
+            {
+              "worker": 2,
+              "successes": 197,
+              "errors": 3,
+              "samples": [
+                {
+                  "iteration": 85,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 145,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 182,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-contention\\missing\\shared.lock\n"
+                }
+              ],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": true
+            },
+            {
+              "worker": 1,
+              "successes": 195,
+              "errors": 5,
+              "samples": [
+                {
+                  "iteration": 54,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 60,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 68,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 94,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-contention\\missing\\shared.lock\n"
+                },
+                {
+                  "iteration": 116,
+                  "traceback": "Traceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 97, in acquire\n    self._ensure_lock_byte(stream)\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 165, in _ensure_lock_byte\n    stream.flush()\nPermissionError: [Errno 13] Permission denied\n\nThe above exception was the direct cause of the following exception:\n\nTraceback (most recent call last):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44, in worker\n    with InterProcessFileLock(folder / \"shared.lock\", timeout_seconds=5):\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149, in __enter__\n    self.acquire()\n  File \"C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 112, in acquire\n    raise InterProcessLockError(f\"cannot acquire inter-process file lock: {self.path}\") from exc\nimage_downloader.exceptions.InterProcessLockError: cannot acquire inter-process file lock: C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-contention\\missing\\shared.lock\n"
+                }
+              ],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": true
+            }
+          ],
+          "counter": 588,
+          "successful_acquisitions": 588,
+          "errors": 12,
+          "record_all_errors": true,
+          "parent_error": null,
+          "process_exitcodes": [
+            0,
+            0,
+            0
+          ],
+          "seconds": 40.203,
+          "final_lock_size": 1,
+          "sampled_lock_stacks": [
+            "worker-0.stack.txt",
+            "worker-1.stack.txt",
+            "worker-2.stack.txt"
+          ]
+        },
+        {
+          "variant": "no-initialization",
+          "rounds": 200,
+          "worker_count": 3,
+          "workers": [
+            {
+              "worker": 1,
+              "successes": 200,
+              "errors": 0,
+              "samples": [],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-contention\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": false
+            },
+            {
+              "worker": 2,
+              "successes": 200,
+              "errors": 0,
+              "samples": [],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-contention\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": false
+            },
+            {
+              "worker": 0,
+              "successes": 200,
+              "errors": 0,
+              "samples": [],
+              "module": "C:\\Users\\user\\source\\repos\\image_downloader\\.runtime\\history-repeatability-20261011\\pair-05-contention\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py",
+              "has_initialization": false
+            }
+          ],
+          "counter": 600,
+          "successful_acquisitions": 600,
+          "errors": 0,
+          "record_all_errors": true,
+          "parent_error": null,
+          "process_exitcodes": [
+            0,
+            0,
+            0
+          ],
+          "seconds": 41.547,
+          "final_lock_size": 0,
+          "sampled_lock_stacks": [
+            "worker-0.stack.txt",
+            "worker-1.stack.txt",
+            "worker-2.stack.txt"
+          ]
+        }
+      ]
+    }
+  ],
+  "source_sha256_after": {
+    "src/image_downloader/storage/interprocess_lock.py": "44351ca7843c35b87924f47827af16c305ef22e2ef0e146c78b0e65c3d37e70f",
+    "src/image_downloader/storage/workflow_history.py": "ec31093a7173c9ba65713a353cf185f2746f180feee446b8a5b2ab2311383194",
+    "tests/v3/application/test_workflow_history.py": "a1b6e402a6460a0d3697a73be6967bb6c1c19ab0f3839712c1e21e2cce5488ad"
+  },
+  "source_unchanged": true,
+  "completed_at": "2026-10-11T08:05:25.091090+09:00",
+  "analysis": {
+    "pairs": [
+      {
+        "pair": 1,
+        "order": [
+          "missing",
+          "no-initialization"
+        ],
+        "conditions": {
+          "missing": {
+            "acquisitions": 600,
+            "errors": 7,
+            "rounds_with_errors": 7,
+            "error_locations": {
+              "initialization_flush_PermissionError": 7
+            },
+            "failure_iterations_per_worker": {
+              "2": [
+                26,
+                88,
+                172
+              ],
+              "1": [
+                11,
+                60
+              ],
+              "0": [
+                156,
+                175
+              ]
+            },
+            "final_lock_size": 2
+          },
+          "no-initialization": {
+            "acquisitions": 600,
+            "errors": 0,
+            "rounds_with_errors": 0,
+            "error_locations": {},
+            "failure_iterations_per_worker": {
+              "2": [],
+              "0": [],
+              "1": []
+            },
+            "final_lock_size": 0
+          }
+        }
+      },
+      {
+        "pair": 2,
+        "order": [
+          "no-initialization",
+          "missing"
+        ],
+        "conditions": {
+          "no-initialization": {
+            "acquisitions": 600,
+            "errors": 0,
+            "rounds_with_errors": 0,
+            "error_locations": {},
+            "failure_iterations_per_worker": {
+              "2": [],
+              "1": [],
+              "0": []
+            },
+            "final_lock_size": 0
+          },
+          "missing": {
+            "acquisitions": 600,
+            "errors": 9,
+            "rounds_with_errors": 9,
+            "error_locations": {
+              "initialization_flush_PermissionError": 9
+            },
+            "failure_iterations_per_worker": {
+              "2": [
+                135,
+                164,
+                183
+              ],
+              "1": [
+                17,
+                163,
+                180
+              ],
+              "0": [
+                1,
+                44,
+                76
+              ]
+            },
+            "final_lock_size": 1
+          }
+        }
+      },
+      {
+        "pair": 3,
+        "order": [
+          "missing",
+          "no-initialization"
+        ],
+        "conditions": {
+          "missing": {
+            "acquisitions": 600,
+            "errors": 7,
+            "rounds_with_errors": 7,
+            "error_locations": {
+              "initialization_flush_PermissionError": 7
+            },
+            "failure_iterations_per_worker": {
+              "2": [
+                8,
+                29
+              ],
+              "1": [],
+              "0": [
+                52,
+                71,
+                82,
+                110,
+                192
+              ]
+            },
+            "final_lock_size": 1
+          },
+          "no-initialization": {
+            "acquisitions": 600,
+            "errors": 0,
+            "rounds_with_errors": 0,
+            "error_locations": {},
+            "failure_iterations_per_worker": {
+              "1": [],
+              "2": [],
+              "0": []
+            },
+            "final_lock_size": 0
+          }
+        }
+      },
+      {
+        "pair": 4,
+        "order": [
+          "no-initialization",
+          "missing"
+        ],
+        "conditions": {
+          "no-initialization": {
+            "acquisitions": 600,
+            "errors": 0,
+            "rounds_with_errors": 0,
+            "error_locations": {},
+            "failure_iterations_per_worker": {
+              "1": [],
+              "0": [],
+              "2": []
+            },
+            "final_lock_size": 0
+          },
+          "missing": {
+            "acquisitions": 600,
+            "errors": 11,
+            "rounds_with_errors": 11,
+            "error_locations": {
+              "initialization_flush_PermissionError": 11
+            },
+            "failure_iterations_per_worker": {
+              "0": [
+                106,
+                116,
+                138,
+                175
+              ],
+              "2": [
+                9,
+                19,
+                41,
+                126
+              ],
+              "1": [
+                100,
+                117,
+                131
+              ]
+            },
+            "final_lock_size": 1
+          }
+        }
+      },
+      {
+        "pair": 5,
+        "order": [
+          "missing",
+          "no-initialization"
+        ],
+        "conditions": {
+          "missing": {
+            "acquisitions": 600,
+            "errors": 12,
+            "rounds_with_errors": 12,
+            "error_locations": {
+              "initialization_flush_PermissionError": 12
+            },
+            "failure_iterations_per_worker": {
+              "0": [
+                10,
+                24,
+                66,
+                136
+              ],
+              "2": [
+                85,
+                145,
+                182
+              ],
+              "1": [
+                54,
+                60,
+                68,
+                94,
+                116
+              ]
+            },
+            "final_lock_size": 1
+          },
+          "no-initialization": {
+            "acquisitions": 600,
+            "errors": 0,
+            "rounds_with_errors": 0,
+            "error_locations": {},
+            "failure_iterations_per_worker": {
+              "1": [],
+              "2": [],
+              "0": []
+            },
+            "final_lock_size": 0
+          }
+        }
+      }
+    ],
+    "totals": {
+      "missing_acquisitions": 3000,
+      "missing_errors": 46,
+      "missing_runs_with_errors": 5,
+      "no-initialization_acquisitions": 3000,
+      "no-initialization_errors": 0,
+      "no-initialization_runs_with_errors": 0
+    },
+    "history_tests": 20,
+    "history_passed": 20,
+    "history_failed": 0,
+    "protocol_completed": true,
+    "note": "Counts describe a fixed contention protocol on this host. Individual acquisition trials are correlated within runs; do not treat them as independent samples or an estimate of real-world failure probability."
+  }
+}
