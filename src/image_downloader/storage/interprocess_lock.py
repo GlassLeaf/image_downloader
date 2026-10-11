@@ -7,12 +7,20 @@ import errno
 import importlib
 import math
 import os
+import sys
 import time
 from pathlib import Path
 from types import TracebackType
 from typing import BinaryIO, Protocol, cast
 
 from ..exceptions import InterProcessLockError
+
+
+def _warn_cleanup_failure(resource: str) -> None:
+    try:
+        sys.stderr.write(f"warning: inter-process lock cleanup failed ({resource})\n")
+    except BaseException:
+        pass
 
 
 class _LockBackend(Protocol):
@@ -92,43 +100,45 @@ class InterProcessFileLock:
         if self._stream is not None:
             raise InterProcessLockError("inter-process file lock is already acquired")
         stream: BinaryIO | None = None
+        acquired = False
         try:
-            stream = self.path.open("a+b")
-            self._ensure_lock_byte(stream)
+            stream = self._open_stream()
             deadline = time.monotonic() + self.timeout_seconds
             while not self._backend.try_acquire(stream):
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     raise InterProcessLockError(f"timed out acquiring inter-process file lock: {self.path}")
                 time.sleep(min(self.POLL_INTERVAL_SECONDS, remaining))
+            acquired = True
+            self._ensure_lock_byte(stream)
             self._stream = stream
-        except InterProcessLockError:
+        except BaseException as exc:
             if stream is not None:
-                stream.close()
+                self._abort_acquisition(stream, acquired=acquired)
+            if isinstance(exc, OSError):
+                raise InterProcessLockError(f"cannot acquire inter-process file lock: {self.path}") from exc
             raise
-        except OSError as exc:
-            if stream is not None:
-                stream.close()
-            raise InterProcessLockError(f"cannot acquire inter-process file lock: {self.path}") from exc
 
     async def acquire_async(self) -> None:
         """Poll a nonblocking OS lock without blocking the event loop."""
         if self._stream is not None:
             raise InterProcessLockError("inter-process file lock is already acquired")
         stream: BinaryIO | None = None
+        acquired = False
         try:
-            stream = self.path.open("a+b")
-            self._ensure_lock_byte(stream)
+            stream = self._open_stream()
             deadline = time.monotonic() + self.timeout_seconds
             while not self._backend.try_acquire(stream):
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     raise InterProcessLockError(f"timed out acquiring inter-process file lock: {self.path}")
                 await asyncio.sleep(min(self.POLL_INTERVAL_SECONDS, remaining))
+            acquired = True
+            self._ensure_lock_byte(stream)
             self._stream = stream
         except BaseException as exc:
             if stream is not None:
-                stream.close()
+                self._abort_acquisition(stream, acquired=acquired)
             if isinstance(exc, OSError):
                 raise InterProcessLockError(f"cannot acquire inter-process file lock: {self.path}") from exc
             raise
@@ -140,10 +150,30 @@ class InterProcessFileLock:
         self._stream = None
         try:
             self._backend.release(stream)
-        except OSError as exc:
-            raise InterProcessLockError(f"cannot release inter-process file lock: {self.path}") from exc
-        finally:
+        except BaseException as exc:
+            try:
+                stream.close()
+            except BaseException:
+                _warn_cleanup_failure("stream")
+            if isinstance(exc, OSError):
+                raise InterProcessLockError(f"cannot release inter-process file lock: {self.path}") from exc
+            raise
+        else:
             stream.close()
+
+    def _open_stream(self) -> BinaryIO:
+        return self.path.open("a+b", buffering=0)
+
+    def _abort_acquisition(self, stream: BinaryIO, *, acquired: bool) -> None:
+        if acquired:
+            try:
+                self._backend.release(stream)
+            except BaseException:
+                _warn_cleanup_failure("unlock")
+        try:
+            stream.close()
+        except BaseException:
+            _warn_cleanup_failure("stream")
 
     def __enter__(self) -> InterProcessFileLock:
         self.acquire()
@@ -161,6 +191,7 @@ class InterProcessFileLock:
     def _ensure_lock_byte(stream: BinaryIO) -> None:
         stream.seek(0, os.SEEK_END)
         if stream.tell() == 0:
-            stream.write(b"\0")
+            if stream.write(b"\0") != 1:
+                raise OSError(errno.EIO, "incomplete lock initialization write")
             stream.flush()
         stream.seek(0)
