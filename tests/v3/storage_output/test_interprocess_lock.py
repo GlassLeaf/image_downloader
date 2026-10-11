@@ -4,8 +4,11 @@ import asyncio
 import errno
 import io
 import multiprocessing
+import os
+import stat
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -445,3 +448,229 @@ def test_asynchronous_wait_cancellation_closes_unowned_stream(tmp_path: Path, mo
         assert stream.closed
 
     asyncio.run(scenario())
+
+
+def test_existing_append_opener_removes_only_creation_flag(tmp_path: Path, monkeypatch) -> None:
+    flags = os.O_RDWR | os.O_APPEND | os.O_CREAT | getattr(os, "O_BINARY", 0)
+    calls = []
+    monkeypatch.setattr(lock_module.os, "open", lambda path, mode: calls.append((path, mode)) or 17)
+    assert lock_module._open_existing_append(str(tmp_path / "flags.lock"), flags) == 17
+    assert calls == [(str(tmp_path / "flags.lock"), flags & ~os.O_CREAT)]
+
+
+def test_existing_append_opener_does_not_recreate_disappeared_target(tmp_path: Path) -> None:
+    path = tmp_path / "missing.lock"
+    with pytest.raises(FileNotFoundError):
+        lock_module.builtins.open(path, "a+b", buffering=0, opener=lock_module._open_existing_append)
+    assert not path.exists()
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows rename refuses an existing destination")
+def test_windows_publishes_completed_byte_and_leaves_no_temporary(tmp_path: Path, monkeypatch) -> None:
+    path = tmp_path / "publication.lock"
+    rename = lock_module.os.rename
+    observed = []
+
+    def observe_publication(source, destination):
+        assert not Path(destination).exists()
+        assert Path(source).read_bytes() == b"\0"
+        # A closed staging handle is required for Windows rename.
+        observed.append(Path(source).stat().st_ino)
+        rename(source, destination)
+
+    monkeypatch.setattr(lock_module.os, "rename", observe_publication)
+    with InterProcessFileLock(path):
+        pass
+    assert observed == [path.stat().st_ino]
+    assert path.read_bytes() == b"\0"
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["publication.lock"]
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows rename refuses an existing destination")
+def test_windows_publication_loser_preserves_held_winner(tmp_path: Path) -> None:
+    path = tmp_path / "winner.lock"
+    path.write_bytes(b"winner")
+    before = path.stat()
+    with InterProcessFileLock(path):
+        lock_module._publish_windows_lock_file(path, lock_module._directory_state(tmp_path))
+    after = path.stat()
+    assert path.read_bytes() == b"winner"
+    assert (before.st_dev, before.st_ino, before.st_mtime_ns) == (after.st_dev, after.st_ino, after.st_mtime_ns)
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["winner.lock"]
+
+
+@pytest.mark.parametrize("failure", ["write", "flush", "close", "rename", "fdopen"])
+def test_failed_publication_closes_owned_resources_and_preserves_error(tmp_path: Path, monkeypatch, failure) -> None:
+    path = tmp_path / "failure.lock"
+    primary = PermissionError(errno.EACCES, "secret publication error")
+    fdopen, rename = lock_module.os.fdopen, lock_module.os.rename
+    descriptors = []
+    streams = []
+
+    class Stream:
+        def __init__(self, raw):
+            self.raw = raw
+
+        def write(self, value):
+            if failure == "write":
+                raise primary
+            return self.raw.write(value)
+
+        def flush(self):
+            if failure == "flush":
+                raise primary
+            self.raw.flush()
+
+        def close(self):
+            self.raw.close()
+            if failure == "close":
+                raise primary
+
+    def wrap(descriptor, *args, **kwargs):
+        descriptors.append(descriptor)
+        if failure == "fdopen":
+            raise primary
+        stream = Stream(fdopen(descriptor, *args, **kwargs))
+        streams.append(stream)
+        return stream
+
+    def fail_rename(source, destination):
+        if failure == "rename":
+            raise primary
+        rename(source, destination)
+
+    monkeypatch.setattr(lock_module.os, "fdopen", wrap)
+    monkeypatch.setattr(lock_module.os, "rename", fail_rename)
+    with pytest.raises(PermissionError) as caught:
+        lock_module._publish_windows_lock_file(path, lock_module._directory_state(tmp_path))
+    assert caught.value is primary
+    assert not path.exists()
+    assert not list(tmp_path.iterdir())
+    assert all(stream.raw.closed for stream in streams)
+    for descriptor in descriptors:
+        with pytest.raises(OSError):
+            os.fstat(descriptor)
+
+
+def test_publication_cleanup_failure_keeps_primary_and_warns_without_secrets(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    primary = OSError(errno.EIO, "secret publish failure")
+
+    def fail_rename(source, destination):
+        raise primary
+
+    def fail_unlink(path, *args, **kwargs):
+        raise OSError("secret cleanup failure")
+
+    monkeypatch.setattr(lock_module.os, "rename", fail_rename)
+    monkeypatch.setattr(Path, "unlink", fail_unlink)
+    with pytest.raises(OSError) as caught:
+        lock_module._publish_windows_lock_file(tmp_path / "failed.lock", lock_module._directory_state(tmp_path))
+    assert caught.value is primary
+    assert capsys.readouterr().err == "warning: inter-process lock cleanup failed (temporary)\n"
+
+
+def test_windows_open_refuses_target_removed_after_inspection(tmp_path: Path, monkeypatch) -> None:
+    path = tmp_path / "disappeared.lock"
+    path.write_bytes(b"\0")
+    original_open = lock_module.builtins.open
+
+    def remove_then_open(value, *args, **kwargs):
+        if Path(value) == path:
+            path.unlink()
+        return original_open(value, *args, **kwargs)
+
+    monkeypatch.setattr(lock_module.builtins, "open", remove_then_open)
+    with pytest.raises(FileNotFoundError):
+        InterProcessFileLock(path)._open_windows_stream()
+    assert not path.exists()
+
+
+def test_windows_open_closes_handle_when_target_identity_changes(tmp_path: Path, monkeypatch) -> None:
+    path, other = tmp_path / "changed.lock", tmp_path / "other.lock"
+    path.write_bytes(b"\0")
+    other.write_bytes(b"other")
+    original_state, original_open = lock_module._file_state, lock_module.builtins.open
+    observations, handles = [], []
+
+    def changed_state(value):
+        if value == path:
+            observations.append(value)
+            if len(observations) == 2:
+                return other.stat()
+        return original_state(value)
+
+    def observe_open(value, *args, **kwargs):
+        stream = original_open(value, *args, **kwargs)
+        if Path(value) == path:
+            handles.append(stream)
+        return stream
+
+    monkeypatch.setattr(lock_module, "_file_state", changed_state)
+    monkeypatch.setattr(lock_module.builtins, "open", observe_open)
+    with pytest.raises(OSError, match="changed during open"):
+        InterProcessFileLock(path)._open_windows_stream()
+    assert len(handles) == 1
+    assert handles[0].closed
+    assert path.read_bytes() == b"\0"
+
+
+def test_publication_rejects_parent_replacement_without_deleting_other_files(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    parent = tmp_path / "parent"
+    parent.mkdir()
+    moved = tmp_path / "moved"
+    check = lock_module._check_directory
+    changed = []
+
+    def replace_parent(path, state):
+        if not changed:
+            parent.rename(moved)
+            parent.mkdir()
+            (parent / "unrelated").write_bytes(b"keep")
+            changed.append(True)
+        check(path, state)
+
+    monkeypatch.setattr(lock_module, "_check_directory", replace_parent)
+    with pytest.raises(OSError, match="directory changed"):
+        lock_module._publish_windows_lock_file(parent / "parent.lock", lock_module._directory_state(parent))
+    assert (parent / "unrelated").read_bytes() == b"keep"
+    assert not (parent / "parent.lock").exists()
+    assert len(list(moved.iterdir())) == 1
+    assert capsys.readouterr().err == "warning: inter-process lock cleanup failed (temporary)\n"
+
+
+@pytest.mark.parametrize("reparse", [False, True])
+def test_windows_open_rejects_nonregular_or_reparse_target(tmp_path: Path, monkeypatch, reparse: bool) -> None:
+    path = tmp_path / "unsafe.lock"
+    path.mkdir()
+    if reparse:
+        lstat = Path.lstat
+        unsafe = SimpleNamespace(st_mode=stat.S_IFREG, st_nlink=1, st_file_attributes=0x400)
+        monkeypatch.setattr(Path, "lstat", lambda value: unsafe if value == path else lstat(value))
+    with pytest.raises(OSError, match="unsafe inter-process lock file"):
+        InterProcessFileLock(path)._open_windows_stream()
+
+
+def test_windows_open_rejects_hardlinked_target(tmp_path: Path) -> None:
+    path, alias = tmp_path / "hardlink.lock", tmp_path / "alias.lock"
+    path.write_bytes(b"\0")
+    os.link(path, alias)
+    with pytest.raises(OSError, match="unsafe inter-process lock file"):
+        InterProcessFileLock(path)._open_windows_stream()
+    assert path.read_bytes() == alias.read_bytes() == b"\0"
+
+
+def test_owned_temporary_cleanup_does_not_delete_substituted_file(tmp_path: Path, capsys) -> None:
+    parent = lock_module._directory_state(tmp_path)
+    staged = tmp_path / ".id-lock-test"
+    staged.write_bytes(b"\0")
+    owned = staged.stat()
+    substitute = tmp_path / "substitute"
+    substitute.write_bytes(b"keep")
+    os.replace(substitute, staged)
+    lock_module._remove_owned_temporary(staged, parent, owned)
+    assert staged.read_bytes() == b"keep"
+    assert capsys.readouterr().err == "warning: inter-process lock cleanup failed (temporary)\n"

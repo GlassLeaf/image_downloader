@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import asyncio
+import builtins
 import errno
 import importlib
 import math
 import os
+import stat
 import sys
+import tempfile
 import time
 from pathlib import Path
 from types import TracebackType
@@ -21,6 +24,110 @@ def _warn_cleanup_failure(resource: str) -> None:
         sys.stderr.write(f"warning: inter-process lock cleanup failed ({resource})\n")
     except BaseException:
         pass
+
+
+def _is_link_or_reparse(state: os.stat_result) -> bool:
+    return stat.S_ISLNK(state.st_mode) or bool(
+        getattr(state, "st_file_attributes", 0) & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
+    )
+
+
+def _same_file(left: os.stat_result, right: os.stat_result) -> bool:
+    return (left.st_dev, left.st_ino) == (right.st_dev, right.st_ino)
+
+
+def _directory_state(path: Path) -> os.stat_result:
+    state = path.lstat()
+    if _is_link_or_reparse(state) or not stat.S_ISDIR(state.st_mode):
+        raise OSError(errno.EINVAL, "unsafe inter-process lock directory")
+    return state
+
+
+def _check_directory(path: Path, expected: os.stat_result) -> None:
+    if not _same_file(_directory_state(path), expected):
+        raise OSError(errno.EIO, "inter-process lock directory changed")
+
+
+def _check_regular(state: os.stat_result) -> None:
+    if _is_link_or_reparse(state) or not stat.S_ISREG(state.st_mode) or state.st_nlink != 1:
+        raise OSError(errno.EINVAL, "unsafe inter-process lock file")
+
+
+def _file_state(path: Path) -> os.stat_result | None:
+    try:
+        state = path.lstat()
+    except FileNotFoundError:
+        return None
+    _check_regular(state)
+    return state
+
+
+def _write_lock_byte(stream: BinaryIO) -> None:
+    if stream.write(b"\0") != 1:
+        raise OSError(errno.EIO, "incomplete lock initialization write")
+    stream.flush()
+
+
+def _open_existing_append(path: str, flags: int) -> int:
+    # Creation belongs to the completed-file publisher, never to this open.
+    return os.open(path, flags & ~os.O_CREAT)
+
+
+def _remove_owned_temporary(path: Path, parent_state: os.stat_result, owned: os.stat_result | None) -> None:
+    try:
+        _check_directory(path.parent, parent_state)
+        current = _file_state(path)
+        if current is None:
+            return
+        if owned is None or not _same_file(current, owned):
+            raise OSError(errno.EIO, "temporary lock file changed")
+        path.unlink()
+    except BaseException:
+        _warn_cleanup_failure("temporary")
+
+
+def _publish_windows_lock_file(path: Path, parent_state: os.stat_result) -> None:
+    descriptor: int | None = None
+    stream: BinaryIO | None = None
+    temporary: Path | None = None
+    owned: os.stat_result | None = None
+    try:
+        descriptor, name = tempfile.mkstemp(prefix=".id-lock-", dir=path.parent)
+        temporary = Path(name)
+        owned = os.fstat(descriptor)
+        stream = os.fdopen(descriptor, "wb", buffering=0)
+        descriptor = None
+        _write_lock_byte(stream)
+        stream.close()
+        stream = None
+        _check_directory(path.parent, parent_state)
+        staged = _file_state(temporary)
+        if staged is None or not _same_file(staged, owned):
+            raise OSError(errno.EIO, "temporary lock file changed before publication")
+        _file_state(path)
+        try:
+            # Windows rename refuses an existing destination. Do not use replace
+            # or call this publisher on POSIX, whose rename may overwrite it.
+            os.rename(temporary, path)
+        except FileExistsError:
+            if _file_state(path) is None:
+                raise FileNotFoundError(errno.ENOENT, "published lock file disappeared") from None
+        else:
+            temporary = None
+        _check_directory(path.parent, parent_state)
+    finally:
+        if stream is not None:
+            try:
+                stream.close()
+            except BaseException:
+                _warn_cleanup_failure("stream")
+        if descriptor is not None:
+            try:
+                os.close(descriptor)
+            except BaseException:
+                _warn_cleanup_failure("descriptor")
+        if temporary is not None:
+            _remove_owned_temporary(temporary, parent_state, owned)
 
 
 class _LockBackend(Protocol):
@@ -162,7 +269,35 @@ class InterProcessFileLock:
             stream.close()
 
     def _open_stream(self) -> BinaryIO:
+        if os.name == "nt":
+            return self._open_windows_stream()
         return self.path.open("a+b", buffering=0)
+
+    def _open_windows_stream(self) -> BinaryIO:
+        path = self.path.absolute()
+        parent_state = _directory_state(path.parent)
+        expected = _file_state(path)
+        if expected is None:
+            _publish_windows_lock_file(path, parent_state)
+            expected = _file_state(path)
+        if expected is None:
+            raise FileNotFoundError(errno.ENOENT, "published lock file disappeared")
+        _check_directory(path.parent, parent_state)
+        stream = builtins.open(path, "a+b", buffering=0, opener=_open_existing_append)
+        try:
+            opened = os.fstat(stream.fileno())
+            _check_regular(opened)
+            current = _file_state(path)
+            _check_directory(path.parent, parent_state)
+            if current is None or not _same_file(current, opened) or not _same_file(expected, opened):
+                raise OSError(errno.EIO, "inter-process lock file changed during open")
+        except BaseException:
+            try:
+                stream.close()
+            except BaseException:
+                _warn_cleanup_failure("stream")
+            raise
+        return stream
 
     def _abort_acquisition(self, stream: BinaryIO, *, acquired: bool) -> None:
         if acquired:
@@ -191,7 +326,5 @@ class InterProcessFileLock:
     def _ensure_lock_byte(stream: BinaryIO) -> None:
         stream.seek(0, os.SEEK_END)
         if stream.tell() == 0:
-            if stream.write(b"\0") != 1:
-                raise OSError(errno.EIO, "incomplete lock initialization write")
-            stream.flush()
+            _write_lock_byte(stream)
         stream.seek(0)
