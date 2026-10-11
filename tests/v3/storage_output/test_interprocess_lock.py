@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import ctypes
 import errno
 import io
 import multiprocessing
@@ -465,6 +466,130 @@ def test_existing_append_opener_does_not_recreate_disappeared_target(tmp_path: P
     assert not path.exists()
 
 
+@pytest.mark.parametrize("code", [5, 33, 0, None])
+def test_existing_append_opener_does_not_retry_other_errors(tmp_path: Path, monkeypatch, code) -> None:
+    primary = PermissionError(errno.EACCES, "secret denied")
+    attempts = []
+    reader = SimpleNamespace(_set_doserrno=lambda value: None)
+
+    def fail(path, flags):
+        attempts.append(flags)
+        raise primary
+
+    monkeypatch.setattr(lock_module, "_windows_crt", lambda: reader)
+    monkeypatch.setattr(lock_module, "_windows_open_error", lambda library: code)
+    monkeypatch.setattr(lock_module.os, "open", fail)
+    with pytest.raises(PermissionError) as caught:
+        lock_module._open_existing_append(str(tmp_path / "denied.lock"), os.O_RDWR | os.O_APPEND | os.O_CREAT)
+    assert caught.value is primary
+    assert attempts == [os.O_RDWR | os.O_APPEND]
+
+
+@pytest.mark.parametrize("retry_succeeds", [False, True])
+def test_existing_append_opener_retries_sharing_once_and_keeps_primary(
+    tmp_path: Path, monkeypatch, retry_succeeds: bool
+) -> None:
+    cause = RuntimeError("original cause")
+    primary = PermissionError(errno.EACCES, "secret sharing error")
+    primary.__cause__ = cause
+    secondary = OSError(errno.EIO, "secret secondary error")
+    attempts = []
+    reader = SimpleNamespace(_set_doserrno=lambda value: None)
+
+    def open_once_more(path, flags):
+        attempts.append(flags)
+        if len(attempts) == 1:
+            raise primary
+        if retry_succeeds:
+            return 17
+        raise secondary
+
+    monkeypatch.setattr(lock_module, "_windows_crt", lambda: reader)
+    monkeypatch.setattr(lock_module, "_windows_open_error", lambda library: 32)
+    monkeypatch.setattr(lock_module.os, "open", open_once_more)
+    flags = os.O_RDWR | os.O_APPEND | os.O_CREAT
+    if retry_succeeds:
+        assert lock_module._open_existing_append(str(tmp_path / "shared.lock"), flags) == 17
+    else:
+        with pytest.raises(PermissionError) as caught:
+            lock_module._open_existing_append(str(tmp_path / "shared.lock"), flags)
+        assert caught.value is primary
+        assert primary.__cause__ is cause
+        assert primary.__context__ is None
+    assert attempts == [flags & ~os.O_CREAT] * 2
+
+
+def test_existing_append_opener_without_crt_keeps_original_failure(tmp_path: Path, monkeypatch) -> None:
+    primary = PermissionError(errno.EACCES, "secret without extended error")
+    attempts = []
+
+    def fail(path, flags):
+        attempts.append(flags)
+        raise primary
+
+    monkeypatch.setattr(lock_module, "_windows_crt", lambda: None)
+    monkeypatch.setattr(lock_module.os, "open", fail)
+    with pytest.raises(PermissionError) as caught:
+        lock_module._open_existing_append(str(tmp_path / "unavailable.lock"), os.O_RDWR)
+    assert caught.value is primary
+    assert attempts == [os.O_RDWR]
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows CRT and handle sharing")
+@pytest.mark.parametrize("denial", ["sharing", "readonly"])
+def test_windows_extended_error_distinguishes_sharing_from_access_denial(tmp_path: Path, monkeypatch, denial) -> None:
+    path = tmp_path / "native-denial.lock"
+    path.write_bytes(b"\0")
+    original_open, original_reader = lock_module.os.open, lock_module._windows_open_error
+    attempts, codes = [], []
+
+    def observe_open(value, flags):
+        attempts.append(flags)
+        return original_open(value, flags)
+
+    def observe_error(library):
+        code = original_reader(library)
+        codes.append(code)
+        return code
+
+    monkeypatch.setattr(lock_module.os, "open", observe_open)
+    monkeypatch.setattr(lock_module, "_windows_open_error", observe_error)
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel.CreateFileW.argtypes = [
+        ctypes.c_wchar_p,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_void_p,
+        ctypes.c_uint32,
+        ctypes.c_uint32,
+        ctypes.c_void_p,
+    ]
+    kernel.CreateFileW.restype = ctypes.c_void_p
+    kernel.CloseHandle.argtypes = [ctypes.c_void_p]
+    kernel.CloseHandle.restype = ctypes.c_int
+    handle = None
+    try:
+        if denial == "sharing":
+            handle = kernel.CreateFileW(str(path), 0xC0000000, 0, None, 3, 0x80, None)
+            assert handle != ctypes.c_void_p(-1).value
+        else:
+            path.chmod(stat.S_IREAD)
+        with pytest.raises(PermissionError) as caught:
+            lock_module._open_existing_append(str(path), os.O_RDWR | os.O_APPEND | os.O_BINARY | os.O_CREAT)
+        assert caught.value.errno == errno.EACCES
+        assert codes == [32 if denial == "sharing" else 5]
+        assert len(attempts) == (2 if denial == "sharing" else 1)
+        assert all(not flags & os.O_CREAT for flags in attempts)
+    finally:
+        if handle is not None:
+            assert kernel.CloseHandle(handle)
+        else:
+            path.chmod(stat.S_IREAD | stat.S_IWRITE)
+    with InterProcessFileLock(path):
+        pass
+    assert path.read_bytes() == b"\0"
+
+
 @pytest.mark.skipif(os.name != "nt", reason="Windows rename refuses an existing destination")
 def test_windows_publishes_completed_byte_and_leaves_no_temporary(tmp_path: Path, monkeypatch) -> None:
     path = tmp_path / "publication.lock"
@@ -487,16 +612,39 @@ def test_windows_publishes_completed_byte_and_leaves_no_temporary(tmp_path: Path
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows rename refuses an existing destination")
-def test_windows_publication_loser_preserves_held_winner(tmp_path: Path) -> None:
+def test_windows_publication_loser_preserves_held_winner(tmp_path: Path, monkeypatch) -> None:
     path = tmp_path / "winner.lock"
     path.write_bytes(b"winner")
     before = path.stat()
+
+    def unexpected_rename(*args):
+        raise AssertionError("an already visible winner must not be renamed over")
+
+    monkeypatch.setattr(lock_module.os, "rename", unexpected_rename)
     with InterProcessFileLock(path):
         lock_module._publish_windows_lock_file(path, lock_module._directory_state(tmp_path))
     after = path.stat()
     assert path.read_bytes() == b"winner"
     assert (before.st_dev, before.st_ino, before.st_mtime_ns) == (after.st_dev, after.st_ino, after.st_mtime_ns)
     assert sorted(p.name for p in tmp_path.iterdir()) == ["winner.lock"]
+
+
+def test_publication_uses_winner_created_between_inspection_and_rename(tmp_path: Path, monkeypatch) -> None:
+    path = tmp_path / "raced.lock"
+    winner = []
+
+    def publish_competitor(source, destination):
+        assert not path.exists()
+        path.write_bytes(b"winner")
+        winner.append(path.stat())
+        raise FileExistsError(errno.EEXIST, "competitor published first")
+
+    monkeypatch.setattr(lock_module.os, "rename", publish_competitor)
+    lock_module._publish_windows_lock_file(path, lock_module._directory_state(tmp_path))
+    assert len(winner) == 1
+    assert path.read_bytes() == b"winner"
+    assert path.stat().st_ino == winner[0].st_ino
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["raced.lock"]
 
 
 @pytest.mark.parametrize("failure", ["write", "flush", "close", "rename", "fdopen"])

@@ -98,6 +98,7 @@ def exception_details(error: BaseException, iteration: int) -> dict:
                 "type": type(current).__name__,
                 "errno": getattr(current, "errno", None),
                 "winerror": getattr(current, "winerror", None),
+                "diagnostic_doserrno": getattr(current, "_diagnostic_doserrno", None),
             }
         )
         frames.extend(traceback.extract_tb(current.__traceback__))
@@ -294,7 +295,19 @@ def bounded_case(source, folder, condition, rounds):
             "folder": str(folder),
             "missing_workers": 3 - len(list(folder.glob("worker-*.json"))),
         }
-    result = json.loads((folder / "summary.json").read_text(encoding="utf-8"))
+    summary = folder / "summary.json"
+    if not summary.exists():
+        return {
+            "condition": condition,
+            "watchdog": False,
+            "protocol_completed": False,
+            "all_operations_succeeded": False,
+            "folder": str(folder),
+            "supervisor_exitcode": process.exitcode,
+            "missing_workers": 3 - len(list(folder.glob("worker-*.json"))),
+            "fatal_case_exit": True,
+        }
+    result = json.loads(summary.read_text(encoding="utf-8"))
     result.update({"watchdog": False, "folder": str(folder), "supervisor_exitcode": process.exitcode})
     return result
 

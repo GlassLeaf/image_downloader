@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import builtins
+import ctypes
 import errno
 import importlib
 import math
@@ -12,6 +13,7 @@ import stat
 import sys
 import tempfile
 import time
+from functools import cache
 from pathlib import Path
 from types import TracebackType
 from typing import BinaryIO, Protocol, cast
@@ -68,9 +70,47 @@ def _write_lock_byte(stream: BinaryIO) -> None:
     stream.flush()
 
 
+@cache
+def _windows_crt() -> ctypes.CDLL | None:
+    if os.name != "nt":
+        return None
+    try:
+        library = ctypes.CDLL("ucrtbase.dll", winmode=0x800)  # LOAD_LIBRARY_SEARCH_SYSTEM32
+        library._get_doserrno.argtypes = [ctypes.POINTER(ctypes.c_ulong)]
+        library._get_doserrno.restype = ctypes.c_int
+        library._set_doserrno.argtypes = [ctypes.c_ulong]
+        library._set_doserrno.restype = ctypes.c_int
+    except (OSError, AttributeError):
+        return None
+    return library
+
+
+def _windows_open_error(library: ctypes.CDLL) -> int | None:
+    code = ctypes.c_ulong()
+    if library._get_doserrno(ctypes.byref(code)) != 0:
+        return None
+    return code.value
+
+
 def _open_existing_append(path: str, flags: int) -> int:
     # Creation belongs to the completed-file publisher, never to this open.
-    return os.open(path, flags & ~os.O_CREAT)
+    flags &= ~os.O_CREAT
+    library = _windows_crt()
+    if library is not None:
+        library._set_doserrno(0)
+    try:
+        return os.open(path, flags)
+    except OSError as error:
+        if error.errno != errno.EACCES or library is None or _windows_open_error(library) != 32:
+            raise
+        primary = error
+    # Publication-time sharing conflicts may be transient. Retry only a returned
+    # sharing violation, once, without sleeps or creation.
+    try:
+        return os.open(path, flags)
+    except OSError:
+        pass
+    raise primary
 
 
 def _remove_owned_temporary(path: Path, parent_state: os.stat_result, owned: os.stat_result | None) -> None:
@@ -104,7 +144,8 @@ def _publish_windows_lock_file(path: Path, parent_state: os.stat_result) -> None
         staged = _file_state(temporary)
         if staged is None or not _same_file(staged, owned):
             raise OSError(errno.EIO, "temporary lock file changed before publication")
-        _file_state(path)
+        if _file_state(path) is not None:
+            return
         try:
             # Windows rename refuses an existing destination. Do not use replace
             # or call this publisher on POSIX, whose rename may overwrite it.
