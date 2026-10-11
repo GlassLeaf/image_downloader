@@ -13,7 +13,8 @@ import stat
 import sys
 import tempfile
 import time
-from functools import cache
+from collections.abc import Callable
+from functools import cache, partial
 from pathlib import Path
 from types import TracebackType
 from typing import BinaryIO, Protocol, cast
@@ -101,16 +102,9 @@ def _open_existing_append(path: str, flags: int) -> int:
     try:
         return os.open(path, flags)
     except OSError as error:
-        if error.errno != errno.EACCES or library is None or _windows_open_error(library) != 32:
-            raise
-        primary = error
-    # Publication-time sharing conflicts may be transient. Retry only a returned
-    # sharing violation, once, without sleeps or creation.
-    try:
-        return os.open(path, flags)
-    except OSError:
-        pass
-    raise primary
+        if error.errno == errno.EACCES and library is not None and _windows_open_error(library) == 32:
+            error.__dict__["_lock_sharing_violation"] = True
+        raise
 
 
 def _remove_owned_temporary(path: Path, parent_state: os.stat_result, owned: os.stat_result | None) -> None:
@@ -250,7 +244,7 @@ class InterProcessFileLock:
         stream: BinaryIO | None = None
         acquired = False
         try:
-            stream = self._open_stream()
+            stream = self._open_for_acquisition()
             deadline = time.monotonic() + self.timeout_seconds
             while not self._backend.try_acquire(stream):
                 remaining = deadline - time.monotonic()
@@ -274,7 +268,7 @@ class InterProcessFileLock:
         stream: BinaryIO | None = None
         acquired = False
         try:
-            stream = self._open_stream()
+            stream = await self._open_for_acquisition_async()
             deadline = time.monotonic() + self.timeout_seconds
             while not self._backend.try_acquire(stream):
                 remaining = deadline - time.monotonic()
@@ -314,6 +308,36 @@ class InterProcessFileLock:
             return self._open_windows_stream()
         return self.path.open("a+b", buffering=0)
 
+    def _open_for_acquisition(self) -> BinaryIO:
+        try:
+            return self._open_stream()
+        except OSError as error:
+            retry = cast(Callable[[], BinaryIO] | None, getattr(error, "_lock_open_retry", None))
+            if retry is None:
+                raise
+            primary = error
+        time.sleep(self.POLL_INTERVAL_SECONDS)
+        try:
+            return retry()
+        except OSError:
+            pass
+        raise primary
+
+    async def _open_for_acquisition_async(self) -> BinaryIO:
+        try:
+            return self._open_stream()
+        except OSError as error:
+            retry = cast(Callable[[], BinaryIO] | None, getattr(error, "_lock_open_retry", None))
+            if retry is None:
+                raise
+            primary = error
+        await asyncio.sleep(self.POLL_INTERVAL_SECONDS)
+        try:
+            return retry()
+        except OSError:
+            pass
+        raise primary
+
     def _open_windows_stream(self) -> BinaryIO:
         path = self.path.absolute()
         parent_state = _directory_state(path.parent)
@@ -323,8 +347,25 @@ class InterProcessFileLock:
             expected = _file_state(path)
         if expected is None:
             raise FileNotFoundError(errno.ENOENT, "published lock file disappeared")
+        return self._open_verified_windows_stream(path, parent_state, expected)
+
+    def _open_verified_windows_stream(
+        self, path: Path, parent_state: os.stat_result, expected: os.stat_result
+    ) -> BinaryIO:
         _check_directory(path.parent, parent_state)
-        stream = builtins.open(path, "a+b", buffering=0, opener=_open_existing_append)
+        current = _file_state(path)
+        if current is None:
+            raise FileNotFoundError(errno.ENOENT, "published lock file disappeared")
+        if not _same_file(current, expected):
+            raise OSError(errno.EIO, "inter-process lock file changed before open")
+        try:
+            stream = builtins.open(path, "a+b", buffering=0, opener=_open_existing_append)
+        except OSError as error:
+            if getattr(error, "_lock_sharing_violation", False):
+                error.__dict__["_lock_open_retry"] = partial(
+                    self._open_verified_windows_stream, path, parent_state, expected
+                )
+            raise
         try:
             opened = os.fstat(stream.fileno())
             _check_regular(opened)

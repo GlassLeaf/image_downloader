@@ -485,38 +485,28 @@ def test_existing_append_opener_does_not_retry_other_errors(tmp_path: Path, monk
     assert attempts == [os.O_RDWR | os.O_APPEND]
 
 
-@pytest.mark.parametrize("retry_succeeds", [False, True])
-def test_existing_append_opener_retries_sharing_once_and_keeps_primary(
-    tmp_path: Path, monkeypatch, retry_succeeds: bool
-) -> None:
+def test_existing_append_opener_marks_only_confirmed_sharing(tmp_path: Path, monkeypatch) -> None:
     cause = RuntimeError("original cause")
     primary = PermissionError(errno.EACCES, "secret sharing error")
     primary.__cause__ = cause
-    secondary = OSError(errno.EIO, "secret secondary error")
     attempts = []
     reader = SimpleNamespace(_set_doserrno=lambda value: None)
 
     def open_once_more(path, flags):
         attempts.append(flags)
-        if len(attempts) == 1:
-            raise primary
-        if retry_succeeds:
-            return 17
-        raise secondary
+        raise primary
 
     monkeypatch.setattr(lock_module, "_windows_crt", lambda: reader)
     monkeypatch.setattr(lock_module, "_windows_open_error", lambda library: 32)
     monkeypatch.setattr(lock_module.os, "open", open_once_more)
     flags = os.O_RDWR | os.O_APPEND | os.O_CREAT
-    if retry_succeeds:
-        assert lock_module._open_existing_append(str(tmp_path / "shared.lock"), flags) == 17
-    else:
-        with pytest.raises(PermissionError) as caught:
-            lock_module._open_existing_append(str(tmp_path / "shared.lock"), flags)
-        assert caught.value is primary
-        assert primary.__cause__ is cause
-        assert primary.__context__ is None
-    assert attempts == [flags & ~os.O_CREAT] * 2
+    with pytest.raises(PermissionError) as caught:
+        lock_module._open_existing_append(str(tmp_path / "shared.lock"), flags)
+    assert caught.value is primary
+    assert primary.__cause__ is cause
+    assert primary.__context__ is None
+    assert primary._lock_sharing_violation is True
+    assert attempts == [flags & ~os.O_CREAT]
 
 
 def test_existing_append_opener_without_crt_keeps_original_failure(tmp_path: Path, monkeypatch) -> None:
@@ -533,6 +523,138 @@ def test_existing_append_opener_without_crt_keeps_original_failure(tmp_path: Pat
         lock_module._open_existing_append(str(tmp_path / "unavailable.lock"), os.O_RDWR)
     assert caught.value is primary
     assert attempts == [os.O_RDWR]
+
+
+@pytest.mark.parametrize("asynchronous", [False, True])
+@pytest.mark.parametrize("retry_succeeds", [False, True])
+def test_acquisition_open_waits_once_and_preserves_primary(tmp_path, monkeypatch, asynchronous, retry_succeeds) -> None:
+    lock = InterProcessFileLock(tmp_path / "sharing.lock")
+    primary = PermissionError(errno.EACCES, "secret primary")
+    cause = RuntimeError("original cause")
+    primary.__cause__ = cause
+    attempts, waits = [], []
+    stream = io.BytesIO()
+
+    def retry():
+        attempts.append("retry")
+        if retry_succeeds:
+            return stream
+        raise OSError(errno.EIO, "secret secondary")
+
+    primary._lock_open_retry = retry
+
+    def first():
+        attempts.append("first")
+        raise primary
+
+    async def wait(delay):
+        waits.append(delay)
+
+    monkeypatch.setattr(lock, "_open_stream", first)
+    monkeypatch.setattr(lock_module.time, "sleep", waits.append)
+    monkeypatch.setattr(lock_module.asyncio, "sleep", wait)
+    try:
+        if retry_succeeds:
+            value = asyncio.run(lock._open_for_acquisition_async()) if asynchronous else lock._open_for_acquisition()
+            assert value is stream
+        else:
+            with pytest.raises(PermissionError) as caught:
+                if asynchronous:
+                    asyncio.run(lock._open_for_acquisition_async())
+                else:
+                    lock._open_for_acquisition()
+            assert caught.value is primary
+            assert primary.__cause__ is cause
+            assert primary.__context__ is None
+        assert attempts == ["first", "retry"]
+        assert waits == [0.1]
+    finally:
+        stream.close()
+
+
+@pytest.mark.parametrize("asynchronous", [False, True])
+def test_sharing_wait_can_be_interrupted_before_retry(tmp_path, monkeypatch, asynchronous) -> None:
+    lock = InterProcessFileLock(tmp_path / "interrupted-sharing.lock")
+    primary = PermissionError(errno.EACCES, "sharing")
+    retries = []
+    primary._lock_open_retry = lambda: retries.append(True)
+
+    def first():
+        raise primary
+
+    monkeypatch.setattr(lock, "_open_stream", first)
+    if asynchronous:
+
+        async def scenario():
+            task = asyncio.create_task(lock.acquire_async())
+            await asyncio.sleep(0)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+
+        asyncio.run(scenario())
+    else:
+        interrupt = KeyboardInterrupt()
+
+        def stop(delay):
+            raise interrupt
+
+        monkeypatch.setattr(lock_module.time, "sleep", stop)
+        with pytest.raises(KeyboardInterrupt) as caught:
+            lock.acquire()
+        assert caught.value is interrupt
+    assert retries == []
+    assert lock._stream is None
+
+
+@pytest.mark.parametrize("asynchronous", [False, True])
+@pytest.mark.parametrize("change", ["target", "parent", "missing"])
+def test_sharing_retry_keeps_original_path_identities(tmp_path, monkeypatch, asynchronous, change) -> None:
+    parent = tmp_path / "parent"
+    parent.mkdir()
+    path = parent / "identity.lock"
+    path.write_bytes(b"\0")
+    primary = PermissionError(errno.EACCES, "sharing")
+    primary._lock_sharing_violation = True
+    opens = []
+    original_open = lock_module.builtins.open
+
+    def first(value, *args, **kwargs):
+        if Path(value) == path:
+            opens.append(value)
+            raise primary
+        return original_open(value, *args, **kwargs)
+
+    def replace(delay):
+        assert delay == 0.1
+        if change == "parent":
+            parent.rename(tmp_path / "old-parent")
+            parent.mkdir()
+        else:
+            path.rename(parent / "old.lock")
+        if change != "missing":
+            path.write_bytes(b"replacement")
+
+    async def async_replace(delay):
+        replace(delay)
+
+    lock = InterProcessFileLock(path)
+    monkeypatch.setattr(lock, "_open_stream", lock._open_windows_stream)
+    monkeypatch.setattr(lock_module.builtins, "open", first)
+    monkeypatch.setattr(lock_module.time, "sleep", replace)
+    monkeypatch.setattr(lock_module.asyncio, "sleep", async_replace)
+    with pytest.raises(InterProcessLockError) as caught:
+        if asynchronous:
+            asyncio.run(lock.acquire_async())
+        else:
+            lock.acquire()
+    assert caught.value.__cause__ is primary
+    assert len(opens) == 1
+    assert lock._stream is None
+    if change == "missing":
+        assert not path.exists()
+    else:
+        assert path.read_bytes() == b"replacement"
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows CRT and handle sharing")
@@ -574,10 +696,11 @@ def test_windows_extended_error_distinguishes_sharing_from_access_denial(tmp_pat
             assert handle != ctypes.c_void_p(-1).value
         else:
             path.chmod(stat.S_IREAD)
-        with pytest.raises(PermissionError) as caught:
-            lock_module._open_existing_append(str(path), os.O_RDWR | os.O_APPEND | os.O_BINARY | os.O_CREAT)
-        assert caught.value.errno == errno.EACCES
-        assert codes == [32 if denial == "sharing" else 5]
+        with pytest.raises(InterProcessLockError) as caught:
+            InterProcessFileLock(path).acquire()
+        assert isinstance(caught.value.__cause__, PermissionError)
+        assert caught.value.__cause__.errno == errno.EACCES
+        assert codes == ([32, 32] if denial == "sharing" else [5])
         assert len(attempts) == (2 if denial == "sharing" else 1)
         assert all(not flags & os.O_CREAT for flags in attempts)
     finally:
@@ -745,7 +868,7 @@ def test_windows_open_closes_handle_when_target_identity_changes(tmp_path: Path,
     def changed_state(value):
         if value == path:
             observations.append(value)
-            if len(observations) == 2:
+            if len(observations) == 3:
                 return other.stat()
         return original_state(value)
 

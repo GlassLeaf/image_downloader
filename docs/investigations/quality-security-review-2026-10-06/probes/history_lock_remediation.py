@@ -78,6 +78,8 @@ def observe_calls(module, phases, worker_id):
 
     builtins.open, io.open, os.open = (wrap_open(builtins.open), wrap_open(io.open), wrap_open(os.open))
     lock = module.InterProcessFileLock
+    if hasattr(lock, "_open_for_acquisition"):
+        lock._open_for_acquisition = wrap(lock._open_for_acquisition, 2)
     if hasattr(lock, "_open_stream"):
         lock._open_stream = wrap(lock._open_stream, 2)
     lock._ensure_lock_byte = staticmethod(wrap(lock._ensure_lock_byte, 4))
