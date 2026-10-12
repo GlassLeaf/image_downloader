@@ -1,0 +1,1411 @@
+{
+  "recorded_at": "2026-10-11T10:18:45.273356+09:00",
+  "commit": "c4ef652bed1d3fa45813b1e2e790b327b9e82b68",
+  "branch": "codex/fix-qs-013-construction-cleanup",
+  "initial_worktree": "Four uncommitted investigation files from the preceding turn; source/tests/config unchanged",
+  "system_before": {
+    "observed_at": "2026-10-11T10:03:42.0721934+09:00",
+    "boot_time": "2026-10-11T09:46:31.5000000+09:00",
+    "uptime_seconds": 1030.681,
+    "windows_version": "10.0.19045",
+    "build_number": "19045",
+    "security_products": [
+      {
+        "displayName": "Windows Defender",
+        "productState": 393472
+      },
+      {
+        "displayName": "COMODO Antivirus",
+        "productState": 397312
+      }
+    ],
+    "comodo_processes": [
+      {
+        "ProcessName": "cis",
+        "Id": 2916
+      },
+      {
+        "ProcessName": "cis",
+        "Id": 5752
+      },
+      {
+        "ProcessName": "cis",
+        "Id": 9936
+      },
+      {
+        "ProcessName": "cmdagent",
+        "Id": 4084
+      },
+      {
+        "ProcessName": "cmdagent",
+        "Id": 4092
+      }
+    ]
+  },
+  "environment": {
+    "observed_at": "2026-10-11T10:04:20.488315+09:00",
+    "commit": "c4ef652bed1d3fa45813b1e2e790b327b9e82b68",
+    "platform": "Windows-10-10.0.19045-SP0",
+    "windows": {
+      "EditionID": "Core",
+      "DisplayVersion": "22H2",
+      "CurrentBuildNumber": "19045",
+      "UBR": 7727
+    },
+    "python": "3.11.4 (tags/v3.11.4:d2340ef, Jun  7 2023, 05:45:37) [MSC v.1934 64 bit (AMD64)]",
+    "executable": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+    "prefix": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv",
+    "base_prefix": "C:\\Program Files\\Python311",
+    "packages": {
+      "pytest": "9.1.1",
+      "pytest-cov": "7.1.0",
+      "pytest-asyncio": "1.4.0",
+      "pytest-mock": "3.15.1",
+      "httpx": "0.28.1",
+      "anyio": "4.14.2",
+      "ruff": "0.16.5",
+      "mypy": "2.3.1",
+      "psutil": "7.2.2"
+    },
+    "guard64_loaded_in_fresh_python": true,
+    "pytest_entrypoints": [
+      {
+        "name": "anyio",
+        "value": "anyio.pytest_plugin"
+      },
+      {
+        "name": "asyncio",
+        "value": "pytest_asyncio.plugin"
+      },
+      {
+        "name": "pytest_cov",
+        "value": "pytest_cov.plugin"
+      },
+      {
+        "name": "pytest_mock",
+        "value": "pytest_mock"
+      }
+    ]
+  },
+  "guard64_file_info": {
+    "observed_at": "2026-10-11T10:10:25.8137568+09:00",
+    "path": "C:\\Windows\\System32\\guard64.dll",
+    "company": "COMODO",
+    "product": "COMODO Internet Security",
+    "file_version": "12, 2, 3, 8026",
+    "product_version": "12, 2, 3, 8026"
+  },
+  "security_configuration_changed_by_investigator": false,
+  "pre_reboot_evidence": {
+    "path": "raw\\workflow-history-cross-environment-recheck-evidence-2026-10-11.json",
+    "sha256": "7798eb6d47d9973f34a9f60faf3722c81a6fc4a8d8f62953293ff396e98e6082"
+  },
+  "environment_compared_fields_equal": [
+    "windows",
+    "python",
+    "executable",
+    "prefix",
+    "base_prefix",
+    "packages",
+    "pytest_entrypoints"
+  ],
+  "source_sha256_before": {
+    "pyproject.toml": "a3af17db450b633ce8de40eb1977b2966ec92fb7a8f78713bea6707ddee267c7",
+    "src/image_downloader/__init__.py": "795bec9178854f692a42e91f770d7f0bfa006bcd0d24f26884268ffe37dc9eaf",
+    "src/image_downloader/__main__.py": "935a1c1166b0c1ea35a82256345000bf2c73ded718d77773bc27a71ecce28f7d",
+    "src/image_downloader/application/__init__.py": "debb37c467d80208cef63389f7b8fd2b9de3c084b6e1fedab1aebff9d6fe9b1b",
+    "src/image_downloader/application/additional_files.py": "b02f37e6a70f147356e6a4a22523a77a05c85c347063e923090ef4de7ef4d1ec",
+    "src/image_downloader/application/composer.py": "586cb368f5c033311163f0d8781911fdd90169b24c398441e104ff69d1c44ff4",
+    "src/image_downloader/application/construction.py": "05ef5736fb425f29ae41168f4563d5fd52c194bcf203dc7e4cad09f3c8b97e0b",
+    "src/image_downloader/application/dependencies.py": "94b03c98ab477cd08eb1586652525561b140ccb73517757cf7dde5f0aef6ce16",
+    "src/image_downloader/application/log_verification.py": "372b751ef1af915a44af0e10eb9e7b0346c23e560babec329aa1804eebc226d1",
+    "src/image_downloader/application/service.py": "ecb4175a8a405fa46d6e79aa9121b1849e2f86e951c5dea61d1a3cb0b254970c",
+    "src/image_downloader/application/verification_recording.py": "6486c0096e16f68f7f76c1351722198f58119960542bb3375938402afee75398",
+    "src/image_downloader/application/workflow.py": "1218f0216061313f9e2f318acbb8d08e89d0286f1d9e92e26ff70d93701d36e1",
+    "src/image_downloader/application/workflow_plan.py": "cf0797ab27e6ce5edb32613a59550c118de922117081576a8dda7beda2a2e468",
+    "src/image_downloader/application/workflow_recording.py": "895d65a6b67f910d70070e15b6b51341deca362cc885ba3139d20cd46b83041f",
+    "src/image_downloader/application/workflow_reporting.py": "4d50d36180388c1c2f784c27c672a0f13651343fd49f398ef1e161f13f94cb56",
+    "src/image_downloader/application/workflow_retry.py": "88a895290268a930f3eec4bb8870f61e2452cfc92fe550c91a9cc06cbf5b40d3",
+    "src/image_downloader/application/workflow_selection.py": "ee8a102a263010bf8a178277499ff4fb3fb04221240ac4ec4fea48b2e0526fd2",
+    "src/image_downloader/application/workflow_state.py": "599db916b5b60b53cf1d2889367d376b0c24d9557d023294a3adf7b5bb790c66",
+    "src/image_downloader/application/workflow_verification.py": "ef466ec1367473a10509a66499396acbdac124d195d1b4cffdb5c5470532882d",
+    "src/image_downloader/cli.py": "d312732c0214b43c4c2225bd903797ca4582826960fff3dcefabc76209cad595",
+    "src/image_downloader/commands/__init__.py": "a386d2839cbafeca876d1cb91e276e69d7620606e34f48c8f72fe79a8b99bfb1",
+    "src/image_downloader/commands/config.py": "be049b7326c1b06abc67f5e1f120bc2b9e15353a5aff74eaddb0285791a11d07",
+    "src/image_downloader/commands/constants.py": "1d151b011b7842214d8ea27d8e82535203642ec4c2cd7b9f46c22dcffe5444d4",
+    "src/image_downloader/commands/cookie.py": "b0045d300f130f763c090b03ac3bf4a87eac5d56a9277c32ae09bcf854dd3845",
+    "src/image_downloader/commands/dispatch.py": "3d1c23431ddceee007aaab10205d689c7fd5c54816766b9c7021844854b6ad54",
+    "src/image_downloader/commands/doctor.py": "6d370662cf26416fb434a48ec9861f9a86a8c140d96fbf9f79867bdf93561c77",
+    "src/image_downloader/commands/download.py": "c92fd990cd24d44097926daacd0a9c4ca869dab4e009a1f4ceebb6d6206c0a0a",
+    "src/image_downloader/commands/inspect.py": "9899cd79300f390c7f74be09e02ad6ca1e9b2ea06233aa81df111e514b0eff16",
+    "src/image_downloader/commands/options.py": "a9617c284984b74e6c719b06c83cdf36319454fe4b89fb49fefe4f5c5d83a951",
+    "src/image_downloader/commands/parser.py": "d1c03f0af61b46f90e7960190ba5ef4a31f3583c1c9acaafd56930983423bfb7",
+    "src/image_downloader/commands/plugin.py": "d59f89e69ae4493b1e36e0afb309c7c6b7b5601b92601050f39cbb78566d0e9b",
+    "src/image_downloader/commands/reporting.py": "6cea3d261564d74c7379a4da103525057055366383b5ca523bf205188220353b",
+    "src/image_downloader/commands/setup.py": "86488df06460e6eb94baeb17616c8380df6d02a47231473908ff981b9480848e",
+    "src/image_downloader/commands/state.py": "762545b90ad1760981573af2113c0fa0f8f7df1f8bf565c931cdc3954f57aca1",
+    "src/image_downloader/commands/state_formatting.py": "42735dd5981dca2c554849239e08ea4fd5303278343fe0944fcd2f502bb9dab7",
+    "src/image_downloader/commands/validation.py": "5fe23e433e6559fe76ccb5ffa05f7d3a105a7a4d844c43bc96a9ef9562e0ac2a",
+    "src/image_downloader/commands/verify.py": "24b6f9f3353131f4a204b0c0885b40d9583dcd99f41579608a99a871e02fcf37",
+    "src/image_downloader/commands/workflow.py": "3d9cc9ec57274d3d72a6a785f3b8781479836359bc4aeebb6f3e44bc3e441b16",
+    "src/image_downloader/config.py": "9b01551b1838aafbd2037360b77429046828f6f8c26e8483fd9cb34622dd484b",
+    "src/image_downloader/configuration/__init__.py": "6d3a944b311d544cf974137d5e63dce54901c53355ff2c06ceb60d49dc89f6c5",
+    "src/image_downloader/configuration/hosts.py": "1ebab057bd78fbd8b0a7f0b8d2fb1c05d284ddafdeee5116392b96fea65ca503",
+    "src/image_downloader/configuration/layers.py": "b0517fe2c84605369e2eada926ce8f95cdd1bb969378507ffbc8ead23feda84d",
+    "src/image_downloader/configuration/models.py": "2fd256fed5b797a43f3115b5e8cdbd511696a6e0e9317c656453a756b618572f",
+    "src/image_downloader/configuration/paths.py": "943a6d821b4e9047b77389b9ee01a7a015dd5ef1d531fa2d2a2f406221dd56ac",
+    "src/image_downloader/credentials/__init__.py": "9c4a3ad782610efaed27fca550da6ce1942ae06e094ba273313f00aa833e146d",
+    "src/image_downloader/credentials/keyring.py": "9745578511c7f468095ce30b253dfc0e77996d9b6ce1f30bb29d9645dec3b3fc",
+    "src/image_downloader/credentials/plugin_secrets.py": "e7510f06b58669d3f6c89b79aedbf9917e70ba0d3f5478f073c13ea86eac6d09",
+    "src/image_downloader/diagnostics.py": "e8f82ef52cbeef2395c38f20c10f873839fab5e874b3e5be380a5b60f5225d7f",
+    "src/image_downloader/exceptions.py": "ef7a850e716ebea0a23a2967ff1c24bbb40892f5133296a7b24a4c31a828d941",
+    "src/image_downloader/immutable.py": "35e4d82dd5d9292d3fc944605d2995218c683e673af0b9908263ecd69fb02e6b",
+    "src/image_downloader/media/__init__.py": "e0854fc7d5308cc073968bf3831ffec48e84652a311e7a8e19af6eddaa6c891f",
+    "src/image_downloader/media/artifact_pipeline.py": "6649bc6ae334976c4908adba0b2539abbe02c4cc91465c8d398d8a7cc7b9ab8d",
+    "src/image_downloader/media/image_processor.py": "7932f5c91701d41e7094a89aa462474e1a0f208d0ac579615b57c9562a92c914",
+    "src/image_downloader/media/processor_chain.py": "e1a15bd99d36941cced9ca77ada3580cddb8e894fe9d70bbcc271d78673e57ff",
+    "src/image_downloader/models.py": "6b0477d3154039a0dfda606ff1d65e1441799a0a8fa2ddc89afd35527d8bc7d5",
+    "src/image_downloader/observability/__init__.py": "2b84a19c04889b0330ec518418100c9af98c7b3a9cd193c8145ea1c53548972b",
+    "src/image_downloader/observability/chapter_reporter.py": "784fbf24960c995c0424cb3e407a32ca7f8c9706bf8420a4ca52377d3de95c19",
+    "src/image_downloader/observability/diagnostic_safety.py": "777fabef8a496af0f47bddfc3c2c2708a8fce0a0a0312e47a56338393808dc90",
+    "src/image_downloader/observability/events.py": "305e5e2f01a6d9ca8c71d2c6a5286532b4989ebfea2cad0cb762403ee83f628b",
+    "src/image_downloader/observability/logging.py": "035f3f76dc1ed2b7d34291936fb2754edfbb77b76245ba665a582dd0c76edea7",
+    "src/image_downloader/observability/notifications.py": "d50611a4bdfbb2e2dd93f9c8c4c2ac18d492d86f452a8c6c8c22e7dfdcada606",
+    "src/image_downloader/observability/scope.py": "b17da6451f1252e3c083c7129f73d5f4a35cced1699bab4ac2a5cda5c9ab4135",
+    "src/image_downloader/output/__init__.py": "e3c2e96a90016e6b5149069c35848c97a6224bd8f3801f13fbcf66621cdeadb4",
+    "src/image_downloader/output/format_tokens.py": "47e1ef0b051d9815d5eaa8e574cb2ed202d8d44cad6bbff9866ea629051d6e7b",
+    "src/image_downloader/output/original_filename.py": "5d8cdb3c9b5bccfb94266639520f7b2575c5be3dab1ea1f3cf0ddc6591e5237b",
+    "src/image_downloader/output/output_allocator.py": "760f9a748a2a4a6bad43882e4fc30b31ca5e5d15f9d87cf83a7e36887c3f6e4b",
+    "src/image_downloader/output/output_lock.py": "8a768fc9bcd9945dcdf225efd487af7f258e6afac8db1ef36dee140976e2335a",
+    "src/image_downloader/plugins/__init__.py": "cbc06f0981cfd7dc8388eed756db6c2b3ea579668f60e9ac3561a08ea81cea01",
+    "src/image_downloader/plugins/builtin.py": "52c76a6c2387b6169a4f77771042c67168c7e426db49ff446a9f06d0b59ded4b",
+    "src/image_downloader/plugins/format_values.py": "1c973e01e6b0e357e7cf79033d449426860d21c0d4420197859479e16c224a13",
+    "src/image_downloader/plugins/html_encoding.py": "02c93fe059413ecfebca58d6af8990f204b34853d1a60bb89ade2e64b347f211",
+    "src/image_downloader/plugins/lifecycle.py": "aef789112359ee37dbef26baa99a06f356e2f44fc54257f3afbf24b636a91833",
+    "src/image_downloader/plugins/management.py": "3460f30051104799b5a7ed164aeefbceb973070d70d7b51bc720d7c942256754",
+    "src/image_downloader/plugins/plugin_invoker.py": "445a28dab501f9cf54abaadfde2a107c82cf3fccd7facfb6cb2ee6702b0f57f1",
+    "src/image_downloader/plugins/plugin_manifest.py": "797a7a0a92ac63c079afa57f67c78ee2b4709dc16e5e19a39e4707fc0afaa885",
+    "src/image_downloader/plugins/runtime.py": "1f5d0f0ee7f23603312377ba45db1e899aac446c2a1edea4e28a2c8b9c1eca8a",
+    "src/image_downloader/plugins/source_loader.py": "d2475dfe397c8f0468db3bd157c2b6fd61389a67449d42a124674a829713a163",
+    "src/image_downloader/ports.py": "843c215fd9774b5f698e953d64d064027c09394d7f3a226f5f06e9d9ee7b3b21",
+    "src/image_downloader/privacy/__init__.py": "4af4d03d28b58867f33b0fbb10c1300585eb7578d0dabe7a91dcb6a3837323db",
+    "src/image_downloader/privacy/log_safety.py": "fc8692e386f851c3900f3550ace74610795e52300fef228f807cfd2b44ea693f",
+    "src/image_downloader/privacy/sensitive_values.py": "2f75f570a0acda4925596688baef73fa254efd8c00f08cd68a1a8ff7034ed3ae",
+    "src/image_downloader/runtime.py": "ddb1c22b9afb1e188ce5bc9450bed3c33c3c3a223d04ecc4c1ad23cb64498cfe",
+    "src/image_downloader/security.py": "14b2b8cbe8aed0a7365a3850c83170535acfe304984dc1ca0d46608cb2c88e00",
+    "src/image_downloader/storage/__init__.py": "e3d3985e9cf715f2128cb1d56c433d9db09f858c7d2f06bd29c870cb7dc7581e",
+    "src/image_downloader/storage/_path_limits.py": "c34c9803e766f9ea0cb5f24de556251e62b8adbd6f5c5b31d3e7b636b14183ac",
+    "src/image_downloader/storage/cookies.py": "d168945e694db21f1ff52e3a51b853c4be5192b657d9c4cf36d7342a775acd57",
+    "src/image_downloader/storage/filesystem.py": "a1bd9ff3e5a92f2056abbe86276dc4a2bfc40db7a7af213cbcbed7142730d434",
+    "src/image_downloader/storage/interprocess_lock.py": "a42aa7fb0a2038d8fc68a07942d4b385ad0bea240afbce7a95e828fc02e0f21f",
+    "src/image_downloader/storage/path_safety.py": "e58d33930d74d5f8292d440818845cde715a7ee2fa82df45b080a642272e13fc",
+    "src/image_downloader/storage/state.py": "e952fb6589a6a68625b1314c4a1218e0f7d221978bc36d0372d8a0732f0e039b",
+    "src/image_downloader/storage/workflow.py": "eb329bb36f0eb98d4e95a84d76f210745dce32181ac990ca02b9803ed53365b2",
+    "src/image_downloader/storage/workflow_history.py": "ec31093a7173c9ba65713a353cf185f2746f180feee446b8a5b2ab2311383194",
+    "src/image_downloader/storage/workflow_history_schema.py": "041bd798eb9d84b7973103bcd029d67c8f2c128cadcfc8da6850a891bd112a24",
+    "src/image_downloader/storage/workflow_logging.py": "632becc1f3e63f8347169f857059fc79a214ba59b4f92c698ac11ddc9952b128",
+    "src/image_downloader/transport/__init__.py": "5b2b795bbf0b72dc2874c08852bfff67c504f23c1b144705e8f7c4d80f671ac0",
+    "src/image_downloader/transport/gateway.py": "ab60869e2a28c263ec977166b86d8a4e88471008ecf9c7b88bd752e5be2293be",
+    "tests/v3/application/test_additional_files.py": "f4e4b02707f3c4ba1c00ab74e8aecdaa07b69818d9e1935251e581194f375d49",
+    "tests/v3/application/test_composition_cleanup.py": "9e2e16f69db562aeae7cf7081441223b7a6eac019dcd30c97cae2849df3ca79c",
+    "tests/v3/application/test_dependency_injection.py": "8235236b278d0d04dca76671bac3c21de5dc3b293fe2ae9774facadb3a0fd6fe",
+    "tests/v3/application/test_generic_workflow.py": "be964b61134b4e60f87d14fbac0a8f4764493a0770e9d75e477e3f07bd4a96d2",
+    "tests/v3/application/test_html_encoding.py": "65075bb168fa9d8e0e180490a559e42501982bebf1ac7822fb21b2a9e344465c",
+    "tests/v3/application/test_html_encoding_isolation.py": "b265097a9cafd5fee5697ea71315ac7eadbdd3f8b22ca9ecc5f1e597d0c32a5e",
+    "tests/v3/application/test_image_validation.py": "86b5d6393d538591216edd9ba4febb0654d94aee952d6d9e3b919b2b4a75eabf",
+    "tests/v3/application/test_inspection.py": "78817d3de9e051862796dc3ed656cd2fe60a60af05efee1bb0988ca4b72d33b4",
+    "tests/v3/application/test_log_verification.py": "43d8439eb572ac0fbc76484df036502698484debfe0360a3e037a0355445348b",
+    "tests/v3/application/test_media_processing.py": "0f553f4d3df1bf7e34b4c8f1057558cb68f7c4dea3e479a3dca2df4f2fd6fa00",
+    "tests/v3/application/test_runtime_hardening.py": "68f1e7da4752ea1e3ebd6b584ac98aafc59e63c5510e42f9a66c93a8834f695d",
+    "tests/v3/application/test_workflow.py": "2a87374155ee5f70e5b2f3949ad0bd81fc018548797c99be713a67e1d2351805",
+    "tests/v3/application/test_workflow_history.py": "a1b6e402a6460a0d3697a73be6967bb6c1c19ab0f3839712c1e21e2cce5488ad",
+    "tests/v3/application/test_workflow_logging.py": "837b804de664edcee2315f42cfa8e001f836134cee707060f4896bec2158b49a",
+    "tests/v3/application/test_workflow_plan.py": "8e343f01d0171af4f3cbeab167b3c47666a76643d4c82b020d6b76a810acaa13",
+    "tests/v3/application/test_workflow_retry.py": "f95fdbe75375680a1cb3a1db69a2823d62a35d7a0512ad558a07935eb396f742",
+    "tests/v3/application/test_workflow_verification.py": "85e7f07a842a39d0154d4348f26c25c634b38d845d023aec81f5274dd9929c23",
+    "tests/v3/cli/conftest.py": "78b60f4e19543e9bab140555daef67efce37474d2773c4036c6ed57613d6a0aa",
+    "tests/v3/cli/test_argument_diagnostics.py": "3285c6deab6c740f714491301dca0004b41a67e593439a2d81dfa42d76b84cda",
+    "tests/v3/cli/test_choice_contracts.py": "4cd6bb54ed5c55fb55600a5ee0c8218588d8af985793cc15d7a94a4d8b80b355",
+    "tests/v3/cli/test_cli_commands.py": "d5b5fdf57a3e39876609db1400ce11af0fdede62912764b3771d6cfcc0ea1c46",
+    "tests/v3/cli/test_cli_json_contracts.py": "0f1ee245ab0aa157e5157f69cf1394de44c0f345dd02234dd9b24680ee51deb2",
+    "tests/v3/cli/test_definition_extensions.py": "425217dfc863626bdbcffdcf599ce50ecaf64c5bc663ab79a980a04e450ad689",
+    "tests/v3/cli/test_definition_reductions.py": "2934820d85bd6304408a40201ae4428810d3eb15fba827d5df4d2b9ce9ed90c6",
+    "tests/v3/cli/test_fixed_roots.py": "8e9f75ff54083ff826a7af79b7a97481e69f45eb68a562bf6f037f1ff172e2a1",
+    "tests/v3/cli/test_html_encoding_command_boundary.py": "5b4fd4133b683e4e5d61144fcb4116ab1ccdf98e47f6825a835b86c848c6c89e",
+    "tests/v3/cli/test_initial_config_persistence.py": "04cef92b72fb046781acfeeee1166c2ed1444b97ee4ff669ba5eb8481f9d9539",
+    "tests/v3/cli/test_json_errors.py": "5d20c439f728cad2ab1969be3140fcb15ce9323b19cc31c2d897aba627d1a330",
+    "tests/v3/cli/test_verify_cli.py": "91aef5a4cedb7fa19fd75d6c24ea8ba1f4167509e0337b6561b4238fd17bbefb",
+    "tests/v3/cli/test_workflow_cli.py": "8b655baac32f6c7953dc9231549335a382cc1f5af26a434b519743232d649be7",
+    "tests/v3/cli/test_workflow_display.py": "76a9b21558dd5e126ac20eb15e87babf0266674f394197bb1e60014b9a20be59",
+    "tests/v3/cli/test_workflow_selection.py": "a48f96013c32a8ee86b6bfa9d88fcb5dc2a673b5e3ea2991a342ae53c95e7c71",
+    "tests/v3/cli/test_workflow_state_cli.py": "d034db4c213a325161d75681414030a8174b0f708b137079ccd2d3dc43af8e81",
+    "tests/v3/configuration/test_immutable_values.py": "d42702505652357b30ac45b41e68574e413bf8541628048b4cf0554b1d1ceb06",
+    "tests/v3/configuration/test_resolution_and_validation.py": "67fd62eb9bb2c422998a410e8ddf96a5051965a7fc915de9405964f08f365cc7",
+    "tests/v3/conftest.py": "aa6789a6cd6b2cdef3e2878854002eb1228478823abb45ac790db485abdecaa0",
+    "tests/v3/credentials/test_plugin_secrets.py": "89944c03092e6345d2175856bfdb715ebb34f246d47dc4c710fc2a783ae3c38c",
+    "tests/v3/distribution/test_ci_configuration.py": "d7304d92d3427a1d81dfc6eaf9bf82c1ef1c7743e209e27c5ce10eff8a53c5e9",
+    "tests/v3/distribution/test_documentation_reference_contracts.py": "231b627af7ad174d9feb2de3bb1e7cef253448ed03b6716eb1107acb59addce4",
+    "tests/v3/distribution/test_module_boundaries.py": "fc6787cb51c3e1ef7df83714a3ae9f244992cb7a5b84b6f3f756f308bcc98eaf",
+    "tests/v3/distribution/test_public_api_and_docs.py": "6f8666e4841b8b26628942cebab205a9e8407fad68fd5693644ce6d5f4c28208",
+    "tests/v3/distribution/test_quality_configuration.py": "47f6242ff6e4004d61d64fef37037c1a5bb6ca3a1030dec4163ccde0393ff82c",
+    "tests/v3/distribution/test_release_smoke_diagnostics.py": "310c5df794327cbb24d5397338dfa23dc89fa274c5c34feeb0de454138f839c8",
+    "tests/v3/distribution/test_signed_plugin_checkout.py": "2f3ca58a84fb7719841688c53533b50509d11bc4b836570ed3d270deed37c3f0",
+    "tests/v3/distribution/test_signing_tool_consistency.py": "6bafc4f657b256e93a77ad68b8eae5f854ead1a8d02d89fe489919608b7f62d8",
+    "tests/v3/observability/conftest.py": "2d23537141bf46342f6f15461aee6ee0ad0c2e4da24e68308d7f5a818bf800d6",
+    "tests/v3/observability/test_event_notification_contract.py": "88b8ca25c0a64bcea2a38f05f72ed0cdee03b98c2cc563bb4ae3c0d04549f6d8",
+    "tests/v3/observability/test_locator_safety.py": "61a53703a33bbdf40a8c24e05402e8476eab7474341b35375506741b810ad976",
+    "tests/v3/observability/test_logging_failure_consistency.py": "0954c618cbc5a99a21813cd06f4ae3d1610a274df7a2a76f562af0775e12adab",
+    "tests/v3/observability/test_mailpit_integration.py": "f051d5480bd186ba4930858459356c2a8b40071cb348bfaa88fd7f61dd36fa20",
+    "tests/v3/observability/test_notifications_v3.py": "7b37f7ceebfea824573f13165c6cce6dbeaa2a8b3335883c6ca209325d781512",
+    "tests/v3/observability/test_plugin_logging.py": "458037f8bc90c0e59d4663ddd041a5fc90f6aedda016e2919fb0eb27c111e367",
+    "tests/v3/observability/test_sensitive_values.py": "bb41c55ddd5c5c909a4c2d165fd62462563204fdd3ed5c189cde6388df4206d9",
+    "tests/v3/plugins/test_example_annotation_contracts.py": "7819ea7b66ad9f5b6393aa07d0a6c87f552187f416074dc118482b83ae2b6ca8",
+    "tests/v3/plugins/test_local_site_plugins.py": "112bd438429ca3bc0dd0c9bc3ab2bc4d193f141dcf0f1144a2c8837fd7d56822",
+    "tests/v3/plugins/test_metadata_bridge_examples.py": "5ffa23567a2adc0bf73ffcca5a663a69bd486aecf776fa245b3f8a0c4905d849",
+    "tests/v3/plugins/test_migrated_v2_plugin_sources.py": "6a01d20158a68b6a430e89bf6ed4f1ae8e086280d99d9d629e4fd4ebd67133fa",
+    "tests/v3/plugins/test_output_format_values.py": "adfc35254233d940361489b46c140f9ea7a4624215d0faad95f2dcf07f5c56b6",
+    "tests/v3/plugins/test_plugin_operation_boundary.py": "7321ece08f26f630dede4704eb9ca2a87d19a6afafd9ead03124fa1ef38d2d1a",
+    "tests/v3/plugins/test_plugin_v3.py": "9f989e7f3e1a4d749e233611c8265403bcd161d24b2bf4f7bff87c403189a26f",
+    "tests/v3/plugins/test_processor_lifecycle.py": "5f2f0ce6ae4dc8f698a12bd99e86f4489b519d9d68d7f465459666075a2ddbe6",
+    "tests/v3/plugins/test_processor_source_units.py": "5f565b8e369e4d487f0c2ebd4512583620bc3269d6cd73bab80a6a2f23e42adf",
+    "tests/v3/plugins/test_site_operation_transport_metadata.py": "46213f8e3e33d48863b89ab5ed9703b40846dc66fe4b43d3dbd9fee3a7693bb5",
+    "tests/v3/plugins/test_verified_source_loading.py": "50f4a261c3af2b34485cb1c1b2479389dba3e3b353d7c640200a107e91efc027",
+    "tests/v3/storage_output/test_cookies.py": "8d975e510c468787c3d2348999dbd719afe60ca98b9efcd8078a677ca764a502",
+    "tests/v3/storage_output/test_interprocess_lock.py": "7d1a9a634828817be3dc6ba0041507ef0bdc22df1391b60022c0fbf738a7566c",
+    "tests/v3/storage_output/test_original_filename.py": "fb293a4d01fbc8a5eaec48d80d57eb32047de8c30542d052bd59daa3e0b1f539",
+    "tests/v3/storage_output/test_output_allocator.py": "41a1e21e83bd3738d5f94e079eb2d8b4f6327aa94f806fa1f84f29ea43787156",
+    "tests/v3/storage_output/test_output_directory_lock.py": "5ad5a6c5fcce4ae9104cfe68cbcf252ae592bcfc332c4d16e4d37d456c06d746",
+    "tests/v3/storage_output/test_path_limits.py": "fa8332755f241746adc76fc6ced1ce27c5458e660c02779496ca7c028a0df1ad",
+    "tests/v3/storage_output/test_update_state_scoping.py": "8da71404e984f63e00f42e0737d0fff734289328277c82a9ce5b03501bd5518c",
+    "tests/v3/transport/test_redirect_safety.py": "2a7e97490af8c921feacf55e7f0b939a7cd1258a37978a2ce3e31372bb40dd6d"
+  },
+  "source_sha256_after": {
+    "pyproject.toml": "a3af17db450b633ce8de40eb1977b2966ec92fb7a8f78713bea6707ddee267c7",
+    "src/image_downloader/__init__.py": "795bec9178854f692a42e91f770d7f0bfa006bcd0d24f26884268ffe37dc9eaf",
+    "src/image_downloader/__main__.py": "935a1c1166b0c1ea35a82256345000bf2c73ded718d77773bc27a71ecce28f7d",
+    "src/image_downloader/application/__init__.py": "debb37c467d80208cef63389f7b8fd2b9de3c084b6e1fedab1aebff9d6fe9b1b",
+    "src/image_downloader/application/additional_files.py": "b02f37e6a70f147356e6a4a22523a77a05c85c347063e923090ef4de7ef4d1ec",
+    "src/image_downloader/application/composer.py": "586cb368f5c033311163f0d8781911fdd90169b24c398441e104ff69d1c44ff4",
+    "src/image_downloader/application/construction.py": "05ef5736fb425f29ae41168f4563d5fd52c194bcf203dc7e4cad09f3c8b97e0b",
+    "src/image_downloader/application/dependencies.py": "94b03c98ab477cd08eb1586652525561b140ccb73517757cf7dde5f0aef6ce16",
+    "src/image_downloader/application/log_verification.py": "372b751ef1af915a44af0e10eb9e7b0346c23e560babec329aa1804eebc226d1",
+    "src/image_downloader/application/service.py": "ecb4175a8a405fa46d6e79aa9121b1849e2f86e951c5dea61d1a3cb0b254970c",
+    "src/image_downloader/application/verification_recording.py": "6486c0096e16f68f7f76c1351722198f58119960542bb3375938402afee75398",
+    "src/image_downloader/application/workflow.py": "1218f0216061313f9e2f318acbb8d08e89d0286f1d9e92e26ff70d93701d36e1",
+    "src/image_downloader/application/workflow_plan.py": "cf0797ab27e6ce5edb32613a59550c118de922117081576a8dda7beda2a2e468",
+    "src/image_downloader/application/workflow_recording.py": "895d65a6b67f910d70070e15b6b51341deca362cc885ba3139d20cd46b83041f",
+    "src/image_downloader/application/workflow_reporting.py": "4d50d36180388c1c2f784c27c672a0f13651343fd49f398ef1e161f13f94cb56",
+    "src/image_downloader/application/workflow_retry.py": "88a895290268a930f3eec4bb8870f61e2452cfc92fe550c91a9cc06cbf5b40d3",
+    "src/image_downloader/application/workflow_selection.py": "ee8a102a263010bf8a178277499ff4fb3fb04221240ac4ec4fea48b2e0526fd2",
+    "src/image_downloader/application/workflow_state.py": "599db916b5b60b53cf1d2889367d376b0c24d9557d023294a3adf7b5bb790c66",
+    "src/image_downloader/application/workflow_verification.py": "ef466ec1367473a10509a66499396acbdac124d195d1b4cffdb5c5470532882d",
+    "src/image_downloader/cli.py": "d312732c0214b43c4c2225bd903797ca4582826960fff3dcefabc76209cad595",
+    "src/image_downloader/commands/__init__.py": "a386d2839cbafeca876d1cb91e276e69d7620606e34f48c8f72fe79a8b99bfb1",
+    "src/image_downloader/commands/config.py": "be049b7326c1b06abc67f5e1f120bc2b9e15353a5aff74eaddb0285791a11d07",
+    "src/image_downloader/commands/constants.py": "1d151b011b7842214d8ea27d8e82535203642ec4c2cd7b9f46c22dcffe5444d4",
+    "src/image_downloader/commands/cookie.py": "b0045d300f130f763c090b03ac3bf4a87eac5d56a9277c32ae09bcf854dd3845",
+    "src/image_downloader/commands/dispatch.py": "3d1c23431ddceee007aaab10205d689c7fd5c54816766b9c7021844854b6ad54",
+    "src/image_downloader/commands/doctor.py": "6d370662cf26416fb434a48ec9861f9a86a8c140d96fbf9f79867bdf93561c77",
+    "src/image_downloader/commands/download.py": "c92fd990cd24d44097926daacd0a9c4ca869dab4e009a1f4ceebb6d6206c0a0a",
+    "src/image_downloader/commands/inspect.py": "9899cd79300f390c7f74be09e02ad6ca1e9b2ea06233aa81df111e514b0eff16",
+    "src/image_downloader/commands/options.py": "a9617c284984b74e6c719b06c83cdf36319454fe4b89fb49fefe4f5c5d83a951",
+    "src/image_downloader/commands/parser.py": "d1c03f0af61b46f90e7960190ba5ef4a31f3583c1c9acaafd56930983423bfb7",
+    "src/image_downloader/commands/plugin.py": "d59f89e69ae4493b1e36e0afb309c7c6b7b5601b92601050f39cbb78566d0e9b",
+    "src/image_downloader/commands/reporting.py": "6cea3d261564d74c7379a4da103525057055366383b5ca523bf205188220353b",
+    "src/image_downloader/commands/setup.py": "86488df06460e6eb94baeb17616c8380df6d02a47231473908ff981b9480848e",
+    "src/image_downloader/commands/state.py": "762545b90ad1760981573af2113c0fa0f8f7df1f8bf565c931cdc3954f57aca1",
+    "src/image_downloader/commands/state_formatting.py": "42735dd5981dca2c554849239e08ea4fd5303278343fe0944fcd2f502bb9dab7",
+    "src/image_downloader/commands/validation.py": "5fe23e433e6559fe76ccb5ffa05f7d3a105a7a4d844c43bc96a9ef9562e0ac2a",
+    "src/image_downloader/commands/verify.py": "24b6f9f3353131f4a204b0c0885b40d9583dcd99f41579608a99a871e02fcf37",
+    "src/image_downloader/commands/workflow.py": "3d9cc9ec57274d3d72a6a785f3b8781479836359bc4aeebb6f3e44bc3e441b16",
+    "src/image_downloader/config.py": "9b01551b1838aafbd2037360b77429046828f6f8c26e8483fd9cb34622dd484b",
+    "src/image_downloader/configuration/__init__.py": "6d3a944b311d544cf974137d5e63dce54901c53355ff2c06ceb60d49dc89f6c5",
+    "src/image_downloader/configuration/hosts.py": "1ebab057bd78fbd8b0a7f0b8d2fb1c05d284ddafdeee5116392b96fea65ca503",
+    "src/image_downloader/configuration/layers.py": "b0517fe2c84605369e2eada926ce8f95cdd1bb969378507ffbc8ead23feda84d",
+    "src/image_downloader/configuration/models.py": "2fd256fed5b797a43f3115b5e8cdbd511696a6e0e9317c656453a756b618572f",
+    "src/image_downloader/configuration/paths.py": "943a6d821b4e9047b77389b9ee01a7a015dd5ef1d531fa2d2a2f406221dd56ac",
+    "src/image_downloader/credentials/__init__.py": "9c4a3ad782610efaed27fca550da6ce1942ae06e094ba273313f00aa833e146d",
+    "src/image_downloader/credentials/keyring.py": "9745578511c7f468095ce30b253dfc0e77996d9b6ce1f30bb29d9645dec3b3fc",
+    "src/image_downloader/credentials/plugin_secrets.py": "e7510f06b58669d3f6c89b79aedbf9917e70ba0d3f5478f073c13ea86eac6d09",
+    "src/image_downloader/diagnostics.py": "e8f82ef52cbeef2395c38f20c10f873839fab5e874b3e5be380a5b60f5225d7f",
+    "src/image_downloader/exceptions.py": "ef7a850e716ebea0a23a2967ff1c24bbb40892f5133296a7b24a4c31a828d941",
+    "src/image_downloader/immutable.py": "35e4d82dd5d9292d3fc944605d2995218c683e673af0b9908263ecd69fb02e6b",
+    "src/image_downloader/media/__init__.py": "e0854fc7d5308cc073968bf3831ffec48e84652a311e7a8e19af6eddaa6c891f",
+    "src/image_downloader/media/artifact_pipeline.py": "6649bc6ae334976c4908adba0b2539abbe02c4cc91465c8d398d8a7cc7b9ab8d",
+    "src/image_downloader/media/image_processor.py": "7932f5c91701d41e7094a89aa462474e1a0f208d0ac579615b57c9562a92c914",
+    "src/image_downloader/media/processor_chain.py": "e1a15bd99d36941cced9ca77ada3580cddb8e894fe9d70bbcc271d78673e57ff",
+    "src/image_downloader/models.py": "6b0477d3154039a0dfda606ff1d65e1441799a0a8fa2ddc89afd35527d8bc7d5",
+    "src/image_downloader/observability/__init__.py": "2b84a19c04889b0330ec518418100c9af98c7b3a9cd193c8145ea1c53548972b",
+    "src/image_downloader/observability/chapter_reporter.py": "784fbf24960c995c0424cb3e407a32ca7f8c9706bf8420a4ca52377d3de95c19",
+    "src/image_downloader/observability/diagnostic_safety.py": "777fabef8a496af0f47bddfc3c2c2708a8fce0a0a0312e47a56338393808dc90",
+    "src/image_downloader/observability/events.py": "305e5e2f01a6d9ca8c71d2c6a5286532b4989ebfea2cad0cb762403ee83f628b",
+    "src/image_downloader/observability/logging.py": "035f3f76dc1ed2b7d34291936fb2754edfbb77b76245ba665a582dd0c76edea7",
+    "src/image_downloader/observability/notifications.py": "d50611a4bdfbb2e2dd93f9c8c4c2ac18d492d86f452a8c6c8c22e7dfdcada606",
+    "src/image_downloader/observability/scope.py": "b17da6451f1252e3c083c7129f73d5f4a35cced1699bab4ac2a5cda5c9ab4135",
+    "src/image_downloader/output/__init__.py": "e3c2e96a90016e6b5149069c35848c97a6224bd8f3801f13fbcf66621cdeadb4",
+    "src/image_downloader/output/format_tokens.py": "47e1ef0b051d9815d5eaa8e574cb2ed202d8d44cad6bbff9866ea629051d6e7b",
+    "src/image_downloader/output/original_filename.py": "5d8cdb3c9b5bccfb94266639520f7b2575c5be3dab1ea1f3cf0ddc6591e5237b",
+    "src/image_downloader/output/output_allocator.py": "760f9a748a2a4a6bad43882e4fc30b31ca5e5d15f9d87cf83a7e36887c3f6e4b",
+    "src/image_downloader/output/output_lock.py": "8a768fc9bcd9945dcdf225efd487af7f258e6afac8db1ef36dee140976e2335a",
+    "src/image_downloader/plugins/__init__.py": "cbc06f0981cfd7dc8388eed756db6c2b3ea579668f60e9ac3561a08ea81cea01",
+    "src/image_downloader/plugins/builtin.py": "52c76a6c2387b6169a4f77771042c67168c7e426db49ff446a9f06d0b59ded4b",
+    "src/image_downloader/plugins/format_values.py": "1c973e01e6b0e357e7cf79033d449426860d21c0d4420197859479e16c224a13",
+    "src/image_downloader/plugins/html_encoding.py": "02c93fe059413ecfebca58d6af8990f204b34853d1a60bb89ade2e64b347f211",
+    "src/image_downloader/plugins/lifecycle.py": "aef789112359ee37dbef26baa99a06f356e2f44fc54257f3afbf24b636a91833",
+    "src/image_downloader/plugins/management.py": "3460f30051104799b5a7ed164aeefbceb973070d70d7b51bc720d7c942256754",
+    "src/image_downloader/plugins/plugin_invoker.py": "445a28dab501f9cf54abaadfde2a107c82cf3fccd7facfb6cb2ee6702b0f57f1",
+    "src/image_downloader/plugins/plugin_manifest.py": "797a7a0a92ac63c079afa57f67c78ee2b4709dc16e5e19a39e4707fc0afaa885",
+    "src/image_downloader/plugins/runtime.py": "1f5d0f0ee7f23603312377ba45db1e899aac446c2a1edea4e28a2c8b9c1eca8a",
+    "src/image_downloader/plugins/source_loader.py": "d2475dfe397c8f0468db3bd157c2b6fd61389a67449d42a124674a829713a163",
+    "src/image_downloader/ports.py": "843c215fd9774b5f698e953d64d064027c09394d7f3a226f5f06e9d9ee7b3b21",
+    "src/image_downloader/privacy/__init__.py": "4af4d03d28b58867f33b0fbb10c1300585eb7578d0dabe7a91dcb6a3837323db",
+    "src/image_downloader/privacy/log_safety.py": "fc8692e386f851c3900f3550ace74610795e52300fef228f807cfd2b44ea693f",
+    "src/image_downloader/privacy/sensitive_values.py": "2f75f570a0acda4925596688baef73fa254efd8c00f08cd68a1a8ff7034ed3ae",
+    "src/image_downloader/runtime.py": "ddb1c22b9afb1e188ce5bc9450bed3c33c3c3a223d04ecc4c1ad23cb64498cfe",
+    "src/image_downloader/security.py": "14b2b8cbe8aed0a7365a3850c83170535acfe304984dc1ca0d46608cb2c88e00",
+    "src/image_downloader/storage/__init__.py": "e3d3985e9cf715f2128cb1d56c433d9db09f858c7d2f06bd29c870cb7dc7581e",
+    "src/image_downloader/storage/_path_limits.py": "c34c9803e766f9ea0cb5f24de556251e62b8adbd6f5c5b31d3e7b636b14183ac",
+    "src/image_downloader/storage/cookies.py": "d168945e694db21f1ff52e3a51b853c4be5192b657d9c4cf36d7342a775acd57",
+    "src/image_downloader/storage/filesystem.py": "a1bd9ff3e5a92f2056abbe86276dc4a2bfc40db7a7af213cbcbed7142730d434",
+    "src/image_downloader/storage/interprocess_lock.py": "a42aa7fb0a2038d8fc68a07942d4b385ad0bea240afbce7a95e828fc02e0f21f",
+    "src/image_downloader/storage/path_safety.py": "e58d33930d74d5f8292d440818845cde715a7ee2fa82df45b080a642272e13fc",
+    "src/image_downloader/storage/state.py": "e952fb6589a6a68625b1314c4a1218e0f7d221978bc36d0372d8a0732f0e039b",
+    "src/image_downloader/storage/workflow.py": "eb329bb36f0eb98d4e95a84d76f210745dce32181ac990ca02b9803ed53365b2",
+    "src/image_downloader/storage/workflow_history.py": "ec31093a7173c9ba65713a353cf185f2746f180feee446b8a5b2ab2311383194",
+    "src/image_downloader/storage/workflow_history_schema.py": "041bd798eb9d84b7973103bcd029d67c8f2c128cadcfc8da6850a891bd112a24",
+    "src/image_downloader/storage/workflow_logging.py": "632becc1f3e63f8347169f857059fc79a214ba59b4f92c698ac11ddc9952b128",
+    "src/image_downloader/transport/__init__.py": "5b2b795bbf0b72dc2874c08852bfff67c504f23c1b144705e8f7c4d80f671ac0",
+    "src/image_downloader/transport/gateway.py": "ab60869e2a28c263ec977166b86d8a4e88471008ecf9c7b88bd752e5be2293be",
+    "tests/v3/application/test_additional_files.py": "f4e4b02707f3c4ba1c00ab74e8aecdaa07b69818d9e1935251e581194f375d49",
+    "tests/v3/application/test_composition_cleanup.py": "9e2e16f69db562aeae7cf7081441223b7a6eac019dcd30c97cae2849df3ca79c",
+    "tests/v3/application/test_dependency_injection.py": "8235236b278d0d04dca76671bac3c21de5dc3b293fe2ae9774facadb3a0fd6fe",
+    "tests/v3/application/test_generic_workflow.py": "be964b61134b4e60f87d14fbac0a8f4764493a0770e9d75e477e3f07bd4a96d2",
+    "tests/v3/application/test_html_encoding.py": "65075bb168fa9d8e0e180490a559e42501982bebf1ac7822fb21b2a9e344465c",
+    "tests/v3/application/test_html_encoding_isolation.py": "b265097a9cafd5fee5697ea71315ac7eadbdd3f8b22ca9ecc5f1e597d0c32a5e",
+    "tests/v3/application/test_image_validation.py": "86b5d6393d538591216edd9ba4febb0654d94aee952d6d9e3b919b2b4a75eabf",
+    "tests/v3/application/test_inspection.py": "78817d3de9e051862796dc3ed656cd2fe60a60af05efee1bb0988ca4b72d33b4",
+    "tests/v3/application/test_log_verification.py": "43d8439eb572ac0fbc76484df036502698484debfe0360a3e037a0355445348b",
+    "tests/v3/application/test_media_processing.py": "0f553f4d3df1bf7e34b4c8f1057558cb68f7c4dea3e479a3dca2df4f2fd6fa00",
+    "tests/v3/application/test_runtime_hardening.py": "68f1e7da4752ea1e3ebd6b584ac98aafc59e63c5510e42f9a66c93a8834f695d",
+    "tests/v3/application/test_workflow.py": "2a87374155ee5f70e5b2f3949ad0bd81fc018548797c99be713a67e1d2351805",
+    "tests/v3/application/test_workflow_history.py": "a1b6e402a6460a0d3697a73be6967bb6c1c19ab0f3839712c1e21e2cce5488ad",
+    "tests/v3/application/test_workflow_logging.py": "837b804de664edcee2315f42cfa8e001f836134cee707060f4896bec2158b49a",
+    "tests/v3/application/test_workflow_plan.py": "8e343f01d0171af4f3cbeab167b3c47666a76643d4c82b020d6b76a810acaa13",
+    "tests/v3/application/test_workflow_retry.py": "f95fdbe75375680a1cb3a1db69a2823d62a35d7a0512ad558a07935eb396f742",
+    "tests/v3/application/test_workflow_verification.py": "85e7f07a842a39d0154d4348f26c25c634b38d845d023aec81f5274dd9929c23",
+    "tests/v3/cli/conftest.py": "78b60f4e19543e9bab140555daef67efce37474d2773c4036c6ed57613d6a0aa",
+    "tests/v3/cli/test_argument_diagnostics.py": "3285c6deab6c740f714491301dca0004b41a67e593439a2d81dfa42d76b84cda",
+    "tests/v3/cli/test_choice_contracts.py": "4cd6bb54ed5c55fb55600a5ee0c8218588d8af985793cc15d7a94a4d8b80b355",
+    "tests/v3/cli/test_cli_commands.py": "d5b5fdf57a3e39876609db1400ce11af0fdede62912764b3771d6cfcc0ea1c46",
+    "tests/v3/cli/test_cli_json_contracts.py": "0f1ee245ab0aa157e5157f69cf1394de44c0f345dd02234dd9b24680ee51deb2",
+    "tests/v3/cli/test_definition_extensions.py": "425217dfc863626bdbcffdcf599ce50ecaf64c5bc663ab79a980a04e450ad689",
+    "tests/v3/cli/test_definition_reductions.py": "2934820d85bd6304408a40201ae4428810d3eb15fba827d5df4d2b9ce9ed90c6",
+    "tests/v3/cli/test_fixed_roots.py": "8e9f75ff54083ff826a7af79b7a97481e69f45eb68a562bf6f037f1ff172e2a1",
+    "tests/v3/cli/test_html_encoding_command_boundary.py": "5b4fd4133b683e4e5d61144fcb4116ab1ccdf98e47f6825a835b86c848c6c89e",
+    "tests/v3/cli/test_initial_config_persistence.py": "04cef92b72fb046781acfeeee1166c2ed1444b97ee4ff669ba5eb8481f9d9539",
+    "tests/v3/cli/test_json_errors.py": "5d20c439f728cad2ab1969be3140fcb15ce9323b19cc31c2d897aba627d1a330",
+    "tests/v3/cli/test_verify_cli.py": "91aef5a4cedb7fa19fd75d6c24ea8ba1f4167509e0337b6561b4238fd17bbefb",
+    "tests/v3/cli/test_workflow_cli.py": "8b655baac32f6c7953dc9231549335a382cc1f5af26a434b519743232d649be7",
+    "tests/v3/cli/test_workflow_display.py": "76a9b21558dd5e126ac20eb15e87babf0266674f394197bb1e60014b9a20be59",
+    "tests/v3/cli/test_workflow_selection.py": "a48f96013c32a8ee86b6bfa9d88fcb5dc2a673b5e3ea2991a342ae53c95e7c71",
+    "tests/v3/cli/test_workflow_state_cli.py": "d034db4c213a325161d75681414030a8174b0f708b137079ccd2d3dc43af8e81",
+    "tests/v3/configuration/test_immutable_values.py": "d42702505652357b30ac45b41e68574e413bf8541628048b4cf0554b1d1ceb06",
+    "tests/v3/configuration/test_resolution_and_validation.py": "67fd62eb9bb2c422998a410e8ddf96a5051965a7fc915de9405964f08f365cc7",
+    "tests/v3/conftest.py": "aa6789a6cd6b2cdef3e2878854002eb1228478823abb45ac790db485abdecaa0",
+    "tests/v3/credentials/test_plugin_secrets.py": "89944c03092e6345d2175856bfdb715ebb34f246d47dc4c710fc2a783ae3c38c",
+    "tests/v3/distribution/test_ci_configuration.py": "d7304d92d3427a1d81dfc6eaf9bf82c1ef1c7743e209e27c5ce10eff8a53c5e9",
+    "tests/v3/distribution/test_documentation_reference_contracts.py": "231b627af7ad174d9feb2de3bb1e7cef253448ed03b6716eb1107acb59addce4",
+    "tests/v3/distribution/test_module_boundaries.py": "fc6787cb51c3e1ef7df83714a3ae9f244992cb7a5b84b6f3f756f308bcc98eaf",
+    "tests/v3/distribution/test_public_api_and_docs.py": "6f8666e4841b8b26628942cebab205a9e8407fad68fd5693644ce6d5f4c28208",
+    "tests/v3/distribution/test_quality_configuration.py": "47f6242ff6e4004d61d64fef37037c1a5bb6ca3a1030dec4163ccde0393ff82c",
+    "tests/v3/distribution/test_release_smoke_diagnostics.py": "310c5df794327cbb24d5397338dfa23dc89fa274c5c34feeb0de454138f839c8",
+    "tests/v3/distribution/test_signed_plugin_checkout.py": "2f3ca58a84fb7719841688c53533b50509d11bc4b836570ed3d270deed37c3f0",
+    "tests/v3/distribution/test_signing_tool_consistency.py": "6bafc4f657b256e93a77ad68b8eae5f854ead1a8d02d89fe489919608b7f62d8",
+    "tests/v3/observability/conftest.py": "2d23537141bf46342f6f15461aee6ee0ad0c2e4da24e68308d7f5a818bf800d6",
+    "tests/v3/observability/test_event_notification_contract.py": "88b8ca25c0a64bcea2a38f05f72ed0cdee03b98c2cc563bb4ae3c0d04549f6d8",
+    "tests/v3/observability/test_locator_safety.py": "61a53703a33bbdf40a8c24e05402e8476eab7474341b35375506741b810ad976",
+    "tests/v3/observability/test_logging_failure_consistency.py": "0954c618cbc5a99a21813cd06f4ae3d1610a274df7a2a76f562af0775e12adab",
+    "tests/v3/observability/test_mailpit_integration.py": "f051d5480bd186ba4930858459356c2a8b40071cb348bfaa88fd7f61dd36fa20",
+    "tests/v3/observability/test_notifications_v3.py": "7b37f7ceebfea824573f13165c6cce6dbeaa2a8b3335883c6ca209325d781512",
+    "tests/v3/observability/test_plugin_logging.py": "458037f8bc90c0e59d4663ddd041a5fc90f6aedda016e2919fb0eb27c111e367",
+    "tests/v3/observability/test_sensitive_values.py": "bb41c55ddd5c5c909a4c2d165fd62462563204fdd3ed5c189cde6388df4206d9",
+    "tests/v3/plugins/test_example_annotation_contracts.py": "7819ea7b66ad9f5b6393aa07d0a6c87f552187f416074dc118482b83ae2b6ca8",
+    "tests/v3/plugins/test_local_site_plugins.py": "112bd438429ca3bc0dd0c9bc3ab2bc4d193f141dcf0f1144a2c8837fd7d56822",
+    "tests/v3/plugins/test_metadata_bridge_examples.py": "5ffa23567a2adc0bf73ffcca5a663a69bd486aecf776fa245b3f8a0c4905d849",
+    "tests/v3/plugins/test_migrated_v2_plugin_sources.py": "6a01d20158a68b6a430e89bf6ed4f1ae8e086280d99d9d629e4fd4ebd67133fa",
+    "tests/v3/plugins/test_output_format_values.py": "adfc35254233d940361489b46c140f9ea7a4624215d0faad95f2dcf07f5c56b6",
+    "tests/v3/plugins/test_plugin_operation_boundary.py": "7321ece08f26f630dede4704eb9ca2a87d19a6afafd9ead03124fa1ef38d2d1a",
+    "tests/v3/plugins/test_plugin_v3.py": "9f989e7f3e1a4d749e233611c8265403bcd161d24b2bf4f7bff87c403189a26f",
+    "tests/v3/plugins/test_processor_lifecycle.py": "5f2f0ce6ae4dc8f698a12bd99e86f4489b519d9d68d7f465459666075a2ddbe6",
+    "tests/v3/plugins/test_processor_source_units.py": "5f565b8e369e4d487f0c2ebd4512583620bc3269d6cd73bab80a6a2f23e42adf",
+    "tests/v3/plugins/test_site_operation_transport_metadata.py": "46213f8e3e33d48863b89ab5ed9703b40846dc66fe4b43d3dbd9fee3a7693bb5",
+    "tests/v3/plugins/test_verified_source_loading.py": "50f4a261c3af2b34485cb1c1b2479389dba3e3b353d7c640200a107e91efc027",
+    "tests/v3/storage_output/test_cookies.py": "8d975e510c468787c3d2348999dbd719afe60ca98b9efcd8078a677ca764a502",
+    "tests/v3/storage_output/test_interprocess_lock.py": "7d1a9a634828817be3dc6ba0041507ef0bdc22df1391b60022c0fbf738a7566c",
+    "tests/v3/storage_output/test_original_filename.py": "fb293a4d01fbc8a5eaec48d80d57eb32047de8c30542d052bd59daa3e0b1f539",
+    "tests/v3/storage_output/test_output_allocator.py": "41a1e21e83bd3738d5f94e079eb2d8b4f6327aa94f806fa1f84f29ea43787156",
+    "tests/v3/storage_output/test_output_directory_lock.py": "5ad5a6c5fcce4ae9104cfe68cbcf252ae592bcfc332c4d16e4d37d456c06d746",
+    "tests/v3/storage_output/test_path_limits.py": "fa8332755f241746adc76fc6ced1ce27c5458e660c02779496ca7c028a0df1ad",
+    "tests/v3/storage_output/test_update_state_scoping.py": "8da71404e984f63e00f42e0737d0fff734289328277c82a9ce5b03501bd5518c",
+    "tests/v3/transport/test_redirect_safety.py": "2a7e97490af8c921feacf55e7f0b939a7cd1258a37978a2ce3e31372bb40dd6d"
+  },
+  "source_unchanged": true,
+  "source_file_count": 168,
+  "published_probe_sha256": "ebcc611eec0805d9356268838092d4a1565fe2632d2f76c438707b7bcb65a200",
+  "published_probe_unchanged": true,
+  "published_contention": {
+    "execution_environment": "outside Codex sandbox",
+    "command": [
+      "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+      "C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py",
+      "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\contention-01",
+      "--rounds",
+      "200",
+      "--record-all-errors"
+    ],
+    "exitcode": 1,
+    "observations": [
+      {
+        "variant": "missing",
+        "rounds": 0,
+        "worker_count": 3,
+        "workers": [],
+        "counter": 0,
+        "successful_acquisitions": 0,
+        "errors": 0,
+        "record_all_errors": true,
+        "parent_error": "Traceback (most recent call last):\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 95, in scenario\n    barrier.wait(20)\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690, in wait\n    self._wait(timeout)\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 728, in _wait\n    raise BrokenBarrierError\nthreading.BrokenBarrierError\n",
+        "process_exitcodes": [
+          0,
+          -15,
+          0
+        ],
+        "seconds": 25.235,
+        "final_lock_size": null,
+        "sampled_lock_stacks": [],
+        "all_python_stacks": {
+          "worker-0.stack.txt": "Timeout (0:00:08)!\nThread 0x000025a0 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 261 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 313 in wait_for\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 725 in _wait\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690 in wait\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 42 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x000025a0 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 261 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 313 in wait_for\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 725 in _wait\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690 in wait\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 42 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\n",
+          "worker-2.stack.txt": "Timeout (0:00:08)!\nThread 0x0000242c (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 261 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 313 in wait_for\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 725 in _wait\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690 in wait\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 42 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x0000242c (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 261 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 313 in wait_for\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 725 in _wait\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690 in wait\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 42 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\n"
+        },
+        "requested_rounds": 200,
+        "statistics_incomplete": true,
+        "open_wait_observed": false,
+        "native_captures": []
+      },
+      {
+        "variant": "empty",
+        "rounds": 1,
+        "worker_count": 3,
+        "workers": [],
+        "counter": 5,
+        "successful_acquisitions": 0,
+        "errors": 0,
+        "record_all_errors": true,
+        "parent_error": "Traceback (most recent call last):\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 96, in scenario\n    barrier.wait(20)\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690, in wait\n    self._wait(timeout)\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 730, in _wait\n    raise BrokenBarrierError\nthreading.BrokenBarrierError\n",
+        "process_exitcodes": [
+          -15,
+          0,
+          0
+        ],
+        "seconds": 26.438,
+        "final_lock_size": 1,
+        "sampled_lock_stacks": [
+          "worker-0.stack.txt"
+        ],
+        "all_python_stacks": {
+          "worker-0.stack.txt": "Timeout (0:00:08)!\nThread 0x00001744 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x00001744 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x00001744 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\n",
+          "worker-1.stack.txt": "Timeout (0:00:08)!\nThread 0x000033f0 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 261 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 313 in wait_for\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 725 in _wait\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690 in wait\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 53 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x000033f0 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 261 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 313 in wait_for\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 725 in _wait\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690 in wait\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 53 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\n",
+          "worker-2.stack.txt": "Timeout (0:00:08)!\nThread 0x00001730 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 261 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 313 in wait_for\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 725 in _wait\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690 in wait\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 53 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x00001730 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 261 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 313 in wait_for\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 725 in _wait\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690 in wait\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 53 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\n"
+        },
+        "requested_rounds": 200,
+        "statistics_incomplete": true,
+        "open_wait_observed": true,
+        "native_captures": []
+      },
+      {
+        "variant": "seeded",
+        "rounds": 8,
+        "worker_count": 3,
+        "workers": [],
+        "counter": 26,
+        "successful_acquisitions": 0,
+        "errors": 0,
+        "record_all_errors": true,
+        "parent_error": "Traceback (most recent call last):\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 96, in scenario\n    barrier.wait(20)\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690, in wait\n    self._wait(timeout)\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 728, in _wait\n    raise BrokenBarrierError\nthreading.BrokenBarrierError\n",
+        "process_exitcodes": [
+          0,
+          -15,
+          0
+        ],
+        "seconds": 28.187,
+        "final_lock_size": 1,
+        "sampled_lock_stacks": [
+          "worker-1.stack.txt"
+        ],
+        "all_python_stacks": {
+          "worker-0.stack.txt": "Timeout (0:00:08)!\nThread 0x00000cb4 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 261 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 313 in wait_for\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 725 in _wait\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690 in wait\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 53 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x00000cb4 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 261 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 313 in wait_for\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 725 in _wait\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690 in wait\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 53 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\n",
+          "worker-1.stack.txt": "Timeout (0:00:08)!\nThread 0x00001ec8 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x00001ec8 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x00001ec8 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\n",
+          "worker-2.stack.txt": "Timeout (0:00:08)!\nThread 0x000019d0 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 261 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 313 in wait_for\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 725 in _wait\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690 in wait\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 53 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x000019d0 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 261 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 313 in wait_for\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 725 in _wait\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690 in wait\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 53 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\n"
+        },
+        "requested_rounds": 200,
+        "statistics_incomplete": true,
+        "open_wait_observed": true,
+        "native_captures": []
+      },
+      {
+        "variant": "no-initialization",
+        "rounds": 0,
+        "worker_count": 3,
+        "workers": [],
+        "counter": 2,
+        "successful_acquisitions": 0,
+        "errors": 0,
+        "record_all_errors": true,
+        "parent_error": "Traceback (most recent call last):\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 96, in scenario\n    barrier.wait(20)\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690, in wait\n    self._wait(timeout)\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 728, in _wait\n    raise BrokenBarrierError\nthreading.BrokenBarrierError\n",
+        "process_exitcodes": [
+          -15,
+          0,
+          0
+        ],
+        "seconds": 27.453,
+        "final_lock_size": 0,
+        "sampled_lock_stacks": [
+          "worker-0.stack.txt"
+        ],
+        "all_python_stacks": {
+          "worker-0.stack.txt": "Timeout (0:00:08)!\nThread 0x00002a30 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\contention-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\contention-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py\", line 147 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x00002a30 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\contention-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\contention-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py\", line 147 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x00002a30 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\contention-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\contention-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py\", line 147 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\n",
+          "worker-1.stack.txt": "Timeout (0:00:08)!\nThread 0x00002a40 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 261 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 313 in wait_for\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 725 in _wait\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690 in wait\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 53 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x00002a40 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 261 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 313 in wait_for\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 725 in _wait\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690 in wait\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 53 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\n",
+          "worker-2.stack.txt": "Timeout (0:00:08)!\nThread 0x000022e4 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 261 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 313 in wait_for\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 725 in _wait\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690 in wait\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 53 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x000022e4 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 261 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 313 in wait_for\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 725 in _wait\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690 in wait\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 53 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\n"
+        },
+        "requested_rounds": 200,
+        "statistics_incomplete": true,
+        "open_wait_observed": true,
+        "native_captures": []
+      }
+    ]
+  },
+  "native_comparison": {
+    "execution_environment": "outside Codex sandbox",
+    "command": [
+      "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+      "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\observe_contention_native.py",
+      "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\native-comparison-01",
+      "--rounds",
+      "200",
+      "--record-all-errors",
+      "--variants",
+      "missing",
+      "no-initialization"
+    ],
+    "exitcode": 1,
+    "observer": "Unchanged preceding-turn wrapper; verifies current and recorded parent PID; owned children only",
+    "observer_sha256": "b10730e0ad46d473e0749c7167123ea8503e3c4de220db831b719b6d0af58487",
+    "observations": [
+      {
+        "variant": "missing",
+        "rounds": 0,
+        "worker_count": 3,
+        "workers": [],
+        "counter": 2,
+        "successful_acquisitions": 0,
+        "errors": 0,
+        "record_all_errors": true,
+        "parent_error": "Traceback (most recent call last):\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 96, in scenario\n    barrier.wait(20)\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690, in wait\n    self._wait(timeout)\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 728, in _wait\n    raise BrokenBarrierError\nthreading.BrokenBarrierError\n",
+        "process_exitcodes": [
+          0,
+          -15,
+          0
+        ],
+        "seconds": 26.812,
+        "final_lock_size": 1,
+        "sampled_lock_stacks": [
+          "worker-1.stack.txt"
+        ],
+        "all_python_stacks": {
+          "worker-0.stack.txt": "Timeout (0:00:08)!\nThread 0x00003a78 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 261 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 313 in wait_for\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 725 in _wait\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690 in wait\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 53 in worker\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\observe_contention_native.py\", line 28 in observed_worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x00003a78 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 261 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 313 in wait_for\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 725 in _wait\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690 in wait\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 53 in worker\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\observe_contention_native.py\", line 28 in observed_worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\n",
+          "worker-1.stack.txt": "Timeout (0:00:08)!\nThread 0x00001f28 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\observe_contention_native.py\", line 28 in observed_worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x00001f28 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\observe_contention_native.py\", line 28 in observed_worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x00001f28 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\observe_contention_native.py\", line 28 in observed_worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\n",
+          "worker-2.stack.txt": "Timeout (0:00:08)!\nThread 0x00000518 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 261 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 313 in wait_for\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 725 in _wait\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690 in wait\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 53 in worker\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\observe_contention_native.py\", line 28 in observed_worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x00000518 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 261 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 313 in wait_for\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 725 in _wait\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690 in wait\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 53 in worker\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\observe_contention_native.py\", line 28 in observed_worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\n"
+        },
+        "requested_rounds": 200,
+        "statistics_incomplete": true,
+        "open_wait_observed": true,
+        "native_captures": [
+          {
+            "native": {
+              "pid": 12796,
+              "tid": 7976,
+              "frames": [
+                {
+                  "frame": 0,
+                  "pc": "0x7ff971cae054",
+                  "module": "C:\\Windows\\SYSTEM32\\ntdll.dll",
+                  "symbol": "ZwCreateFile",
+                  "displacement": "0x14"
+                },
+                {
+                  "frame": 1,
+                  "pc": "0x7ff971cae054",
+                  "module": "C:\\Windows\\SYSTEM32\\ntdll.dll",
+                  "symbol": "ZwCreateFile",
+                  "displacement": "0x14"
+                },
+                {
+                  "frame": 2,
+                  "pc": "0x7ff96ee2ca43",
+                  "module": "C:\\Windows\\system32\\guard64.dll",
+                  "symbol": "Exported",
+                  "displacement": "0x18bb3"
+                },
+                {
+                  "frame": 3,
+                  "pc": "0x7ff96f85ea39",
+                  "module": "C:\\Windows\\System32\\KERNELBASE.dll",
+                  "symbol": "CreateFileW",
+                  "displacement": "0x5f9"
+                },
+                {
+                  "frame": 4,
+                  "pc": "0x7ff96f85e4a6",
+                  "module": "C:\\Windows\\System32\\KERNELBASE.dll",
+                  "symbol": "CreateFileW",
+                  "displacement": "0x66"
+                },
+                {
+                  "frame": 5,
+                  "pc": "0x7ff96f39f10b",
+                  "module": "C:\\Windows\\System32\\ucrtbase.dll",
+                  "symbol": "wsplitpath_s",
+                  "displacement": "0x35b"
+                },
+                {
+                  "frame": 6,
+                  "pc": "0x7ff96f425321",
+                  "module": "C:\\Windows\\System32\\ucrtbase.dll",
+                  "symbol": "wmktemp_s",
+                  "displacement": "0x191"
+                },
+                {
+                  "frame": 7,
+                  "pc": "0x7ff96f4256ee",
+                  "module": "C:\\Windows\\System32\\ucrtbase.dll",
+                  "symbol": "wopen",
+                  "displacement": "0x1e"
+                },
+                {
+                  "frame": 8,
+                  "pc": "0x7ff909e4366d",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyObject_CallFunction_SizeT",
+                  "displacement": "0x35d"
+                },
+                {
+                  "frame": 9,
+                  "pc": "0x7ff909e43454",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyObject_CallFunction_SizeT",
+                  "displacement": "0x144"
+                },
+                {
+                  "frame": 10,
+                  "pc": "0x7ff909e1d331",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyObject_GetBuffer",
+                  "displacement": "0x25f1"
+                },
+                {
+                  "frame": 11,
+                  "pc": "0x7ff909e1bfa4",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyObject_GetBuffer",
+                  "displacement": "0x1264"
+                },
+                {
+                  "frame": 12,
+                  "pc": "0x7ff909e120f9",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyNumber_TrueDivide",
+                  "displacement": "0x1825"
+                },
+                {
+                  "frame": 13,
+                  "pc": "0x7ff909e43341",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyObject_CallFunction_SizeT",
+                  "displacement": "0x31"
+                },
+                {
+                  "frame": 14,
+                  "pc": "0x7ff909e42f9d",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyAST_Compile",
+                  "displacement": "0x7bd"
+                },
+                {
+                  "frame": 15,
+                  "pc": "0x7ff909e42abe",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyAST_Compile",
+                  "displacement": "0x2de"
+                },
+                {
+                  "frame": 16,
+                  "pc": "0x7ff909dc9a26",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyEval_EvalFrameDefault",
+                  "displacement": "0x4406"
+                },
+                {
+                  "frame": 17,
+                  "pc": "0x7ff909e1f564",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyFunction_Vectorcall",
+                  "displacement": "0x1a4"
+                },
+                {
+                  "frame": 18,
+                  "pc": "0x7ff909e2f5a6",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyIter_Send",
+                  "displacement": "0x20fe"
+                },
+                {
+                  "frame": 19,
+                  "pc": "0x7ff909e2fb3f",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyIter_Send",
+                  "displacement": "0x2697"
+                },
+                {
+                  "frame": 20,
+                  "pc": "0x7ff909dcae10",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyEval_EvalFrameDefault",
+                  "displacement": "0x57f0"
+                },
+                {
+                  "frame": 21,
+                  "pc": "0x7ff909e1f564",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyFunction_Vectorcall",
+                  "displacement": "0x1a4"
+                },
+                {
+                  "frame": 22,
+                  "pc": "0x7ff909de7568",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyList_AsTuple",
+                  "displacement": "0x4fc"
+                },
+                {
+                  "frame": 23,
+                  "pc": "0x7ff909dca696",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyEval_EvalFrameDefault",
+                  "displacement": "0x5076"
+                },
+                {
+                  "frame": 24,
+                  "pc": "0x7ff909e1f564",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyFunction_Vectorcall",
+                  "displacement": "0x1a4"
+                },
+                {
+                  "frame": 25,
+                  "pc": "0x7ff909de7568",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyList_AsTuple",
+                  "displacement": "0x4fc"
+                },
+                {
+                  "frame": 26,
+                  "pc": "0x7ff909dca696",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyEval_EvalFrameDefault",
+                  "displacement": "0x5076"
+                },
+                {
+                  "frame": 27,
+                  "pc": "0x7ff909de2f73",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyMapping_Check",
+                  "displacement": "0x1eb"
+                },
+                {
+                  "frame": 28,
+                  "pc": "0x7ff909de27db",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyEval_EvalCode",
+                  "displacement": "0x97"
+                },
+                {
+                  "frame": 29,
+                  "pc": "0x7ff909e52582",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "Py_SourceAsString",
+                  "displacement": "0x646"
+                },
+                {
+                  "frame": 30,
+                  "pc": "0x7ff909e524fe",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "Py_SourceAsString",
+                  "displacement": "0x5c2"
+                },
+                {
+                  "frame": 31,
+                  "pc": "0x7ff909e5269f",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyRun_StringFlags",
+                  "displacement": "0x7b"
+                },
+                {
+                  "frame": 32,
+                  "pc": "0x7ff909eaefc5",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyRun_SimpleStringFlags",
+                  "displacement": "0x41"
+                },
+                {
+                  "frame": 33,
+                  "pc": "0x7ff909eaf098",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyRun_SimpleStringFlags",
+                  "displacement": "0x114"
+                },
+                {
+                  "frame": 34,
+                  "pc": "0x7ff909eb0d64",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "Py_RunMain",
+                  "displacement": "0x34c"
+                }
+              ]
+            },
+            "worker_metadata": {
+              "pid": 12796,
+              "ppid": 6256,
+              "observed_at": "2026-10-11T10:07:54.593923+09:00"
+            },
+            "same_file_r_plus_b_lock_probe": {
+              "acquired_and_released": true,
+              "elapsed": 0.0
+            },
+            "sha256": "3c5df4795994a393a72ddd5a8bede138275625a020ca59632e6642cc1cd59192"
+          }
+        ]
+      },
+      {
+        "variant": "no-initialization",
+        "rounds": 13,
+        "worker_count": 3,
+        "workers": [],
+        "counter": 41,
+        "successful_acquisitions": 0,
+        "errors": 0,
+        "record_all_errors": true,
+        "parent_error": "Traceback (most recent call last):\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 96, in scenario\n    barrier.wait(20)\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690, in wait\n    self._wait(timeout)\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 730, in _wait\n    raise BrokenBarrierError\nthreading.BrokenBarrierError\n",
+        "process_exitcodes": [
+          0,
+          0,
+          -15
+        ],
+        "seconds": 30.219,
+        "final_lock_size": 0,
+        "sampled_lock_stacks": [
+          "worker-2.stack.txt"
+        ],
+        "all_python_stacks": {
+          "worker-0.stack.txt": "Timeout (0:00:08)!\nThread 0x00002624 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 261 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 313 in wait_for\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 725 in _wait\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690 in wait\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 53 in worker\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\observe_contention_native.py\", line 28 in observed_worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x00002624 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 261 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 313 in wait_for\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 725 in _wait\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690 in wait\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 53 in worker\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\observe_contention_native.py\", line 28 in observed_worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\n",
+          "worker-1.stack.txt": "Timeout (0:00:08)!\nThread 0x00003218 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 261 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 313 in wait_for\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 725 in _wait\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690 in wait\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 53 in worker\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\observe_contention_native.py\", line 28 in observed_worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x00003218 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 261 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\synchronize.py\", line 313 in wait_for\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 725 in _wait\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690 in wait\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 53 in worker\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\observe_contention_native.py\", line 28 in observed_worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\n",
+          "worker-2.stack.txt": "Timeout (0:00:08)!\nThread 0x000031e0 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\native-comparison-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\native-comparison-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py\", line 147 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\observe_contention_native.py\", line 28 in observed_worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x000031e0 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\native-comparison-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\native-comparison-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py\", line 147 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\observe_contention_native.py\", line 28 in observed_worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x000031e0 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\native-comparison-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\native-comparison-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py\", line 147 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\observe_contention_native.py\", line 28 in observed_worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\n"
+        },
+        "requested_rounds": 200,
+        "statistics_incomplete": true,
+        "open_wait_observed": true,
+        "native_captures": [
+          {
+            "native": {
+              "pid": 4164,
+              "tid": 12768,
+              "frames": [
+                {
+                  "frame": 0,
+                  "pc": "0x7ff971cae054",
+                  "module": "C:\\Windows\\SYSTEM32\\ntdll.dll",
+                  "symbol": "ZwCreateFile",
+                  "displacement": "0x14"
+                },
+                {
+                  "frame": 1,
+                  "pc": "0x7ff971cae054",
+                  "module": "C:\\Windows\\SYSTEM32\\ntdll.dll",
+                  "symbol": "ZwCreateFile",
+                  "displacement": "0x14"
+                },
+                {
+                  "frame": 2,
+                  "pc": "0x7ff96ee2ca43",
+                  "module": "C:\\Windows\\system32\\guard64.dll",
+                  "symbol": "Exported",
+                  "displacement": "0x18bb3"
+                },
+                {
+                  "frame": 3,
+                  "pc": "0x7ff96f85ea39",
+                  "module": "C:\\Windows\\System32\\KERNELBASE.dll",
+                  "symbol": "CreateFileW",
+                  "displacement": "0x5f9"
+                },
+                {
+                  "frame": 4,
+                  "pc": "0x7ff96f85e4a6",
+                  "module": "C:\\Windows\\System32\\KERNELBASE.dll",
+                  "symbol": "CreateFileW",
+                  "displacement": "0x66"
+                },
+                {
+                  "frame": 5,
+                  "pc": "0x7ff96f39f10b",
+                  "module": "C:\\Windows\\System32\\ucrtbase.dll",
+                  "symbol": "wsplitpath_s",
+                  "displacement": "0x35b"
+                },
+                {
+                  "frame": 6,
+                  "pc": "0x7ff96f425321",
+                  "module": "C:\\Windows\\System32\\ucrtbase.dll",
+                  "symbol": "wmktemp_s",
+                  "displacement": "0x191"
+                },
+                {
+                  "frame": 7,
+                  "pc": "0x7ff96f4256ee",
+                  "module": "C:\\Windows\\System32\\ucrtbase.dll",
+                  "symbol": "wopen",
+                  "displacement": "0x1e"
+                },
+                {
+                  "frame": 8,
+                  "pc": "0x7ff909e4366d",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyObject_CallFunction_SizeT",
+                  "displacement": "0x35d"
+                },
+                {
+                  "frame": 9,
+                  "pc": "0x7ff909e43454",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyObject_CallFunction_SizeT",
+                  "displacement": "0x144"
+                },
+                {
+                  "frame": 10,
+                  "pc": "0x7ff909e1d331",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyObject_GetBuffer",
+                  "displacement": "0x25f1"
+                },
+                {
+                  "frame": 11,
+                  "pc": "0x7ff909e1bfa4",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyObject_GetBuffer",
+                  "displacement": "0x1264"
+                },
+                {
+                  "frame": 12,
+                  "pc": "0x7ff909e120f9",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyNumber_TrueDivide",
+                  "displacement": "0x1825"
+                },
+                {
+                  "frame": 13,
+                  "pc": "0x7ff909e43341",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyObject_CallFunction_SizeT",
+                  "displacement": "0x31"
+                },
+                {
+                  "frame": 14,
+                  "pc": "0x7ff909e42f9d",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyAST_Compile",
+                  "displacement": "0x7bd"
+                },
+                {
+                  "frame": 15,
+                  "pc": "0x7ff909e42abe",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyAST_Compile",
+                  "displacement": "0x2de"
+                },
+                {
+                  "frame": 16,
+                  "pc": "0x7ff909dc9a26",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyEval_EvalFrameDefault",
+                  "displacement": "0x4406"
+                },
+                {
+                  "frame": 17,
+                  "pc": "0x7ff909e1f564",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyFunction_Vectorcall",
+                  "displacement": "0x1a4"
+                },
+                {
+                  "frame": 18,
+                  "pc": "0x7ff909e2f5a6",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyIter_Send",
+                  "displacement": "0x20fe"
+                },
+                {
+                  "frame": 19,
+                  "pc": "0x7ff909e2fb3f",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyIter_Send",
+                  "displacement": "0x2697"
+                },
+                {
+                  "frame": 20,
+                  "pc": "0x7ff909dcae10",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyEval_EvalFrameDefault",
+                  "displacement": "0x57f0"
+                },
+                {
+                  "frame": 21,
+                  "pc": "0x7ff909e1f564",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyFunction_Vectorcall",
+                  "displacement": "0x1a4"
+                },
+                {
+                  "frame": 22,
+                  "pc": "0x7ff909de7568",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyList_AsTuple",
+                  "displacement": "0x4fc"
+                },
+                {
+                  "frame": 23,
+                  "pc": "0x7ff909dca696",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyEval_EvalFrameDefault",
+                  "displacement": "0x5076"
+                },
+                {
+                  "frame": 24,
+                  "pc": "0x7ff909e1f564",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyFunction_Vectorcall",
+                  "displacement": "0x1a4"
+                },
+                {
+                  "frame": 25,
+                  "pc": "0x7ff909de7568",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyList_AsTuple",
+                  "displacement": "0x4fc"
+                },
+                {
+                  "frame": 26,
+                  "pc": "0x7ff909dca696",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyEval_EvalFrameDefault",
+                  "displacement": "0x5076"
+                },
+                {
+                  "frame": 27,
+                  "pc": "0x7ff909de2f73",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyMapping_Check",
+                  "displacement": "0x1eb"
+                },
+                {
+                  "frame": 28,
+                  "pc": "0x7ff909de27db",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyEval_EvalCode",
+                  "displacement": "0x97"
+                },
+                {
+                  "frame": 29,
+                  "pc": "0x7ff909e52582",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "Py_SourceAsString",
+                  "displacement": "0x646"
+                },
+                {
+                  "frame": 30,
+                  "pc": "0x7ff909e524fe",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "Py_SourceAsString",
+                  "displacement": "0x5c2"
+                },
+                {
+                  "frame": 31,
+                  "pc": "0x7ff909e5269f",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyRun_StringFlags",
+                  "displacement": "0x7b"
+                },
+                {
+                  "frame": 32,
+                  "pc": "0x7ff909eaefc5",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyRun_SimpleStringFlags",
+                  "displacement": "0x41"
+                },
+                {
+                  "frame": 33,
+                  "pc": "0x7ff909eaf098",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "PyRun_SimpleStringFlags",
+                  "displacement": "0x114"
+                },
+                {
+                  "frame": 34,
+                  "pc": "0x7ff909eb0d64",
+                  "module": "C:\\Program Files\\Python311\\python311.dll",
+                  "symbol": "Py_RunMain",
+                  "displacement": "0x34c"
+                }
+              ]
+            },
+            "worker_metadata": {
+              "pid": 4164,
+              "ppid": 6256,
+              "observed_at": "2026-10-11T10:08:21.370931+09:00"
+            },
+            "same_file_r_plus_b_lock_probe": {
+              "acquired_and_released": true,
+              "elapsed": 0.0
+            },
+            "sha256": "1b6609042662dee3e6a755eb44ada8318145d4320246f06c885638da1d1affaa"
+          }
+        ]
+      }
+    ]
+  },
+  "isolated_copies": {
+    "contention-01": {
+      "path": ".runtime\\history-post-reboot-20261011-1003\\contention-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py",
+      "sha256": "42d0edfcea6b0805c0f3a74bfd4133065c006a5407277acb7b3cca957bac280b",
+      "change": "Exactly the two initialization calls removed"
+    },
+    "native-comparison-01": {
+      "path": ".runtime\\history-post-reboot-20261011-1003\\native-comparison-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py",
+      "sha256": "42d0edfcea6b0805c0f3a74bfd4133065c006a5407277acb7b3cca957bac280b",
+      "change": "Exactly the two initialization calls removed"
+    }
+  },
+  "natural_history_tests": [
+    {
+      "phase": "natural-01",
+      "command": [
+        "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+        "C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_process_stacks.py",
+        "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\natural-01"
+      ],
+      "started_at": "2026-10-11T10:08:51.584690+09:00",
+      "finished_at": "2026-10-11T10:08:56.137581+09:00",
+      "seconds": 4.547,
+      "exitcode": 0,
+      "timed_out": false,
+      "observation": {
+        "pytest_exitcode": 0,
+        "blocked_lock_stacks": [],
+        "output": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\natural-01"
+      },
+      "pytest_log": ".                                                                        [100%]\n1 passed in 2.91s\n",
+      "python_stacks": {
+        "process-12956.stack.txt": "",
+        "process-14636.stack.txt": "",
+        "process-1904.stack.txt": "",
+        "process-8012.stack.txt": ""
+      }
+    },
+    {
+      "phase": "natural-02",
+      "command": [
+        "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+        "C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_process_stacks.py",
+        "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\natural-02"
+      ],
+      "started_at": "2026-10-11T10:08:56.140540+09:00",
+      "finished_at": "2026-10-11T10:09:00.106909+09:00",
+      "seconds": 3.969,
+      "exitcode": 0,
+      "timed_out": false,
+      "observation": {
+        "pytest_exitcode": 0,
+        "blocked_lock_stacks": [],
+        "output": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\natural-02"
+      },
+      "pytest_log": ".                                                                        [100%]\n1 passed in 2.71s\n",
+      "python_stacks": {
+        "process-11604.stack.txt": "",
+        "process-12892.stack.txt": "",
+        "process-14644.stack.txt": "",
+        "process-8716.stack.txt": ""
+      }
+    },
+    {
+      "phase": "natural-03",
+      "command": [
+        "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+        "C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_process_stacks.py",
+        "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\natural-03"
+      ],
+      "started_at": "2026-10-11T10:09:00.109905+09:00",
+      "finished_at": "2026-10-11T10:09:04.017327+09:00",
+      "seconds": 3.906,
+      "exitcode": 0,
+      "timed_out": false,
+      "observation": {
+        "pytest_exitcode": 0,
+        "blocked_lock_stacks": [],
+        "output": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\natural-03"
+      },
+      "pytest_log": ".                                                                        [100%]\n1 passed in 2.74s\n",
+      "python_stacks": {
+        "process-11612.stack.txt": "",
+        "process-14788.stack.txt": "",
+        "process-5216.stack.txt": "",
+        "process-5956.stack.txt": ""
+      }
+    }
+  ],
+  "v3_full": {
+    "phase": "v3-full",
+    "command": [
+      "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+      "-m",
+      "pytest",
+      "tests/v3",
+      "-q",
+      "--cov=image_downloader",
+      "--cov-report=term",
+      "--cov-report=json:C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\coverage.json",
+      "--junitxml=C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\v3-junit.xml"
+    ],
+    "started_at": "2026-10-11T10:09:04.020349+09:00",
+    "finished_at": "2026-10-11T10:18:20.374452+09:00",
+    "seconds": 556.344,
+    "exitcode": 0,
+    "timed_out": false,
+    "process_local_git_config": {
+      "key": "safe.directory",
+      "value": "C:/Users/pc01/source/repos/image-downloader/.git"
+    },
+    "global_git_config_modified": false,
+    "pytest_plugin_autoload": "normal",
+    "suite": {
+      "name": "pytest",
+      "errors": "0",
+      "failures": "0",
+      "skipped": "17",
+      "tests": "1703",
+      "time": "554.414",
+      "timestamp": "2026-10-11T10:09:05.301575+09:00",
+      "hostname": "DESKTOP-SI8TC8F"
+    },
+    "passed": 1686,
+    "failures": [],
+    "errors": [],
+    "skips_by_reason": {
+      "symlink creation is unavailable": 2,
+      "symbolic links are unavailable in this environment": 2,
+      "local Mailpit opt-in required": 12,
+      "symlinks are unavailable": 1
+    },
+    "original_history_test": {
+      "classname": "tests.v3.application.test_workflow_history",
+      "name": "test_independent_processes_merge_under_shared_history_lock",
+      "time": "2.357",
+      "result": "passed"
+    },
+    "signed_checkout_test": {
+      "classname": "tests.v3.distribution.test_signed_plugin_checkout",
+      "name": "test_signed_plugins_survive_windows_line_ending_conversion",
+      "time": "4.036",
+      "result": "passed"
+    },
+    "coverage": {
+      "totals": {
+        "covered_lines": 9254,
+        "num_statements": 10192,
+        "percent_covered": 88.18693865124068,
+        "percent_covered_display": "88",
+        "missing_lines": 938,
+        "excluded_lines": 90,
+        "percent_statements_covered": 90.7967032967033,
+        "percent_statements_covered_display": "91",
+        "num_branches": 2946,
+        "num_partial_branches": 478,
+        "covered_branches": 2332,
+        "missing_branches": 614,
+        "percent_branches_covered": 79.1581805838425,
+        "percent_branches_covered_display": "79"
+      },
+      "version": "7.16.0",
+      "threshold": 75,
+      "threshold_met": true
+    }
+  },
+  "git_ownership_failure_without_scoped_exception": {
+    "observed_at": "2026-10-11T10:06:16.303310+09:00",
+    "command": [
+      "C:\\Program Files\\Git\\cmd\\git.EXE",
+      "clone",
+      "--quiet",
+      "--no-checkout",
+      "--no-hardlinks",
+      "-c",
+      "core.autocrlf=true",
+      "C:\\Users\\pc01\\source\\repos\\image-downloader",
+      "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-post-reboot-20261011-1003\\clone-diagnostic-01"
+    ],
+    "returncode": 128,
+    "stdout": "",
+    "stderr": "fatal: detected dubious ownership in repository at 'C:\\Users\\pc01\\source\\repos\\image-downloader/.git'\n'C:\\Users\\pc01\\source\\repos\\image-downloader/.git' is owned by:\n\tDESKTOP-SI8TC8F/CodexSandboxOffline (S-1-5-21-1823143413-1530136249-3288285937-1004)\nbut the current user is:\n\tDESKTOP-SI8TC8F/pc01 (S-1-5-21-1823143413-1530136249-3288285937-1002)\nTo add an exception for this directory, call:\n\n\tgit config --global --add safe.directory 'C:\\Users\\pc01\\source\\repos\\image-downloader/.git'\n"
+  },
+  "static_checks": {
+    "ruff": "passed",
+    "mypy": "passed, 95 source files"
+  },
+  "runtime_sha256": {
+    "contention-01.log": "0840bf9756966bcc8911d753c779a17ac72011f7ecf793e1728da3a2674371a2",
+    "native-comparison-01.log": "054c7fd970c4420d595d4158b731f0b268ef76c43360e574163367d3a0de9984",
+    "v3-full.log": "b7c35d384101ca2576b9ac4a5ff921939f9b7a447fd6c66dc7f9d708553d7ffd",
+    "v3-junit.xml": "a5020c9e003bd251edbe3f9ccf102d109905d79002594b832fe3c44260325615",
+    "coverage.json": "b629e9072561e44657a7dc5c57c9e00feea832921c56998af29e911636913a05",
+    "source-before.json": "71b1066c2b859dcf81e18d8806537682358c7d227d46a96f17dc41e04e345664",
+    "ruff.log": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+    "mypy.log": "e1933d29513c905ba6bf6828838a39f7d132a341e1fb63954bb71e0b3341fcff",
+    "observe_contention_native.py": "b10730e0ad46d473e0749c7167123ea8503e3c4de220db831b719b6d0af58487",
+    "run_retests.py": "eec08208194fcec1e7a1f51590d067c231d833e43952c821f14544633a62b358"
+  },
+  "conclusions": [
+    "System reboot did not eliminate the observed Path.open wait",
+    "Same NtCreateFile/guard64.dll path recurred with current code and with initialization removed",
+    "An independent r+b opener acquired and released the same byte lock during both native observations",
+    "Old process/handle residue alone cannot explain recurrence in newly created files after reboot",
+    "The first missing-file trial failed before the start barrier; missing worker's location is unconfirmed",
+    "Incomplete probe errors=0 means missing worker results, not evidence of absence of flush races",
+    "The clone ownership check still fails after reboot; full tests use a separately documented scoped exception",
+    "No security settings, product code, existing tests or global Git config changed"
+  ],
+  "limits": [
+    "One reboot observation; no randomized multiple-reboot comparison",
+    "Security Center raw values and DLL presence do not identify individual protection states",
+    "No kernel stack or COMODO-specific internal wait analysis",
+    "Contention round counts cannot be treated as real-world event probabilities",
+    "Full-run Git condition differs from preceding unadjusted full run; no improvement attributed to reboot",
+    "A single successful natural test does not disprove stress-protocol stalls"
+  ]
+}

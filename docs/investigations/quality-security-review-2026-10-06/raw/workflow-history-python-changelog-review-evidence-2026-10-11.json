@@ -1,0 +1,613 @@
+{
+  "recorded_at_utc": "2026-10-11T12:12:57.520161+00:00",
+  "audit_date_jst": "2026-10-11",
+  "commit": "c4ef652bed1d3fa45813b1e2e790b327b9e82b68",
+  "branch": "codex/fix-qs-013-construction-cleanup",
+  "worktree_status_when_recorded": " M docs/investigations/quality-security-review-2026-10-06/qs-013-remediation.md\n M docs/investigations/quality-security-review-2026-10-06/workflow-history-process-hang-2026-10-11.md\n?? docs/investigations/quality-security-review-2026-10-06/probes/history_lock_revision_probe.py\n?? docs/investigations/quality-security-review-2026-10-06/probes/history_lock_supervisor.py\n?? docs/investigations/quality-security-review-2026-10-06/probes/history_lock_variability.py\n?? docs/investigations/quality-security-review-2026-10-06/probes/history_open_only_stdlib.py\n?? docs/investigations/quality-security-review-2026-10-06/raw/workflow-history-cross-environment-recheck-evidence-2026-10-11.json\n?? docs/investigations/quality-security-review-2026-10-06/raw/workflow-history-git-history-evidence-2026-10-11.json\n?? docs/investigations/quality-security-review-2026-10-06/raw/workflow-history-open-variability-evidence-2026-10-11.json\n?? docs/investigations/quality-security-review-2026-10-06/raw/workflow-history-post-reboot-evidence-2026-10-11.json\n?? docs/investigations/quality-security-review-2026-10-06/raw/workflow-history-post-reinstall-evidence-2026-10-11.json\n?? docs/investigations/quality-security-review-2026-10-06/raw/workflow-history-post-uninstall-evidence-2026-10-11.json\n?? docs/investigations/quality-security-review-2026-10-06/workflow-history-cross-environment-recheck-2026-10-11.md\n?? docs/investigations/quality-security-review-2026-10-06/workflow-history-git-candidates-2026-10-11.csv\n?? docs/investigations/quality-security-review-2026-10-06/workflow-history-git-history-2026-10-11.md\n?? docs/investigations/quality-security-review-2026-10-06/workflow-history-git-revisions-2026-10-11.csv\n?? docs/investigations/quality-security-review-2026-10-06/workflow-history-open-variability-2026-10-11.md\n?? docs/investigations/quality-security-review-2026-10-06/workflow-history-open-variability-runs-2026-10-11.csv\n?? docs/investigations/quality-security-review-2026-10-06/workflow-history-post-reboot-2026-10-11.md\n?? docs/investigations/quality-security-review-2026-10-06/workflow-history-post-reinstall-2026-10-11.md\n?? docs/investigations/quality-security-review-2026-10-06/workflow-history-post-reinstall-runs-2026-10-11.csv\n?? docs/investigations/quality-security-review-2026-10-06/workflow-history-post-uninstall-2026-10-11.md\n?? docs/investigations/quality-security-review-2026-10-06/workflow-history-python-changelog-review-2026-10-11.md\n",
+  "python": {
+    "version": "3.11.4 (tags/v3.11.4:d2340ef, Jun  7 2023, 05:45:37) [MSC v.1934 64 bit (AMD64)]",
+    "executable": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe"
+  },
+  "scope": {
+    "min_version_exclusive": "3.11.4",
+    "max_date_inclusive": "2026-10-11",
+    "exclude_python_next": true,
+    "include_prerelease_history": true,
+    "method": "全文から関連語で候補抽出し、候補の実行条件・公式issue・PRを精読。全項目の詳細監査ではない。",
+    "scoped_entry_count_by_series": {
+      "3.11": 520,
+      "3.12": 1103,
+      "3.13": 3177,
+      "3.14": 2823,
+      "3.15": 2150
+    },
+    "latest_final_by_series": {
+      "3.11": {
+        "release": "Python 3.11.17 final",
+        "anchor": "python-3-11-17-final",
+        "date": "2026-10-01"
+      },
+      "3.12": {
+        "release": "Python 3.12.15 final",
+        "anchor": "python-3-12-15-final",
+        "date": "2026-10-01"
+      },
+      "3.13": {
+        "release": "Python 3.13.16 final",
+        "anchor": "python-3-13-16-final",
+        "date": "2026-09-30"
+      },
+      "3.14": {
+        "release": "Python 3.14.8 final",
+        "anchor": "python-3-14-8-final",
+        "date": "2026-09-30"
+      },
+      "3.15": {
+        "release": "Python 3.15.0 final",
+        "anchor": "python-3-15-0-final",
+        "date": "2026-10-09"
+      }
+    }
+  },
+  "downloaded_official_changelog_sources": [
+    {
+      "url": "https://docs.python.org/3.11/whatsnew/changelog.html",
+      "size": 4229792,
+      "sha256": "d08c23e2560e675619d226e90beed3eb0a8c38bab7c9740ef0c1090c54ca1c32"
+    },
+    {
+      "url": "https://docs.python.org/3.12/whatsnew/changelog.html",
+      "size": 4947829,
+      "sha256": "fbc2d9fec93b1df2497ec63117b43c782d8251ec7d11735e3adfd16a4ad3d2a4"
+    },
+    {
+      "url": "https://docs.python.org/3.13/whatsnew/changelog.html",
+      "size": 6072095,
+      "sha256": "050dfc6455e82e2dca4b45444ae865071a808bf1042ca0667587d3d09fe0a1dc"
+    },
+    {
+      "url": "https://docs.python.org/3.14/whatsnew/changelog.html",
+      "size": 6748190,
+      "sha256": "6aec6adfa8f3daf451ab0efc3316eea461bcde9b9a0b166126546f6e5d1ec23e"
+    },
+    {
+      "url": "https://docs.python.org/3.15/whatsnew/changelog.html",
+      "size": 7310466,
+      "sha256": "b2dc28f36d762797f59d54b45e3662d0b1d3ea9e4d9f4e0c45f4e8f038fb59d4"
+    }
+  ],
+  "candidate_assessments": {
+    "gh-140815": {
+      "issue_url": "https://github.com/python/cpython/issues/140815",
+      "assessment": "定期dump中のアクセス違反の重要な候補。Windows公式再現あり。同一原因は未確定。",
+      "changelog_locations": [
+        {
+          "series": "3.13",
+          "release": "Python 3.13.10 final",
+          "date": "2025-12-02",
+          "anchor": "python-3-13-10-final",
+          "section": "Library"
+        },
+        {
+          "series": "3.14",
+          "release": "Python 3.14.1 final",
+          "date": "2025-12-02",
+          "anchor": "python-3-14-1-final",
+          "section": "Library"
+        },
+        {
+          "series": "3.15",
+          "release": "Python 3.15.0 alpha 2",
+          "date": "2025-11-18",
+          "anchor": "python-3-15-0-alpha-2",
+          "section": "Library"
+        }
+      ]
+    },
+    "gh-145792": {
+      "issue_url": "https://github.com/python/cpython/issues/145792",
+      "assessment": "3.11.4には該当VLAマクロがなく、直接一致しない。",
+      "changelog_locations": [
+        {
+          "series": "3.14",
+          "release": "Python 3.14.4 final",
+          "date": "2026-04-07",
+          "anchor": "python-3-14-4-final",
+          "section": "Core and Builtins"
+        },
+        {
+          "series": "3.15",
+          "release": "Python 3.15.0 alpha 8",
+          "date": "2026-04-07",
+          "anchor": "python-3-15-0-alpha-8",
+          "section": "Core and Builtins"
+        }
+      ]
+    },
+    "gh-123967": {
+      "issue_url": "https://github.com/python/cpython/issues/123967",
+      "assessment": "trampoline frame修正。今回通過した証拠なし。",
+      "changelog_locations": [
+        {
+          "series": "3.12",
+          "release": "Python 3.12.8 final",
+          "date": "2024-12-03",
+          "anchor": "python-3-12-8-final",
+          "section": "Library"
+        },
+        {
+          "series": "3.13",
+          "release": "Python 3.13.1 final",
+          "date": "2024-12-03",
+          "anchor": "python-3-13-1-final",
+          "section": "Library"
+        },
+        {
+          "series": "3.14",
+          "release": "Python 3.14.0 alpha 3",
+          "date": "2024-12-17",
+          "anchor": "python-3-14-0-alpha-3",
+          "section": "Library"
+        }
+      ]
+    },
+    "gh-128400": {
+      "issue_url": "https://github.com/python/cpython/issues/128400",
+      "assessment": "free-threaded build向けで3.11.4には該当しない。",
+      "changelog_locations": [
+        {
+          "series": "3.13",
+          "release": "Python 3.13.2 final",
+          "date": "2025-02-04",
+          "anchor": "python-3-13-2-final",
+          "section": "Library"
+        },
+        {
+          "series": "3.14",
+          "release": "Python 3.14.0 alpha 4",
+          "date": "2025-01-14",
+          "anchor": "python-3-14-0-alpha-4",
+          "section": "Library"
+        },
+        {
+          "series": "3.14",
+          "release": "Python 3.14.0 alpha 4",
+          "date": "2025-01-14",
+          "anchor": "python-3-14-0-alpha-4",
+          "section": "Library"
+        },
+        {
+          "series": "3.14",
+          "release": "Python 3.14.0 alpha 4",
+          "date": "2025-01-14",
+          "anchor": "python-3-14-0-alpha-4",
+          "section": "C API"
+        }
+      ]
+    },
+    "gh-149590": {
+      "issue_url": "https://github.com/python/cpython/issues/149590",
+      "assessment": "probeにmodule削除と再importの操作なし。",
+      "changelog_locations": [
+        {
+          "series": "3.13",
+          "release": "Python 3.13.14 final",
+          "date": "2026-06-10",
+          "anchor": "python-3-13-14-final",
+          "section": "Core and Builtins"
+        },
+        {
+          "series": "3.14",
+          "release": "Python 3.14.6 final",
+          "date": "2026-06-10",
+          "anchor": "python-3-14-6-final",
+          "section": "Core and Builtins"
+        },
+        {
+          "series": "3.15",
+          "release": "Python 3.15.0 beta 2",
+          "date": "2026-06-02",
+          "anchor": "python-3-15-0-beta-2",
+          "section": "Core and Builtins"
+        }
+      ]
+    },
+    "gh-95782": {
+      "issue_url": "https://github.com/python/cpython/issues/95782",
+      "assessment": "負の位置の修正。native open停止や初期化flushの権限エラーと直接一致しない。",
+      "changelog_locations": [
+        {
+          "series": "3.11",
+          "release": "Python 3.11.9 final",
+          "date": "2024-04-02",
+          "anchor": "python-3-11-9-final",
+          "section": "Library"
+        },
+        {
+          "series": "3.12",
+          "release": "Python 3.12.3 final",
+          "date": "2024-04-09",
+          "anchor": "python-3-12-3-final",
+          "section": "Library"
+        },
+        {
+          "series": "3.13",
+          "release": "Python 3.13.0 alpha 5",
+          "date": "2024-03-12",
+          "anchor": "python-3-13-0-alpha-5",
+          "section": "Library"
+        }
+      ]
+    },
+    "gh-115059": {
+      "issue_url": "https://github.com/python/cpython/issues/115059",
+      "assessment": "対象処理にread1呼出しなし。",
+      "changelog_locations": [
+        {
+          "series": "3.11",
+          "release": "Python 3.11.9 final",
+          "date": "2024-04-02",
+          "anchor": "python-3-11-9-final",
+          "section": "Library"
+        },
+        {
+          "series": "3.12",
+          "release": "Python 3.12.3 final",
+          "date": "2024-04-09",
+          "anchor": "python-3-12-3-final",
+          "section": "Library"
+        },
+        {
+          "series": "3.13",
+          "release": "Python 3.13.0 alpha 4",
+          "date": "2024-02-15",
+          "anchor": "python-3-13-0-alpha-4",
+          "section": "Library"
+        }
+      ]
+    },
+    "gh-119506": {
+      "issue_url": "https://github.com/python/cpython/issues/119506",
+      "assessment": "TextIOWrapperの再入write。対象はbinary I/O。",
+      "changelog_locations": [
+        {
+          "series": "3.11",
+          "release": "Python 3.11.10 final",
+          "date": "2024-09-07",
+          "anchor": "python-3-11-10-final",
+          "section": "Library"
+        },
+        {
+          "series": "3.12",
+          "release": "Python 3.12.5 final",
+          "date": "2024-08-06",
+          "anchor": "python-3-12-5-final",
+          "section": "Library"
+        },
+        {
+          "series": "3.13",
+          "release": "Python 3.13.0 beta 3",
+          "date": "2024-06-27",
+          "anchor": "python-3-13-0-beta-3",
+          "section": "Library"
+        },
+        {
+          "series": "3.14",
+          "release": "Python 3.14.0 alpha 1",
+          "date": "2024-10-15",
+          "anchor": "python-3-14-0-alpha-1",
+          "section": "Library"
+        }
+      ]
+    },
+    "gh-138720": {
+      "issue_url": "https://github.com/python/cpython/issues/138720",
+      "assessment": "GC時のclosed判定とValueError。今回の通常FileIOのPermissionErrorと不一致。",
+      "changelog_locations": [
+        {
+          "series": "3.15",
+          "release": "Python 3.15.0 alpha 1",
+          "date": "2025-10-14",
+          "anchor": "python-3-15-0-alpha-1",
+          "section": "Library"
+        }
+      ]
+    },
+    "gh-140650": {
+      "issue_url": "https://github.com/python/cpython/issues/140650",
+      "assessment": "独自raw I/Oのclosed属性エラー。今回の通常FileIOと不一致。",
+      "changelog_locations": [
+        {
+          "series": "3.15",
+          "release": "Python 3.15.0 alpha 2",
+          "date": "2025-11-18",
+          "anchor": "python-3-15-0-alpha-2",
+          "section": "Library"
+        }
+      ]
+    },
+    "gh-110036": {
+      "issue_url": "https://github.com/python/cpython/issues/110036",
+      "assessment": "終了後の後始末の周辺修正。open停止そのものではない。",
+      "changelog_locations": [
+        {
+          "series": "3.11",
+          "release": "Python 3.11.6 final",
+          "date": "2023-10-02",
+          "anchor": "python-3-11-6-final",
+          "section": "Library"
+        },
+        {
+          "series": "3.12",
+          "release": "Python 3.12.1 final",
+          "date": "2023-12-07",
+          "anchor": "python-3-12-1-final",
+          "section": "Library"
+        },
+        {
+          "series": "3.13",
+          "release": "Python 3.13.0 alpha 1",
+          "date": "2023-10-13",
+          "anchor": "python-3-13-0-alpha-1",
+          "section": "Library"
+        }
+      ]
+    },
+    "gh-113009": {
+      "issue_url": "https://github.com/python/cpython/issues/113009",
+      "assessment": "3.11.6で導入された変更に関係する回帰。使用中3.11.4のterminateには先行returncode固定なし。",
+      "changelog_locations": [
+        {
+          "series": "3.11",
+          "release": "Python 3.11.8 final",
+          "date": "2024-02-06",
+          "anchor": "python-3-11-8-final",
+          "section": "Windows"
+        },
+        {
+          "series": "3.12",
+          "release": "Python 3.12.2 final",
+          "date": "2024-02-06",
+          "anchor": "python-3-12-2-final",
+          "section": "Windows"
+        },
+        {
+          "series": "3.13",
+          "release": "Python 3.13.0 alpha 3",
+          "date": "2024-01-17",
+          "anchor": "python-3-13-0-alpha-3",
+          "section": "Windows"
+        }
+      ]
+    },
+    "gh-107219": {
+      "issue_url": "https://github.com/python/cpython/issues/107219",
+      "assessment": "ProcessPoolExecutorとQueueの障害。直接ProcessとBarrierの対照と不一致。",
+      "changelog_locations": [
+        {
+          "series": "3.11",
+          "release": "Python 3.11.6 final",
+          "date": "2023-10-02",
+          "anchor": "python-3-11-6-final",
+          "section": "Library"
+        },
+        {
+          "series": "3.12",
+          "release": "Python 3.12.1 final",
+          "date": "2023-12-07",
+          "anchor": "python-3-12-1-final",
+          "section": "Library"
+        },
+        {
+          "series": "3.13",
+          "release": "Python 3.13.0 alpha 1",
+          "date": "2023-10-13",
+          "anchor": "python-3-13-0-alpha-1",
+          "section": "Library"
+        }
+      ]
+    },
+    "gh-114440": {
+      "issue_url": "https://github.com/python/cpython/issues/114440",
+      "assessment": "Queueのwrite側の後始末。open停止と不一致。",
+      "changelog_locations": [
+        {
+          "series": "3.12",
+          "release": "Python 3.12.2 final",
+          "date": "2024-02-06",
+          "anchor": "python-3-12-2-final",
+          "section": "Library"
+        }
+      ]
+    },
+    "gh-109593": {
+      "issue_url": "https://github.com/python/cpython/issues/109593",
+      "assessment": "resource trackerの再入。停止stack・Windows実行条件に一致する証拠なし。",
+      "changelog_locations": [
+        {
+          "series": "3.11",
+          "release": "Python 3.11.6 final",
+          "date": "2023-10-02",
+          "anchor": "python-3-11-6-final",
+          "section": "Library"
+        },
+        {
+          "series": "3.12",
+          "release": "Python 3.12.1 final",
+          "date": "2023-12-07",
+          "anchor": "python-3-12-1-final",
+          "section": "Library"
+        },
+        {
+          "series": "3.13",
+          "release": "Python 3.13.0 alpha 1",
+          "date": "2023-10-13",
+          "anchor": "python-3-13-0-alpha-1",
+          "section": "Library"
+        }
+      ]
+    },
+    "gh-108520": {
+      "issue_url": "https://github.com/python/cpython/issues/108520",
+      "assessment": "nested processへのSemLock再受渡しを今回実行していない。",
+      "changelog_locations": [
+        {
+          "series": "3.11",
+          "release": "Python 3.11.6 final",
+          "date": "2023-10-02",
+          "anchor": "python-3-11-6-final",
+          "section": "Core and Builtins"
+        },
+        {
+          "series": "3.12",
+          "release": "Python 3.12.0 release candidate 2",
+          "date": "2023-09-05",
+          "anchor": "python-3-12-0-release-candidate-2",
+          "section": "Core and Builtins"
+        },
+        {
+          "series": "3.13",
+          "release": "Python 3.13.0 alpha 1",
+          "date": "2023-10-13",
+          "anchor": "python-3-13-0-alpha-1",
+          "section": "Core and Builtins"
+        }
+      ]
+    },
+    "gh-77377": {
+      "issue_url": "https://github.com/python/cpython/issues/77377",
+      "assessment": "forkとspawn混在を今回実行していない。",
+      "changelog_locations": [
+        {
+          "series": "3.11",
+          "release": "Python 3.11.5 final",
+          "date": "2023-08-24",
+          "anchor": "python-3-11-5-final",
+          "section": "Core and Builtins"
+        },
+        {
+          "series": "3.12",
+          "release": "Python 3.12.0 release candidate 2",
+          "date": "2023-09-05",
+          "anchor": "python-3-12-0-release-candidate-2",
+          "section": "Core and Builtins"
+        },
+        {
+          "series": "3.13",
+          "release": "Python 3.13.0 alpha 1",
+          "date": "2023-10-13",
+          "anchor": "python-3-13-0-alpha-1",
+          "section": "Core and Builtins"
+        }
+      ]
+    },
+    "gh-77046": {
+      "issue_url": "https://github.com/python/cpython/issues/77046",
+      "assessment": "pipe等のFD変換経路。対象ファイルの_wopenには既にO_NOINHERITあり。",
+      "changelog_locations": [
+        {
+          "series": "3.13",
+          "release": "Python 3.13.0 alpha 3",
+          "date": "2024-01-17",
+          "anchor": "python-3-13-0-alpha-3",
+          "section": "Core and Builtins"
+        }
+      ]
+    },
+    "gh-141473": {
+      "issue_url": "https://github.com/python/cpython/issues/141473",
+      "assessment": "input送信付きcommunicateのtimeout後再呼出し。今回のworker open停止と不一致。",
+      "changelog_locations": [
+        {
+          "series": "3.13",
+          "release": "Python 3.13.10 final",
+          "date": "2025-12-02",
+          "anchor": "python-3-13-10-final",
+          "section": "Library"
+        },
+        {
+          "series": "3.14",
+          "release": "Python 3.14.1 final",
+          "date": "2025-12-02",
+          "anchor": "python-3-14-1-final",
+          "section": "Library"
+        },
+        {
+          "series": "3.15",
+          "release": "Python 3.15.0 alpha 3",
+          "date": "2025-12-16",
+          "anchor": "python-3-15-0-alpha-3",
+          "section": "Library"
+        }
+      ]
+    }
+  },
+  "supplemental_skip_news_pr": {
+    "issue": "gh-116008",
+    "url": "https://github.com/python/cpython/pull/141988",
+    "backports": [
+      "https://github.com/python/cpython/pull/142017",
+      "https://github.com/python/cpython/pull/142013"
+    ],
+    "checked_tag_source": "https://github.com/python/cpython/blob/v3.13.10/Python/traceback.c#L894-L905",
+    "contains_tstate_is_freed_and_PyMem_IsULongFreed": true,
+    "same_cause_as_local_crash_confirmed": false
+  },
+  "source_checks": {
+    "fileio_tags": [
+      "v3.11.4",
+      "v3.11.17"
+    ],
+    "windows_open_uses_wopen_and_O_NOINHERIT_in_both": true,
+    "v3_11_4_traceback_has_VLA_macro": false,
+    "v3_11_17_traceback_has_PyFrame_SafeGetCode": false,
+    "local_multiprocessing_terminate_sets_returncode_before_wait": false,
+    "local_Condition_notify_waits_for_woken_count_without_timeout": true
+  },
+  "conclusions": {
+    "direct_matching_open_stall_fix_found": false,
+    "direct_matching_initialization_flush_PermissionError_fix_found": false,
+    "periodic_dump_crash_has_relevant_cpython_fix_candidate": true,
+    "python_bug_excluded": false,
+    "same_cause_confirmed": false,
+    "python_version_comparison_executed": false
+  },
+  "validation": {
+    "expected_release_mappings_checked": {
+      "gh-140815": [
+        "Python 3.13.10 final",
+        "Python 3.14.1 final"
+      ],
+      "gh-95782": [
+        "Python 3.11.9 final",
+        "Python 3.12.3 final"
+      ],
+      "gh-115059": [
+        "Python 3.11.9 final",
+        "Python 3.12.3 final"
+      ],
+      "gh-119506": [
+        "Python 3.11.10 final",
+        "Python 3.12.5 final"
+      ],
+      "gh-113009": [
+        "Python 3.11.8 final",
+        "Python 3.12.2 final"
+      ],
+      "gh-138720": [
+        "Python 3.15.0 alpha 1"
+      ],
+      "gh-140650": [
+        "Python 3.15.0 alpha 2"
+      ]
+    },
+    "source_hashes_match_prior_reinstall_record": true,
+    "source_files_compared": 168,
+    "source_hash_mismatches": [],
+    "source_tests_config_workflow_tracked_diff": "",
+    "checked_local_links": [
+      "raw/workflow-history-python-changelog-review-evidence-2026-10-11.json",
+      "workflow-history-post-reinstall-2026-10-11.md"
+    ]
+  }
+}

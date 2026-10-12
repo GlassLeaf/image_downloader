@@ -101,6 +101,7 @@ def exception_details(error: BaseException, iteration: int) -> dict:
                 "errno": getattr(current, "errno", None),
                 "winerror": getattr(current, "winerror", None),
                 "diagnostic_doserrno": getattr(current, "_diagnostic_doserrno", None),
+                "verified_sharing_violation": getattr(current, "_lock_sharing_violation", False),
             }
         )
         frames.extend(traceback.extract_tb(current.__traceback__))

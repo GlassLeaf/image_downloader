@@ -1,5 +1,8 @@
 # 共通ファイルロックの初期化修正とWindowsの公開処理
 
+本書は保護停止時の検証記録である。後続の[保護有効時の追試](workflow-history-lock-security-enabled-recheck-2026-10-12.md)では
+最終版にもopen滞留が再現し、保護有効時の暫定対策の完了条件は未達と判定した。
+
 ## 判定
 
 本記録は初期化flush競合とWindowsのopen停止への暫定対策を区別する。
@@ -179,3 +182,15 @@ python docs/investigations/quality-security-review-2026-10-06/probes/history_loc
 終了値だけで修正後の成功を判断せず、source別の成功数・failure_count・protocol_completedを確認する。
 [診断対照](probes/history_lock_open_diagnostics.py)はopenerを単発に置き換えて失敗後のCRT値を観測するもので、
 通常回帰テストや最終実装の効果判定には使わない。
+
+## 保護機能有効後の追試（2026-10-12）
+
+上記は保護停止時点の記録として保存する。ユーザーが保護機能を有効にした後の
+[追試記録](workflow-history-lock-security-enabled-recheck-2026-10-12.md)を追加した。
+最終版でも未作成条件3回中2回、既存空条件3回中3回でopen滞留が再現し、
+**保護有効時のopen対策の完了条件は未達**だった。同じ非空ファイルのopen-only、ロック回帰94件、
+通常の履歴テスト20回は成功した。初期化修正後の新たなwrite／flush例外は観測しなかった。
+
+再試行だけを除いた比較用コピーでは、追加診断で返る共有違反が計3件再現した。
+実際の共有禁止handleを使った機能対照で、最終版の同期・非同期の1回再試行が取得を回復することも確認した。
+この結果は戻らないopenへの効果保証とは区別する。本体ソースと当時のraw evidenceは変更していない。

@@ -121,6 +121,10 @@ def _remove_owned_temporary(path: Path, parent_state: os.stat_result, owned: os.
 
 
 def _publish_windows_lock_file(path: Path, parent_state: os.stat_result) -> None:
+    # Temporary Windows mitigation: publish a closed, nonempty file before open.
+    # Protection-enabled comparisons still stall, including on existing empty files;
+    # this cannot guarantee native I/O returns within the lock-wait timeout.
+    # See workflow-history-lock-stability-comparison-2026-10-12.md for the limits.
     descriptor: int | None = None
     stream: BinaryIO | None = None
     temporary: Path | None = None
@@ -309,6 +313,8 @@ class InterProcessFileLock:
         return self.path.open("a+b", buffering=0)
 
     def _open_for_acquisition(self) -> BinaryIO:
+        # Temporary recovery: retry a returned, verified sharing violation once.
+        # A native open that never returns cannot reach this recovery.
         try:
             return self._open_stream()
         except OSError as error:
@@ -324,6 +330,7 @@ class InterProcessFileLock:
         raise primary
 
     async def _open_for_acquisition_async(self) -> BinaryIO:
+        # Apply the same bounded sharing recovery as the synchronous path.
         try:
             return self._open_stream()
         except OSError as error:
@@ -406,6 +413,7 @@ class InterProcessFileLock:
 
     @staticmethod
     def _ensure_lock_byte(stream: BinaryIO) -> None:
+        # Initialize under the acquired lock, independently of the Windows mitigation.
         stream.seek(0, os.SEEK_END)
         if stream.tell() == 0:
             _write_lock_byte(stream)

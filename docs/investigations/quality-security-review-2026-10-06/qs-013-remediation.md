@@ -140,3 +140,136 @@ CIの12 skipはMailpit opt-inである。Ubuntu/macOSにはWindows専用テス�
 この既存テストとworkflow本体は今回変更していない。
 
 この確認記録と集計の追記では、本体コード・回帰テストを変更していない。
+
+## 別環境の調査を取り込んだ再確認（2026-10-11）
+
+調査資料だけの変更である`c4ef652`へfast-forwardし、
+[別環境との比較](workflow-history-cross-environment-recheck-2026-10-11.md)を追記した。
+最新v3全体は1685 passed / 17 skipped / 1 failed、coverage 88.19%、Ruff・mypyは成功した。
+QS-013と切り分けていた履歴の複数プロセステストは、この全体実行では成功した。
+1 failedは署名checkout試験のgit cloneで、sandbox由来の`.git`所有者と実行ユーザーの違いが原因だった。
+対象パスのみのプロセス限定safe.directoryで既存テストは成功した。グローバル設定は変更していない。
+
+別環境の3,000回の取得競合では排他外初期化flushの失敗が46件あり、初期化なしは0件だった。
+この環境の強い競合試験では初期化なしでも従来と同じopen停止を確認したため、
+「初期化除去だけで停止も解消できる」とは判定しない。flush競合とopen停止を別の経路として扱う。
+過去の試験結果・CI記録は保存し、今回の結果を合算して全体成功扱いにはしていない。
+本体コード・既存テストの追加変更はない。
+
+## システム再起動後の再確認（2026-10-11）
+
+ユーザーによる09:46 JSTのシステム再起動後に、同じHEAD・主要ツール版で
+[再調査](workflow-history-post-reboot-2026-10-11.md)を行った。
+v3全体は1686 passed / 17 skipped、失敗0、coverage 88.19%、Ruff・mypyも成功した。
+元の履歴テストは独立実行3回と全体実行で成功した。署名checkout試験も全体実行で成功した。
+前回のGit所有者チェックは再起動後も残るため、当該パスだけのプロセス限定safe.directoryを
+全体テストで指定した。この改善を再起動の効果とは扱わない。
+
+専用競合試験では、現行ソース・初期化なしの隔離コピーともopen停止が残った。
+native stackは再起動前と同じguard64.dll／NtCreateFile経路で、
+停止中にも別プロセスが同じbyte lockを取得・解放できた。
+システム再起動で停止が解消したとは判定せず、初期化flush競合とopen停止を分けた評価を維持する。
+本体・既存テスト・設定の168ファイルのSHA-256は一致し、保護設定やグローバルGit設定は変更していない。
+詳細は[再起動後の証拠](raw/workflow-history-post-reboot-evidence-2026-10-11.json)に保存した。
+
+## COMODOアンインストール後の再確認（2026-10-11）
+
+ユーザーによるCOMODOアンインストール後、同じHEAD・本体ソース・Windows build・主要ツール版で
+[再調査](workflow-history-post-uninstall-2026-10-11.md)を行った。
+COMODOのSecurity Center登録・確認対象プロセス・7つのdriver名と、新規Pythonへのguard64.dllのロードは見つからなかった。
+前回に停止した公開probeの4条件はすべて200ラウンドを完了し、従来のopen停止は今回未観測だった。
+有効のままの再起動では停止した結果と合わせ、COMODOを含む保護環境との相互作用が関与した根拠が強まった。
+Defenderの登録値と起動セッションも変わっているため、特定のCOMODO機能・DLLの単独の欠陥とは断定しない。
+
+一方、排他取得前の初期化flushは、5組・3,000回の現行コードの取得で258件失敗した。
+元の履歴テストはplugin自動読込み無効の20回中1件、通常条件の3回中1件が同じ経路で失敗した。
+初期化なしの完了した比較条件はエラー0だったが、1条件は最初の開始barrierで中断し、workerの停止箇所は未確定である。
+この中断は従来の製品open停止と分類せず、結果欠落を成功に数えない。追加の600回成功も元の中断を取り消さない。
+
+v3全体は1686 passed / 17 skipped、失敗0、coverage 88.19%、Ruff・mypyも成功した。
+全体の履歴テストと署名checkoutテストは成功した。当該`.git`パスだけのプロセス限定safe.directory条件を維持した。
+独立実行で確認した初期化失敗は残るため、アンインストールで既存問題がすべて解消したとは判定しない。
+本体・既存テスト・設定168ファイルは前回・今回の前後で一致し、保護設定やグローバルGit設定は変更していない。
+詳細は[アンインストール後の証拠](raw/workflow-history-post-uninstall-evidence-2026-10-11.json)に保存した。
+
+## 履歴ロックの回数・時間・競合条件を変えた比較（2026-10-11）
+
+COMODOアンインストール後の同じHEAD・本体ソース・Pythonで、
+[30〜800ラウンド、3／8 worker、保持0／1／25msの比較](workflow-history-open-variability-2026-10-11.md)を行った。
+主試験48条件のうち45条件が観測を完了した。保存できた97,332回のopenの最大は51.305msで、
+従来の長時間open停止は有効な観測で確認されなかった。中断した3条件と欠落結果を成功に数えない。
+初期化flushの失敗は完了条件353件・中断条件の生存worker70件あり、元の履歴テストも10回中1回同じ経路で失敗した。
+初期化なしの完了した13,110取得、open-onlyの72,000回はエラー0だった。
+
+中断条件は定期stack出力途中のアクセス違反を伴い、残るworkerのprobe内barrier待機も確認した。
+定期dumpあり／なし各2回の補助比較では、なしの2回は完了、ありの1回はアクセス違反・1回は完了した。
+観測方法とPython実装の関与を支持するが、native障害位置が未取得であり原因確定とはしない。
+この異常終了を、従来のguard64.dll／NtCreateFileを通る生存workerのopen停止と混同しない。
+
+以前に全workerの初期化を除いてもopen停止した結果は残り、flush失敗をopen停止の必要条件とは判定しない。
+初期化除去だけでopen停止も直るという保証を追加しない。今回はv3全体を再実行しておらず、
+前回の全体・CI結果はその時点の記録として保持する。Ruff・mypyは再確認して成功した。
+本体・既存テスト・設定168ファイルは前回・今回前後で一致し、QS-013の追加実装修正は行っていない。
+詳細は[今回の証拠](raw/workflow-history-open-variability-evidence-2026-10-11.json)と
+[実行別CSV](workflow-history-open-variability-runs-2026-10-11.csv)へ保存した。
+
+
+## COMODO新版再導入後の再確認（2026-10-11）
+
+以前の設定を復元したCOMODO Internet Security 2027 Premium 12.4.0.8170で、
+[再調査](workflow-history-post-reinstall-2026-10-11.md)を行った。
+旧版12.2.3.8026と同じguard64.dll／NtCreateFile経路のopen停止を現行・初期化なしで再現した。
+定期dumpなしのopen-only対照、さらに本体moduleをimportしない標準ライブラリ対照でも停止した。
+初期化flush失敗・製品のbyte lock・本体のmodule読込みは、このopen停止の必要条件ではない。
+ファイルの削除・新規作成やtruncate・書き直しを伴う競合openと、保護環境との相互作用が主要候補となる。
+特定のCOMODO componentの欠陥は、kernel待機情報がなく未確定である。
+
+元の履歴テストの独立10回と全体実行は成功した。
+v3全体は1685 passed／17 skipped／1 failed、coverage 88.19%だった。
+1件は調査用basetempの長さによるGit checkout-indexのFilename too longで、短いパスで同じテストは3回成功した。
+全体の失敗と単独再確認を別に保存し、全体1686成功を再確認したとは扱わない。
+Ruff・mypyは成功。本体・既存テスト・設定168ファイルは以前・今回前後で一致した。
+QS-013の追加実装修正や保護設定の変更は行っていない。
+詳細は[再導入後の証拠](raw/workflow-history-post-reinstall-evidence-2026-10-11.json)に保存した。
+
+
+## 保持ファイルのサイズ・openモードの追加比較（2026-10-11）
+
+[0／1バイトと3モードの比較](workflow-history-open-size-modes-2026-10-11.md)を追加した。
+3 worker・2,000ラウンド・3回、定期dumpなし、本体module・initializer・byte lockを使わない条件で、
+同じ1バイトを保持するr+b／a+bは各3回完了した。
+保持した0バイトはr+b／w+b／a+bの各3回が停止し、初期1バイトのw+bも0バイト化後に各3回停止した。
+毎回削除・作成するa+b、毎回1バイトへ書き直すr+bの対照も各3回停止した。
+
+0バイトの3モードで、以前と同じ_wopen→CreateFileW→guard64.dll→NtCreateFile系統のnative停止を確認した。
+保持した空ファイルの競合openも発生条件に含まれ、毎回の削除・書き直しは必要条件ではない。
+事前作成だけでの解消を保証せず、非空ファイルを更新せず保持する条件を対策候補として評価する。
+サイズ・事前書込み・検査履歴を完全には分離できず、COMODO内部の原因は未確定である。
+本体・既存テスト・設定168ファイルと過去資料を追記前に照合して保存した。
+この追加調査では本体修正、別Python版の比較、v3全体・CIの再実行は行っていない。
+詳細は[証拠JSON](raw/workflow-history-open-size-modes-evidence-2026-10-11.json)と
+[実行別CSV](workflow-history-open-size-modes-runs-2026-10-11.csv)に保存した。
+
+
+## open前後の待機とWindowsエラーの追加確認（2026-10-11）
+
+[待機位置・時間とエラー捕捉の比較](workflow-history-open-delay-errors-2026-10-11.md)を追加した。
+以前のopen-onlyには明示sleepがなく、今回open前・handle保持中・close後の10／100msを
+待機なしと比較した（8条件・各100ラウンド・2回、計112試行）。34試行完了、78試行open滞留。
+1バイトを保持するr+b/a+bは全設定で各2回完了した。
+空ファイルではhandle保持中の待機で一部完了したが、同じ設定の別試行で停止した。
+held-100を1,000ラウンドへ増やした追試もr+b 87、w+b 60、a+b 122ラウンドで停止し、
+約65秒のopen滞留を確認した。固定sleepによる安定した解消を支持しない。
+
+戻ったopen/closeの例外は主比較・追試・native-opener補助比較で0件。
+未復帰openの最終GetLastErrorは取得不能とし、barrier失敗やprocess終了コードと区別した。
+返る失敗の対照ではfile不在2、path不在3、access拒否5、sharing違反32を
+doserrnoとCreateFileW復帰直後のGetLastErrorで照合した。
+対照の5／32はどちらもPython errno 13となり、errnoだけで原因を区別しない。
+これらの対照値を、滞留したopenの原因コードとしては扱わない。
+
+本体・既存テスト・設定168ファイルと既存資料のhashを追記前に照合した。
+本体修正、v3全体・mypy・CIの再実行は今回行っていない。
+各試行・欠落worker・実測sleep・native stack・取得コードを
+[CSV](workflow-history-open-delay-errors-runs-2026-10-11.csv)と
+[証拠JSON](raw/workflow-history-open-delay-errors-evidence-2026-10-11.json)に保存した。

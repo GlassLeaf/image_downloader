@@ -3,6 +3,16 @@
 調査日：2026-10-11（JST）。対象コミット：`b5c1a453ab54563cb5af598ff3fa4a15762cf0a3`。
 調査開始時の作業ツリーはclean。本体・既存テスト・設定の変更は行っていない。
 
+後続の比較は[別環境の結果を踏まえた再調査](workflow-history-cross-environment-recheck-2026-10-11.md)にある。
+その後の[システム再起動後の調査](workflow-history-post-reboot-2026-10-11.md)でも、同じopen停止が再現した。
+[COMODOアンインストール後の調査](workflow-history-post-uninstall-2026-10-11.md)では、
+従来のopen停止は未観測だが、初期化flushのPermissionErrorが元の履歴テストにも残った。
+最新の[回数・時間・競合条件を変えた比較](workflow-history-open-variability-2026-10-11.md)でも、
+保存open 97,332回の最大は51.305msだった。初期化flushの実行ごとの揺らぎと、
+補助試験のアクセス違反・barrier待機を従来のopen停止とは別に記録した。
+以下は当時の観測記録である。後続の強い競合試験では初期化を省いてもopen停止が出たため、
+初期化除去だけでopen停止を解消できるとの保証には広げない。
+
 ## 結論
 
 初回調査で観測した停止の直接の原因は、履歴ロックファイルを開くWindowsの同期I/Oが戻らないことである。
@@ -300,3 +310,93 @@ Windowsの`msvcrt.locking`はEOFを越える範囲もlockできるため、1バ�
 初期化を省いた隔離コピーは600回すべて成功した。
 初期化失敗には COMODO の存在が必須ではないという追加根拠になる。
 open の長時間停止は別環境で再現せず、Windows のバージョンも異なるため、その内部原因の評価は維持する。
+
+## 最新HEADでの比較と評価の更新
+
+リモートの`c4ef652`へ更新して[再調査](workflow-history-cross-environment-recheck-2026-10-11.md)した。
+別環境の5組・計3,000回では現行初期化のflush失敗が46件、初期化なしは0件だった。
+COMODOを使用しないとの申告がある別環境でも全46件が初期化flushを示しており、
+この競合にはCOMODOの存在は必要ない。
+
+この環境では、同じ公開probeの未作成・空・事前作成・初期化なしの4条件すべてがopenで停止した。
+初期化なしの追加診断でも同じguard64.dll／NtCreateFile経路を確認し、
+その間に別プロセスが同じファイルのbyte lockを取得・解放できた。
+過去の初期化なし20回成功や事前作成6回成功は維持するが、ファイルをラウンドごとに
+削除・再作成する強い競合条件までの保証ではない。初期化除去はflushへの対策と評価し、
+open停止は独立したOS／保護環境との相互作用として調査・設計する必要がある。
+
+最新v3全体は1685 passed / 17 skipped / 1 failed、coverage 88.19%で、元の履歴テストは成功した。
+今回の1件はGitの所有者チェックによるcloneの失敗だった。当該パスだけのプロセス限定
+safe.directory指定で同じテストは成功し、履歴lockの問題とは区別した。
+詳細な制約・native stack・検証結果は
+[最新の証拠](raw/workflow-history-cross-environment-recheck-evidence-2026-10-11.json)に保存した。
+
+
+## 新版再導入後の追加確認
+
+以前の設定を復元したCOMODO 12.4.0.8170での
+[追加調査](workflow-history-post-reinstall-2026-10-11.md)でも、旧版と同じopen停止を再現した。
+初期化なしのnative stack、定期dumpなしのopen-only、製品moduleをimportしない標準ライブラリ対照で確認した。
+初期化flushを除くだけで停止まで解消する保証にはしない。
+毎ラウンドのファイル準備を伴う競合openと保護環境の相互作用が主要候補だが、kernel内の待機対象は未確定である。
+元の履歴テストは独立10回・全体実行で成功し、専用試験との揺らぎを維持して記録した。
+全体テストの1件は長い調査用パスによるGit checkout-indexの失敗で、短いパスで3回成功した。
+今回も本体・既存テスト・設定を変更していない。
+
+
+## 保持ファイルのサイズ・openモードの追加比較（2026-10-11）
+
+[0／1バイトと3モードの比較](workflow-history-open-size-modes-2026-10-11.md)を追加した。
+3 worker・2,000ラウンド・3回、定期dumpなし、本体module・initializer・byte lockを使わない条件で、
+同じ1バイトを保持するr+b／a+bは各3回完了した。
+保持した0バイトはr+b／w+b／a+bの各3回が停止し、初期1バイトのw+bも0バイト化後に各3回停止した。
+毎回削除・作成するa+b、毎回1バイトへ書き直すr+bの対照も各3回停止した。
+
+0バイトの3モードで、以前と同じ_wopen→CreateFileW→guard64.dll→NtCreateFile系統のnative停止を確認した。
+保持した空ファイルの競合openも発生条件に含まれ、毎回の削除・書き直しは必要条件ではない。
+事前作成だけでの解消を保証せず、非空ファイルを更新せず保持する条件を対策候補として評価する。
+サイズ・事前書込み・検査履歴を完全には分離できず、COMODO内部の原因は未確定である。
+本体・既存テスト・設定168ファイルと過去資料を追記前に照合して保存した。
+この追加調査では本体修正、別Python版の比較、v3全体・CIの再実行は行っていない。
+詳細は[証拠JSON](raw/workflow-history-open-size-modes-evidence-2026-10-11.json)と
+[実行別CSV](workflow-history-open-size-modes-runs-2026-10-11.csv)に保存した。
+
+
+## open前後の待機とWindowsエラーの追加確認（2026-10-11）
+
+[待機位置・時間とエラー捕捉の比較](workflow-history-open-delay-errors-2026-10-11.md)を追加した。
+以前のopen-onlyには明示sleepがなく、今回open前・handle保持中・close後の10／100msを
+待機なしと比較した（8条件・各100ラウンド・2回、計112試行）。34試行完了、78試行open滞留。
+1バイトを保持するr+b/a+bは全設定で各2回完了した。
+空ファイルではhandle保持中の待機で一部完了したが、同じ設定の別試行で停止した。
+held-100を1,000ラウンドへ増やした追試もr+b 87、w+b 60、a+b 122ラウンドで停止し、
+約65秒のopen滞留を確認した。固定sleepによる安定した解消を支持しない。
+
+戻ったopen/closeの例外は主比較・追試・native-opener補助比較で0件。
+未復帰openの最終GetLastErrorは取得不能とし、barrier失敗やprocess終了コードと区別した。
+返る失敗の対照ではfile不在2、path不在3、access拒否5、sharing違反32を
+doserrnoとCreateFileW復帰直後のGetLastErrorで照合した。
+対照の5／32はどちらもPython errno 13となり、errnoだけで原因を区別しない。
+これらの対照値を、滞留したopenの原因コードとしては扱わない。
+
+本体・既存テスト・設定168ファイルと既存資料のhashを追記前に照合した。
+本体修正、v3全体・mypy・CIの再実行は今回行っていない。
+各試行・欠落worker・実測sleep・native stack・取得コードを
+[CSV](workflow-history-open-delay-errors-runs-2026-10-11.csv)と
+[証拠JSON](raw/workflow-history-open-delay-errors-evidence-2026-10-11.json)に保存した。
+
+
+## 新版の機能一時停止後の再比較（2026-10-12）
+
+[再比較記録](workflow-history-security-paused-recheck-2026-10-12.md)を追加した。
+ユーザーがCOMODO 12.4.0.8170の停止可能な機能をすべて一時停止した条件で、同じboot・版・本体とprobeを維持した。
+有効時78/112試行が滞留した待機時間比較は112/112完了・33,600回成功、
+有効時18/24試行が滞留した2,000ラウンド比較も24/24完了・144,000回成功だった。
+guard64.dllのloadと4 driverのRunningは残り、Defenderのraw登録状態は変化した。
+DLLの存在だけでは停止を説明できず、機能切替に伴う保護環境の関与を支持するが、個別機能の欠陥は未確定である。
+
+初期化flushのPermissionErrorは未作成・空条件で各34件、短い現行初期化対照3回で計25件再現した。
+元の履歴テストは6/10成功・4/10初期化flush失敗で、open内の生存停止とは区別した。
+初期化なしの対照とopen-only対照は完了し、flush対策とopen対策を分ける必要性を今回も確認した。
+本体・既存テスト・設定168ファイルと旧資料115ファイルを追記前に照合し、
+[JSON](raw/workflow-history-security-paused-recheck-evidence-2026-10-12.json)・[CSV](workflow-history-security-paused-recheck-runs-2026-10-12.csv)へ保存した。
