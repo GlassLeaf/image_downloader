@@ -275,8 +275,22 @@ def test_close_correction_is_independent_of_history_failure(tmp_path):
 
 
 @pytest.mark.parametrize("timeout", [False, True])
-def test_cancel_or_timeout_distinguishes_interrupted_and_not_started(tmp_path, timeout):
+def test_cancel_or_timeout_distinguishes_interrupted_and_not_started(tmp_path, timeout, monkeypatch):
     started = asyncio.Event()
+    retry_deadline = None
+    create_timeout = asyncio.timeout
+
+    def controlled_timeout(delay):
+        nonlocal retry_deadline
+        if delay == 0.2:
+            # Preparation I/O may exceed 0.2s on CI. Arm the real deadline after inspect blocks.
+            assert retry_deadline is None
+            retry_deadline = create_timeout(None)
+            return retry_deadline
+        return create_timeout(delay)
+
+    if timeout:
+        monkeypatch.setattr(asyncio, "timeout", controlled_timeout)
 
     class Blocked(Gallery):
         async def inspect(self, url, context):
@@ -293,11 +307,21 @@ def test_cancel_or_timeout_distinguishes_interrupted_and_not_started(tmp_path, t
             task = asyncio.create_task(
                 service.workflow(FEED, workflow_retry_delay=0, workflow_retry_timeout=0.2 if timeout else None)
             )
-            await asyncio.wait_for(started.wait(), 5)
-            if not timeout:
-                task.cancel()
-            with pytest.raises(WorkflowRetryTimeoutError if timeout else asyncio.CancelledError) as captured:
-                await task
+            try:
+                await asyncio.wait_for(started.wait(), 5)
+                if timeout:
+                    assert retry_deadline is not None
+                    retry_deadline.reschedule(asyncio.get_running_loop().time())
+                else:
+                    task.cancel()
+                with pytest.raises(WorkflowRetryTimeoutError if timeout else asyncio.CancelledError) as captured:
+                    await asyncio.wait_for(task, 5)
+            finally:
+                if not task.done():
+                    task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
+            if timeout:
+                assert retry_deadline.expired()
             result = captured.value.workflow_result
             records = events(result)
             assert any(r["event"] == "url_interrupted" and r["url"] == A.url for r in records)
