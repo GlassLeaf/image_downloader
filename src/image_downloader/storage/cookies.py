@@ -15,6 +15,7 @@ from cryptography.exceptions import InvalidTag
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 
+from .._numeric import _is_finite
 from ..exceptions import AuthenticationError
 from .filesystem import FileSystem, atomic_write
 from .interprocess_lock import InterProcessFileLock
@@ -53,7 +54,7 @@ class CookieStore:
             return jar
         except AuthenticationError:
             raise
-        except (OSError, ValueError, TypeError, json.JSONDecodeError, InvalidTag) as exc:
+        except (OSError, ValueError, TypeError, RecursionError, json.JSONDecodeError, InvalidTag) as exc:
             raise AuthenticationError("encrypted cookie file cannot be decrypted") from exc
 
     def save(self, jar: CookieJar) -> None:
@@ -89,10 +90,9 @@ class CookieStore:
             raise AuthenticationError("cookie import passphrase is required")
         try:
             source = json.loads(path.read_text(encoding="utf-8"))
-            if source.get("kind") != "image-downloader-cookie-export" or source.get("kdf") != "scrypt":
-                raise ValueError("unsupported cookie export")
-            imported = _deserialize(_decrypt(source, _derive(passphrase, _unb64(str(source["salt"])))).decode("utf-8"))
-        except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError, InvalidTag) as exc:
+            salt = _export_salt(source)
+            imported = _deserialize(_decrypt(source, _derive(passphrase, salt)).decode("utf-8"))
+        except (OSError, ValueError, TypeError, RecursionError, json.JSONDecodeError, InvalidTag) as exc:
             raise AuthenticationError("cookie import cannot be decrypted") from exc
         with self._lock():
             try:
@@ -206,10 +206,40 @@ def _encrypt(value: bytes, key: bytes | None) -> dict[str, object]:
     }
 
 
-def _decrypt(value: dict[str, object], key: bytes) -> bytes:
-    if value.get("format") != _FORMAT or value.get("cipher") != "AES-256-GCM":
+def _object(value: object) -> dict[str, object]:
+    if not isinstance(value, dict):
+        raise ValueError("cookie data must be an object")
+    return value
+
+
+def _binary_field(value: dict[str, object], name: str) -> bytes:
+    encoded = value.get(name)
+    if not isinstance(encoded, str):
+        raise ValueError("invalid cookie binary field")
+    return _unb64(encoded)
+
+
+def _export_salt(value: object) -> bytes:
+    container = _object(value)
+    if container.get("kind") != "image-downloader-cookie-export" or container.get("kdf") != "scrypt":
+        raise ValueError("unsupported cookie export")
+    salt = _binary_field(container, "salt")
+    if len(salt) != 16:
+        raise ValueError("invalid cookie export salt")
+    return salt
+
+
+def _decrypt(value: object, key: bytes) -> bytes:
+    container = _object(value)
+    if type(container.get("format")) is not int or container.get("format") != _FORMAT:
         raise ValueError("unsupported cookie format")
-    return AESGCM(key).decrypt(_unb64(str(value["nonce"])), _unb64(str(value["ciphertext"])), None)
+    if container.get("cipher") != "AES-256-GCM":
+        raise ValueError("unsupported cookie cipher")
+    nonce = _binary_field(container, "nonce")
+    ciphertext = _binary_field(container, "ciphertext")
+    if len(nonce) != 12 or len(ciphertext) < 16:
+        raise ValueError("invalid cookie encrypted data")
+    return AESGCM(key).decrypt(nonce, ciphertext, None)
 
 
 def _derive(passphrase: str, salt: bytes) -> bytes:
@@ -256,17 +286,70 @@ def _cookie_record(cookie: Cookie) -> dict[str, object]:
     }
 
 
+def _string_field(record: dict[str, object], name: str, default: str | None = None) -> str:
+    value = record.get(name, default)
+    if not isinstance(value, str):
+        raise ValueError("invalid cookie string field")
+    value.encode("utf-8")
+    return value
+
+
+def _bool_field(record: dict[str, object], name: str) -> bool:
+    value = record.get(name, False)
+    if not isinstance(value, bool):
+        raise ValueError("invalid cookie boolean field")
+    return value
+
+
+def _is_json_value(value: object) -> bool:
+    pending = [(value, False)]
+    ancestors: set[int] = set()
+    while pending:
+        item, leaving = pending.pop()
+        if leaving:
+            ancestors.remove(id(item))
+        elif isinstance(item, (dict, list)):
+            if id(item) in ancestors:
+                return False
+            if isinstance(item, dict) and any(not isinstance(key, str) for key in item):
+                return False
+            if isinstance(item, dict):
+                for key in item:
+                    key.encode("utf-8")
+            ancestors.add(id(item))
+            pending.append((item, True))
+            pending.extend((child, False) for child in (item.values() if isinstance(item, dict) else item))
+        elif isinstance(item, str):
+            item.encode("utf-8")
+        elif item is None or isinstance(item, (bool, int)):
+            continue
+        elif not isinstance(item, float) or not _is_finite(item):
+            return False
+    return True
+
+
 def _cookie_from_record(record: dict[str, object]) -> Cookie:
+    value = record.get("value")
+    if "value" not in record or (value is not None and not isinstance(value, str)):
+        raise ValueError("invalid cookie value")
+    if value is not None:
+        value.encode("utf-8")
+    expires = record.get("expires")
+    if expires is not None and (type(expires) is not int or not _is_finite(expires)):
+        raise ValueError("invalid cookie expiry")
+    rest = record.get("rest", {})
+    if not isinstance(rest, dict) or not _is_json_value(rest):
+        raise ValueError("invalid cookie attributes")
     return _cookie(
-        str(record["name"]),
-        str(record["value"]),
-        str(record["domain"]),
-        path=str(record.get("path", "/")),
-        secure=bool(record.get("secure", False)),
-        expires=cast(int | None, record.get("expires")),
-        rest=cast(dict[str, object], record.get("rest", {})),
-        domain_specified=bool(record.get("domain_specified", False)),
-        domain_initial_dot=bool(record.get("domain_initial_dot", False)),
+        _string_field(record, "name"),
+        value,
+        _string_field(record, "domain"),
+        path=_string_field(record, "path", "/"),
+        secure=_bool_field(record, "secure"),
+        expires=expires,
+        rest=rest,
+        domain_specified=_bool_field(record, "domain_specified"),
+        domain_initial_dot=_bool_field(record, "domain_initial_dot"),
     )
 
 
@@ -287,7 +370,7 @@ def _resolved_cookie(incoming: dict[str, object], latest: dict[str, object] | No
 
 def _cookie(
     name: str,
-    value: str,
+    value: str | None,
     domain: str,
     *,
     path: str = "/",
