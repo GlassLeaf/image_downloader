@@ -16,6 +16,7 @@ from pathlib import Path
 REPOSITORY = Path(__file__).resolve().parents[1]
 FORBIDDEN_PARTS = {"__pycache__", ".local", ".runtime", "profiles", "image_downloader.und"}
 ROOT_MODULES = {
+    "_numeric.py",
     "__init__.py",
     "__main__.py",
     "cli.py",

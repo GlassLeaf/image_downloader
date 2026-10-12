@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import math
 import re
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -11,6 +10,7 @@ from typing import Protocol
 
 from pydantic import ValidationError
 
+from .._numeric import _is_finite
 from ..configuration.hosts import normalize_host
 from ..configuration.models import Output, PluginDownloadPolicy
 from ..diagnostics import argument_error, diagnostic_for, validation_diagnostic
@@ -192,7 +192,7 @@ def _check_values(args: argparse.Namespace, command: str) -> None:
         ("workflow_retry_timeout", True),
     ):
         value = getattr(args, name, None)
-        if value is not None and (not math.isfinite(value) or (value <= 0 if positive else value < 0)):
+        if value is not None and (not _is_finite(value) or (value <= 0 if positive else value < 0)):
             option = "--" + name.replace("_", "-")
             condition = "positive" if positive else "non-negative"
             raise argument_error(f"{option} must be {condition} and finite", "invalid_value", option=option)
