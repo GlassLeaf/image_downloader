@@ -7,7 +7,6 @@ import builtins
 import ctypes
 import errno
 import importlib
-import math
 import os
 import stat
 import sys
@@ -19,6 +18,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import BinaryIO, Protocol, cast
 
+from .._numeric import _is_finite
 from ..exceptions import InterProcessLockError
 
 
@@ -235,7 +235,7 @@ class InterProcessFileLock:
     POLL_INTERVAL_SECONDS = 0.1
 
     def __init__(self, path: Path, *, timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS) -> None:
-        if not math.isfinite(timeout_seconds) or timeout_seconds < 0:
+        if not _is_finite(timeout_seconds) or timeout_seconds < 0:
             raise ValueError("lock timeout must be finite and nonnegative")
         self.path = path
         self.timeout_seconds = timeout_seconds

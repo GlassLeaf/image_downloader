@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import math
 import sys
 from contextlib import nullcontext, redirect_stdout
 from dataclasses import asdict, replace
@@ -14,6 +13,7 @@ from pathlib import Path
 from typing import Literal, cast
 from urllib.parse import urlparse
 
+from .._numeric import _is_finite
 from ..application.additional_files import additional_file_payload
 from ..application.composer import RuntimeComposer
 from ..application.workflow_recording import _settle, revise_result
@@ -205,9 +205,9 @@ class WorkflowCommandHandler:
         retries = args.workflow_retries if args.workflow_retries is not None else 1
         delay = args.workflow_retry_delay if args.workflow_retry_delay is not None else 600.0
         timeout = args.workflow_retry_timeout
-        if retries < 0 or not math.isfinite(delay) or delay < 0:
+        if retries < 0 or not _is_finite(delay) or delay < 0:
             raise ConfigurationError("workflow retries and delay must be non-negative and finite")
-        if timeout is not None and (not math.isfinite(timeout) or timeout <= 0):
+        if timeout is not None and (not _is_finite(timeout) or timeout <= 0):
             raise ConfigurationError("workflow retry timeout must be positive and finite")
         if args.image_format is not None and args.force_image_format is not None:
             raise ConfigurationError("--image-format cannot be combined with --force-image-format")

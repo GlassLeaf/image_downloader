@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import math
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping, Sequence
 from contextlib import asynccontextmanager
@@ -13,6 +12,7 @@ from pathlib import Path
 from typing import Any, Literal, NoReturn, TypeVar, cast
 from urllib.parse import urlparse
 
+from .._numeric import _is_finite
 from ..configuration.hosts import normalize_host, site_file_name
 from ..configuration.models import AppConfig, ImageFormat, PluginDownloadPolicy
 from ..credentials.plugin_secrets import RuntimeSecrets
@@ -806,7 +806,7 @@ class DownloadService:
         ):
             if value is None and positive:
                 continue
-            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not _is_finite(value):
                 raise ValueError(f"{name} must be a finite number")
             if value < 0 or (positive and value == 0):
                 raise ValueError(f"{name} is outside its allowed range")

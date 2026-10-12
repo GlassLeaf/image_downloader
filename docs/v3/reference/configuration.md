@@ -112,6 +112,10 @@ mapping は再帰 merge、scalar/list/`null` は高い layer が置換する。I
 | `plugin_settings.<id>.download_policy.preserve_image_start_order` | strict boolean; `true` なら chapter/image job の開始を manifest 順に直列化する。default `false` |
 | `fallback.generic_html.enabled` | strict boolean; `true` |
 
+`finite number`の設定では、float変換限界を超える巨大整数も、項目名・設定層を持つ既存の
+`ConfigurationError`として拒否する。bool・文字列・NaN・無限値、正数／非負数の既存条件と
+既定値は維持し、実用的な数値上限や新しい設定項目は追加しない。入力値を診断へ出力しない。
+
 `NotificationCategory` の全 literal は `fetch_error`、`process_error`、`save_error`、`auth_error`、`parse_error`、`plugin_error`、`config_error`、`storage_error`、`runtime_error`、`update_error`、`auth_cookie_store_access`、`auth_credential_store_access`、`auth_login_success`、`auth_session_refresh_success`、`download_success`、`download_partial_success` である。category が設定可能であることと core が自動発火することは同義ではない。[observability explanation](../explanation/observability.md) を参照する。
 
 <a id="config-storage-layout"></a>

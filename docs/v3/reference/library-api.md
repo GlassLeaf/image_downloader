@@ -54,6 +54,8 @@ Result objects preserve exact URLs for embedded callers; CLI serialization appli
 `workflow_retries=1`, `workflow_retry_delay=600.0`, and `workflow_retry_timeout=None` control retry rounds.
 Retries must be a non-negative integer; delay must be finite and non-negative; an optional timeout must be
 finite and positive. Invalid arguments raise `ValueError` before checks/downloads. No persistent settings are added.
+Integers beyond float conversion range also raise `ValueError` before the operation starts; no practical maximum
+or additional configuration is introduced.
 Retry refreshes the feed and selected manifests, then downloads failed/unprocessed/new/changed images.
 Successful and skipped outcomes are reused when their `ImageResource` fields are unchanged; manifest revision
 alone does not invalidate them. This is invocation-local: the next call resumes at URL granularity.

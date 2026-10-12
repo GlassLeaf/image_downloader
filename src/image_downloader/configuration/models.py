@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from math import isfinite
 from pathlib import Path
 from typing import Annotated, Any, Literal, cast
 
@@ -20,6 +19,7 @@ from pydantic import (
     model_validator,
 )
 
+from .._numeric import _is_finite
 from ..immutable import freeze_json
 from ..output.format_tokens import has_invalid_plugin_token
 from ..privacy.sensitive_values import is_sensitive_field_name
@@ -27,7 +27,7 @@ from ..privacy.sensitive_values import is_sensitive_field_name
 
 def _strict_finite_number(value: object) -> float | int:
     """Accept YAML numeric scalars, but never bools, strings, NaN, or infinity."""
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or not isfinite(value):
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not _is_finite(value):
         raise ValueError("must be a finite number")
     return value
 
