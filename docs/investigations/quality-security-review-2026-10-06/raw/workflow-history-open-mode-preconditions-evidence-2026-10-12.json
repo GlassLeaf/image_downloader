@@ -1,0 +1,3250 @@
+{
+  "recorded_at": "2026-10-12T00:46:33.105436+09:00",
+  "python": "3.11.4 (tags/v3.11.4:d2340ef, Jun  7 2023, 05:45:37) [MSC v.1934 64 bit (AMD64)]",
+  "executable": "C:\\Program Files\\Python311\\python.exe",
+  "platform": "Windows-10-10.0.19045-SP0",
+  "execution_scope": "current command environment; sequential child cases; no concurrent workers",
+  "child_deadline_seconds": 10,
+  "probe_sha256": "529efcf970e48b01d08b489596422f8d33545d34726816ea9575462bd0ad3a2d",
+  "commit": "c4ef652bed1d3fa45813b1e2e790b327b9e82b68",
+  "archives": [
+    {
+      "path": "docs\\investigations\\quality-security-review-2026-10-06\\raw\\workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "sha256_before": "5c0554c7b141c240bd6f602c174d55dcaa44393989c1509648cde28e1e8b3db2",
+      "sha256_after": "5c0554c7b141c240bd6f602c174d55dcaa44393989c1509648cde28e1e8b3db2",
+      "unchanged": true
+    },
+    {
+      "path": "docs\\investigations\\quality-security-review-2026-10-06\\raw\\workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "sha256_before": "cfd286ac55facfebf79be810007e0c04ac61c7beb8e1cf7656eded670582d768",
+      "sha256_after": "cfd286ac55facfebf79be810007e0c04ac61c7beb8e1cf7656eded670582d768",
+      "unchanged": true
+    }
+  ],
+  "archive_source_checks": [
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "path": "docs/investigations/quality-security-review-2026-10-06/probes/history_open_size_modes.py",
+      "expected_sha256": "227a7978ad9842c8e5ce723fc5251e5f5918785bd09c1020607291c333e7be6f",
+      "current_sha256": "227a7978ad9842c8e5ce723fc5251e5f5918785bd09c1020607291c333e7be6f",
+      "matches": true
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "path": ".runtime/history-size-modes-20261011/run_observation.py",
+      "expected_sha256": "eeb5435b8ce8c48f4e0aba70b2ad2ff8a8e699d52e05c9d3ef6d1bac92404b80",
+      "current_sha256": "eeb5435b8ce8c48f4e0aba70b2ad2ff8a8e699d52e05c9d3ef6d1bac92404b80",
+      "matches": true
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "path": ".runtime/history-size-modes-20261011/summarize.py",
+      "expected_sha256": "d875f2a38d863ba7441f30ffd37f46a60056d040a005a95b7e919a98c29f1670",
+      "current_sha256": "d875f2a38d863ba7441f30ffd37f46a60056d040a005a95b7e919a98c29f1670",
+      "matches": true
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "path": "docs/investigations/quality-security-review-2026-10-06/probes/history_open_delays.py",
+      "expected_sha256": "a639d8e3d602cbf6d0cd37de7e2a1e9b916b6598ebb9d6c7d08b0d483b8762d1",
+      "current_sha256": "a639d8e3d602cbf6d0cd37de7e2a1e9b916b6598ebb9d6c7d08b0d483b8762d1",
+      "matches": true
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "path": "docs/investigations/quality-security-review-2026-10-06/probes/history_open_size_modes.py",
+      "expected_sha256": "227a7978ad9842c8e5ce723fc5251e5f5918785bd09c1020607291c333e7be6f",
+      "current_sha256": "227a7978ad9842c8e5ce723fc5251e5f5918785bd09c1020607291c333e7be6f",
+      "matches": true
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "path": "docs/investigations/quality-security-review-2026-10-06/probes/history_lock_variability.py",
+      "expected_sha256": "a7757335345964ff076cd5fc6f062dc5369ec198a6aaf778a89dacec752fa619",
+      "current_sha256": "a7757335345964ff076cd5fc6f062dc5369ec198a6aaf778a89dacec752fa619",
+      "matches": true
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "path": "docs/investigations/quality-security-review-2026-10-06/probes/history_open_error_capture.c",
+      "expected_sha256": "505a114d13874a8f7e68b98ed59036563b813c747fa82bfce77993027c286a83",
+      "current_sha256": "505a114d13874a8f7e68b98ed59036563b813c747fa82bfce77993027c286a83",
+      "matches": true
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "path": "docs/investigations/quality-security-review-2026-10-06/probes/history_open_error_controls.py",
+      "expected_sha256": "4e3965f6a3b9f09ef5a55295f3de8807ddb52b249e377a782418128bab84d6fd",
+      "current_sha256": "4e3965f6a3b9f09ef5a55295f3de8807ddb52b249e377a782418128bab84d6fd",
+      "matches": true
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "path": ".runtime/history-open-delays-20261011/run_observation.py",
+      "expected_sha256": "2d714d37e3eaa8f88b10e89333bb7900fbd1c3b9378c1e21ad61058f49083dc2",
+      "current_sha256": "2d714d37e3eaa8f88b10e89333bb7900fbd1c3b9378c1e21ad61058f49083dc2",
+      "matches": true
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "path": ".runtime/history-open-delays-20261011/run_supplement.py",
+      "expected_sha256": "bb19af0dd40d6c9cf8eb6e6c9a39e93c73073d3694c76b037c681ae14608f75c",
+      "current_sha256": "bb19af0dd40d6c9cf8eb6e6c9a39e93c73073d3694c76b037c681ae14608f75c",
+      "matches": true
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "path": ".runtime/history-open-delays-20261011/capture_live.py",
+      "expected_sha256": "48c968a436d86031ac3924d7dfa2f789d6ba70dfe2b14da067a0cd915ae4837c",
+      "current_sha256": "48c968a436d86031ac3924d7dfa2f789d6ba70dfe2b14da067a0cd915ae4837c",
+      "matches": true
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "path": ".runtime/history-open-delays-20261011/analyze.py",
+      "expected_sha256": "0e3f61d7742e6c36798fb388ff62bf7e9304177cd5acf387c2a4f8c02a9c5276",
+      "current_sha256": "0e3f61d7742e6c36798fb388ff62bf7e9304177cd5acf387c2a4f8c02a9c5276",
+      "matches": true
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "path": ".runtime/history-open-delays-20261011/assemble_evidence.py",
+      "expected_sha256": "087b75aa2ddea41625725199bd7cfc6aa6a3ea7b6aac0b7e02cd364943e85e3e",
+      "current_sha256": "087b75aa2ddea41625725199bd7cfc6aa6a3ea7b6aac0b7e02cd364943e85e3e",
+      "matches": true
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "path": ".runtime/history-open-delays-20261011/build_native.cmd",
+      "expected_sha256": "3292637be1a6bea8e171b6cc8bacef9239196576d7811442c7bf8f3ec285f778",
+      "current_sha256": "3292637be1a6bea8e171b6cc8bacef9239196576d7811442c7bf8f3ec285f778",
+      "matches": true
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "path": ".runtime/qs013-verification/native_stack.py",
+      "expected_sha256": "6be877bb683fa39e1aafcbfad998a5676a4ade3903bcdfab25c18ce59ced2b8a",
+      "current_sha256": "6be877bb683fa39e1aafcbfad998a5676a4ade3903bcdfab25c18ce59ced2b8a",
+      "matches": true
+    }
+  ],
+  "archived_trials": [
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "group": "size-modes",
+      "label": "repeat-01-stable-0byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 3377699721576011,
+        "mtime_ns": 1791721755359189400
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "group": "size-modes",
+      "label": "repeat-01-stable-0byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 3096224744865382,
+        "mtime_ns": 1791721821019346600
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "group": "size-modes",
+      "label": "repeat-01-stable-0byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 7318349395525257,
+        "mtime_ns": 1791721886809895800
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "group": "size-modes",
+      "label": "repeat-01-stable-1byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 2533274791444147,
+        "mtime_ns": 1791721952715254800
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "group": "size-modes",
+      "label": "repeat-01-stable-1byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 2533274791444163,
+        "mtime_ns": 1791721955344555200
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "group": "size-modes",
+      "label": "repeat-01-stable-1byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 2533274791444180,
+        "mtime_ns": 1791722021026602300
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "group": "size-modes",
+      "label": "repeat-01-control-append-created",
+      "mode": "a+b",
+      "lifecycle": "missing",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": false
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "group": "size-modes",
+      "label": "repeat-01-control-readwrite-rewritten",
+      "mode": "r+b",
+      "lifecycle": "seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 3377699721576181,
+        "mtime_ns": 1791722089088951500
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "group": "size-modes",
+      "label": "repeat-02-control-readwrite-rewritten",
+      "mode": "r+b",
+      "lifecycle": "seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 2533274791444269,
+        "mtime_ns": 1791722154783926300
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "group": "size-modes",
+      "label": "repeat-02-control-append-created",
+      "mode": "a+b",
+      "lifecycle": "missing",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": false
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "group": "size-modes",
+      "label": "repeat-02-stable-1byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 2533274791444329,
+        "mtime_ns": 1791722286175417900
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "group": "size-modes",
+      "label": "repeat-02-stable-1byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 2251799814733688,
+        "mtime_ns": 1791722288544398100
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "group": "size-modes",
+      "label": "repeat-02-stable-1byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 2251799814733738,
+        "mtime_ns": 1791722354466528800
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "group": "size-modes",
+      "label": "repeat-02-stable-0byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 2251799814733753,
+        "mtime_ns": 1791722357184240100
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "group": "size-modes",
+      "label": "repeat-02-stable-0byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 2251799814733826,
+        "mtime_ns": 1791722422849668300
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "group": "size-modes",
+      "label": "repeat-02-stable-0byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 2533274791444495,
+        "mtime_ns": 1791722488465877800
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "group": "size-modes",
+      "label": "repeat-03-stable-0byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 2251799814733854,
+        "mtime_ns": 1791722554355585300
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "group": "size-modes",
+      "label": "repeat-03-stable-1byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 2533274791444524,
+        "mtime_ns": 1791722620059097600
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "group": "size-modes",
+      "label": "repeat-03-stable-1byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 2533274791444539,
+        "mtime_ns": 1791722622429410300
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "group": "size-modes",
+      "label": "repeat-03-stable-1byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884601959,
+        "mtime_ns": 1791722688113422400
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "group": "size-modes",
+      "label": "repeat-03-control-append-created",
+      "mode": "a+b",
+      "lifecycle": "missing",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": false
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "group": "size-modes",
+      "label": "repeat-03-control-readwrite-rewritten",
+      "mode": "r+b",
+      "lifecycle": "seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884602041,
+        "mtime_ns": 1791722756850110600
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "group": "size-modes",
+      "label": "repeat-03-stable-0byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 11540474045630100,
+        "mtime_ns": 1791722822611261600
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-size-modes-evidence-2026-10-11.json",
+      "group": "size-modes",
+      "label": "repeat-03-stable-0byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 7318349394970931,
+        "mtime_ns": 1791722888213668600
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-zero-stable-0byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884603251,
+        "mtime_ns": 1791725338628018500
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-zero-stable-0byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 14636698789239147,
+        "mtime_ns": 1791725354438632200
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-zero-stable-0byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884603269,
+        "mtime_ns": 1791725370083303800
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-zero-stable-1byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884603285,
+        "mtime_ns": 1791725386096504900
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-zero-stable-1byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884603302,
+        "mtime_ns": 1791725386865974600
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-zero-stable-1byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884603318,
+        "mtime_ns": 1791725402550740200
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-zero-control-append-created",
+      "mode": "a+b",
+      "lifecycle": "missing",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": false
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-zero-control-readwrite-rewritten",
+      "mode": "r+b",
+      "lifecycle": "seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1970324838024663,
+        "mtime_ns": 1791725418953041300
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-pre-10-stable-0byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1970324838024679,
+        "mtime_ns": 1791725434816127200
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-pre-10-stable-0byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1970324838024696,
+        "mtime_ns": 1791725451006771100
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-pre-10-stable-0byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884603400,
+        "mtime_ns": 1791725466987951200
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-pre-10-stable-1byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884603416,
+        "mtime_ns": 1791725483151183500
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-pre-10-stable-1byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884603433,
+        "mtime_ns": 1791725485220016400
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-pre-10-stable-1byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1688849861314106,
+        "mtime_ns": 1791725501137148400
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-pre-10-control-append-created",
+      "mode": "a+b",
+      "lifecycle": "missing",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": false
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-pre-10-control-readwrite-rewritten",
+      "mode": "r+b",
+      "lifecycle": "seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1970324838024795,
+        "mtime_ns": 1791725519270182500
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-pre-100-stable-0byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1970324838024811,
+        "mtime_ns": 1791725535782256100
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-pre-100-stable-0byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884603515,
+        "mtime_ns": 1791725553536037500
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-pre-100-stable-0byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884603531,
+        "mtime_ns": 1791725570368682500
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-pre-100-stable-1byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884603547,
+        "mtime_ns": 1791725589521941000
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-pre-100-stable-1byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884603564,
+        "mtime_ns": 1791725600459974100
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-pre-100-stable-1byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884603581,
+        "mtime_ns": 1791725617007111200
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-pre-100-control-append-created",
+      "mode": "a+b",
+      "lifecycle": "missing",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": false
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-pre-100-control-readwrite-rewritten",
+      "mode": "r+b",
+      "lifecycle": "seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1688849861314276,
+        "mtime_ns": 1791725646228060900
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-held-10-stable-0byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884603636,
+        "mtime_ns": 1791725663366900400
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-held-10-stable-0byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1688849861314309,
+        "mtime_ns": 1791725680090322800
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-held-10-stable-0byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884603669,
+        "mtime_ns": 1791725695978464700
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-held-10-stable-1byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884603687,
+        "mtime_ns": 1791725698128717400
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-held-10-stable-1byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884603705,
+        "mtime_ns": 1791725700378905500
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-held-10-stable-1byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884603721,
+        "mtime_ns": 1791725717065116200
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-held-10-control-append-created",
+      "mode": "a+b",
+      "lifecycle": "missing",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": false
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-held-10-control-readwrite-rewritten",
+      "mode": "r+b",
+      "lifecycle": "seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884603754,
+        "mtime_ns": 1791725736097978300
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-held-100-stable-0byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884603770,
+        "mtime_ns": 1791725753943899000
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-held-100-stable-0byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884603787,
+        "mtime_ns": 1791725764932637500
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-held-100-stable-0byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884603804,
+        "mtime_ns": 1791725776108008500
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-held-100-stable-1byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884603821,
+        "mtime_ns": 1791725787247521200
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-held-100-stable-1byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884603838,
+        "mtime_ns": 1791725798363678500
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-held-100-stable-1byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884603854,
+        "mtime_ns": 1791725814398739000
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-held-100-control-append-created",
+      "mode": "a+b",
+      "lifecycle": "missing",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": false
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-held-100-control-readwrite-rewritten",
+      "mode": "r+b",
+      "lifecycle": "seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884603888,
+        "mtime_ns": 1791725843073356000
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-closed-10-stable-0byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884603904,
+        "mtime_ns": 1791725867463205100
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-closed-10-stable-0byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884603920,
+        "mtime_ns": 1791725883345662800
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-closed-10-stable-0byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1688849861314592,
+        "mtime_ns": 1791725899175555200
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-closed-10-stable-1byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884603952,
+        "mtime_ns": 1791725915042275000
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-closed-10-stable-1byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884603969,
+        "mtime_ns": 1791725917154212900
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-closed-10-stable-1byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884603986,
+        "mtime_ns": 1791725933616706200
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-closed-10-control-append-created",
+      "mode": "a+b",
+      "lifecycle": "missing",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": false
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-closed-10-control-readwrite-rewritten",
+      "mode": "r+b",
+      "lifecycle": "seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884604018,
+        "mtime_ns": 1791725951884385000
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-closed-100-stable-0byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 3659174698288842,
+        "mtime_ns": 1791725970166679700
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-closed-100-stable-0byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884604059,
+        "mtime_ns": 1791725986690501400
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-closed-100-stable-0byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884604075,
+        "mtime_ns": 1791726002788166300
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-closed-100-stable-1byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884604091,
+        "mtime_ns": 1791726019871092700
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-closed-100-stable-1byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884604108,
+        "mtime_ns": 1791726030966407300
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-closed-100-stable-1byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884604124,
+        "mtime_ns": 1791726047620712900
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-closed-100-control-append-created",
+      "mode": "a+b",
+      "lifecycle": "missing",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": false
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-01-closed-100-control-readwrite-rewritten",
+      "mode": "r+b",
+      "lifecycle": "seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884604161,
+        "mtime_ns": 1791726075000838000
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-closed-100-control-readwrite-rewritten",
+      "mode": "r+b",
+      "lifecycle": "seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884604178,
+        "mtime_ns": 1791726095019544800
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-closed-100-control-append-created",
+      "mode": "a+b",
+      "lifecycle": "missing",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": false
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-closed-100-stable-1byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884604211,
+        "mtime_ns": 1791726128373314200
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-closed-100-stable-1byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884604229,
+        "mtime_ns": 1791726139639123800
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-closed-100-stable-1byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884604245,
+        "mtime_ns": 1791726155751572100
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-closed-100-stable-0byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884604262,
+        "mtime_ns": 1791726166994986000
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-closed-100-stable-0byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884604278,
+        "mtime_ns": 1791726183595257100
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-closed-100-stable-0byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884604295,
+        "mtime_ns": 1791726200942371500
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-closed-10-control-readwrite-rewritten",
+      "mode": "r+b",
+      "lifecycle": "seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1688849861314967,
+        "mtime_ns": 1791726216884729100
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-closed-10-control-append-created",
+      "mode": "a+b",
+      "lifecycle": "missing",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": false
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-closed-10-stable-1byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1688849861314999,
+        "mtime_ns": 1791726248799840100
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-closed-10-stable-1byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884604360,
+        "mtime_ns": 1791726251062855700
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-closed-10-stable-1byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1970324838025688,
+        "mtime_ns": 1791726267157977200
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-closed-10-stable-0byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884604393,
+        "mtime_ns": 1791726269420798900
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-closed-10-stable-0byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884604417,
+        "mtime_ns": 1791726285507711500
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-closed-10-stable-0byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884604433,
+        "mtime_ns": 1791726301514782800
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-held-100-control-readwrite-rewritten",
+      "mode": "r+b",
+      "lifecycle": "seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884604449,
+        "mtime_ns": 1791726317597410900
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-held-100-control-append-created",
+      "mode": "a+b",
+      "lifecycle": "missing",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": false
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-held-100-stable-1byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 2251799814736449,
+        "mtime_ns": 1791726360114632100
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-held-100-stable-1byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884604504,
+        "mtime_ns": 1791726371265487300
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-held-100-stable-1byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884604521,
+        "mtime_ns": 1791726382747368100
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-held-100-stable-0byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884604538,
+        "mtime_ns": 1791726394266058600
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-held-100-stable-0byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884604554,
+        "mtime_ns": 1791726415912855200
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-held-100-stable-0byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 2533274791445865,
+        "mtime_ns": 1791726441108667400
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-held-10-control-readwrite-rewritten",
+      "mode": "r+b",
+      "lifecycle": "seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884604575,
+        "mtime_ns": 1791726464102749800
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-held-10-control-append-created",
+      "mode": "a+b",
+      "lifecycle": "missing",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": false
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-held-10-stable-1byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884604607,
+        "mtime_ns": 1791726496632159300
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-held-10-stable-1byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884604624,
+        "mtime_ns": 1791726498784225000
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-held-10-stable-1byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884604640,
+        "mtime_ns": 1791726514908302200
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-held-10-stable-0byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884604657,
+        "mtime_ns": 1791726517096986000
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-held-10-stable-0byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884604673,
+        "mtime_ns": 1791726532966309100
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-held-10-stable-0byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884604689,
+        "mtime_ns": 1791726548804523400
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-pre-100-control-readwrite-rewritten",
+      "mode": "r+b",
+      "lifecycle": "seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1688849861315362,
+        "mtime_ns": 1791726550948892200
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-pre-100-control-append-created",
+      "mode": "a+b",
+      "lifecycle": "missing",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": false
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-pre-100-stable-1byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884604738,
+        "mtime_ns": 1791726584636432300
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-pre-100-stable-1byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884604755,
+        "mtime_ns": 1791726595895087600
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-pre-100-stable-1byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1688849861315427,
+        "mtime_ns": 1791726611766598100
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-pre-100-stable-0byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1688849861315445,
+        "mtime_ns": 1791726623305116000
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-pre-100-stable-0byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1688849861315461,
+        "mtime_ns": 1791726640232032400
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-pre-100-stable-0byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1688849861315477,
+        "mtime_ns": 1791726656574975700
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-pre-10-control-readwrite-rewritten",
+      "mode": "r+b",
+      "lifecycle": "seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1970324838026149,
+        "mtime_ns": 1791726673182737200
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-pre-10-control-append-created",
+      "mode": "a+b",
+      "lifecycle": "missing",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": false
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-pre-10-stable-1byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 141863388262222928,
+        "mtime_ns": 1791726705830769800
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-pre-10-stable-1byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 105271641289870464,
+        "mtime_ns": 1791726708244412900
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-pre-10-stable-1byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 34902897112432792,
+        "mtime_ns": 1791726724343937200
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-pre-10-stable-0byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 16044073673250044,
+        "mtime_ns": 1791726726676983300
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-pre-10-stable-0byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 3377699721575667,
+        "mtime_ns": 1791726742731463200
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-pre-10-stable-0byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1688849861315507,
+        "mtime_ns": 1791726758766774800
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-zero-control-readwrite-rewritten",
+      "mode": "r+b",
+      "lifecycle": "seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1688849861315523,
+        "mtime_ns": 1791726775342650000
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-zero-control-append-created",
+      "mode": "a+b",
+      "lifecycle": "missing",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": false
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-zero-stable-1byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 2251799814736868,
+        "mtime_ns": 1791726807451350200
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-zero-stable-1byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1688849861315573,
+        "mtime_ns": 1791726808533672000
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-zero-stable-1byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884604933,
+        "mtime_ns": 1791726824741364500
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-zero-stable-0byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884604950,
+        "mtime_ns": 1791726825874825000
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-zero-stable-0byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1970324838026278,
+        "mtime_ns": 1791726841843866300
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "matrix-corrected",
+      "label": "repeat-02-zero-stable-0byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884604982,
+        "mtime_ns": 1791726857927333600
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "extended-held",
+      "label": "repeat-01-held-100-stable-0byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 2251799814734073,
+        "mtime_ns": 1791728929198773000
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "extended-held",
+      "label": "repeat-01-held-100-stable-0byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1688849861315862,
+        "mtime_ns": 1791729004188903200
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "extended-held",
+      "label": "repeat-01-held-100-stable-0byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1688849861316048,
+        "mtime_ns": 1791729076284834500
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "native-opener",
+      "label": "repeat-01-zero-stable-0byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1688849861315149,
+        "mtime_ns": 1791726998958912200
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "native-opener",
+      "label": "repeat-01-zero-stable-0byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884605029,
+        "mtime_ns": 1791727014600715000
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "native-opener",
+      "label": "repeat-01-zero-stable-0byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-empty",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 0,
+        "device": 2963920417,
+        "inode": 1407374884605045,
+        "mtime_ns": 1791727030263572900
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "native-opener",
+      "label": "repeat-01-zero-stable-1byte-readwrite",
+      "mode": "r+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884605061,
+        "mtime_ns": 1791727045994344100
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "native-opener",
+      "label": "repeat-01-zero-stable-1byte-truncate",
+      "mode": "w+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1688849861315734,
+        "mtime_ns": 1791727046861026200
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "native-opener",
+      "label": "repeat-01-zero-stable-1byte-append",
+      "mode": "a+b",
+      "lifecycle": "stable-seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1688849861315750,
+        "mtime_ns": 1791727062587516000
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": true,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "native-opener",
+      "label": "repeat-01-zero-control-append-created",
+      "mode": "a+b",
+      "lifecycle": "missing",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": false
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    },
+    {
+      "archive": "workflow-history-open-delay-errors-evidence-2026-10-11.json",
+      "group": "native-opener",
+      "label": "repeat-01-zero-control-readwrite-rewritten",
+      "mode": "r+b",
+      "lifecycle": "seeded",
+      "initial_snapshot": {
+        "when": "before_first_round",
+        "exists": true,
+        "size": 1,
+        "device": 2963920417,
+        "inode": 1407374884605127,
+        "mtime_ns": 1791727079076177600
+      },
+      "preparation_matches_profile": true,
+      "mode_allows_initial_state": true,
+      "protocol_completed": false,
+      "returned_errors_in_worker_reports": 0
+    }
+  ],
+  "archived_counts": [
+    {
+      "group": "extended-held",
+      "lifecycle": "stable-empty",
+      "count": 3
+    },
+    {
+      "group": "matrix-corrected",
+      "lifecycle": "missing",
+      "count": 14
+    },
+    {
+      "group": "matrix-corrected",
+      "lifecycle": "seeded",
+      "count": 14
+    },
+    {
+      "group": "matrix-corrected",
+      "lifecycle": "stable-empty",
+      "count": 42
+    },
+    {
+      "group": "matrix-corrected",
+      "lifecycle": "stable-seeded",
+      "count": 42
+    },
+    {
+      "group": "native-opener",
+      "lifecycle": "missing",
+      "count": 1
+    },
+    {
+      "group": "native-opener",
+      "lifecycle": "seeded",
+      "count": 1
+    },
+    {
+      "group": "native-opener",
+      "lifecycle": "stable-empty",
+      "count": 3
+    },
+    {
+      "group": "native-opener",
+      "lifecycle": "stable-seeded",
+      "count": 3
+    },
+    {
+      "group": "size-modes",
+      "lifecycle": "missing",
+      "count": 3
+    },
+    {
+      "group": "size-modes",
+      "lifecycle": "seeded",
+      "count": 3
+    },
+    {
+      "group": "size-modes",
+      "lifecycle": "stable-empty",
+      "count": 9
+    },
+    {
+      "group": "size-modes",
+      "lifecycle": "stable-seeded",
+      "count": 9
+    }
+  ],
+  "archived_all_preparation_matches": true,
+  "archived_all_modes_match": true,
+  "smoke_cases": [
+    {
+      "state": "missing",
+      "mode": "r+b",
+      "prepared": {
+        "exists": false
+      },
+      "exitcode": 0,
+      "stderr": "",
+      "observed": {
+        "before_open": {
+          "exists": false
+        },
+        "mode": "r+b",
+        "success": false,
+        "error_type": "FileNotFoundError",
+        "errno": 2,
+        "winerror": null,
+        "after_close": {
+          "exists": false
+        }
+      },
+      "expected_error": "FileNotFoundError",
+      "matches_expected": true
+    },
+    {
+      "state": "missing",
+      "mode": "w+b",
+      "prepared": {
+        "exists": false
+      },
+      "exitcode": 0,
+      "stderr": "",
+      "observed": {
+        "before_open": {
+          "exists": false
+        },
+        "mode": "w+b",
+        "success": true,
+        "open_size": 0,
+        "after_close": {
+          "exists": true,
+          "regular": true,
+          "size": 0
+        }
+      },
+      "expected_error": null,
+      "matches_expected": true
+    },
+    {
+      "state": "missing",
+      "mode": "a+b",
+      "prepared": {
+        "exists": false
+      },
+      "exitcode": 0,
+      "stderr": "",
+      "observed": {
+        "before_open": {
+          "exists": false
+        },
+        "mode": "a+b",
+        "success": true,
+        "open_size": 0,
+        "after_close": {
+          "exists": true,
+          "regular": true,
+          "size": 0
+        }
+      },
+      "expected_error": null,
+      "matches_expected": true
+    },
+    {
+      "state": "missing",
+      "mode": "x+b",
+      "prepared": {
+        "exists": false
+      },
+      "exitcode": 0,
+      "stderr": "",
+      "observed": {
+        "before_open": {
+          "exists": false
+        },
+        "mode": "x+b",
+        "success": true,
+        "open_size": 0,
+        "after_close": {
+          "exists": true,
+          "regular": true,
+          "size": 0
+        }
+      },
+      "expected_error": null,
+      "matches_expected": true
+    },
+    {
+      "state": "empty",
+      "mode": "r+b",
+      "prepared": {
+        "exists": true,
+        "regular": true,
+        "size": 0
+      },
+      "exitcode": 0,
+      "stderr": "",
+      "observed": {
+        "before_open": {
+          "exists": true,
+          "regular": true,
+          "size": 0
+        },
+        "mode": "r+b",
+        "success": true,
+        "open_size": 0,
+        "after_close": {
+          "exists": true,
+          "regular": true,
+          "size": 0
+        }
+      },
+      "expected_error": null,
+      "matches_expected": true
+    },
+    {
+      "state": "empty",
+      "mode": "w+b",
+      "prepared": {
+        "exists": true,
+        "regular": true,
+        "size": 0
+      },
+      "exitcode": 0,
+      "stderr": "",
+      "observed": {
+        "before_open": {
+          "exists": true,
+          "regular": true,
+          "size": 0
+        },
+        "mode": "w+b",
+        "success": true,
+        "open_size": 0,
+        "after_close": {
+          "exists": true,
+          "regular": true,
+          "size": 0
+        }
+      },
+      "expected_error": null,
+      "matches_expected": true
+    },
+    {
+      "state": "empty",
+      "mode": "a+b",
+      "prepared": {
+        "exists": true,
+        "regular": true,
+        "size": 0
+      },
+      "exitcode": 0,
+      "stderr": "",
+      "observed": {
+        "before_open": {
+          "exists": true,
+          "regular": true,
+          "size": 0
+        },
+        "mode": "a+b",
+        "success": true,
+        "open_size": 0,
+        "after_close": {
+          "exists": true,
+          "regular": true,
+          "size": 0
+        }
+      },
+      "expected_error": null,
+      "matches_expected": true
+    },
+    {
+      "state": "empty",
+      "mode": "x+b",
+      "prepared": {
+        "exists": true,
+        "regular": true,
+        "size": 0
+      },
+      "exitcode": 0,
+      "stderr": "",
+      "observed": {
+        "before_open": {
+          "exists": true,
+          "regular": true,
+          "size": 0
+        },
+        "mode": "x+b",
+        "success": false,
+        "error_type": "FileExistsError",
+        "errno": 17,
+        "winerror": null,
+        "after_close": {
+          "exists": true,
+          "regular": true,
+          "size": 0
+        }
+      },
+      "expected_error": "FileExistsError",
+      "matches_expected": true
+    },
+    {
+      "state": "one-byte",
+      "mode": "r+b",
+      "prepared": {
+        "exists": true,
+        "regular": true,
+        "size": 1
+      },
+      "exitcode": 0,
+      "stderr": "",
+      "observed": {
+        "before_open": {
+          "exists": true,
+          "regular": true,
+          "size": 1
+        },
+        "mode": "r+b",
+        "success": true,
+        "open_size": 1,
+        "after_close": {
+          "exists": true,
+          "regular": true,
+          "size": 1
+        }
+      },
+      "expected_error": null,
+      "matches_expected": true
+    },
+    {
+      "state": "one-byte",
+      "mode": "w+b",
+      "prepared": {
+        "exists": true,
+        "regular": true,
+        "size": 1
+      },
+      "exitcode": 0,
+      "stderr": "",
+      "observed": {
+        "before_open": {
+          "exists": true,
+          "regular": true,
+          "size": 1
+        },
+        "mode": "w+b",
+        "success": true,
+        "open_size": 0,
+        "after_close": {
+          "exists": true,
+          "regular": true,
+          "size": 0
+        }
+      },
+      "expected_error": null,
+      "matches_expected": true
+    },
+    {
+      "state": "one-byte",
+      "mode": "a+b",
+      "prepared": {
+        "exists": true,
+        "regular": true,
+        "size": 1
+      },
+      "exitcode": 0,
+      "stderr": "",
+      "observed": {
+        "before_open": {
+          "exists": true,
+          "regular": true,
+          "size": 1
+        },
+        "mode": "a+b",
+        "success": true,
+        "open_size": 1,
+        "after_close": {
+          "exists": true,
+          "regular": true,
+          "size": 1
+        }
+      },
+      "expected_error": null,
+      "matches_expected": true
+    },
+    {
+      "state": "one-byte",
+      "mode": "x+b",
+      "prepared": {
+        "exists": true,
+        "regular": true,
+        "size": 1
+      },
+      "exitcode": 0,
+      "stderr": "",
+      "observed": {
+        "before_open": {
+          "exists": true,
+          "regular": true,
+          "size": 1
+        },
+        "mode": "x+b",
+        "success": false,
+        "error_type": "FileExistsError",
+        "errno": 17,
+        "winerror": null,
+        "after_close": {
+          "exists": true,
+          "regular": true,
+          "size": 1
+        }
+      },
+      "expected_error": "FileExistsError",
+      "matches_expected": true
+    }
+  ],
+  "smoke_all_expected": true
+}

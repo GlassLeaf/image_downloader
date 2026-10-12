@@ -7,6 +7,28 @@ profileの`logs/workflow`へ非上書きで保存する。予定保存に失敗�
 
 この文書は public API の型ではなく、transport、persistence、output safety の実行契約を定義する。callable signature は [library API reference](library-api.md) を参照する。
 
+## Runtime組立て時の所有権
+
+<a id="runtime-construction"></a>
+
+`RuntimeComposer`は、通常download・CLI inspection・workflow planの組立て中に作成した
+registry、log sink／logger、HTTP gateway、画像processorを所有する。serviceの構築が
+成功したときだけ、完成した`DownloadService`へ終了処理の所有権を移す。
+`compose_registry()`だけを成功させた場合は、返されたruntimeをcallerが閉じる。
+
+組立てに失敗した場合は、作成済み資源の解放を試み、元の例外・中断を再送出する。
+serviceを返さないため、callerによる部分的なserviceのcloseは不要である。
+途中の資源はまだ通信・画像処理に使われておらず、cookie保存や通知送信も行わない。
+正常に完成したserviceの`close()`によるcookie delta保存と通常の終了処理は維持する。
+
+`compose()`の同期APIは維持する。呼出元に動作中のasyncio event loopがあるときは、
+失敗時の非同期cleanupだけを一時スレッドの独立loopで実行し、完了を待つ。
+後始末の一つが失敗しても残りを試み、元のエラーを置き換えず、固定文言と固定の資源区分で警告する。
+後始末自体が失敗した資源の完全解放は保証できない。
+
+本体が構築した未使用資源だけが対象であり、利用済みclientや独自依存の汎用的なloop移動機能ではない。
+当該runtime以外のplugin moduleやfinder登録は保持する。作成済みディレクトリ・log・lockファイルは削除しない。
+
 ## HTTP transport
 
 <a id="runtime-transport"></a>
@@ -55,6 +77,40 @@ profile cookie は `<storage.data_root>/profiles/<profile>/cookie/cookies.enc` �
 cookie export/import は passphrase container を使い、passphrase を対話入力する。browser import は `browser-cookie3` を含む `.[browser-cookies]` extra が必要で、既存 jar を差分 merge する。破損した encrypted file は上書きせず error にし、明示 import を復旧手段にする。
 
 同一端末上の本 application process は `cookie/cookies.lock` で read/merge/write を直列化する。異なる cookie は保持し、同一 `(domain, path, name)` は後に確定した更新、同値なら長い expiry、session cookie は persistent cookie より短期として扱う。lock file は解放後も残る。NAS と外部 application の同時変更は保証対象外である。`CookieStore.save()` は jar 全体を置換する library API であり、runtime の delta merge とは異なる。
+
+## 共通ファイルロックの初期化と所有権
+
+履歴・Cookie・状態・出力・plugin catalogが使う`InterProcessFileLock`は、非バッファstreamを開き、
+OSロックを取得してから、空の場合だけ1バイトを書き込む。Windowsは先頭1バイト、POSIXは`flock`で
+排他する。既存の非空ファイルには書き込まず、内容・サイズ・ファイルIDを維持する。
+ロックファイルは解放後も残り、存在すること自体はロック保持を意味しない。
+
+Windowsで未作成の場合は、同じ親ディレクトリに一時ファイルを作り、1バイトを書いてhandleを閉じ、
+既存宛先を上書きしない`rename`で公開する。公開競合では先に作られた通常ファイルを使う。
+その後の`a+b`のopenは`O_CREAT`を除き、対象の消失を取得失敗として扱う。
+既存空ファイルを置換・truncateせず、同じファイルをロック下で初期化する。
+一時ファイルは初回作成時だけ必要で、親ディレクトリへの作成・rename・削除権限を要する。
+親・対象の検査時の同一性を確認し、link・reparse point・複数hardlinkを拒否する。
+
+公開時の競合試験ではopenから共有違反が返るケースも確認されたため、WindowsのopenerはCRTの
+拡張エラー32を確認できた場合だけ、既存のpoll間隔0.1秒を一度待ち、作成禁止の同じopenを一度再試行する。
+同期APIは`time.sleep`、非同期APIは`await asyncio.sleep`で待つ。この待機中の中断も伝播する。
+再試行は最初に確認した親・対象のファイルIDを引き継ぎ、待機中の差替え・消失を拒否する。
+アクセス拒否5や他のエラーは再試行せず、再試行も失敗した場合は最初の例外とcauseを維持する。
+CRTの拡張エラーを取得できない場合も従来の取得失敗を伝播させる。
+Python標準の`ctypes`を使い、CRTはSystem32からのみ取得する。追加の依存や設定は不要である。
+
+ロック待機期限はopenが戻ってから開始し、既定30秒・poll間隔0.1秒を維持する。
+待機時間0でも取得を一度試す。同期・非同期の所有権確定前の失敗や中断では、取得済みロックの解放と
+streamのcloseを試みる。一つの後始末が失敗しても続行し、元の例外を保持する。
+公開前の一時ファイル・descriptorも所有者が後始末する。公開済み対象や他プロセスの一時ファイルは削除しない。
+追加の後始末診断は固定文言と資源区分だけを含む。
+
+Windowsの公開処理は、調査で効果が見られた「書込み済みの同じファイルを保持する」条件に基づく暫定策である。
+既存空ファイルの初回open、一時ファイルの作成を含むOS内部のI/O停止は残る。
+ロック競合timeoutはnative openやwrite等を強制中断せず、終了時間の上限、電源断時のマーカー永続化、
+保護製品内部の動作は保証しない。更新時は関連プロセスを終了してから切り替える。
+移行コマンドやロックファイルの一括削除は不要である。
 
 ## Output allocation and locks
 

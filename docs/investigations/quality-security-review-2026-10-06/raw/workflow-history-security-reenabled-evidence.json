@@ -1,0 +1,427 @@
+{
+  "recorded_at": "2026-10-11T06:26:02.351912+09:00",
+  "commit": "b5c1a453ab54563cb5af598ff3fa4a15762cf0a3",
+  "production_and_test_source_changed": false,
+  "source_sha256": {
+    "src\\image_downloader\\storage\\interprocess_lock.py": "a42aa7fb0a2038d8fc68a07942d4b385ad0bea240afbce7a95e828fc02e0f21f",
+    "src\\image_downloader\\storage\\workflow_history.py": "ec31093a7173c9ba65713a353cf185f2746f180feee446b8a5b2ab2311383194",
+    "tests\\v3\\application\\test_workflow_history.py": "a1b6e402a6460a0d3697a73be6967bb6c1c19ab0f3839712c1e21e2cce5488ad"
+  },
+  "matches_initial_and_paused_source_hashes": true,
+  "environment": {
+    "platform": "Windows-10-10.0.19045-SP0",
+    "python": "3.11.4 (tags/v3.11.4:d2340ef, Jun  7 2023, 05:45:37) [MSC v.1934 64 bit (AMD64)]",
+    "packages": {
+      "pytest": "9.1.1",
+      "pytest-cov": "7.1.0",
+      "httpx": "0.28.1",
+      "ruff": "0.16.5"
+    }
+  },
+  "security_condition": {
+    "reported_by": "user",
+    "user_statement": "セキュリティー製品を再度有効にした。",
+    "product_context": "COMODO Internet Security Premium",
+    "read_only_observation": {
+      "observed_at": "2026-10-11T06:19:12.7143683+09:00",
+      "source": "root/SecurityCenter2:AntiVirusProduct",
+      "products": [
+        {
+          "displayName": "Windows Defender",
+          "productState": 393472,
+          "productState_hex": "0x60100"
+        },
+        {
+          "displayName": "COMODO Antivirus",
+          "productState": 397312,
+          "productState_hex": "0x61000"
+        }
+      ],
+      "comodo_processes": [
+        {
+          "ProcessName": "cis",
+          "Id": 42648
+        },
+        {
+          "ProcessName": "cis",
+          "Id": 44068
+        },
+        {
+          "ProcessName": "cis",
+          "Id": 46548
+        },
+        {
+          "ProcessName": "cmdagent",
+          "Id": 3228
+        },
+        {
+          "ProcessName": "cmdagent",
+          "Id": 4092
+        }
+      ]
+    },
+    "fresh_python": {
+      "observed_at": "2026-10-11T06:20:16.493414+09:00",
+      "guard64_loaded_in_fresh_python": true,
+      "module_path": "C:\\Windows\\system32\\guard64.dll",
+      "product_import": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\__init__.py"
+    },
+    "guard64_metadata": {
+      "observed_at": "2026-10-11T06:22:30.5456078+09:00",
+      "path": "C:\\Windows\\System32\\guard64.dll",
+      "company": "COMODO",
+      "product": "COMODO Internet Security",
+      "product_version": "12, 2, 3, 8026",
+      "file_version": "12, 2, 3, 8026",
+      "sha256": "796D6869D145DA7A183499B4C4B32A53ABB27F4B3D158C3B8F3787BCF7FA16C1"
+    },
+    "settings_changed_by_investigator": false,
+    "reactivation_observation_performed": true,
+    "individual_feature_states_verified": false,
+    "productState_interpretation": "raw values only; not a decode of individual protection features",
+    "windows_defender_registration_value_also_changed": true
+  },
+  "experiment_conditions": {
+    "pytest_plugin_autoload": false,
+    "worker_count_per_history_test": 3,
+    "source_check": "actual lock module recorded and hashes compared with prior phases",
+    "native_capture_scope": "only this test's stalled child; resumed in finally",
+    "sequence": "unmodified sixty-second test observations, then three six-case variants, then twenty-case isolated prototype",
+    "comparison_limitations": "sample counts and timings differ; protection features not independently controlled",
+    "full_v3_suite_rerun": false
+  },
+  "experiments": [
+    {
+      "run": "history-security-reenabled-comparison",
+      "variant": "original",
+      "exitcode": 1,
+      "summary": "3 failed, 3 passed in 53.62s",
+      "stalled_open_processes": 3,
+      "source_check": {
+        "lock_module": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py",
+        "test_module": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\qs013-verification\\test_history_variants_probe.py",
+        "initialize_byte_called": true
+      },
+      "parent_join_seconds": 12,
+      "product_lock_timeout_seconds": 30,
+      "failures": [
+        {
+          "attempt": 1,
+          "exitcode_none": true,
+          "initialization_permission_error": false,
+          "worker_pid": 54388
+        },
+        {
+          "attempt": 2,
+          "exitcode_none": true,
+          "initialization_permission_error": false,
+          "worker_pid": 56084
+        },
+        {
+          "attempt": 5,
+          "exitcode_none": true,
+          "initialization_permission_error": false,
+          "worker_pid": 57460
+        }
+      ],
+      "lock_stack_observations": [
+        {
+          "path": ".runtime\\qs013-verification\\history-security-reenabled-comparison\\original\\process-54388.stack.txt",
+          "sha256": "1adf6464fda9b24c180e93d56aa8f42108d57c6c46e2ee570e4dc048e35c2c05",
+          "open_frame_observed": true,
+          "excerpt": "Timeout (0:00:08)!\nThread 0x0000d82c (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 320 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\queues.py\", line 231 in _feed\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 975 in run\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 1038 in _bootstrap_inner\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 995 in _bootstrap\n\nThread 0x0000cb38 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\workflow_history.py\", line 167 in save\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\tests\\v3\\application\\test_workflow_history.py\", line 115 in _process_save\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>"
+        },
+        {
+          "path": ".runtime\\qs013-verification\\history-security-reenabled-comparison\\original\\process-56084.stack.txt",
+          "sha256": "64b53b90a40aaf24a1698b9deb120eebf62194bf3f38eeb872dd1583214eb255",
+          "open_frame_observed": true,
+          "excerpt": "Timeout (0:00:08)!\nThread 0x0000c440 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 320 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\queues.py\", line 231 in _feed\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 975 in run\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 1038 in _bootstrap_inner\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 995 in _bootstrap\n\nThread 0x0000dc38 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\workflow_history.py\", line 167 in save\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\tests\\v3\\application\\test_workflow_history.py\", line 115 in _process_save\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>"
+        },
+        {
+          "path": ".runtime\\qs013-verification\\history-security-reenabled-comparison\\original\\process-57460.stack.txt",
+          "sha256": "6e69ff38ab58475d41b3231681e2956fbba14951116acae60608d8517fdafc3a",
+          "open_frame_observed": true,
+          "excerpt": "Timeout (0:00:08)!\nThread 0x0000bcc0 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 320 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\queues.py\", line 231 in _feed\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 975 in run\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 1038 in _bootstrap_inner\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 995 in _bootstrap\n\nThread 0x0000e070 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\workflow_history.py\", line 167 in save\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\tests\\v3\\application\\test_workflow_history.py\", line 115 in _process_save\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>"
+        }
+      ]
+    },
+    {
+      "run": "history-security-reenabled-comparison",
+      "variant": "empty",
+      "exitcode": 1,
+      "summary": "3 failed, 3 passed in 53.14s",
+      "stalled_open_processes": 3,
+      "source_check": {
+        "lock_module": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py",
+        "test_module": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\qs013-verification\\test_history_variants_probe.py",
+        "initialize_byte_called": true
+      },
+      "parent_join_seconds": 12,
+      "product_lock_timeout_seconds": 30,
+      "failures": [
+        {
+          "attempt": 2,
+          "exitcode_none": true,
+          "initialization_permission_error": false,
+          "worker_pid": 47628
+        },
+        {
+          "attempt": 3,
+          "exitcode_none": true,
+          "initialization_permission_error": false,
+          "worker_pid": 57020
+        },
+        {
+          "attempt": 4,
+          "exitcode_none": true,
+          "initialization_permission_error": false,
+          "worker_pid": 53072
+        }
+      ],
+      "lock_stack_observations": [
+        {
+          "path": ".runtime\\qs013-verification\\history-security-reenabled-comparison\\empty\\process-47628.stack.txt",
+          "sha256": "992d55585a0bee9e39f38237716449eeb84e3dc95cbe2cdcc2797fc6cbbbfe00",
+          "open_frame_observed": true,
+          "excerpt": "Timeout (0:00:08)!\nThread 0x00007268 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 320 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\queues.py\", line 231 in _feed\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 975 in run\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 1038 in _bootstrap_inner\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 995 in _bootstrap\n\nThread 0x0000dbb0 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\workflow_history.py\", line 167 in save\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\tests\\v3\\application\\test_workflow_history.py\", line 115 in _process_save\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>"
+        },
+        {
+          "path": ".runtime\\qs013-verification\\history-security-reenabled-comparison\\empty\\process-53072.stack.txt",
+          "sha256": "a8fd8e33defc4dd6118611a42c47c39a1113185c917a1d6ae7a5d63874bc64ba",
+          "open_frame_observed": true,
+          "excerpt": "Timeout (0:00:08)!\nThread 0x0000e2bc (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 320 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\queues.py\", line 231 in _feed\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 975 in run\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 1038 in _bootstrap_inner\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 995 in _bootstrap\n\nThread 0x0000b614 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\workflow_history.py\", line 167 in save\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\tests\\v3\\application\\test_workflow_history.py\", line 115 in _process_save\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>"
+        },
+        {
+          "path": ".runtime\\qs013-verification\\history-security-reenabled-comparison\\empty\\process-57020.stack.txt",
+          "sha256": "361fab270f46028a742b47f6d18ad40e86f13f9315723643b1946888839ab6c0",
+          "open_frame_observed": true,
+          "excerpt": "Timeout (0:00:08)!\nThread 0x0000e088 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 320 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\queues.py\", line 231 in _feed\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 975 in run\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 1038 in _bootstrap_inner\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 995 in _bootstrap\n\nThread 0x0000d664 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\workflow_history.py\", line 167 in save\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\tests\\v3\\application\\test_workflow_history.py\", line 115 in _process_save\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>"
+        }
+      ]
+    },
+    {
+      "run": "history-security-reenabled-comparison",
+      "variant": "seeded",
+      "exitcode": 0,
+      "summary": "6 passed in 17.55s",
+      "stalled_open_processes": 0,
+      "source_check": {
+        "lock_module": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py",
+        "test_module": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\qs013-verification\\test_history_variants_probe.py",
+        "initialize_byte_called": true
+      },
+      "parent_join_seconds": 12,
+      "product_lock_timeout_seconds": 30,
+      "failures": [],
+      "lock_stack_observations": []
+    },
+    {
+      "run": "history-security-reenabled-no-initialization-20",
+      "variant": "original",
+      "exitcode": 0,
+      "summary": "20 passed in 55.45s",
+      "stalled_open_processes": 0,
+      "source_check": {
+        "lock_module": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\qs013-verification\\history-no-initialization\\src\\image_downloader\\storage\\interprocess_lock.py",
+        "test_module": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\qs013-verification\\test_history_variants_probe.py",
+        "initialize_byte_called": false
+      },
+      "parent_join_seconds": 12,
+      "product_lock_timeout_seconds": 30,
+      "failures": [],
+      "lock_stack_observations": []
+    }
+  ],
+  "unmodified_sixty_second_test_runs": [
+    {
+      "run": "security-reenabled-native-observation-1",
+      "parent_join_seconds": 60,
+      "pytest_summary": "1 passed in 4.49s",
+      "native_capture_created": false
+    },
+    {
+      "run": "security-reenabled-native-observation-2",
+      "parent_join_seconds": 60,
+      "pytest_summary": "1 failed in 64.53s (0:01:04)",
+      "native_capture_created": true,
+      "native_capture_sha256": "73861d3248bcfcef6f622ed55b6e361fbef4e49de434df52130e3c0c1e21618f",
+      "pid": 55100,
+      "tid": 56640,
+      "frames": [
+        {
+          "frame": 0,
+          "pc": "0x7ffbd58ee054",
+          "module": "C:\\Windows\\SYSTEM32\\ntdll.dll",
+          "symbol": "ZwCreateFile",
+          "displacement": "0x14"
+        },
+        {
+          "frame": 1,
+          "pc": "0x7ffbd58ee054",
+          "module": "C:\\Windows\\SYSTEM32\\ntdll.dll",
+          "symbol": "ZwCreateFile",
+          "displacement": "0x14"
+        },
+        {
+          "frame": 2,
+          "pc": "0x7ffbd2a6ca43",
+          "module": "C:\\Windows\\system32\\guard64.dll",
+          "symbol": "Exported",
+          "displacement": "0x18bb3"
+        },
+        {
+          "frame": 3,
+          "pc": "0x7ffbd31dea39",
+          "module": "C:\\Windows\\System32\\KERNELBASE.dll",
+          "symbol": "CreateFileW",
+          "displacement": "0x5f9"
+        },
+        {
+          "frame": 4,
+          "pc": "0x7ffbd31de4a6",
+          "module": "C:\\Windows\\System32\\KERNELBASE.dll",
+          "symbol": "CreateFileW",
+          "displacement": "0x66"
+        },
+        {
+          "frame": 5,
+          "pc": "0x7ffbd301f10b",
+          "module": "C:\\Windows\\System32\\ucrtbase.dll",
+          "symbol": "wsplitpath_s",
+          "displacement": "0x35b"
+        },
+        {
+          "frame": 6,
+          "pc": "0x7ffbd30a5321",
+          "module": "C:\\Windows\\System32\\ucrtbase.dll",
+          "symbol": "wmktemp_s",
+          "displacement": "0x191"
+        },
+        {
+          "frame": 7,
+          "pc": "0x7ffbd30a56ee",
+          "module": "C:\\Windows\\System32\\ucrtbase.dll",
+          "symbol": "wopen",
+          "displacement": "0x1e"
+        }
+      ],
+      "python_stack_sha256": "0bbf3ac0ab0cf8587f48e7e9f08f5e3237835bf9bbfc1af5db10f253ec879503",
+      "python_stack_excerpt": "Timeout (0:00:08)!\nThread 0x0000d5d0 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 320 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\queues.py\", line 231 in _feed\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 975 in run\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 1038 in _bootstrap_inner\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 995 in _bootstrap\n\nThread 0x0000dd40 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\workflow_history.py\", line 167 in save\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\tests\\v3\\application\\test_workflow_history.py\", line 115 in _process_save\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x0000d5d0 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 320 in wait\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\queues.py\", line 231 in _feed",
+      "existing_lock_probe": {
+        "acquired_and_released": true,
+        "elapsed": 0.0
+      },
+      "existing_lock_probe_sha256": "d7918229814904de33015f553cd7754c6491fa57dfc79eabc3f47247abd19868",
+      "saved_history_sha256": "d723999d12b97754acffed31612927c3efec5e06a19a8f8d45de562682bbda75",
+      "saved_history_plugin_ids": [
+        "plugin.0",
+        "plugin.2"
+      ]
+    }
+  ],
+  "prototype_source_sha256": "b3fe2c6a833789db7c68bd9282c6dbdd78bea6a8dbfe04d8e382612d82811d94",
+  "matched_six_case_comparison": {
+    "before_pause": {
+      "run": "history-without-pytest-plugins",
+      "variant": "original",
+      "exitcode": 1,
+      "summary": "5 failed, 1 passed in 62.80s (0:01:02)",
+      "stalled_open_processes": 4
+    },
+    "paused": {
+      "run": "history-security-paused-comparison",
+      "variant": "original",
+      "exitcode": 0,
+      "summary": "6 passed in 29.77s",
+      "stalled_open_processes": 0,
+      "source_check": {
+        "lock_module": "C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py",
+        "test_module": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\qs013-verification\\test_history_variants_probe.py",
+        "initialize_byte_called": true
+      },
+      "parent_join_seconds": 12,
+      "product_lock_timeout_seconds": 30
+    },
+    "reenabled": {
+      "variant": "original",
+      "exitcode": 1,
+      "summary": "3 failed, 3 passed in 53.62s",
+      "stalled_open_processes": 3,
+      "failures": [
+        {
+          "attempt": 1,
+          "exitcode_none": true,
+          "initialization_permission_error": false,
+          "worker_pid": 54388
+        },
+        {
+          "attempt": 2,
+          "exitcode_none": true,
+          "initialization_permission_error": false,
+          "worker_pid": 56084
+        },
+        {
+          "attempt": 5,
+          "exitcode_none": true,
+          "initialization_permission_error": false,
+          "worker_pid": 57460
+        }
+      ]
+    }
+  },
+  "confirmed": [
+    "the unmodified sixty-second test again stalled in Path.open before the product deadline",
+    "native path again includes guard64.dll and waits at NtCreateFile (export symbol ZwCreateFile)",
+    "a separate diagnostic process acquired and released byte zero of the same lock while the worker stalled",
+    "security-center registration values changed for both COMODO and Windows Defender"
+  ],
+  "inference": "the on/off/on sequence strengthens a protection-environment interaction as the trigger of the open stall; the unlocked initialization remains a product-side failure path",
+  "not_confirmed": [
+    "COMODO alone has a particular product defect",
+    "which individual feature, kernel driver, oplock, or file-system state causes the wait",
+    "the exact unlocked-initialization schedule causing the native wait",
+    "the prototype eliminates all OS-level hangs or passes full supported CI"
+  ],
+  "prior_records_preserved": [
+    {
+      "path": "docs\\investigations\\quality-security-review-2026-10-06\\raw\\workflow-history-hang-evidence.json",
+      "sha256": "5e0a24713e14243ed5bc4687068ea7672188a93b94920b912e758ccaaac6358b"
+    },
+    {
+      "path": "docs\\investigations\\quality-security-review-2026-10-06\\raw\\workflow-history-security-paused-evidence.json",
+      "sha256": "7db7b46cddc0b5d40ea9ade6976aa7205f0fc4a5af84841c18cb1ee3e88c9783"
+    }
+  ],
+  "logs": [
+    {
+      "path": ".runtime\\qs013-verification\\history-security-reenabled-comparison\\original.log",
+      "sha256": "21659760e37cc9f5fbca9d07f366e8d629d19fc67a35281eb5f41127b7f5262c",
+      "summary": "3 failed, 3 passed in 53.62s"
+    },
+    {
+      "path": ".runtime\\qs013-verification\\history-security-reenabled-comparison\\empty.log",
+      "sha256": "cddac7201bb6658e8982f1834b78b21d721707d1aed23d0925703c36ced940d3",
+      "summary": "3 failed, 3 passed in 53.14s"
+    },
+    {
+      "path": ".runtime\\qs013-verification\\history-security-reenabled-comparison\\seeded.log",
+      "sha256": "598807a7178752fdb6ecfc3af2711dc9ac2661ce2411455b6dbff8e5aaa01fa0",
+      "summary": "6 passed in 17.55s"
+    },
+    {
+      "path": ".runtime\\qs013-verification\\history-security-reenabled-no-initialization-20\\original.log",
+      "sha256": "515704521b859551bb9508f56233a7cdbf587bfd2238f065595bb64af3d0992d",
+      "summary": "20 passed in 55.45s"
+    },
+    {
+      "path": ".runtime\\qs013-verification\\security-reenabled-native-observation-1\\pytest.log",
+      "sha256": "6636f2b1c46e3eee127d82a8936e059fc328317778ba74ea4aa503a46535dae9",
+      "summary": "1 passed in 4.49s"
+    },
+    {
+      "path": ".runtime\\qs013-verification\\security-reenabled-native-observation-2\\pytest.log",
+      "sha256": "936e3bc5621d1bf15918cbd270fd11eb1235df68727b0a81da3a1fefcb208688",
+      "summary": "1 failed in 64.53s (0:01:04)"
+    }
+  ]
+}
