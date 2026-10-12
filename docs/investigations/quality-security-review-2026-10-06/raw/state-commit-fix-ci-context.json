@@ -1,0 +1,175 @@
+{
+  "recorded_at": "2026-10-12 16:16:59 UTC",
+  "qs011_head": "49e950aef70afc44be5bcb8226be56230e745885",
+  "initial_failure": {
+    "run_id": 38265444425,
+    "attempt": 1,
+    "job_id": 114866322778,
+    "test": "test_deadline_during_state_commit_finishes_transaction",
+    "assertion": "started.wait() returned False"
+  },
+  "same_head_retry": {
+    "run_id": 38265444425,
+    "attempt": 2,
+    "jobs": [
+      {
+        "name": "test (windows-latest, 3.11)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "package-smoke (windows-latest)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (ubuntu-latest, 3.13)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (macos-latest, 3.11)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "package-smoke (macos-latest)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (windows-latest, 3.14)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (ubuntu-latest, 3.11)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (macos-latest, 3.13)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (windows-latest, 3.12)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (macos-latest, 3.12)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (macos-latest, 3.14)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (ubuntu-latest, 3.12)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (ubuntu-latest, 3.14)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "package-smoke (ubuntu-latest)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (windows-latest, 3.13)",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ]
+  },
+  "qs011_main": {
+    "run_id": 38274255505,
+    "head_sha": "c4138e080030ea8ab324faa062bac4354264eefe",
+    "status": "completed",
+    "conclusion": "success",
+    "jobs": [
+      {
+        "name": "package-smoke (windows-latest)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "package-smoke (macos-latest)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (macos-latest, 3.12)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "package-smoke (ubuntu-latest)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (ubuntu-latest, 3.11)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (macos-latest, 3.13)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (macos-latest, 3.14)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (windows-latest, 3.11)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (ubuntu-latest, 3.14)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (windows-latest, 3.13)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (ubuntu-latest, 3.13)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (ubuntu-latest, 3.12)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (windows-latest, 3.14)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (macos-latest, 3.11)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "test (windows-latest, 3.12)",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ]
+  }
+}

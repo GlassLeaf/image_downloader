@@ -1,0 +1,92 @@
+...................F                                                     [100%]
+================================== FAILURES ===================================
+_________ test_deadline_during_state_commit_finishes_transaction[19] __________
+
+tmp_path = WindowsPath('C:/Users/pc01/AppData/Local/Temp/pytest-of-pc01/pytest-1479/test_deadline_during_state_com19')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001C29CF72310>
+
+    def test_deadline_during_state_commit_finishes_transaction(tmp_path, monkeypatch):
+        retry_deadline = None
+        create_timeout = asyncio.timeout
+    
+        def controlled_timeout(delay):
+            nonlocal retry_deadline
+            if delay == 0.5:
+                # CI preparation may consume the deadline before the state commit starts.
+                assert retry_deadline is None
+                retry_deadline = create_timeout(None)
+                return retry_deadline
+            return create_timeout(delay)
+    
+        monkeypatch.setattr(asyncio, "timeout", controlled_timeout)
+    
+        async def scenario():
+            gallery = RetryGallery()
+            started, release = threading.Event(), threading.Event()
+            original = WorkflowState.complete
+    
+            def complete(state, *args):
+                started.set()
+                assert release.wait(5)
+                original(state, *args)
+    
+            monkeypatch.setattr(WorkflowState, "complete", complete)
+            async with compose(tmp_path, gallery, network={"max_attempts": 1}) as service:
+                await transport(service, gallery)
+                task = asyncio.create_task(service.workflow(FEED, workflow_retry_delay=0, workflow_retry_timeout=0.5))
+                try:
+                    assert await asyncio.to_thread(started.wait, 10)
+                    assert retry_deadline is not None
+                    retry_deadline.reschedule(asyncio.get_running_loop().time())
+                    await asyncio.sleep(0)
+                    await asyncio.sleep(0)  # Let the workflow receive cancellation while the commit remains blocked.
+                    assert retry_deadline.expired()
+                    assert not task.done()
+                    release.set()
+                    with pytest.raises(WorkflowRetryTimeoutError) as caught:
+                        await task
+                    assert caught.value.workflow_result.items[0].status == "success"
+                    assert (await service.workflow(FEED)).items == ()
+                finally:
+                    release.set()
+                    if not task.done():
+                        task.cancel()
+                    await asyncio.gather(task, return_exceptions=True)
+    
+>       asyncio.run(scenario())
+
+tests\v3\application\test_workflow_retry.py:697: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Program Files\Python311\Lib\asyncio\runners.py:190: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+C:\Program Files\Python311\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Program Files\Python311\Lib\asyncio\base_events.py:653: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    async def scenario():
+        gallery = RetryGallery()
+        started, release = threading.Event(), threading.Event()
+        original = WorkflowState.complete
+    
+        def complete(state, *args):
+            started.set()
+            assert release.wait(5)
+            original(state, *args)
+    
+        monkeypatch.setattr(WorkflowState, "complete", complete)
+        async with compose(tmp_path, gallery, network={"max_attempts": 1}) as service:
+            await transport(service, gallery)
+            task = asyncio.create_task(service.workflow(FEED, workflow_retry_delay=0, workflow_retry_timeout=0.5))
+            try:
+>               assert await asyncio.to_thread(started.wait, 10)
+E               assert False
+
+tests\v3\application\test_workflow_retry.py:679: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/v3/application/test_workflow_retry.py::test_deadline_during_state_commit_finishes_transaction[19]
+1 failed, 19 passed, 83 deselected in 79.53s (0:01:19)

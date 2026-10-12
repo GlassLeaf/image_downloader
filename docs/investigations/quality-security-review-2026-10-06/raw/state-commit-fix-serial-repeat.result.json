@@ -1,0 +1,20 @@
+{
+  "command": [
+    "C:/Users/pc01/source/repos/image-downloader/.runtime/quality-venv/Scripts/python.exe",
+    "-m",
+    "pytest",
+    "-q",
+    "-p",
+    "workflow_state_commit_deadline",
+    "--repeat-state-commit=20",
+    "tests/v3/application/test_workflow_retry.py",
+    "-k",
+    "deadline_during_state_commit",
+    "--junitxml=.runtime/qs-series/state-commit-fix/normal-repeat-serial.xml"
+  ],
+  "exitcode": 0,
+  "watchdog": false,
+  "seconds": 42.29700000000594,
+  "log": "....................                                                     [100%]\r\n20 passed, 83 deselected in 40.18s\r\n",
+  "log_encoding": "utf-8"
+}

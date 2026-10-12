@@ -1,0 +1,164 @@
+2026-10-12T14:51:41.1865420Z ================================== FAILURES ===================================
+2026-10-12T14:51:41.1865877Z ___________ test_deadline_during_state_commit_finishes_transaction ____________
+2026-10-12T14:51:41.1866202Z 
+2026-10-12T14:51:41.1866582Z tmp_path = WindowsPath('C:/Users/runneradmin/AppData/Local/Temp/pytest-of-runneradmin/pytest-0/test_deadline_during_state_com0')
+2026-10-12T14:51:41.1867013Z monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000021B28A12810>
+2026-10-12T14:51:41.1867222Z 
+2026-10-12T14:51:41.1867373Z     def test_deadline_during_state_commit_finishes_transaction(tmp_path, monkeypatch):
+2026-10-12T14:51:41.1867658Z         async def scenario():
+2026-10-12T14:51:41.1867878Z             gallery = RetryGallery()
+2026-10-12T14:51:41.1868118Z             started, release = threading.Event(), threading.Event()
+2026-10-12T14:51:41.1868365Z             original = WorkflowState.complete
+2026-10-12T14:51:41.1868568Z     
+2026-10-12T14:51:41.1868751Z             def complete(state, *args):
+2026-10-12T14:51:41.1868941Z                 started.set()
+2026-10-12T14:51:41.1869122Z                 assert release.wait(5)
+2026-10-12T14:51:41.1870266Z                 original(state, *args)
+2026-10-12T14:51:41.1870544Z     
+2026-10-12T14:51:41.1870810Z             monkeypatch.setattr(WorkflowState, "complete", complete)
+2026-10-12T14:51:41.1871267Z             async with compose(tmp_path, gallery, network={"max_attempts": 1}) as service:
+2026-10-12T14:51:41.1871679Z                 await transport(service, gallery)
+2026-10-12T14:51:41.1872180Z                 task = asyncio.create_task(service.workflow(FEED, workflow_retry_delay=0, workflow_retry_timeout=0.5))
+2026-10-12T14:51:41.1872658Z                 try:
+2026-10-12T14:51:41.1872937Z                     assert await asyncio.to_thread(started.wait, 3)
+2026-10-12T14:51:41.1873285Z                     await asyncio.sleep(0.6)
+2026-10-12T14:51:41.1873616Z                     assert not task.done()
+2026-10-12T14:51:41.1873901Z                 finally:
+2026-10-12T14:51:41.1874157Z                     release.set()
+2026-10-12T14:51:41.1874494Z                 with pytest.raises(WorkflowRetryTimeoutError) as caught:
+2026-10-12T14:51:41.1874880Z                     await task
+2026-10-12T14:51:41.1875235Z                 assert caught.value.workflow_result.items[0].status == "success"
+2026-10-12T14:51:41.1875663Z                 assert (await service.workflow(FEED)).items == ()
+2026-10-12T14:51:41.1875974Z     
+2026-10-12T14:51:41.1876208Z >       asyncio.run(scenario())
+2026-10-12T14:51:41.1876364Z 
+2026-10-12T14:51:41.1876561Z tests\v3\application\test_workflow_retry.py:675: 
+2026-10-12T14:51:41.1877084Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+2026-10-12T14:51:41.1877539Z C:\hostedtoolcache\windows\Python\3.11.9\x64\Lib\asyncio\runners.py:190: in run
+2026-10-12T14:51:41.1877921Z     return runner.run(main)
+2026-10-12T14:51:41.1878169Z            ^^^^^^^^^^^^^^^^
+2026-10-12T14:51:41.1878541Z C:\hostedtoolcache\windows\Python\3.11.9\x64\Lib\asyncio\runners.py:118: in run
+2026-10-12T14:51:41.1878964Z     return self._loop.run_until_complete(task)
+2026-10-12T14:51:41.1879263Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-12T14:51:41.1879980Z C:\hostedtoolcache\windows\Python\3.11.9\x64\Lib\asyncio\base_events.py:654: in run_until_complete
+2026-10-12T14:51:41.1880450Z     return future.result()
+2026-10-12T14:51:41.1880690Z            ^^^^^^^^^^^^^^^
+2026-10-12T14:51:41.1880963Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+2026-10-12T14:51:41.1881197Z 
+2026-10-12T14:51:41.1881285Z     async def scenario():
+2026-10-12T14:51:41.1881570Z         gallery = RetryGallery()
+2026-10-12T14:51:41.1881881Z         started, release = threading.Event(), threading.Event()
+2026-10-12T14:51:41.1882228Z         original = WorkflowState.complete
+2026-10-12T14:51:41.1882539Z     
+2026-10-12T14:51:41.1883263Z         def complete(state, *args):
+2026-10-12T14:51:41.1883528Z             started.set()
+2026-10-12T14:51:41.1883771Z             assert release.wait(5)
+2026-10-12T14:51:41.1884063Z             original(state, *args)
+2026-10-12T14:51:41.1884302Z     
+2026-10-12T14:51:41.1884569Z         monkeypatch.setattr(WorkflowState, "complete", complete)
+2026-10-12T14:51:41.1885015Z         async with compose(tmp_path, gallery, network={"max_attempts": 1}) as service:
+2026-10-12T14:51:41.1885442Z             await transport(service, gallery)
+2026-10-12T14:51:41.1885912Z             task = asyncio.create_task(service.workflow(FEED, workflow_retry_delay=0, workflow_retry_timeout=0.5))
+2026-10-12T14:51:41.1886369Z             try:
+2026-10-12T14:51:41.1886631Z >               assert await asyncio.to_thread(started.wait, 3)
+2026-10-12T14:51:41.1886975Z E               assert False
+2026-10-12T14:51:41.1887114Z 
+2026-10-12T14:51:41.1887297Z tests\v3\application\test_workflow_retry.py:665: AssertionError
+2026-10-12T14:51:41.1887671Z =============================== tests coverage ================================
+2026-10-12T14:51:41.1888082Z _______________ coverage: platform win32, python 3.11.9-final-0 _______________
+2026-10-12T14:51:41.1888493Z 
+2026-10-12T14:51:41.1888684Z Name                                                         Stmts   Miss Branch BrPart  Cover   Missing
+2026-10-12T14:51:41.1889147Z --------------------------------------------------------------------------------------------------------
+2026-10-12T14:51:41.1889651Z src\image_downloader\__main__.py                                 2      2      0      0     0%   1-3
+2026-10-12T14:51:41.1890371Z src\image_downloader\application\additional_files.py           207     18     66     13    88%   84, 87-89, 146, 148, 150, 157, 159, 161, 175, 178, 202->205, 203->205, 225->227, 230-232, 252-254
+2026-10-12T14:51:41.1891153Z src\image_downloader\application\construction.py                82      8     16      1    89%   20-21, 53-54, 70, 101-103
+2026-10-12T14:51:41.1891848Z src\image_downloader\application\log_verification.py           156     19     56      9    87%   61, 67-68, 96, 99-100, 103-104, 121, 158, 161, 198-199, 211, 218-222
+2026-10-12T14:51:41.1892788Z src\image_downloader\application\service.py                    572     30    116     13    93%   92->exit, 254, 304, 343, 368, 390, 501-502, 712-715, 765, 798, 800, 814, 863, 913, 953-955, 974->exit, 1005, 1235, 1451-1452, 1478, 1508-1514
+2026-10-12T14:51:41.1893637Z src\image_downloader\application\verification_recording.py      37      1     14      1    96%   34
+2026-10-12T14:51:41.1894243Z src\image_downloader\application\workflow.py                   205      8     44      3    95%   141, 165, 284, 382-384, 471-472
+2026-10-12T14:51:41.1894873Z src\image_downloader\application\workflow_plan.py               57      4      6      1    89%   82-84, 94
+2026-10-12T14:51:41.1895539Z src\image_downloader\application\workflow_recording.py         109     34     22      6    66%   28-29, 69-71, 73-74, 78, 82, 105-122, 124, 126-134, 152-153
+2026-10-12T14:51:41.1896212Z src\image_downloader\application\workflow_reporting.py          59      2     24      2    95%   24, 77
+2026-10-12T14:51:41.1896848Z src\image_downloader\application\workflow_retry.py              98      2     38      4    96%   100, 111->97, 118, 120->exit
+2026-10-12T14:51:41.1897455Z src\image_downloader\application\workflow_selection.py          43      1     20      1    97%   68
+2026-10-12T14:51:41.1898037Z src\image_downloader\application\workflow_state.py              55      4     16      2    92%   65, 79, 86-87
+2026-10-12T14:51:41.1898714Z src\image_downloader\application\workflow_verification.py      103      6     42      6    92%   21-22, 35, 42->51, 45->42, 85, 94, 106, 118->122
+2026-10-12T14:51:41.1899470Z src\image_downloader\commands\config.py                        148     37     54     13    71%   70, 91-95, 102-107, 143-156, 166, 168, 176, 194, 197, 200, 210, 216-217, 238, 248
+2026-10-12T14:51:41.1900501Z src\image_downloader\commands\cookie.py                         39     10     12      2    65%   53-56, 68-78
+2026-10-12T14:51:41.1901095Z src\image_downloader\commands\dispatch.py                       93      8     32      9    86%   83, 85, 87, 92, 93->95, 95->97, 98, 100, 106, 134
+2026-10-12T14:51:41.1901744Z src\image_downloader\commands\doctor.py                         68     11     16      3    79%   30-49, 55->57, 63-65, 151, 155-160
+2026-10-12T14:51:41.1902328Z src\image_downloader\commands\download.py                       59      3     14      3    92%   41, 43, 85
+2026-10-12T14:51:41.1902852Z src\image_downloader\commands\inspect.py                        75      1     20      1    98%   78
+2026-10-12T14:51:41.1903420Z src\image_downloader\commands\parser.py                        255      6    118      3    97%   55->57, 64, 234-238
+2026-10-12T14:51:41.1904056Z src\image_downloader\commands\plugin.py                         87     10     32     10    83%   61, 62->exit, 80, 86-87, 117, 120, 134->128, 137, 154, 173, 181
+2026-10-12T14:51:41.1904679Z src\image_downloader\commands\reporting.py                      74     12     12      1    83%   20-30, 107-110
+2026-10-12T14:51:41.1905473Z src\image_downloader\commands\setup.py                         202     29     64      9    85%   29, 46-47, 66, 72-73, 101, 109-110, 158, 167, 173-174, 176, 189-211, 214, 222-223, 227, 312
+2026-10-12T14:51:41.1906171Z src\image_downloader\commands\state.py                          73      9     32      9    83%   73, 77, 83, 85, 88, 90, 121, 127, 136
+2026-10-12T14:51:41.1906783Z src\image_downloader\commands\state_formatting.py              111     11     66      7    88%   19-20, 23, 31, 74, 118-124, 136, 138
+2026-10-12T14:51:41.1907471Z src\image_downloader\commands\validation.py                    193     10     96      4    94%   39-40, 141-142, 169, 202, 211-212, 223-224
+2026-10-12T14:51:41.1908079Z src\image_downloader\commands\verify.py                         63     11     20      3    76%   49-60, 65, 74->76
+2026-10-12T14:51:41.1908760Z src\image_downloader\commands\workflow.py                      184     36     54     10    75%   54, 190-202, 213, 215, 274, 283, 284->294, 301, 344-354, 391->402, 394-401, 411-412, 417-422
+2026-10-12T14:51:41.1909498Z src\image_downloader\configuration\hosts.py                     39      8     10      3    78%   12-13, 42-43, 45, 54-58
+2026-10-12T14:51:41.1910424Z src\image_downloader\configuration\layers.py                   380     29    130     18    91%   120->122, 162-163, 191, 218->220, 221-222, 236, 242-250, 261-262, 268-269, 278, 326, 329->331, 333, 338, 341, 347, 369-370, 373, 374->exit, 377-378, 412->419, 427, 430, 433, 525, 529
+2026-10-12T14:51:41.1911405Z src\image_downloader\configuration\models.py                   216      7     40      7    95%   53, 118, 152, 237, 239, 285, 293
+2026-10-12T14:51:41.1912012Z src\image_downloader\configuration\paths.py                     23      1      0      0    96%   21
+2026-10-12T14:51:41.1912566Z src\image_downloader\credentials\keyring.py                      7      5      0      0    29%   7-12
+2026-10-12T14:51:41.1913125Z src\image_downloader\diagnostics.py                             80      8     26      5    86%   61, 63-65, 73->88, 77-78, 95-97
+2026-10-12T14:51:41.1913718Z src\image_downloader\exceptions.py                             168      5     10      0    96%   334-338
+2026-10-12T14:51:41.1914289Z src\image_downloader\media\artifact_pipeline.py                124      6     38      4    93%   68, 149-153, 239-241, 248->250
+2026-10-12T14:51:41.1915044Z src\image_downloader\media\image_processor.py                  143     88     42      0    32%   105, 109-114, 124-166, 170-186, 191, 195, 199-206, 210-215, 219-220, 224-235
+2026-10-12T14:51:41.1915734Z src\image_downloader\media\processor_chain.py                   70      5     14      3    90%   54, 56-57, 92->94, 103-104
+2026-10-12T14:51:41.1916609Z src\image_downloader\models.py                                 523     31     72     31    90%   33, 37, 57, 90, 113, 115, 144, 152, 154, 156, 161, 165, 173, 175-177, 189, 201, 216, 218, 220, 222, 237, 240, 259, 261, 269, 350, 352, 354, 357, 359
+2026-10-12T14:51:41.1917408Z src\image_downloader\observability\chapter_reporter.py          51      1     18      1    97%   81
+2026-10-12T14:51:41.1917989Z src\image_downloader\observability\events.py                   106      3      6      1    96%   181, 190-192
+2026-10-12T14:51:41.1918705Z src\image_downloader\observability\logging.py                  290     13     96     11    94%   122, 140, 145->147, 174->176, 205-207, 267, 361, 371, 417->385, 458, 473, 493, 506-507, 520
+2026-10-12T14:51:41.1919892Z src\image_downloader\observability\notifications.py            302     11    138     14    94%   76-77, 148-149, 162, 165-172, 354, 373->375, 375->377, 378->380, 392->394, 396->398, 398->400, 400->402, 412->411, 426, 457->462, 464->466
+2026-10-12T14:51:41.1920703Z src\image_downloader\observability\scope.py                     34      3      6      1    90%   33, 56-57
+2026-10-12T14:51:41.1921341Z src\image_downloader\output\original_filename.py               111     16     52      9    83%   71, 76, 79, 99, 115-118, 122, 126, 131, 138, 144-145, 151-152
+2026-10-12T14:51:41.1922192Z src\image_downloader\output\output_allocator.py                216     15     80     16    90%   42, 44, 46, 48, 50, 54, 58, 133, 175->147, 194, 217, 219-220, 229, 239, 241->244, 262
+2026-10-12T14:51:41.1922842Z src\image_downloader\output\output_lock.py                      37      2      0      0    95%   50-51
+2026-10-12T14:51:41.1923374Z src\image_downloader\plugins\builtin.py                        101      0     26      1    99%   104->exit
+2026-10-12T14:51:41.1923936Z src\image_downloader\plugins\format_values.py                   25      1      4      1    93%   35
+2026-10-12T14:51:41.1924577Z src\image_downloader\plugins\lifecycle.py                      296     18     78      7    93%   91, 129, 137, 154-155, 158, 201-202, 229-233, 280, 313, 320, 390-391
+2026-10-12T14:51:41.1925432Z src\image_downloader\plugins\management.py                     173     25     68     17    82%   87, 94, 136-156, 165, 168, 171-172, 176, 207, 212->214, 215, 242, 246->258, 278, 281, 284-285, 286->279, 301, 305, 310->317, 314->316
+2026-10-12T14:51:41.1926578Z src\image_downloader\plugins\plugin_invoker.py                 278     38    122     35    82%   109, 121, 130, 160, 193, 320, 325, 327, 330, 332, 340, 342, 344, 355, 361, 364, 375, 378, 388, 390, 394, 396-397, 400, 408, 420-421, 427, 430, 432, 434, 438, 443, 448, 467, 471, 482, 484
+2026-10-12T14:51:41.1927977Z src\image_downloader\plugins\plugin_manifest.py                337     55    118     36    80%   112-113, 126, 129, 131, 139-140, 204, 218, 222, 232, 245, 253, 258, 266, 281-290, 336-337, 343, 348, 351, 353, 377, 380-381, 387, 395, 400-401, 403, 406-407, 409, 430, 433, 437, 445, 450, 468-469, 484, 488, 492, 514, 530, 533, 568-569, 592, 603->605, 609, 619, 624-625, 627
+2026-10-12T14:51:41.1929250Z src\image_downloader\plugins\runtime.py                        234     30     88     17    84%   109, 133, 176, 178, 182, 186, 215, 229, 233-234, 248-250, 269, 292, 294, 323-329, 332-336, 352-353, 378, 399, 426, 428
+2026-10-12T14:51:41.1930031Z src\image_downloader\plugins\source_loader.py                   91      5     28      2    94%   30-31, 56, 58, 114
+2026-10-12T14:51:41.1930626Z src\image_downloader\ports.py                                  158     11      6      2    92%   72, 108, 133, 137, 141, 145, 149, 189, 202, 236, 240
+2026-10-12T14:51:41.1931251Z src\image_downloader\privacy\log_safety.py                      77      9     12      2    88%   50, 84-85, 100-101, 127-128, 133, 153
+2026-10-12T14:51:41.1931903Z src\image_downloader\storage\_path_limits.py                   112     12     40      7    86%   36->42, 51-52, 54, 65, 72, 87, 98-101, 131->135, 133-134
+2026-10-12T14:51:41.1932989Z src\image_downloader\storage\cookies.py                        276      7     94      6    96%   73, 85-86, 116->exit, 144->137, 154->153, 167, 170->164, 193-194, 199
+2026-10-12T14:51:41.1933771Z src\image_downloader\storage\filesystem.py                     218     18     56     10    90%   57, 81, 111, 116, 138, 161-162, 172, 180, 182-184, 198->200, 202, 211-212, 252, 274-275
+2026-10-12T14:51:41.1934595Z src\image_downloader\storage\interprocess_lock.py              324     22     84     14    91%   28-29, 45, 77, 84-85, 92, 115, 144, 153, 166-167, 222, 247, 271, 295, 306, 313, 339, 356, 386-387
+2026-10-12T14:51:41.1935320Z src\image_downloader\storage\path_safety.py                     50      8     16      2    85%   37, 43-44, 61-62, 75, 77-78
+2026-10-12T14:51:41.1935940Z src\image_downloader\storage\state.py                          147     10     48      8    91%   77-78, 165, 173, 178, 182, 185, 196, 200, 203
+2026-10-12T14:51:41.1936546Z src\image_downloader\storage\workflow.py                       134      8     48      6    92%   29-30, 66, 69, 78, 85, 87, 90
+2026-10-12T14:51:41.1937205Z src\image_downloader\storage\workflow_history.py               135     16     36     12    84%   44, 47, 62, 64, 66, 69, 71, 73, 76, 98-99, 121, 125, 163-164, 181
+2026-10-12T14:51:41.1937917Z src\image_downloader\storage\workflow_logging.py                92      3     20      1    96%   100-101, 185
+2026-10-12T14:51:41.1938717Z src\image_downloader\transport\gateway.py                      371     34    112     18    88%   73, 77-78, 95->93, 122, 129, 277-288, 293, 319->322, 322->324, 324->326, 362, 398, 411, 416, 430-439, 456, 458, 494, 534-537, 629, 637, 663
+2026-10-12T14:51:41.1939463Z --------------------------------------------------------------------------------------------------------
+2026-10-12T14:51:41.1940109Z TOTAL                                                        10546    930   3074    477    89%
+2026-10-12T14:51:41.1940357Z 
+2026-10-12T14:51:41.1940488Z 28 files skipped due to complete coverage.
+2026-10-12T14:51:41.2843553Z Required test coverage of 75.0% reached. Total coverage: 88.73%
+2026-10-12T14:51:41.2843966Z =========================== short test summary info ===========================
+2026-10-12T14:51:41.2844428Z FAILED tests/v3/application/test_workflow_retry.py::test_deadline_during_state_commit_finishes_transaction - assert False
+2026-10-12T14:51:41.2844812Z 1 failed, 2120 passed, 12 skipped in 227.08s (0:03:47)
+2026-10-12T14:51:41.5072285Z ##[error]Process completed with exit code 1.
+2026-10-12T14:51:41.5269543Z Post job cleanup.
+2026-10-12T14:51:41.6286087Z [command]"C:\Program Files\Git\bin\git.exe" version
+2026-10-12T14:51:41.6469261Z git version 2.55.0.windows.5
+2026-10-12T14:51:41.6511690Z Temporarily overriding HOME='D:\a\_temp\d21b97df-d2b2-44a7-8f68-3967669f68ba' before making global git config changes
+2026-10-12T14:51:41.6512621Z Adding repository directory to the temporary git global config as a safe directory
+2026-10-12T14:51:41.6517888Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\image_downloader\image_downloader
+2026-10-12T14:51:41.6729196Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+2026-10-12T14:51:41.6926960Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+2026-10-12T14:51:42.0264261Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-10-12T14:51:42.0438461Z http.https://github.com/.extraheader
+2026-10-12T14:51:42.0466239Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all http.https://github.com/.extraheader
+2026-10-12T14:51:42.0653112Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+2026-10-12T14:51:42.4824846Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-10-12T14:51:42.5056882Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+2026-10-12T14:51:42.8597551Z Cleaning up orphan processes
+2026-10-12T14:51:42.8847907Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-python@v5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
