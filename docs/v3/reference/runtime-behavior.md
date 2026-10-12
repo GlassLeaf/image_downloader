@@ -76,6 +76,21 @@ profile cookie は `<storage.data_root>/profiles/<profile>/cookie/cookies.enc` �
 
 cookie export/import は passphrase container を使い、passphrase を対話入力する。browser import は `browser-cookie3` を含む `.[browser-cookies]` extra が必要で、既存 jar を差分 merge する。破損した encrypted file は上書きせず error にし、明示 import を復旧手段にする。
 
+容器はJSON object、`format`はboolを除く整数の1、`cipher`は`AES-256-GCM`を必須とする。
+nonceはbase64文字列から復元した12バイト、ciphertextは認証tagを含む16バイト以上で、
+exportでは既存のkind・kdfと16バイトのsaltも検証する。復号後はrecordの配列とし、
+name・domainは必須文字列、valueは必須の文字列またはnull、pathは文字列（既定`/`）、
+secure・domain_specified・domain_initial_dotはbool（既定false）、expiresはboolを除く
+float変換可能な有限範囲の整数またはnull（既定null）、restは文字列キーとJSON値の辞書（既定`{}`）
+として復元前に検証する。未知のフィールドは無視し、ドメイン・パスを追加正規化しない。
+期限0・過去の期限は期限切れCookieとして扱う。値なしCookieのnullは`None`のまま保持する。
+
+不正な型を文字列・boolへ暗黙変換しない。UTF-8へ符号化できない文字列、
+不正なJSON・base64・復号・recordは、入力値を含まない固定メッセージの`AuthenticationError`
+とする。file importは元データ全体の検証を終えてから既存データのlock・merge・保存を行い、
+不正recordを部分的に取り込まない。loadとbrowser importは破損容器を上書きしない。
+file importによる明示的な復旧と、失敗時の既存ファイル保持を維持する。
+
 同一端末上の本 application process は `cookie/cookies.lock` で read/merge/write を直列化する。異なる cookie は保持し、同一 `(domain, path, name)` は後に確定した更新、同値なら長い expiry、session cookie は persistent cookie より短期として扱う。lock file は解放後も残る。NAS と外部 application の同時変更は保証対象外である。`CookieStore.save()` は jar 全体を置換する library API であり、runtime の delta merge とは異なる。
 
 ## 共通ファイルロックの初期化と所有権
