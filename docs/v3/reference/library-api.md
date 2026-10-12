@@ -134,7 +134,7 @@ The operation is serial with run/check_updates/inspect/close. Dedicated state an
 | outcome enums | `FailureKind` の member/value は `FETCH="fetch"`、`PROCESS="process"`、`SAVE="save"`、`ImageOutcomeKind` は `SAVED="saved"`、`SKIPPED="skipped"`、`FAILED="failed"`、`UpdateChangeKind` は `ADDED="added"`、`CHANGED="changed"`、`REMOVED="removed"`。member name と serialization の `.value` を混同しない。 |
 | update DTO | `UpdateCandidate(url, content_id=None, revision=None)`、`UpdateSnapshot(source_url, candidates, checked_at)`、`UpdateChange(kind, url, content_id=None, revision=None)`、`UpdateResult(source_url, plugin_id, changes, checked_at)`。kind は ADDED/CHANGED/REMOVED。 |
 | `RequestPort` | `async execute(spec: RequestSpec) -> RequestResponse`。`RequestError` family を送出し得る。 |
-| `SecretProvider` | `get(name: str) -> str`。未設定/取得不能は `SecretNotFound`。 |
+| `SecretProvider` | `get(name: str) -> str`。未設定/取得不能は `SecretNotFoundError`。 |
 | `AuthFlow` | `is_auth_failure(request, response) -> bool`、`async apply(request) -> RequestSpec`、`async refresh(failed, response) -> RequestSpec | None`。 |
 | `SitePlugin` / `ImageProcessor` / `UpdateProvider` | signature と hook failure は [plugin hook reference](plugin-hooks.md) が正本。 |
 
@@ -249,9 +249,9 @@ No public runtime API converts `asyncio.CancelledError` to `DownloadResult`,
 | `ArgumentError` | `argument_error` | command-line arguments are invalid | — |
 | `PluginError` | `plugin_error` | plugin operation failed | — |
 | `UpdateCheckUnsupportedError` | `update_check_unsupported` | selected plugin does not support update checks | — |
-| `UnsupportedSiteFeature` | `unsupported_site_feature` | site requires an unsupported feature | — |
+| `UnsupportedSiteFeatureError` | `unsupported_site_feature` | site requires an unsupported feature | — |
 | `AuthenticationError` | `authentication_error` | authentication failed | — |
-| `SecretNotFound` | `secret_not_found` | required secret was not found | — |
+| `SecretNotFoundError` | `secret_not_found` | required secret was not found | — |
 | `RequestError` | `request_error` | HTTP request failed | — |
 | `HttpTransportError` | `http_transport_error` | HTTP transport failed | — |
 | `HttpStatusError` | `http_status_error` | HTTP server returned an error response | `status`, `response_url` |

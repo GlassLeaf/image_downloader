@@ -28,7 +28,7 @@ from ..exceptions import (
     PluginError,
     RedirectPolicyError,
     ResponseSizeLimitError,
-    UnsupportedSiteFeature,
+    UnsupportedSiteFeatureError,
 )
 from ..immutable import thaw_json
 from ..models import (
@@ -395,7 +395,7 @@ class RequestGateway:
 
     async def _read_response(self, response: httpx.Response) -> RequestResponse:
         if response.headers.get("content-type", "").lower().startswith("text/event-stream"):
-            raise UnsupportedSiteFeature("server-sent events are not supported")
+            raise UnsupportedSiteFeatureError("server-sent events are not supported")
         limit = self.config.network.max_response_bytes
         declared = response.headers.get("content-length")
         if declared is not None:
@@ -453,9 +453,9 @@ class RequestGateway:
     def _validate_protocol(spec: RequestSpec) -> None:
         parsed = urlparse(spec.url)
         if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-            raise UnsupportedSiteFeature("only absolute HTTP(S) requests are supported")
+            raise UnsupportedSiteFeatureError("only absolute HTTP(S) requests are supported")
         if "text/event-stream" in spec.headers.get("Accept", "").lower():
-            raise UnsupportedSiteFeature("server-sent events are not supported")
+            raise UnsupportedSiteFeatureError("server-sent events are not supported")
 
     async def close(self) -> None:
         await self.client.aclose()

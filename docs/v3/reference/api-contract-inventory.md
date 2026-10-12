@@ -86,7 +86,7 @@ RequestResponse
 RequestSpec
 ResponseSizeLimitError
 RuntimeComposer
-SecretNotFound
+SecretNotFoundError
 SecretProvider
 SitePlugin
 StorageError
@@ -96,7 +96,7 @@ TransportCookie
 TransportHeader
 TransportRequestMetadata
 UnsupportedImageFormatError
-UnsupportedSiteFeature
+UnsupportedSiteFeatureError
 UpdateCandidate
 UpdateChange
 UpdateChangeKind

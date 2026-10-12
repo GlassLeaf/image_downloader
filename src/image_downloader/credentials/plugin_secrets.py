@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from collections.abc import Mapping
 
-from ..exceptions import SecretNotFound
+from ..exceptions import SecretNotFoundError
 from ..ports import SecretProvider
 from .keyring import load_secret
 
@@ -24,11 +24,11 @@ class RuntimeSecrets(SecretProvider):
     def get(self, name: str) -> str:
         reference = self.references.get(name)
         if not reference:
-            raise SecretNotFound("required plugin secret is not configured")
+            raise SecretNotFoundError("required plugin secret is not configured")
         value = os.getenv(self._environment_name(self.plugin_id, reference))
         if value:
             return value
         value = load_secret(f"image-downloader.plugin.{self.plugin_id}", reference)
         if value is None:
-            raise SecretNotFound("required plugin secret is unavailable")
+            raise SecretNotFoundError("required plugin secret is unavailable")
         return value

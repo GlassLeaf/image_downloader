@@ -50,7 +50,7 @@ class UpdateCheckUnsupportedError(PluginError):
     reason = "selected plugin does not support update checks"
 
 
-class UnsupportedSiteFeature(PluginError):
+class UnsupportedSiteFeatureError(PluginError):
     """A site requires a capability outside the v3 plugin contract."""
 
     code = "unsupported_site_feature"
@@ -62,7 +62,7 @@ class AuthenticationError(ImageDownloaderError):
     reason = "authentication failed"
 
 
-class SecretNotFound(AuthenticationError):
+class SecretNotFoundError(AuthenticationError):
     code = "secret_not_found"
     reason = "required secret was not found"
 
@@ -247,9 +247,9 @@ ERROR_CATALOG: Final[tuple[ErrorCatalogEntry, ...]] = (
     ErrorCatalogEntry(ArgumentError),
     ErrorCatalogEntry(PluginError),
     ErrorCatalogEntry(UpdateCheckUnsupportedError),
-    ErrorCatalogEntry(UnsupportedSiteFeature),
+    ErrorCatalogEntry(UnsupportedSiteFeatureError),
     ErrorCatalogEntry(AuthenticationError),
-    ErrorCatalogEntry(SecretNotFound),
+    ErrorCatalogEntry(SecretNotFoundError),
     ErrorCatalogEntry(RequestError),
     ErrorCatalogEntry(HttpTransportError),
     ErrorCatalogEntry(HttpStatusError, ("status", "response_url")),
