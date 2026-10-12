@@ -54,9 +54,9 @@ EXPECTED_EXPORTS = {
         resolve_application_config RedirectPolicyError ResolvedApplicationConfig OriginScopedAuthFlow PluginError
         PluginExecutionContext PluginFormatContext OutputFormatValueProvider RequestPort RequestError
         RequestResponse RequestSpec ResponseSizeLimitError
-        RuntimeComposer SecretNotFound SecretProvider SitePlugin StorageError StorageSafetyError
+        RuntimeComposer SecretNotFoundError SecretProvider SitePlugin StorageError StorageSafetyError
         TransformContext TransportCookie TransportHeader TransportRequestMetadata
-        UnsupportedImageFormatError UnsupportedSiteFeature UpdateCandidate UpdateChange UpdateChangeKind
+        UnsupportedImageFormatError UnsupportedSiteFeatureError UpdateCandidate UpdateChange UpdateChangeKind
         UpdateProvider UpdateResult UpdateSnapshot UpdateStateError UpdateCheckUnsupportedError
         """.split()
     ),
@@ -338,7 +338,7 @@ def test_current_documentation_links_and_contracts_are_valid(repository_root: Pa
         "recover_image_request",
         "ImageResource.url",
         "network.auth_refresh_attempts",
-        "UnsupportedSiteFeature",
+        "UnsupportedSiteFeatureError",
     ):
         assert required_topic in lifecycle
 

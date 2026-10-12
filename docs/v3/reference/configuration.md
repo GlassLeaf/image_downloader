@@ -308,7 +308,7 @@ plugin ID `com.example.a-b`、reference `TOKEN` の名前は次になる。
 IMAGE_DOWNLOADER_PLUGIN_636F6D2E6578616D706C652E612D62_544F4B454E
 ```
 
-空でない environment value をそのまま優先する。未設定または空文字なら、従来と同じ keyring service `image-downloader.plugin.<plugin-id>` の username `<REFERENCE>` を参照する。keyring が `None` を返せば `SecretNotFound("required plugin secret is unavailable")`、空文字なら従来どおりその値を返す。logical name が未構成、または reference が空なら取得前に `SecretNotFound("required plugin secret is not configured")` となる。取得は各 `get(name)` 時に行い、値を cache しない。
+空でない environment value をそのまま優先する。未設定または空文字なら、従来と同じ keyring service `image-downloader.plugin.<plugin-id>` の username `<REFERENCE>` を参照する。keyring が `None` を返せば `SecretNotFoundError("required plugin secret is unavailable")`、空文字なら従来どおりその値を返す。logical name が未構成、または reference が空なら取得前に `SecretNotFoundError("required plugin secret is not configured")` となる。取得は各 `get(name)` 時に行い、値を cache しない。
 
 旧形式 `IMAGE_DOWNLOADER_PLUGIN_<NORMALIZED_ID>_<NORMALIZED_REFERENCE>` は読み出さない。現行の有効 ID は `.` が必須なので、旧名の接頭辞以降には区切りを含めて `_` が最低2個あり、新名では1個だけである。有効な現行 ID から生成される新旧名は衝突しない。旧名への fallback、値の自動コピー、環境変数の自動削除は行わない。
 

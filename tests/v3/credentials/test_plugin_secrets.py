@@ -10,7 +10,7 @@ import httpx
 import pytest
 from pydantic import ValidationError
 
-from image_downloader import AppConfig, RuntimeComposer, SecretNotFound
+from image_downloader import AppConfig, RuntimeComposer, SecretNotFoundError
 from image_downloader.credentials import plugin_secrets
 from image_downloader.runtime import RuntimeSecrets
 from image_downloader.security import install_plugin
@@ -123,7 +123,7 @@ def test_absent_or_empty_environment_uses_the_unchanged_keyring_identity(monkeyp
 @pytest.mark.parametrize("references", [{}, {"secret": ""}, {"other": "TOKEN"}])
 def test_unconfigured_secret_fails_before_any_lookup(monkeypatch, references):
     monkeypatch.setattr(plugin_secrets.os, "getenv", lambda _: pytest.fail("unexpected environment access"))
-    with pytest.raises(SecretNotFound) as error:
+    with pytest.raises(SecretNotFoundError) as error:
         RuntimeSecrets("a.b", references).get("secret")
     assert str(error.value) == "required plugin secret is not configured"
 
@@ -136,7 +136,7 @@ def test_unavailable_secret_ignores_legacy_values_and_keeps_the_safe_error(monke
         monkeypatch.setenv(SIMPLE, environment_value)
     monkeypatch.setenv(PREFIX + "A_B_TOKEN", "unused-legacy-canary")
     monkeypatch.setattr(plugin_secrets, "load_secret", lambda _service, _username: None)
-    with pytest.raises(SecretNotFound) as error:
+    with pytest.raises(SecretNotFoundError) as error:
         RuntimeSecrets("a.b", {"secret": "TOKEN"}).get("secret")
     assert str(error.value) == "required plugin secret is unavailable"
     assert capsys.readouterr() == ("", "")

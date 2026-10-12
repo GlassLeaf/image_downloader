@@ -150,7 +150,7 @@ site overlay または main config の `plugin_settings.<id>.download_policy.pre
 
 browser cookie は `cookie browser-import DOMAIN`、バックアップ・移行は `cookie export` と `cookie import` を使う。passphrase、cookie 値、raw credential を CLI option、YAML、ログへ書かない。plugin 用 secret は keyring または環境変数から logical reference で解決する。[secure operations](operate-securely.md) と [plugin secrets](../reference/configuration.md#config-secrets) を参照する。
 
-QS-016 の修正後も接頭辞は `IMAGE_DOWNLOADER_PLUGIN_` のままで、環境変数名は `IMAGE_DOWNLOADER_PLUGIN_<ID_HEX>_<REFERENCE_HEX>` になる。各フィールドは元の文字列全体の UTF-8（`surrogatepass`）bytes を大文字の16進表現にした値である。旧名への fallback はない。旧名だけを設定している場合は keyring へ進み、利用可能な値がなければ `SecretNotFound` になる。
+QS-016 の修正後も接頭辞は `IMAGE_DOWNLOADER_PLUGIN_` のままで、環境変数名は `IMAGE_DOWNLOADER_PLUGIN_<ID_HEX>_<REFERENCE_HEX>` になる。各フィールドは元の文字列全体の UTF-8（`surrogatepass`）bytes を大文字の16進表現にした値である。旧名への fallback はない。旧名だけを設定している場合は keyring へ進み、利用可能な値がなければ `SecretNotFoundError` になる。
 
 keyring のみの利用者、YAML の reference、公開 API は従来どおりである。環境変数の利用者は新名で認証・取得を確認し、他の plugin/profile が使っていないと確認した旧名を User/System 環境、shell 設定、`.env`、CI 設定などの定義元から削除する。アプリは環境変数を自動削除しない。[名前だけを生成する例と移行手順](../maintenance/migration.md#plugin-secret-environment-migration) を参照する。
 
@@ -357,7 +357,7 @@ manifest には解決可能な locator と必要なら識別子を置く。canon
 
 ### 4. 認証はどのように実装するか？
 
-`auth_flow()` は `AuthFlow` を構築する。`apply()` で request に認証を適用し、401/403 または独自失敗応答で `refresh()` が呼ばれて更新・再試行を行う。missing secret は `SecretNotFound`、ログイン・refresh の拒否は `AuthenticationError` にする。認証 endpoint を呼ぶ場合も `context.requests` を使い、再帰認証を避ける必要がある request は `auth_required=False` にする。[hook contract](../reference/plugin-hooks.md#plugin-hooks) を参照する。
+`auth_flow()` は `AuthFlow` を構築する。`apply()` で request に認証を適用し、401/403 または独自失敗応答で `refresh()` が呼ばれて更新・再試行を行う。missing secret は `SecretNotFoundError`、ログイン・refresh の拒否は `AuthenticationError` にする。認証 endpoint を呼ぶ場合も `context.requests` を使い、再帰認証を避ける必要がある request は `auth_required=False` にする。[hook contract](../reference/plugin-hooks.md#plugin-hooks) を参照する。
 
 ### 5. plugin が利用できる network と secret の境界は？
 

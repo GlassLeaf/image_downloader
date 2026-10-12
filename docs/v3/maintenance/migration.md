@@ -52,3 +52,28 @@ new name: IMAGE_DOWNLOADER_PLUGIN_636F6D2E6578616D706C652E612D62_544F4B454E
 ```
 
 アプリによる自動削除や、接頭辞全体の一括削除は行わない。他の profile や別プロセスでの使用をアプリだけでは判断できないため、削除対象は利用者が確認した旧名に限定する。現在の shell から消すだけでは、親プロセスや永続設定から再注入される場合がある。定義元の整理とプロセスの再起動まで確認する。
+
+## QS-015：公開例外名の変更
+
+QS-015では、PEP 8のError接尾辞に統一するため、次の公開名を変更した。
+旧名のalias、旧クラス、旧名へのfallbackは提供しない。これは破壊的API変更である。
+
+| 旧名（削除） | 新しい公開名 |
+| --- | --- |
+| `UnsupportedSiteFeature` | `UnsupportedSiteFeatureError` |
+| `SecretNotFound` | `SecretNotFoundError` |
+
+`image_downloader`と`image_downloader.exceptions`の両経路で、importとexceptを新名に変更する。
+`ErrorInfo.exception`やログの例外名を比較するコードも新名称へ更新する。
+機械的な分類には、変更していない`unsupported_site_feature`・`secret_not_found`のcodeを使える。
+`PluginError`／`AuthenticationError`を捕捉するコードは、そのまま同じ例外を捕捉できる。
+継承、constructor、固定メッセージ、CLI終了コード（plugin 4／authentication 3）は変更しない。
+
+```python
+from image_downloader import SecretNotFoundError, UnsupportedSiteFeatureError
+```
+
+外部プラグインが旧名をimport・exceptしている場合はソースを変更し、署名を作り直して
+strict検証する。同梱プラグインには旧名の参照がなく、署名済みソースは変更していない。
+過去の監査資料や保存済みログの例外名は歴史的記録として残し、自動変換しない。
+通常のRuff規約にN818を追加し、同じ命名差分が再発しないようにした。

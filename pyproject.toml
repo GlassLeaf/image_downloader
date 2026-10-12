@@ -72,7 +72,7 @@ src = ["src", "tests", "examples"]
 extend-exclude = [".runtime", "tests/legacy", "tests/test_*.py", "plugin-sources/*/vendor"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "C90"]
+select = ["E", "F", "I", "UP", "B", "C90", "N818"]
 ignore = ["E701", "E702"]
 
 [tool.ruff.lint.mccabe]
