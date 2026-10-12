@@ -273,8 +273,9 @@ class FakeSmtpClient:
     def login(self, username: str, password: str) -> None:
         self.login_args = (username, password)
 
-    def send_message(self, _message: object) -> None:
+    def send_message(self, _message: object) -> dict[str, tuple[int, bytes]]:
         self.sent = True
+        return {}
 
 
 def test_notification_smtp_tls_modes_are_local(monkeypatch) -> None:

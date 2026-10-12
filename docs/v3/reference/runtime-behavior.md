@@ -298,6 +298,22 @@ workflow期限を指定しても、キャンセルは協調的である。イベ
 chapter log は image URL、response URL、status、stage、transport、reason code、safe exception detail を記録する。`completed`、`response_received`、`response_limit_exceeded`、`redirect_rejected`、`failed` は取得段階を区別する。image-level fetch/process/save failure は対応する notification category を一度だけ送る。operation-level authentication/configuration/plugin/update/storage/unknown failure は対応する category に送る。
 
 observer、notification sender、sink、Python log capture の cleanup failure は safe diagnostic warning に留め、主 operation の result/exception を変更しない。互換性のため定義される event でも、core に明確な判定点がなければ自動発火しない。設計上の理由は [observability explanation](../explanation/observability.md) を参照する。
+
+SMTP 通知は全宛先がサーバーに受理された場合に成功とする。`send_message()` の拒否辞書が非空なら
+部分拒否、`SMTPRecipientsRefused` なら全拒否として扱い、`NOTIFICATION_FAILED` を1回発火する。
+`error_code` はそれぞれ `smtp_partial_recipients_refused`、`smtp_all_recipients_refused` とする。
+部分拒否では一部宛先へ送信済みであり、自動再送は行わない。受理は受信箱への最終到達の保証ではなく、
+通知失敗は download/workflow の結果や CLI 終了コードを変更しない。
+
+拒否時の有効な通常ログ・console・debug.log には、固定の分類、拒否辞書の件数、`smtp_host`、
+`refused_domains` を記録する。`smtp_host` は組込み email sender の送信設定にあるホスト、
+`refused_domains` は拒否されたアドレスの `@` 以降を安全に抽出した、重複なし・ソート済みの一覧である。
+DNS 名は小文字の IDNA ASCII 表記、IP は正規化済み表記にする。ポートはホスト表示から除く。
+不正・解析不能な値は `unknown` とし、元の文字列を表示しない。独自 sender の SMTP ホストが不明な場合も
+`unknown` とする。DNS/MX 検索は行わず、接続先 IP や配送先 MX ホストを特定する機能ではない。
+宛先ドメインと SMTP ホストは診断として開示するが、ローカル部分・表示名・SMTP 応答本文・認証情報は
+表示しない。イベントにはホストを追加せず、既存の `error`/`error_class` の秘匿を維持する。
+
 ## Workflow履歴の保存安全性
 
 `state/workflow-history.json`はprofile内全feedの実行概要をschema 1で保持する。専用の短い共有ファイルロック下でread/merge/保持制御/atomic writeを行い、別feed・別プロセスの記録消失を防ぐ。開始済み保存はキャンセル時も確定させ、その後でキャンセルを伝播する。未知schema・破損を上書きしない。表示・整理ではエラー、workflow記録時には安全な警告と保存失敗フラグにする。

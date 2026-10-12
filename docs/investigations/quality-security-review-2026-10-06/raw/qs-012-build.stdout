@@ -1,0 +1,387 @@
+* Getting build dependencies for sdist...
+running egg_info
+writing src\image_downloader.egg-info\PKG-INFO
+writing dependency_links to src\image_downloader.egg-info\dependency_links.txt
+writing entry points to src\image_downloader.egg-info\entry_points.txt
+writing requirements to src\image_downloader.egg-info\requires.txt
+writing top-level names to src\image_downloader.egg-info\top_level.txt
+reading manifest file 'src\image_downloader.egg-info\SOURCES.txt'
+writing manifest file 'src\image_downloader.egg-info\SOURCES.txt'
+* Building sdist...
+running sdist
+running egg_info
+writing src\image_downloader.egg-info\PKG-INFO
+writing dependency_links to src\image_downloader.egg-info\dependency_links.txt
+writing entry points to src\image_downloader.egg-info\entry_points.txt
+writing requirements to src\image_downloader.egg-info\requires.txt
+writing top-level names to src\image_downloader.egg-info\top_level.txt
+reading manifest file 'src\image_downloader.egg-info\SOURCES.txt'
+writing manifest file 'src\image_downloader.egg-info\SOURCES.txt'
+running check
+creating image_downloader-0.0.0.1b0
+creating image_downloader-0.0.0.1b0\src\image_downloader
+creating image_downloader-0.0.0.1b0\src\image_downloader.egg-info
+creating image_downloader-0.0.0.1b0\src\image_downloader\application
+creating image_downloader-0.0.0.1b0\src\image_downloader\commands
+creating image_downloader-0.0.0.1b0\src\image_downloader\configuration
+creating image_downloader-0.0.0.1b0\src\image_downloader\credentials
+creating image_downloader-0.0.0.1b0\src\image_downloader\media
+creating image_downloader-0.0.0.1b0\src\image_downloader\observability
+creating image_downloader-0.0.0.1b0\src\image_downloader\output
+creating image_downloader-0.0.0.1b0\src\image_downloader\plugins
+creating image_downloader-0.0.0.1b0\src\image_downloader\privacy
+creating image_downloader-0.0.0.1b0\src\image_downloader\storage
+creating image_downloader-0.0.0.1b0\src\image_downloader\transport
+copying files to image_downloader-0.0.0.1b0...
+copying README.md -> image_downloader-0.0.0.1b0
+copying pyproject.toml -> image_downloader-0.0.0.1b0
+copying src\image_downloader\__init__.py -> image_downloader-0.0.0.1b0\src\image_downloader
+copying src\image_downloader\__main__.py -> image_downloader-0.0.0.1b0\src\image_downloader
+copying src\image_downloader\app.yaml -> image_downloader-0.0.0.1b0\src\image_downloader
+copying src\image_downloader\cli.py -> image_downloader-0.0.0.1b0\src\image_downloader
+copying src\image_downloader\config-template.yaml -> image_downloader-0.0.0.1b0\src\image_downloader
+copying src\image_downloader\config.py -> image_downloader-0.0.0.1b0\src\image_downloader
+copying src\image_downloader\diagnostics.py -> image_downloader-0.0.0.1b0\src\image_downloader
+copying src\image_downloader\exceptions.py -> image_downloader-0.0.0.1b0\src\image_downloader
+copying src\image_downloader\immutable.py -> image_downloader-0.0.0.1b0\src\image_downloader
+copying src\image_downloader\models.py -> image_downloader-0.0.0.1b0\src\image_downloader
+copying src\image_downloader\ports.py -> image_downloader-0.0.0.1b0\src\image_downloader
+copying src\image_downloader\runtime.py -> image_downloader-0.0.0.1b0\src\image_downloader
+copying src\image_downloader\security.py -> image_downloader-0.0.0.1b0\src\image_downloader
+copying src\image_downloader.egg-info\PKG-INFO -> image_downloader-0.0.0.1b0\src\image_downloader.egg-info
+copying src\image_downloader.egg-info\SOURCES.txt -> image_downloader-0.0.0.1b0\src\image_downloader.egg-info
+copying src\image_downloader.egg-info\dependency_links.txt -> image_downloader-0.0.0.1b0\src\image_downloader.egg-info
+copying src\image_downloader.egg-info\entry_points.txt -> image_downloader-0.0.0.1b0\src\image_downloader.egg-info
+copying src\image_downloader.egg-info\requires.txt -> image_downloader-0.0.0.1b0\src\image_downloader.egg-info
+copying src\image_downloader.egg-info\top_level.txt -> image_downloader-0.0.0.1b0\src\image_downloader.egg-info
+copying src\image_downloader\application\__init__.py -> image_downloader-0.0.0.1b0\src\image_downloader\application
+copying src\image_downloader\application\additional_files.py -> image_downloader-0.0.0.1b0\src\image_downloader\application
+copying src\image_downloader\application\composer.py -> image_downloader-0.0.0.1b0\src\image_downloader\application
+copying src\image_downloader\application\construction.py -> image_downloader-0.0.0.1b0\src\image_downloader\application
+copying src\image_downloader\application\dependencies.py -> image_downloader-0.0.0.1b0\src\image_downloader\application
+copying src\image_downloader\application\log_verification.py -> image_downloader-0.0.0.1b0\src\image_downloader\application
+copying src\image_downloader\application\service.py -> image_downloader-0.0.0.1b0\src\image_downloader\application
+copying src\image_downloader\application\verification_recording.py -> image_downloader-0.0.0.1b0\src\image_downloader\application
+copying src\image_downloader\application\workflow.py -> image_downloader-0.0.0.1b0\src\image_downloader\application
+copying src\image_downloader\application\workflow_plan.py -> image_downloader-0.0.0.1b0\src\image_downloader\application
+copying src\image_downloader\application\workflow_recording.py -> image_downloader-0.0.0.1b0\src\image_downloader\application
+copying src\image_downloader\application\workflow_reporting.py -> image_downloader-0.0.0.1b0\src\image_downloader\application
+copying src\image_downloader\application\workflow_retry.py -> image_downloader-0.0.0.1b0\src\image_downloader\application
+copying src\image_downloader\application\workflow_selection.py -> image_downloader-0.0.0.1b0\src\image_downloader\application
+copying src\image_downloader\application\workflow_state.py -> image_downloader-0.0.0.1b0\src\image_downloader\application
+copying src\image_downloader\application\workflow_verification.py -> image_downloader-0.0.0.1b0\src\image_downloader\application
+copying src\image_downloader\commands\__init__.py -> image_downloader-0.0.0.1b0\src\image_downloader\commands
+copying src\image_downloader\commands\config.py -> image_downloader-0.0.0.1b0\src\image_downloader\commands
+copying src\image_downloader\commands\constants.py -> image_downloader-0.0.0.1b0\src\image_downloader\commands
+copying src\image_downloader\commands\cookie.py -> image_downloader-0.0.0.1b0\src\image_downloader\commands
+copying src\image_downloader\commands\dispatch.py -> image_downloader-0.0.0.1b0\src\image_downloader\commands
+copying src\image_downloader\commands\doctor.py -> image_downloader-0.0.0.1b0\src\image_downloader\commands
+copying src\image_downloader\commands\download.py -> image_downloader-0.0.0.1b0\src\image_downloader\commands
+copying src\image_downloader\commands\inspect.py -> image_downloader-0.0.0.1b0\src\image_downloader\commands
+copying src\image_downloader\commands\options.py -> image_downloader-0.0.0.1b0\src\image_downloader\commands
+copying src\image_downloader\commands\parser.py -> image_downloader-0.0.0.1b0\src\image_downloader\commands
+copying src\image_downloader\commands\plugin.py -> image_downloader-0.0.0.1b0\src\image_downloader\commands
+copying src\image_downloader\commands\reporting.py -> image_downloader-0.0.0.1b0\src\image_downloader\commands
+copying src\image_downloader\commands\setup.py -> image_downloader-0.0.0.1b0\src\image_downloader\commands
+copying src\image_downloader\commands\state.py -> image_downloader-0.0.0.1b0\src\image_downloader\commands
+copying src\image_downloader\commands\state_formatting.py -> image_downloader-0.0.0.1b0\src\image_downloader\commands
+copying src\image_downloader\commands\validation.py -> image_downloader-0.0.0.1b0\src\image_downloader\commands
+copying src\image_downloader\commands\verify.py -> image_downloader-0.0.0.1b0\src\image_downloader\commands
+copying src\image_downloader\commands\workflow.py -> image_downloader-0.0.0.1b0\src\image_downloader\commands
+copying src\image_downloader\configuration\__init__.py -> image_downloader-0.0.0.1b0\src\image_downloader\configuration
+copying src\image_downloader\configuration\hosts.py -> image_downloader-0.0.0.1b0\src\image_downloader\configuration
+copying src\image_downloader\configuration\layers.py -> image_downloader-0.0.0.1b0\src\image_downloader\configuration
+copying src\image_downloader\configuration\models.py -> image_downloader-0.0.0.1b0\src\image_downloader\configuration
+copying src\image_downloader\configuration\paths.py -> image_downloader-0.0.0.1b0\src\image_downloader\configuration
+copying src\image_downloader\credentials\__init__.py -> image_downloader-0.0.0.1b0\src\image_downloader\credentials
+copying src\image_downloader\credentials\keyring.py -> image_downloader-0.0.0.1b0\src\image_downloader\credentials
+copying src\image_downloader\credentials\plugin_secrets.py -> image_downloader-0.0.0.1b0\src\image_downloader\credentials
+copying src\image_downloader\media\__init__.py -> image_downloader-0.0.0.1b0\src\image_downloader\media
+copying src\image_downloader\media\artifact_pipeline.py -> image_downloader-0.0.0.1b0\src\image_downloader\media
+copying src\image_downloader\media\image_processor.py -> image_downloader-0.0.0.1b0\src\image_downloader\media
+copying src\image_downloader\media\processor_chain.py -> image_downloader-0.0.0.1b0\src\image_downloader\media
+copying src\image_downloader\observability\__init__.py -> image_downloader-0.0.0.1b0\src\image_downloader\observability
+copying src\image_downloader\observability\chapter_reporter.py -> image_downloader-0.0.0.1b0\src\image_downloader\observability
+copying src\image_downloader\observability\diagnostic_safety.py -> image_downloader-0.0.0.1b0\src\image_downloader\observability
+copying src\image_downloader\observability\events.py -> image_downloader-0.0.0.1b0\src\image_downloader\observability
+copying src\image_downloader\observability\logging.py -> image_downloader-0.0.0.1b0\src\image_downloader\observability
+copying src\image_downloader\observability\notifications.py -> image_downloader-0.0.0.1b0\src\image_downloader\observability
+copying src\image_downloader\observability\scope.py -> image_downloader-0.0.0.1b0\src\image_downloader\observability
+copying src\image_downloader\output\__init__.py -> image_downloader-0.0.0.1b0\src\image_downloader\output
+copying src\image_downloader\output\format_tokens.py -> image_downloader-0.0.0.1b0\src\image_downloader\output
+copying src\image_downloader\output\original_filename.py -> image_downloader-0.0.0.1b0\src\image_downloader\output
+copying src\image_downloader\output\output_allocator.py -> image_downloader-0.0.0.1b0\src\image_downloader\output
+copying src\image_downloader\output\output_lock.py -> image_downloader-0.0.0.1b0\src\image_downloader\output
+copying src\image_downloader\plugins\__init__.py -> image_downloader-0.0.0.1b0\src\image_downloader\plugins
+copying src\image_downloader\plugins\builtin.py -> image_downloader-0.0.0.1b0\src\image_downloader\plugins
+copying src\image_downloader\plugins\format_values.py -> image_downloader-0.0.0.1b0\src\image_downloader\plugins
+copying src\image_downloader\plugins\html_encoding.py -> image_downloader-0.0.0.1b0\src\image_downloader\plugins
+copying src\image_downloader\plugins\lifecycle.py -> image_downloader-0.0.0.1b0\src\image_downloader\plugins
+copying src\image_downloader\plugins\management.py -> image_downloader-0.0.0.1b0\src\image_downloader\plugins
+copying src\image_downloader\plugins\plugin_invoker.py -> image_downloader-0.0.0.1b0\src\image_downloader\plugins
+copying src\image_downloader\plugins\plugin_manifest.py -> image_downloader-0.0.0.1b0\src\image_downloader\plugins
+copying src\image_downloader\plugins\runtime.py -> image_downloader-0.0.0.1b0\src\image_downloader\plugins
+copying src\image_downloader\plugins\source_loader.py -> image_downloader-0.0.0.1b0\src\image_downloader\plugins
+copying src\image_downloader\privacy\__init__.py -> image_downloader-0.0.0.1b0\src\image_downloader\privacy
+copying src\image_downloader\privacy\log_safety.py -> image_downloader-0.0.0.1b0\src\image_downloader\privacy
+copying src\image_downloader\privacy\sensitive_values.py -> image_downloader-0.0.0.1b0\src\image_downloader\privacy
+copying src\image_downloader\storage\__init__.py -> image_downloader-0.0.0.1b0\src\image_downloader\storage
+copying src\image_downloader\storage\_path_limits.py -> image_downloader-0.0.0.1b0\src\image_downloader\storage
+copying src\image_downloader\storage\cookies.py -> image_downloader-0.0.0.1b0\src\image_downloader\storage
+copying src\image_downloader\storage\filesystem.py -> image_downloader-0.0.0.1b0\src\image_downloader\storage
+copying src\image_downloader\storage\interprocess_lock.py -> image_downloader-0.0.0.1b0\src\image_downloader\storage
+copying src\image_downloader\storage\path_safety.py -> image_downloader-0.0.0.1b0\src\image_downloader\storage
+copying src\image_downloader\storage\state.py -> image_downloader-0.0.0.1b0\src\image_downloader\storage
+copying src\image_downloader\storage\workflow.py -> image_downloader-0.0.0.1b0\src\image_downloader\storage
+copying src\image_downloader\storage\workflow_history.py -> image_downloader-0.0.0.1b0\src\image_downloader\storage
+copying src\image_downloader\storage\workflow_history_schema.py -> image_downloader-0.0.0.1b0\src\image_downloader\storage
+copying src\image_downloader\storage\workflow_logging.py -> image_downloader-0.0.0.1b0\src\image_downloader\storage
+copying src\image_downloader\transport\__init__.py -> image_downloader-0.0.0.1b0\src\image_downloader\transport
+copying src\image_downloader\transport\gateway.py -> image_downloader-0.0.0.1b0\src\image_downloader\transport
+Writing image_downloader-0.0.0.1b0\setup.cfg
+Creating tar archive
+removing 'image_downloader-0.0.0.1b0' (and everything under it)
+* Getting build dependencies for wheel...
+running egg_info
+writing src\image_downloader.egg-info\PKG-INFO
+writing dependency_links to src\image_downloader.egg-info\dependency_links.txt
+writing entry points to src\image_downloader.egg-info\entry_points.txt
+writing requirements to src\image_downloader.egg-info\requires.txt
+writing top-level names to src\image_downloader.egg-info\top_level.txt
+reading manifest file 'src\image_downloader.egg-info\SOURCES.txt'
+writing manifest file 'src\image_downloader.egg-info\SOURCES.txt'
+* Building wheel...
+running bdist_wheel
+running build
+running build_py
+copying src\image_downloader\observability\notifications.py -> build\lib\image_downloader\observability
+running egg_info
+writing src\image_downloader.egg-info\PKG-INFO
+writing dependency_links to src\image_downloader.egg-info\dependency_links.txt
+writing entry points to src\image_downloader.egg-info\entry_points.txt
+writing requirements to src\image_downloader.egg-info\requires.txt
+writing top-level names to src\image_downloader.egg-info\top_level.txt
+reading manifest file 'src\image_downloader.egg-info\SOURCES.txt'
+writing manifest file 'src\image_downloader.egg-info\SOURCES.txt'
+installing to build\bdist.win-amd64\wheel
+running install
+running install_lib
+creating build\bdist.win-amd64\wheel
+creating build\bdist.win-amd64\wheel\image_downloader
+copying build\lib\image_downloader\app.yaml -> build\bdist.win-amd64\wheel\.\image_downloader
+creating build\bdist.win-amd64\wheel\image_downloader\application
+copying build\lib\image_downloader\application\additional_files.py -> build\bdist.win-amd64\wheel\.\image_downloader\application
+copying build\lib\image_downloader\application\composer.py -> build\bdist.win-amd64\wheel\.\image_downloader\application
+copying build\lib\image_downloader\application\construction.py -> build\bdist.win-amd64\wheel\.\image_downloader\application
+copying build\lib\image_downloader\application\dependencies.py -> build\bdist.win-amd64\wheel\.\image_downloader\application
+copying build\lib\image_downloader\application\log_verification.py -> build\bdist.win-amd64\wheel\.\image_downloader\application
+copying build\lib\image_downloader\application\service.py -> build\bdist.win-amd64\wheel\.\image_downloader\application
+copying build\lib\image_downloader\application\verification_recording.py -> build\bdist.win-amd64\wheel\.\image_downloader\application
+copying build\lib\image_downloader\application\workflow.py -> build\bdist.win-amd64\wheel\.\image_downloader\application
+copying build\lib\image_downloader\application\workflow_plan.py -> build\bdist.win-amd64\wheel\.\image_downloader\application
+copying build\lib\image_downloader\application\workflow_recording.py -> build\bdist.win-amd64\wheel\.\image_downloader\application
+copying build\lib\image_downloader\application\workflow_reporting.py -> build\bdist.win-amd64\wheel\.\image_downloader\application
+copying build\lib\image_downloader\application\workflow_retry.py -> build\bdist.win-amd64\wheel\.\image_downloader\application
+copying build\lib\image_downloader\application\workflow_selection.py -> build\bdist.win-amd64\wheel\.\image_downloader\application
+copying build\lib\image_downloader\application\workflow_state.py -> build\bdist.win-amd64\wheel\.\image_downloader\application
+copying build\lib\image_downloader\application\workflow_verification.py -> build\bdist.win-amd64\wheel\.\image_downloader\application
+copying build\lib\image_downloader\application\__init__.py -> build\bdist.win-amd64\wheel\.\image_downloader\application
+copying build\lib\image_downloader\cli.py -> build\bdist.win-amd64\wheel\.\image_downloader
+creating build\bdist.win-amd64\wheel\image_downloader\commands
+copying build\lib\image_downloader\commands\config.py -> build\bdist.win-amd64\wheel\.\image_downloader\commands
+copying build\lib\image_downloader\commands\constants.py -> build\bdist.win-amd64\wheel\.\image_downloader\commands
+copying build\lib\image_downloader\commands\cookie.py -> build\bdist.win-amd64\wheel\.\image_downloader\commands
+copying build\lib\image_downloader\commands\dispatch.py -> build\bdist.win-amd64\wheel\.\image_downloader\commands
+copying build\lib\image_downloader\commands\doctor.py -> build\bdist.win-amd64\wheel\.\image_downloader\commands
+copying build\lib\image_downloader\commands\download.py -> build\bdist.win-amd64\wheel\.\image_downloader\commands
+copying build\lib\image_downloader\commands\inspect.py -> build\bdist.win-amd64\wheel\.\image_downloader\commands
+copying build\lib\image_downloader\commands\options.py -> build\bdist.win-amd64\wheel\.\image_downloader\commands
+copying build\lib\image_downloader\commands\parser.py -> build\bdist.win-amd64\wheel\.\image_downloader\commands
+copying build\lib\image_downloader\commands\plugin.py -> build\bdist.win-amd64\wheel\.\image_downloader\commands
+copying build\lib\image_downloader\commands\reporting.py -> build\bdist.win-amd64\wheel\.\image_downloader\commands
+copying build\lib\image_downloader\commands\setup.py -> build\bdist.win-amd64\wheel\.\image_downloader\commands
+copying build\lib\image_downloader\commands\state.py -> build\bdist.win-amd64\wheel\.\image_downloader\commands
+copying build\lib\image_downloader\commands\state_formatting.py -> build\bdist.win-amd64\wheel\.\image_downloader\commands
+copying build\lib\image_downloader\commands\validation.py -> build\bdist.win-amd64\wheel\.\image_downloader\commands
+copying build\lib\image_downloader\commands\verify.py -> build\bdist.win-amd64\wheel\.\image_downloader\commands
+copying build\lib\image_downloader\commands\workflow.py -> build\bdist.win-amd64\wheel\.\image_downloader\commands
+copying build\lib\image_downloader\commands\__init__.py -> build\bdist.win-amd64\wheel\.\image_downloader\commands
+copying build\lib\image_downloader\config-template.yaml -> build\bdist.win-amd64\wheel\.\image_downloader
+copying build\lib\image_downloader\config.py -> build\bdist.win-amd64\wheel\.\image_downloader
+creating build\bdist.win-amd64\wheel\image_downloader\configuration
+copying build\lib\image_downloader\configuration\hosts.py -> build\bdist.win-amd64\wheel\.\image_downloader\configuration
+copying build\lib\image_downloader\configuration\layers.py -> build\bdist.win-amd64\wheel\.\image_downloader\configuration
+copying build\lib\image_downloader\configuration\models.py -> build\bdist.win-amd64\wheel\.\image_downloader\configuration
+copying build\lib\image_downloader\configuration\paths.py -> build\bdist.win-amd64\wheel\.\image_downloader\configuration
+copying build\lib\image_downloader\configuration\__init__.py -> build\bdist.win-amd64\wheel\.\image_downloader\configuration
+creating build\bdist.win-amd64\wheel\image_downloader\credentials
+copying build\lib\image_downloader\credentials\keyring.py -> build\bdist.win-amd64\wheel\.\image_downloader\credentials
+copying build\lib\image_downloader\credentials\plugin_secrets.py -> build\bdist.win-amd64\wheel\.\image_downloader\credentials
+copying build\lib\image_downloader\credentials\__init__.py -> build\bdist.win-amd64\wheel\.\image_downloader\credentials
+copying build\lib\image_downloader\diagnostics.py -> build\bdist.win-amd64\wheel\.\image_downloader
+copying build\lib\image_downloader\exceptions.py -> build\bdist.win-amd64\wheel\.\image_downloader
+copying build\lib\image_downloader\immutable.py -> build\bdist.win-amd64\wheel\.\image_downloader
+creating build\bdist.win-amd64\wheel\image_downloader\media
+copying build\lib\image_downloader\media\artifact_pipeline.py -> build\bdist.win-amd64\wheel\.\image_downloader\media
+copying build\lib\image_downloader\media\image_processor.py -> build\bdist.win-amd64\wheel\.\image_downloader\media
+copying build\lib\image_downloader\media\processor_chain.py -> build\bdist.win-amd64\wheel\.\image_downloader\media
+copying build\lib\image_downloader\media\__init__.py -> build\bdist.win-amd64\wheel\.\image_downloader\media
+copying build\lib\image_downloader\models.py -> build\bdist.win-amd64\wheel\.\image_downloader
+creating build\bdist.win-amd64\wheel\image_downloader\observability
+copying build\lib\image_downloader\observability\chapter_reporter.py -> build\bdist.win-amd64\wheel\.\image_downloader\observability
+copying build\lib\image_downloader\observability\diagnostic_safety.py -> build\bdist.win-amd64\wheel\.\image_downloader\observability
+copying build\lib\image_downloader\observability\events.py -> build\bdist.win-amd64\wheel\.\image_downloader\observability
+copying build\lib\image_downloader\observability\logging.py -> build\bdist.win-amd64\wheel\.\image_downloader\observability
+copying build\lib\image_downloader\observability\notifications.py -> build\bdist.win-amd64\wheel\.\image_downloader\observability
+copying build\lib\image_downloader\observability\scope.py -> build\bdist.win-amd64\wheel\.\image_downloader\observability
+copying build\lib\image_downloader\observability\__init__.py -> build\bdist.win-amd64\wheel\.\image_downloader\observability
+creating build\bdist.win-amd64\wheel\image_downloader\output
+copying build\lib\image_downloader\output\format_tokens.py -> build\bdist.win-amd64\wheel\.\image_downloader\output
+copying build\lib\image_downloader\output\original_filename.py -> build\bdist.win-amd64\wheel\.\image_downloader\output
+copying build\lib\image_downloader\output\output_allocator.py -> build\bdist.win-amd64\wheel\.\image_downloader\output
+copying build\lib\image_downloader\output\output_lock.py -> build\bdist.win-amd64\wheel\.\image_downloader\output
+copying build\lib\image_downloader\output\__init__.py -> build\bdist.win-amd64\wheel\.\image_downloader\output
+creating build\bdist.win-amd64\wheel\image_downloader\plugins
+copying build\lib\image_downloader\plugins\builtin.py -> build\bdist.win-amd64\wheel\.\image_downloader\plugins
+copying build\lib\image_downloader\plugins\format_values.py -> build\bdist.win-amd64\wheel\.\image_downloader\plugins
+copying build\lib\image_downloader\plugins\html_encoding.py -> build\bdist.win-amd64\wheel\.\image_downloader\plugins
+copying build\lib\image_downloader\plugins\lifecycle.py -> build\bdist.win-amd64\wheel\.\image_downloader\plugins
+copying build\lib\image_downloader\plugins\management.py -> build\bdist.win-amd64\wheel\.\image_downloader\plugins
+copying build\lib\image_downloader\plugins\plugin_invoker.py -> build\bdist.win-amd64\wheel\.\image_downloader\plugins
+copying build\lib\image_downloader\plugins\plugin_manifest.py -> build\bdist.win-amd64\wheel\.\image_downloader\plugins
+copying build\lib\image_downloader\plugins\runtime.py -> build\bdist.win-amd64\wheel\.\image_downloader\plugins
+copying build\lib\image_downloader\plugins\source_loader.py -> build\bdist.win-amd64\wheel\.\image_downloader\plugins
+copying build\lib\image_downloader\plugins\__init__.py -> build\bdist.win-amd64\wheel\.\image_downloader\plugins
+copying build\lib\image_downloader\ports.py -> build\bdist.win-amd64\wheel\.\image_downloader
+creating build\bdist.win-amd64\wheel\image_downloader\privacy
+copying build\lib\image_downloader\privacy\log_safety.py -> build\bdist.win-amd64\wheel\.\image_downloader\privacy
+copying build\lib\image_downloader\privacy\sensitive_values.py -> build\bdist.win-amd64\wheel\.\image_downloader\privacy
+copying build\lib\image_downloader\privacy\__init__.py -> build\bdist.win-amd64\wheel\.\image_downloader\privacy
+copying build\lib\image_downloader\runtime.py -> build\bdist.win-amd64\wheel\.\image_downloader
+copying build\lib\image_downloader\security.py -> build\bdist.win-amd64\wheel\.\image_downloader
+creating build\bdist.win-amd64\wheel\image_downloader\storage
+copying build\lib\image_downloader\storage\cookies.py -> build\bdist.win-amd64\wheel\.\image_downloader\storage
+copying build\lib\image_downloader\storage\filesystem.py -> build\bdist.win-amd64\wheel\.\image_downloader\storage
+copying build\lib\image_downloader\storage\interprocess_lock.py -> build\bdist.win-amd64\wheel\.\image_downloader\storage
+copying build\lib\image_downloader\storage\path_safety.py -> build\bdist.win-amd64\wheel\.\image_downloader\storage
+copying build\lib\image_downloader\storage\state.py -> build\bdist.win-amd64\wheel\.\image_downloader\storage
+copying build\lib\image_downloader\storage\workflow.py -> build\bdist.win-amd64\wheel\.\image_downloader\storage
+copying build\lib\image_downloader\storage\workflow_history.py -> build\bdist.win-amd64\wheel\.\image_downloader\storage
+copying build\lib\image_downloader\storage\workflow_history_schema.py -> build\bdist.win-amd64\wheel\.\image_downloader\storage
+copying build\lib\image_downloader\storage\workflow_logging.py -> build\bdist.win-amd64\wheel\.\image_downloader\storage
+copying build\lib\image_downloader\storage\_path_limits.py -> build\bdist.win-amd64\wheel\.\image_downloader\storage
+copying build\lib\image_downloader\storage\__init__.py -> build\bdist.win-amd64\wheel\.\image_downloader\storage
+creating build\bdist.win-amd64\wheel\image_downloader\transport
+copying build\lib\image_downloader\transport\gateway.py -> build\bdist.win-amd64\wheel\.\image_downloader\transport
+copying build\lib\image_downloader\transport\__init__.py -> build\bdist.win-amd64\wheel\.\image_downloader\transport
+copying build\lib\image_downloader\__init__.py -> build\bdist.win-amd64\wheel\.\image_downloader
+copying build\lib\image_downloader\__main__.py -> build\bdist.win-amd64\wheel\.\image_downloader
+running install_egg_info
+Copying src\image_downloader.egg-info to build\bdist.win-amd64\wheel\.\image_downloader-0.0.0.1b0-py3.11.egg-info
+running install_scripts
+creating build\bdist.win-amd64\wheel\image_downloader-0.0.0.1b0.dist-info\WHEEL
+creating 'C:\Users\pc01\source\repos\image-downloader\dist\.tmp-l7d7jovj\image_downloader-0.0.0.1b0-py3-none-any.whl' and adding 'build\bdist.win-amd64\wheel' to it
+adding 'image_downloader/__init__.py'
+adding 'image_downloader/__main__.py'
+adding 'image_downloader/app.yaml'
+adding 'image_downloader/cli.py'
+adding 'image_downloader/config-template.yaml'
+adding 'image_downloader/config.py'
+adding 'image_downloader/diagnostics.py'
+adding 'image_downloader/exceptions.py'
+adding 'image_downloader/immutable.py'
+adding 'image_downloader/models.py'
+adding 'image_downloader/ports.py'
+adding 'image_downloader/runtime.py'
+adding 'image_downloader/security.py'
+adding 'image_downloader/application/__init__.py'
+adding 'image_downloader/application/additional_files.py'
+adding 'image_downloader/application/composer.py'
+adding 'image_downloader/application/construction.py'
+adding 'image_downloader/application/dependencies.py'
+adding 'image_downloader/application/log_verification.py'
+adding 'image_downloader/application/service.py'
+adding 'image_downloader/application/verification_recording.py'
+adding 'image_downloader/application/workflow.py'
+adding 'image_downloader/application/workflow_plan.py'
+adding 'image_downloader/application/workflow_recording.py'
+adding 'image_downloader/application/workflow_reporting.py'
+adding 'image_downloader/application/workflow_retry.py'
+adding 'image_downloader/application/workflow_selection.py'
+adding 'image_downloader/application/workflow_state.py'
+adding 'image_downloader/application/workflow_verification.py'
+adding 'image_downloader/commands/__init__.py'
+adding 'image_downloader/commands/config.py'
+adding 'image_downloader/commands/constants.py'
+adding 'image_downloader/commands/cookie.py'
+adding 'image_downloader/commands/dispatch.py'
+adding 'image_downloader/commands/doctor.py'
+adding 'image_downloader/commands/download.py'
+adding 'image_downloader/commands/inspect.py'
+adding 'image_downloader/commands/options.py'
+adding 'image_downloader/commands/parser.py'
+adding 'image_downloader/commands/plugin.py'
+adding 'image_downloader/commands/reporting.py'
+adding 'image_downloader/commands/setup.py'
+adding 'image_downloader/commands/state.py'
+adding 'image_downloader/commands/state_formatting.py'
+adding 'image_downloader/commands/validation.py'
+adding 'image_downloader/commands/verify.py'
+adding 'image_downloader/commands/workflow.py'
+adding 'image_downloader/configuration/__init__.py'
+adding 'image_downloader/configuration/hosts.py'
+adding 'image_downloader/configuration/layers.py'
+adding 'image_downloader/configuration/models.py'
+adding 'image_downloader/configuration/paths.py'
+adding 'image_downloader/credentials/__init__.py'
+adding 'image_downloader/credentials/keyring.py'
+adding 'image_downloader/credentials/plugin_secrets.py'
+adding 'image_downloader/media/__init__.py'
+adding 'image_downloader/media/artifact_pipeline.py'
+adding 'image_downloader/media/image_processor.py'
+adding 'image_downloader/media/processor_chain.py'
+adding 'image_downloader/observability/__init__.py'
+adding 'image_downloader/observability/chapter_reporter.py'
+adding 'image_downloader/observability/diagnostic_safety.py'
+adding 'image_downloader/observability/events.py'
+adding 'image_downloader/observability/logging.py'
+adding 'image_downloader/observability/notifications.py'
+adding 'image_downloader/observability/scope.py'
+adding 'image_downloader/output/__init__.py'
+adding 'image_downloader/output/format_tokens.py'
+adding 'image_downloader/output/original_filename.py'
+adding 'image_downloader/output/output_allocator.py'
+adding 'image_downloader/output/output_lock.py'
+adding 'image_downloader/plugins/__init__.py'
+adding 'image_downloader/plugins/builtin.py'
+adding 'image_downloader/plugins/format_values.py'
+adding 'image_downloader/plugins/html_encoding.py'
+adding 'image_downloader/plugins/lifecycle.py'
+adding 'image_downloader/plugins/management.py'
+adding 'image_downloader/plugins/plugin_invoker.py'
+adding 'image_downloader/plugins/plugin_manifest.py'
+adding 'image_downloader/plugins/runtime.py'
+adding 'image_downloader/plugins/source_loader.py'
+adding 'image_downloader/privacy/__init__.py'
+adding 'image_downloader/privacy/log_safety.py'
+adding 'image_downloader/privacy/sensitive_values.py'
+adding 'image_downloader/storage/__init__.py'
+adding 'image_downloader/storage/_path_limits.py'
+adding 'image_downloader/storage/cookies.py'
+adding 'image_downloader/storage/filesystem.py'
+adding 'image_downloader/storage/interprocess_lock.py'
+adding 'image_downloader/storage/path_safety.py'
+adding 'image_downloader/storage/state.py'
+adding 'image_downloader/storage/workflow.py'
+adding 'image_downloader/storage/workflow_history.py'
+adding 'image_downloader/storage/workflow_history_schema.py'
+adding 'image_downloader/storage/workflow_logging.py'
+adding 'image_downloader/transport/__init__.py'
+adding 'image_downloader/transport/gateway.py'
+adding 'image_downloader-0.0.0.1b0.dist-info/METADATA'
+adding 'image_downloader-0.0.0.1b0.dist-info/WHEEL'
+adding 'image_downloader-0.0.0.1b0.dist-info/entry_points.txt'
+adding 'image_downloader-0.0.0.1b0.dist-info/top_level.txt'
+adding 'image_downloader-0.0.0.1b0.dist-info/RECORD'
+removing build\bdist.win-amd64\wheel
+Successfully built image_downloader-0.0.0.1b0.tar.gz and image_downloader-0.0.0.1b0-py3-none-any.whl
