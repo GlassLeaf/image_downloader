@@ -647,6 +647,20 @@ def test_cancellation_during_output_commit_keeps_settled_success(tmp_path, monke
 
 
 def test_deadline_during_state_commit_finishes_transaction(tmp_path, monkeypatch):
+    retry_deadline = None
+    create_timeout = asyncio.timeout
+
+    def controlled_timeout(delay):
+        nonlocal retry_deadline
+        if delay == 0.5:
+            # CI preparation may consume the deadline before the state commit starts.
+            assert retry_deadline is None
+            retry_deadline = create_timeout(None)
+            return retry_deadline
+        return create_timeout(delay)
+
+    monkeypatch.setattr(asyncio, "timeout", controlled_timeout)
+
     async def scenario():
         gallery = RetryGallery()
         started, release = threading.Event(), threading.Event()
@@ -662,15 +676,23 @@ def test_deadline_during_state_commit_finishes_transaction(tmp_path, monkeypatch
             await transport(service, gallery)
             task = asyncio.create_task(service.workflow(FEED, workflow_retry_delay=0, workflow_retry_timeout=0.5))
             try:
-                assert await asyncio.to_thread(started.wait, 3)
-                await asyncio.sleep(0.6)
+                assert await asyncio.to_thread(started.wait, 10)
+                assert retry_deadline is not None
+                retry_deadline.reschedule(asyncio.get_running_loop().time())
+                await asyncio.sleep(0)
+                await asyncio.sleep(0)  # Let the workflow receive cancellation while the commit remains blocked.
+                assert retry_deadline.expired()
                 assert not task.done()
+                release.set()
+                with pytest.raises(WorkflowRetryTimeoutError) as caught:
+                    await task
+                assert caught.value.workflow_result.items[0].status == "success"
+                assert (await service.workflow(FEED)).items == ()
             finally:
                 release.set()
-            with pytest.raises(WorkflowRetryTimeoutError) as caught:
-                await task
-            assert caught.value.workflow_result.items[0].status == "success"
-            assert (await service.workflow(FEED)).items == ()
+                if not task.done():
+                    task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
 
     asyncio.run(scenario())
 

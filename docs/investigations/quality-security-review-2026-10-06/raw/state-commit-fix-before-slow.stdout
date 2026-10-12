@@ -1,0 +1,55 @@
+F
+================================== FAILURES ===================================
+___________ test_deadline_during_state_commit_finishes_transaction ____________
+tests\v3\application\test_workflow_retry.py:675: in test_deadline_during_state_commit_finishes_transaction
+    asyncio.run(scenario())
+C:\Program Files\Python311\Lib\asyncio\runners.py:190: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+C:\Program Files\Python311\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Program Files\Python311\Lib\asyncio\base_events.py:653: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests\v3\application\test_workflow_retry.py:665: in scenario
+    assert await asyncio.to_thread(started.wait, 3)
+E   assert False
+=========================== short test summary info ===========================
+FAILED tests/v3/application/test_workflow_retry.py::test_deadline_during_state_commit_finishes_transaction
+1 failed in 4.56s
+Task exception was never retrieved
+future: <Task finished name='Task-2' coro=<DownloadService.workflow() done, defined at C:\Users\pc01\source\repos\image-downloader\src\image_downloader\application\service.py:779> exception=WorkflowRetryTimeoutError()>
+Traceback (most recent call last):
+  File "C:\Users\pc01\source\repos\image-downloader\src\image_downloader\application\workflow.py", line 162, in run
+    await self.round(number, (record, plugin))
+  File "C:\Users\pc01\source\repos\image-downloader\src\image_downloader\application\workflow.py", line 295, in round
+    selected = await finish_transaction(partial(self.prepare, update.plugin_id, snapshot, number))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pc01\source\repos\image-downloader\src\image_downloader\storage\workflow.py", line 24, in finish_transaction
+    return await asyncio.shield(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\pc01\source\repos\image-downloader\src\image_downloader\application\workflow.py", line 138, in run
+    async with timeout:
+  File "C:\Program Files\Python311\Lib\asyncio\timeouts.py", line 111, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\pc01\source\repos\image-downloader\src\image_downloader\application\service.py", line 817, in workflow
+    return await execute_workflow(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pc01\source\repos\image-downloader\src\image_downloader\application\workflow.py", line 477, in execute_workflow
+    raise failure
+  File "C:\Users\pc01\source\repos\image-downloader\src\image_downloader\application\workflow.py", line 423, in execute_workflow
+    await execution.run()
+  File "C:\Users\pc01\source\repos\image-downloader\src\image_downloader\application\workflow.py", line 174, in run
+    raise error from exc
+image_downloader.exceptions.WorkflowRetryTimeoutError
