@@ -181,8 +181,8 @@ library caller needs to handle; detailed Python signatures remain in
 
 | API | return and ownership | side effect / concurrency | exceptions and caller action |
 | --- | --- | --- | --- |
-| `RuntimeComposer.compose()` | returns a resource-owning `DownloadService`; use `async with` or `await service.close()` | creates filesystem-backed logs/state/cookies, HTTP gateway, worker, and logger | configuration/notification/plugin initialization can raise before a service is returned. There is then no service object to close; correct the input or compose a fresh instance. Do not assume a partially built service is usable. |
-| `RuntimeComposer.compose_registry()` | returns a `PluginRuntime`; **caller** must call its synchronous `close()` | performs plugin discovery/verification and isolated module loading only; it does not open runtime data stores, logger, gateway, or worker | `ConfigurationError` for invalid roots/settings and `PluginError` for source/verification/class failures. |
+| `RuntimeComposer.compose()` | returns a resource-owning `DownloadService`; use `async with` or `await service.close()` | creates filesystem-backed logs/state/cookies, HTTP gateway, worker, and logger | configuration/notification/plugin initialization can raise before a service is returned. The composer then rolls back its successfully constructed resources, without persisting cookies or sending notifications, and preserves the original exception/interruption. Correct the input or compose a fresh instance; no partially built service is usable. |
+| `RuntimeComposer.compose_registry()` | returns a `PluginRuntime`; **caller** must call its synchronous `close()` | performs plugin discovery/verification and isolated module loading only; it does not open runtime data stores, logger, gateway, or worker | `ConfigurationError` for invalid roots/settings and `PluginError` for source/verification/class failures. A failed composition closes its own runtime before propagating the original exception/interruption. |
 | `DownloadService.run()` | `DownloadResult`, whose normal image failures are correlated by `chapter.outcomes` | one operation per service at a time; plugin/config snapshot is fixed for that service | `AuthenticationError`, `ConfigurationError`, `PluginError`, `StorageSafetyError`, `InterProcessLockError`, fail-fast image error, and cancellation abort rather than return a partial result. Catch `ImageDownloaderError` only at an application boundary and use the concrete class/code for recovery. |
 | `DownloadService.check_updates()` | complete `UpdateResult`; never a partial update result | serial with `run`; reads/compares/writes update state under its lock | `UpdateCheckUnsupportedError` (a `PluginError` subclass) if the selected site lacks `UpdateProvider`; `UpdateStateError`, auth/config/request/storage errors, or cancellation abort the operation. |
 | `DownloadService.inspect()` | `ManifestInspectionResult`; `create_image_request()` failure becomes `failed`、source request の後に auth/request 組立てが失敗すると `partially_resolved` になり、later images continue in manifest order | serial with run/update; uses a detached temporary gateway and cloned cookie jar. It calls `inspect()`、optionally `create_image_request()`、and `AuthFlow.apply()` to create an `EffectiveRequestPreview`; it never fetches an image body, invokes recovery, transforms/processes/saves, allocates output, reports, updates state, emits events, or sends notifications. `create_image_request()` / `AuthFlow.apply()` themselves may make allowed helper HTTP. | selection/config/manifest/auth-flow construction/cleanup failures and cancellation abort without a result. A `request_resolution_performed=False` result called no image request hook. source request、plugin data、effective URL/header/cookie/body are raw diagnostic material: do not persist, log, or disclose them. result は effective request を組み立てられた各画像分の encoded body を含む preview を保持し、画像数・body size の API 上限や streaming result はないため、大規模 manifest は呼出側で operation を分割するか `resolve_image_requests=False` を使う。CLI の `--inspection-data` は投影だけで、library result を redaction しない。 |
@@ -196,8 +196,16 @@ factory. Its `outputs`, `logs`, `state`, `events`, `logger`, `notifications`,
 `cookie_store`, `cookie_baseline`, `gateway`, `image_processor`, and
 `output_locks` must be mutually compatible and open. Passing it to
 `DownloadService` transfers their close lifecycle to that service. Its exact
-constructor fields are frozen by the signature contract; normal callers should
+constructor fields are frozen by the signature contract; direct callers retain
+ownership if service construction fails. Normal callers should
 use `RuntimeComposer` instead.
+
+The synchronous composer also works inside an active asyncio event loop. Only
+on construction failure, asynchronous cleanup of its unused resources runs in
+a temporary thread with its own loop; the call waits for completion. Cleanup
+errors do not replace the construction failure and produce only fixed warnings.
+Created directories, logs and lock files are not deleted. See
+[construction ownership](runtime-behavior.md#runtime-construction) for the boundary.
 
 No public runtime API converts `asyncio.CancelledError` to `DownloadResult`,
 `UpdateResult`, or an image failure. Let it propagate after any caller-specific

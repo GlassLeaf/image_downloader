@@ -14,13 +14,18 @@ class RuntimeSecrets(SecretProvider):
     def __init__(self, plugin_id: str, references: Mapping[str, str]) -> None:
         self.plugin_id, self.references = plugin_id, dict(references)
 
+    @staticmethod
+    def _environment_name(plugin_id: str, reference: str) -> str:
+        """Encode both fields completely; keep the permanent, unversioned prefix."""
+        encoded_id = plugin_id.encode("utf-8", "surrogatepass").hex().upper()
+        encoded_reference = reference.encode("utf-8", "surrogatepass").hex().upper()
+        return f"IMAGE_DOWNLOADER_PLUGIN_{encoded_id}_{encoded_reference}"
+
     def get(self, name: str) -> str:
         reference = self.references.get(name)
         if not reference:
             raise SecretNotFound("required plugin secret is not configured")
-        env_plugin = "".join(char if char.isalnum() else "_" for char in self.plugin_id).upper()
-        env_reference = "".join(char if char.isalnum() else "_" for char in reference).upper()
-        value = os.getenv(f"IMAGE_DOWNLOADER_PLUGIN_{env_plugin}_{env_reference}")
+        value = os.getenv(self._environment_name(self.plugin_id, reference))
         if value:
             return value
         value = load_secret(f"image-downloader.plugin.{self.plugin_id}", reference)

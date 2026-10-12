@@ -52,6 +52,29 @@ strict `manifest.json` wrapper は exact keys `manifest` と `signature` を持�
 
 `file_tree` は `manifest.json` を除く全 regular source file の POSIX relative path から lowercase SHA-256 hex への mapping である。link、Windows reparse point、hard link、non-regular file は許可されない。`__pycache__/*.pyc` だけは除外される。helper、metadata、author YAML を変更したら tree/hash/signature を再生成する。
 
+### Source loading and relative imports
+
+入口とプラグイン名前空間内の相対 import は Python ソースから読み込む。
+読込み時に受理済み tree の SHA-256 と照合し、その同じ bytes をコンパイルする。
+署名検証後に入口・helper を変更すると、次の import は実行前に `PluginError` となる。
+遅延 import・入れ子・namespace package にもこの照合を適用する。
+`bypass-signature` の content pin は、検証時に digest と照合した同じ実測 tree を使用する。
+`off` / `bypass-all` はハッシュ照合を迂回し、各 import 時点のソースを読む。
+
+すべての mode でプラグインの `__pycache__/*.pyc` を読込み・生成せず、既存キャッシュを削除しない。
+プラグイン内のソースなし `.pyc` と native extension (`.pyd` / `.so`) の import は拒否する。
+通常のインストール済み外部ライブラリの import は標準の仕組みを使う。
+入口は `entry.source` など `.py` 以外の filename でも Python ソースを置ける。
+module の元のファイル位置・package metadata、データファイルの参照、runtime ごとの class cache は維持する。
+読込み済み module は現在の runtime の cache に残る。
+署名・content pin 更新を伴う変更を反映する場合は、更新後の検証済み record または新しい runtime を用いる。
+
+finder は active なプラグイン名前空間だけを扱い、import 失敗・unload・close で所有する登録を解放する。
+公開 `PluginRecord` のコンストラクター・dataclass field は変更しない。
+手動作成 record は宣言 tree または content pin がある場合に照合し、最小 manifest は緩和扱いになる。
+署名形式と catalog schema は変わらず、変更していないプラグインの再署名は不要である。
+この保証は本体が管理するプラグイン読込みに適用し、信頼済み Python コードを隔離する sandbox を提供しない。
+
 ## Catalog and verification
 
 <a id="plugin-catalog"></a>

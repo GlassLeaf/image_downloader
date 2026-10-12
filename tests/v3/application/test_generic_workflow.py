@@ -12,13 +12,17 @@ from PIL import Image
 
 from image_downloader import (
     AppConfig,
+    AuthenticationError,
     DownloadManifest,
+    ImageResource,
     PluginError,
     RuntimeComposer,
     UpdateCheckUnsupportedError,
     WorkflowStateService,
 )
-from image_downloader.plugins.builtin import GenericHtmlPlugin
+from image_downloader.observability.logging import DebugFileSink
+from image_downloader.plugins.builtin import GenericHtmlPlugin, _automatic_referer, _ImageParser
+from image_downloader.transport.gateway import RequestGateway
 
 URL = "https://example.test/"
 HTML = '<title>gallery</title><img src="/a.png" data-image-id="a"><img src="/b.png" data-image-id="b">'
@@ -51,13 +55,13 @@ class Page:
         monkeypatch.setattr(httpx, "AsyncClient", client)
 
 
-def compose(tmp_path, *, allow_empty=False):
+def compose(tmp_path, *, allow_empty=False, network=None):
     config = AppConfig.model_validate(
         {
             "storage": {"data_root": str(tmp_path / "data")},
             "plugins": {"root": str(tmp_path / "plugins")},
             "logging": {"console": {"enabled": False}},
-            "network": {"max_attempts": 1},
+            "network": {"max_attempts": 1, **(network or {})},
             "download": {"allow_empty_chapter_manifest": allow_empty},
         }
     )
@@ -73,20 +77,20 @@ def revision(html):
 
 
 @pytest.mark.parametrize(
-    ("html", "expected"),
+    ("html", "expected", "expected_referer"),
     [
-        ('<img src="a.png">', "https://example.test/new/gallery/a.png"),
-        ('<base href="../images/"><img src="a.png">', "https://example.test/new/images/a.png"),
-        ('<base href="//cdn.example.test/assets/"><img src="a.png">', "https://cdn.example.test/assets/a.png"),
-        ('<img src="a.png"><base href="/assets/">', "https://example.test/assets/a.png"),
-        ('<base href="/first/"><base href="/second/"><img src="a.png">', "https://example.test/first/a.png"),
-        ('<base href=""><base href="/second/"><img src="a.png">', "https://example.test/new/gallery/a.png"),
-        ('<base href="file:///images/"><img src="a.png">', "https://example.test/new/gallery/a.png"),
-        ('<base href="https://["><img src="a.png">', "https://example.test/new/gallery/a.png"),
-        ('<base href="/assets/"><img src="https://other.test/a.png">', "https://other.test/a.png"),
+        ('<img src="a.png">', "https://example.test/new/gallery/a.png", URL + "new/gallery/"),
+        ('<base href="../images/"><img src="a.png">', "https://example.test/new/images/a.png", URL + "new/gallery/"),
+        ('<base href="//cdn.example.test/assets/"><img src="a.png">', "https://cdn.example.test/assets/a.png", URL),
+        ('<img src="a.png"><base href="/assets/">', "https://example.test/assets/a.png", URL + "new/gallery/"),
+        ('<base href="/first/"><base href="/second/"><img src="a.png">', URL + "first/a.png", URL + "new/gallery/"),
+        ('<base href=""><base href="/second/"><img src="a.png">', URL + "new/gallery/a.png", URL + "new/gallery/"),
+        ('<base href="file:///images/"><img src="a.png">', URL + "new/gallery/a.png", URL + "new/gallery/"),
+        ('<base href="https://["><img src="a.png">', URL + "new/gallery/a.png", URL + "new/gallery/"),
+        ('<base href="/assets/"><img src="https://other.test/a.png">', "https://other.test/a.png", URL),
     ],
 )
-def test_generic_resolves_images_against_final_response_and_first_base(html, expected):
+def test_generic_resolves_images_against_final_response_and_first_base(html, expected, expected_referer):
     final_url = "https://example.test/new/gallery/"
 
     async def execute(spec):
@@ -97,9 +101,9 @@ def test_generic_resolves_images_against_final_response_and_first_base(html, exp
     manifest = asyncio.run(GenericHtmlPlugin().inspect(URL, context))
     image = manifest.chapters[0].images[0]
     assert image.url == expected
-    assert image.referer == final_url
+    assert image.referer == expected_referer
     request = asyncio.run(GenericHtmlPlugin().create_image_request(image, context))
-    assert request.url == expected and request.referer == final_url
+    assert request.url == expected and request.referer == expected_referer
 
 
 def test_generic_download_follows_redirect_and_fetches_base_relative_image(tmp_path, monkeypatch):
@@ -316,5 +320,280 @@ def test_zero_chapter_manifest_obeys_allow_empty_setting(tmp_path, monkeypatch, 
             else:
                 with pytest.raises(PluginError):
                     await service.run(URL)
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize(
+    ("source", "target", "expected"),
+    [
+        ("https://user:pass@example.test/p?x=a%2Fb&x=c+d#fragment", URL + "a.png", URL + "p?x=a%2Fb&x=c+d"),
+        ("https://user:pass@example.test/p?token=private#fragment", "https://cdn.test/a.png", URL),
+        ("https://example.test/p", "https://cdn.example.test/a.png", URL),
+        ("https://example.test/p", "http://example.test/a.png", None),
+        ("https://example.test/p", "http://localhost/a.png", None),
+        ("http://example.test/p?token=private#fragment", "https://example.test/a.png", "http://example.test/"),
+        ("http://example.test/p?token=private#fragment", "http://cdn.test/a.png", "http://example.test/"),
+        ("http://example.test:80/p?x=1", "http://EXAMPLE.test/a.png", "http://example.test/p?x=1"),
+        ("https://EXAMPLE.test:443/p", URL + "a.png", URL + "p"),
+        ("https://example.test:8443/p", "https://example.test:8443/a.png", "https://example.test:8443/p"),
+        ("https://example.test:8443/p", URL + "a.png", "https://example.test:8443/"),
+        ("https://example.test:0/p", URL + "a.png", "https://example.test:0/"),
+        ("https://example.test:0/p", "https://example.test:0/a.png", "https://example.test:0/p"),
+        ("https://[2001:db8::1]:8443/p?q=x#f", "https://[2001:db8::1]:8443/a.png", "https://[2001:db8::1]:8443/p?q=x"),
+        ("https://[2001:db8::1]/p", "https://[2001:0db8:0:0:0:0:0:1]/a.png", "https://[2001:db8::1]/p"),
+        ("https://[2001:db8::1]:8443/p", URL + "a.png", "https://[2001:db8::1]:8443/"),
+        ("https://bücher.test/p?q=x#f", "https://xn--bcher-kva.test/a.png", "https://xn--bcher-kva.test/p?q=x"),
+        ("https://bücher.test/p?q=x#f", "https://cdn.test/a.png", "https://xn--bcher-kva.test/"),
+    ],
+)
+def test_automatic_referer_limits_disclosure_without_rewriting_queries(source, target, expected):
+    assert _automatic_referer(source, target) == expected
+
+
+@pytest.mark.parametrize(
+    "invalid",
+    [
+        "/relative",
+        "file:///p",
+        "https:///p",
+        "https://[",
+        "https://host.test:abc/p",
+        "https://host.test:-1/p",
+        "https://host.test:65536/p",
+        "https://host.test/a\nb",
+    ],
+)
+@pytest.mark.parametrize("side", ["source", "target"])
+def test_unusable_urls_do_not_generate_automatic_referers(invalid, side):
+    source, target = (invalid, URL + "a.png") if side == "source" else (URL, invalid)
+    assert _automatic_referer(source, target) is None
+
+
+def _mock_http(monkeypatch, handler):
+    client_class = httpx.AsyncClient
+
+    def client(*args, **kwargs):
+        return client_class(*args, **dict(kwargs, transport=httpx.MockTransport(handler)))
+
+    monkeypatch.setattr(httpx, "AsyncClient", client)
+
+
+@pytest.fixture
+def tiny_png():
+    output = io.BytesIO()
+    Image.new("RGB", (2, 2), "blue").save(output, "PNG")
+    return output.getvalue()
+
+
+SECRET_PAGE = (
+    "https://audit-user:audit-pass@gallery.test/works/page?token=audit-token&tag=a%2Fb&tag=c+d#private=audit-fragment"
+)
+EXPLICIT_REFERER = "https://explicit-user:explicit-pass@configured.test/p?token=explicit-token#explicit-fragment"
+
+
+@pytest.mark.parametrize(
+    ("target", "default_referer", "automatic", "sent"),
+    [
+        (
+            "https://gallery.test/a.png",
+            None,
+            "https://gallery.test/works/page?token=audit-token&tag=a%2Fb&tag=c+d",
+            "https://gallery.test/works/page?token=audit-token&tag=a%2Fb&tag=c+d",
+        ),
+        ("https://asset.test/a.png", None, "https://gallery.test/", "https://gallery.test/"),
+        ("http://asset.test/a.png", None, None, None),
+        ("http://asset.test/a.png", EXPLICIT_REFERER, None, EXPLICIT_REFERER),
+    ],
+)
+def test_generic_inspection_preview_and_sent_headers_follow_automatic_policy(
+    tmp_path, monkeypatch, tiny_png, target, default_referer, automatic, sent
+):
+    fetched = []
+
+    def respond(request):
+        if request.url.path == "/works/page":
+            return httpx.Response(
+                200,
+                text=f'<meta name="referrer" content="unsafe-url"><img src="{target}" referrerpolicy="unsafe-url">',
+                headers={"Referrer-Policy": "unsafe-url"},
+            )
+        fetched.append((str(request.url), request.headers.get("referer")))
+        return httpx.Response(200, content=tiny_png, headers={"content-type": "image/png"})
+
+    _mock_http(monkeypatch, respond)
+
+    async def scenario():
+        network = {"headers": {"Referer": default_referer}} if default_referer else None
+        async with compose(tmp_path, network=network) as service:
+            debug_path = tmp_path / "debug.log"
+            service.logger.sinks.append(DebugFileSink(debug_path))
+            inspection = await service.inspect(SECRET_PAGE)
+            image = inspection.manifest.chapters[0].images[0]
+            resolution = inspection.image_requests[0]
+            assert image.url == target and image.referer == automatic
+            assert resolution.request.url == target and resolution.request.referer == automatic
+            preview_headers = {h.name.lower(): h.value for h in resolution.effective_request.headers}
+            assert preview_headers.get("referer") == sent
+            assert fetched == []  # Resolving the image request only previews it.
+            result = await service.run(SECRET_PAGE)
+            assert len(result.saved_files) == 1 and not result.failures
+            assert Path(result.saved_files[0]).read_bytes() == tiny_png
+        logs = "\n".join(p.read_text(encoding="utf-8") for p in tmp_path.rglob("*.log"))
+        assert "operation_started" in logs
+        assert all(secret not in logs for secret in ("audit-user", "audit-pass", "audit-token", "audit-fragment"))
+
+    asyncio.run(scenario())
+    assert fetched == [(target, sent)]
+
+
+@pytest.mark.parametrize("explicit", ["header", "field", "default"])
+def test_explicit_referers_retain_their_values_and_header_precedence(monkeypatch, explicit):
+    seen = []
+
+    def respond(request):
+        seen.append(request.headers.get("referer"))
+        return httpx.Response(200, content=b"ok")
+
+    _mock_http(monkeypatch, respond)
+
+    async def scenario():
+        gateway = RequestGateway(AppConfig.model_validate({"network": {"headers": {"Referer": EXPLICIT_REFERER}}}))
+        try:
+            image = ImageResource(
+                "https://asset.test/a.png",
+                referer=SECRET_PAGE if explicit in {"header", "field"} else None,
+                headers={"rEfErEr": EXPLICIT_REFERER} if explicit == "header" else {},
+            )
+            request = await GenericHtmlPlugin().create_image_request(image, None)
+            assert request.referer == image.referer and request.headers == image.headers
+            expected = SECRET_PAGE if explicit == "field" else EXPLICIT_REFERER
+            operation = gateway.operation(plugin_id=None, operation_url=request.url)
+            preview = await operation.preview(request)
+            assert {h.name.lower(): h.value for h in preview.headers}["referer"] == expected
+            await operation.execute(request)
+            assert seen == [expected]
+        finally:
+            await gateway.close()
+
+    asyncio.run(scenario())
+
+
+def test_generic_subclasses_and_shared_parser_retain_legacy_referers():
+    class IndependentPlugin(GenericHtmlPlugin):
+        pass
+
+    html = '<base href="https://asset.test/"><img src="a.png">'
+
+    async def execute(spec):
+        return SimpleNamespace(url=SECRET_PAGE, body=html.encode(), headers={})
+
+    context = SimpleNamespace(requests=SimpleNamespace(execute=execute))
+    plugin = IndependentPlugin()
+    manifest = asyncio.run(plugin.inspect(URL, context))
+    image = manifest.chapters[0].images[0]
+    assert image.url == "https://asset.test/a.png" and image.referer == SECRET_PAGE
+    assert asyncio.run(plugin.create_image_request(image, context)).referer == SECRET_PAGE
+    parser = _ImageParser(SECRET_PAGE)
+    parser.feed(html)
+    parser.close()
+    assert parser.images == [image]
+
+
+@pytest.mark.parametrize("base_first", [True, False])
+def test_page_redirect_and_cross_origin_base_keep_the_final_page_as_referrer(
+    tmp_path, monkeypatch, tiny_png, base_first
+):
+    seen = []
+
+    def respond(request):
+        seen.append((str(request.url), request.headers.get("referer")))
+        if request.url.path == "/":
+            return httpx.Response(302, headers={"location": "/new/gallery/?token=private#fragment"})
+        if request.url.path == "/new/gallery/":
+            base, image = '<base href="https://asset.test/images/">', '<img src="a.png">'
+            return httpx.Response(200, text=base + image if base_first else image + base)
+        if request.url.path == "/images/a.png":
+            return httpx.Response(302, headers={"location": "http://final.test/a.png"})
+        return httpx.Response(200, content=tiny_png, headers={"content-type": "image/png"})
+
+    _mock_http(monkeypatch, respond)
+
+    async def scenario():
+        async with compose(tmp_path) as service:
+            result = await service.run(URL)
+            assert len(result.saved_files) == 1 and not result.failures
+
+    asyncio.run(scenario())
+    assert len(seen) == 4
+    assert seen[2] == ("https://asset.test/images/a.png", URL)
+    assert seen[3] == ("http://final.test/a.png", None)
+
+
+def test_cdn_requiring_full_referer_fails_without_an_unsafe_fallback(tmp_path, monkeypatch):
+    seen = []
+
+    def respond(request):
+        if request.url.host == "gallery.test":
+            return httpx.Response(200, text='<img src="https://asset.test/a.png">')
+        seen.append(request.headers.get("referer"))
+        return httpx.Response(403, text="full page referrer required")
+
+    _mock_http(monkeypatch, respond)
+
+    async def scenario():
+        async with compose(tmp_path) as service:
+            with pytest.raises(AuthenticationError, match="authentication is required"):
+                await service.run(SECRET_PAGE)
+
+    asyncio.run(scenario())
+    assert seen == ["https://gallery.test/"]
+
+
+@pytest.mark.parametrize(("host", "retained_a_requests"), [("asset.test", 1), ("example.test", 2)])
+def test_retry_compares_effective_referers_when_page_query_changes(
+    tmp_path, monkeypatch, tiny_png, host, retained_a_requests
+):
+    fetched = Counter()
+    page_calls = 0
+
+    def respond(request):
+        nonlocal page_calls
+        if request.url.path == "/":
+            page_calls += 1
+            token = "first" if page_calls <= 2 else "second"
+            return httpx.Response(302, headers={"location": f"/gallery?token={token}"})
+        if request.url.path == "/gallery":
+            return httpx.Response(200, text=f'<img src="https://{host}/a.png"><img src="https://{host}/b.png">')
+        fetched[request.url.path] += 1
+        if request.url.path == "/b.png" and fetched[request.url.path] == 1:
+            return httpx.Response(503)
+        return httpx.Response(200, content=tiny_png, headers={"content-type": "image/png"})
+
+    _mock_http(monkeypatch, respond)
+
+    async def scenario():
+        async with compose(tmp_path) as service:
+            result = await service.workflow(URL, workflow_retry_delay=0)
+            assert [a.status for a in result.items[0].attempts] == ["partial", "success"]
+            assert fetched == {"/a.png": retained_a_requests, "/b.png": 2}
+
+    asyncio.run(scenario())
+
+
+def test_referer_changes_do_not_change_the_generic_image_list_revision():
+    async def scenario():
+        async def execute(spec):
+            return SimpleNamespace(url=spec.url, body=b'<img src="https://asset.test/a.png">', headers={})
+
+        context = SimpleNamespace(requests=SimpleNamespace(execute=execute))
+        builtin, legacy = GenericHtmlPlugin(), type("IndependentPlugin", (GenericHtmlPlugin,), {})()
+        current_manifest = await builtin.inspect(SECRET_PAGE, context)
+        legacy_manifest = await legacy.inspect(SECRET_PAGE, context)
+        assert current_manifest.chapters[0].images[0].referer == "https://gallery.test/"
+        assert legacy_manifest.chapters[0].images[0].referer == SECRET_PAGE
+        assert (await builtin.check_updates(SECRET_PAGE, context)).candidates == (
+            await legacy.check_updates(SECRET_PAGE, context)
+        ).candidates
 
     asyncio.run(scenario())

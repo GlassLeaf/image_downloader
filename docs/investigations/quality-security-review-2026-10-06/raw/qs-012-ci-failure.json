@@ -1,0 +1,88 @@
+{
+  "run_id": 38241315328,
+  "head_sha": "1cb31d98be6250a255148c07a7e79c860c6b0882",
+  "url": "https://github.com/GlassLeaf/image_downloader/actions/runs/38241315328",
+  "jobs": [
+    {
+      "id": 114784343845,
+      "name": "package-smoke (macos-latest)",
+      "conclusion": "success"
+    },
+    {
+      "id": 114784344091,
+      "name": "test (macos-latest, 3.13)",
+      "conclusion": "success"
+    },
+    {
+      "id": 114784344240,
+      "name": "test (windows-latest, 3.14)",
+      "conclusion": "success"
+    },
+    {
+      "id": 114784344255,
+      "name": "package-smoke (ubuntu-latest)",
+      "conclusion": "success"
+    },
+    {
+      "id": 114784344365,
+      "name": "test (macos-latest, 3.11)",
+      "conclusion": "success"
+    },
+    {
+      "id": 114784344374,
+      "name": "test (ubuntu-latest, 3.11)",
+      "conclusion": "success"
+    },
+    {
+      "id": 114784344385,
+      "name": "package-smoke (windows-latest)",
+      "conclusion": "success"
+    },
+    {
+      "id": 114784344442,
+      "name": "test (ubuntu-latest, 3.13)",
+      "conclusion": "success"
+    },
+    {
+      "id": 114784344486,
+      "name": "test (windows-latest, 3.13)",
+      "conclusion": "success"
+    },
+    {
+      "id": 114784344565,
+      "name": "test (ubuntu-latest, 3.14)",
+      "conclusion": "success"
+    },
+    {
+      "id": 114784344575,
+      "name": "test (windows-latest, 3.11)",
+      "conclusion": "success"
+    },
+    {
+      "id": 114784344606,
+      "name": "test (macos-latest, 3.12)",
+      "conclusion": "success"
+    },
+    {
+      "id": 114784344788,
+      "name": "test (macos-latest, 3.14)",
+      "conclusion": "success"
+    },
+    {
+      "id": 114784344806,
+      "name": "test (ubuntu-latest, 3.12)",
+      "conclusion": "failure"
+    },
+    {
+      "id": 114784345221,
+      "name": "test (windows-latest, 3.12)",
+      "conclusion": "success"
+    }
+  ],
+  "failed_job": {
+    "id": 114784344806,
+    "python": "3.12.15",
+    "summary": "1 failed, 1825 passed, 17 skipped, 180 warnings in 75.69s",
+    "failure_line": "tests/v3/application/test_workflow_logging.py:296: await asyncio.wait_for(started.wait(), 5)"
+  }
+}

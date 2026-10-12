@@ -2,14 +2,19 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
+import json
 import os
+import re
 import smtplib
 import ssl
 from collections import Counter
 from collections.abc import Mapping
 from contextlib import contextmanager
+from email.errors import HeaderParseError
+from email.headerregistry import Address
 from email.message import EmailMessage
 from functools import partial
+from ipaddress import ip_address
 from typing import Any, Protocol
 
 from ..configuration.models import Email, Notification, NotificationCategory, NotificationMethod
@@ -17,7 +22,7 @@ from ..credentials.keyring import load_secret
 from ..exceptions import ConfigurationError
 from ..models import WorkflowItemResult
 from .events import EventBus, EventName, EventPayload
-from .logging import DownloadLogger
+from .logging import DownloadLogger, safe_exception_name
 
 NOTIFICATION_SOURCES: Mapping[EventName, NotificationCategory] = {
     EventName.FETCH_FAILED: "fetch_error",
@@ -47,6 +52,75 @@ _IMAGE_NOTIFICATION_LABELS: Mapping[NotificationCategory, str] = {
 _NOTIFICATION_EXAMPLE_LIMIT = 5
 _NOTIFICATION_URL_LIMIT = 256
 _NOTIFICATION_BODY_LIMIT = 4096
+
+
+def _normalize_diagnostic_host(value: str) -> str:
+    """Retain only a DNS name or IP address, never arbitrary diagnostic text."""
+    if not value or any(character.isspace() or ord(character) < 32 or ord(character) == 127 for character in value):
+        return "unknown"
+    literal = value.startswith("[") and value.endswith("]")
+    host = value[1:-1] if literal else value
+    ipv6_literal = host.lower().startswith("ipv6:")
+    if ipv6_literal:
+        host = host[5:]
+    if "%" in host:
+        return "unknown"
+    try:
+        address = ip_address(host)
+        return address.compressed if not ipv6_literal or address.version == 6 else "unknown"
+    except ValueError:
+        if literal or ipv6_literal:
+            return "unknown"
+    try:
+        host = host.encode("idna").decode("ascii").lower().removesuffix(".")
+    except UnicodeError:
+        return "unknown"
+    labels = host.split(".")
+    if len(host) > 253 or any(re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", label) is None for label in labels):
+        return "unknown"
+    return host
+
+
+def _smtp_diagnostic_host(value: str) -> str:
+    if value.startswith("["):
+        match = re.fullmatch(r"(\[[^\[\]]+\])(?::([0-9]{1,5}))?", value)
+        if match is None or (match[2] is not None and int(match[2]) > 65535):
+            return "unknown"
+        value = match[1]
+    elif value.count(":") == 1:
+        host, _, port = value.partition(":")
+        if re.fullmatch(r"[0-9]{1,5}", port) is None or int(port) > 65535:
+            return "unknown"
+        value = host
+    return _normalize_diagnostic_host(value)
+
+
+def _refused_domains(recipients: Mapping[str, object]) -> tuple[str, ...]:
+    domains: set[str] = set()
+    for recipient in recipients:
+        try:
+            if any(ord(character) < 32 or ord(character) == 127 for character in recipient):
+                raise ValueError("invalid diagnostic address")
+            domain = Address(addr_spec=recipient).domain
+        except (HeaderParseError, ValueError, IndexError, RecursionError):
+            domain = ""
+        domains.add(_normalize_diagnostic_host(domain))
+    return tuple(sorted(domains))
+
+
+class _PartialRecipientRefusalError(RuntimeError):
+    def __init__(self, recipients: Mapping[str, object]) -> None:
+        super().__init__("some SMTP recipients were refused")
+        self.refused_count = len(recipients)
+        self.refused_domains = _refused_domains(recipients)
+
+
+def _smtp_refusal_diagnostic(error: Exception) -> tuple[str, int, tuple[str, ...]] | None:
+    if isinstance(error, _PartialRecipientRefusalError):
+        return "smtp_partial_recipients_refused", error.refused_count, error.refused_domains
+    if isinstance(error, smtplib.SMTPRecipientsRefused):
+        return "smtp_all_recipients_refused", len(error.recipients), _refused_domains(error.recipients)
+    return None
 
 
 class NotificationSender(Protocol):
@@ -346,12 +420,27 @@ class NotificationService:
         message: str,
     ) -> bool:
         sender = self.senders.get(channel)
+        smtp_host = "unknown"
         try:
             if sender is None:
                 raise RuntimeError(f"notification sender is not configured: {channel}")
+            if isinstance(sender, EmailNotificationSender):
+                smtp_host = sender.config.smtp_host
             result = await sender.send(title, message)
         except Exception as exc:
-            await self.logger.core("notification_failed", module="notification", error=exc)
+            diagnostic = _smtp_refusal_diagnostic(exc)
+            error_code = None
+            if diagnostic is None:
+                await self.logger.core("notification_failed", module="notification", error=exc)
+            else:
+                error_code, count, domains = diagnostic
+                smtp_host = _smtp_diagnostic_host(smtp_host)
+                await self.logger.log(
+                    "event=notification_failed module=notification "
+                    f"action={error_code} count={count} smtp_host={smtp_host} "
+                    f"refused_domains={json.dumps(domains, separators=(',', ':'))} error={safe_exception_name(exc)}",
+                    module="notification",
+                )
             if self.events is not None:
                 await self.events.emit(
                     EventName.NOTIFICATION_FAILED,
@@ -359,6 +448,7 @@ class NotificationService:
                         channel=channel,
                         error=str(exc),
                         error_class=type(exc).__name__,
+                        error_code=error_code,
                     ),
                 )
             return False
@@ -403,4 +493,6 @@ def _send_mail(settings: dict[str, Any], title: str, message: str) -> None:
             client.starttls(context=context)
         if settings.get("username"):
             client.login(settings["username"], settings.get("password", ""))
-        client.send_message(mail)
+        refused = client.send_message(mail)
+    if refused:
+        raise _PartialRecipientRefusalError(refused)

@@ -7,6 +7,28 @@ profileの`logs/workflow`へ非上書きで保存する。予定保存に失敗�
 
 この文書は public API の型ではなく、transport、persistence、output safety の実行契約を定義する。callable signature は [library API reference](library-api.md) を参照する。
 
+## Runtime組立て時の所有権
+
+<a id="runtime-construction"></a>
+
+`RuntimeComposer`は、通常download・CLI inspection・workflow planの組立て中に作成した
+registry、log sink／logger、HTTP gateway、画像processorを所有する。serviceの構築が
+成功したときだけ、完成した`DownloadService`へ終了処理の所有権を移す。
+`compose_registry()`だけを成功させた場合は、返されたruntimeをcallerが閉じる。
+
+組立てに失敗した場合は、作成済み資源の解放を試み、元の例外・中断を再送出する。
+serviceを返さないため、callerによる部分的なserviceのcloseは不要である。
+途中の資源はまだ通信・画像処理に使われておらず、cookie保存や通知送信も行わない。
+正常に完成したserviceの`close()`によるcookie delta保存と通常の終了処理は維持する。
+
+`compose()`の同期APIは維持する。呼出元に動作中のasyncio event loopがあるときは、
+失敗時の非同期cleanupだけを一時スレッドの独立loopで実行し、完了を待つ。
+後始末の一つが失敗しても残りを試み、元のエラーを置き換えず、固定文言と固定の資源区分で警告する。
+後始末自体が失敗した資源の完全解放は保証できない。
+
+本体が構築した未使用資源だけが対象であり、利用済みclientや独自依存の汎用的なloop移動機能ではない。
+当該runtime以外のplugin moduleやfinder登録は保持する。作成済みディレクトリ・log・lockファイルは削除しない。
+
 ## HTTP transport
 
 <a id="runtime-transport"></a>
@@ -22,6 +44,29 @@ GET、HEAD、OPTIONS、TRACE は retry 対象である。429、500、502、503�
 
 redirect は hop ごとに policy を検査する。anonymous cross-origin redirect には Cookie、Referer、plugin-specific header、application header を引き継がない。response body は streaming で読み、宣言済みサイズと受信済みサイズのいずれも `network.max_response_bytes` を超えると `ResponseSizeLimitError` で止める。
 
+### 組込み汎用HTMLの自動Referer
+
+`core.generic-html`のクラス本体は、HTML解析と画像URL解決後に、最終ページURLから画像ごとの
+自動Refererを生成する。`base href`は画像URLの解決に使い、Refererの参照元には使わない。
+
+| 最終ページと画像取得先の関係 | 自動Referer |
+| --- | --- |
+| 同一オリジン | userinfo・fragmentを除いたページURL。パス・クエリは保持 |
+| 別オリジン、HTTPS→HTTP以外 | ページの`scheme://host[:port]/`のみ |
+| HTTPS→HTTP | 省略（`None`） |
+| HTTP(S)以外・解析不能・不正ポート | 省略。画像URL自体の既存検証・失敗処理は維持 |
+
+オリジンはscheme・正規化したhost・実効portで比較する。サブドメインや異なるportは別オリジンである。
+manifestの`ImageResource.referer`、組込みの`RequestSpec.referer`、明示ヘッダーがない場合の
+effective previewと実送信に同じ値を使う。HTMLの`Referrer-Policy`／meta／`referrerpolicy`でこの方針を
+緩和せず、403でも完全URLへ自動的に戻さない。完全なページRefererが必要なサイトは、独自プラグインで明示する。
+
+独自プラグイン、`GenericHtmlPlugin`の継承クラス、共有HTML parser、明示されたRefererは従来の扱いを維持する。
+ヘッダー名の大小文字によらず`RequestSpec.headers`のRefererが`RequestSpec.referer`より優先され、
+どちらもない場合は`network.headers`の明示Refererが使われる。自動値が`None`でもこの設定値は送信される。
+明示値に含まれる秘密情報と、同一オリジンへ保持するクエリは、この自動値の制限では除去されない。
+認証・cookie・リダイレクトの既存方針、公開DTO・設定schema、詳細inspection出力の契約は維持する。
+
 ## Cookies
 
 <a id="runtime-cookies"></a>
@@ -32,6 +77,40 @@ profile cookie は `<storage.data_root>/profiles/<profile>/cookie/cookies.enc` �
 cookie export/import は passphrase container を使い、passphrase を対話入力する。browser import は `browser-cookie3` を含む `.[browser-cookies]` extra が必要で、既存 jar を差分 merge する。破損した encrypted file は上書きせず error にし、明示 import を復旧手段にする。
 
 同一端末上の本 application process は `cookie/cookies.lock` で read/merge/write を直列化する。異なる cookie は保持し、同一 `(domain, path, name)` は後に確定した更新、同値なら長い expiry、session cookie は persistent cookie より短期として扱う。lock file は解放後も残る。NAS と外部 application の同時変更は保証対象外である。`CookieStore.save()` は jar 全体を置換する library API であり、runtime の delta merge とは異なる。
+
+## 共通ファイルロックの初期化と所有権
+
+履歴・Cookie・状態・出力・plugin catalogが使う`InterProcessFileLock`は、非バッファstreamを開き、
+OSロックを取得してから、空の場合だけ1バイトを書き込む。Windowsは先頭1バイト、POSIXは`flock`で
+排他する。既存の非空ファイルには書き込まず、内容・サイズ・ファイルIDを維持する。
+ロックファイルは解放後も残り、存在すること自体はロック保持を意味しない。
+
+Windowsで未作成の場合は、同じ親ディレクトリに一時ファイルを作り、1バイトを書いてhandleを閉じ、
+既存宛先を上書きしない`rename`で公開する。公開競合では先に作られた通常ファイルを使う。
+その後の`a+b`のopenは`O_CREAT`を除き、対象の消失を取得失敗として扱う。
+既存空ファイルを置換・truncateせず、同じファイルをロック下で初期化する。
+一時ファイルは初回作成時だけ必要で、親ディレクトリへの作成・rename・削除権限を要する。
+親・対象の検査時の同一性を確認し、link・reparse point・複数hardlinkを拒否する。
+
+公開時の競合試験ではopenから共有違反が返るケースも確認されたため、WindowsのopenerはCRTの
+拡張エラー32を確認できた場合だけ、既存のpoll間隔0.1秒を一度待ち、作成禁止の同じopenを一度再試行する。
+同期APIは`time.sleep`、非同期APIは`await asyncio.sleep`で待つ。この待機中の中断も伝播する。
+再試行は最初に確認した親・対象のファイルIDを引き継ぎ、待機中の差替え・消失を拒否する。
+アクセス拒否5や他のエラーは再試行せず、再試行も失敗した場合は最初の例外とcauseを維持する。
+CRTの拡張エラーを取得できない場合も従来の取得失敗を伝播させる。
+Python標準の`ctypes`を使い、CRTはSystem32からのみ取得する。追加の依存や設定は不要である。
+
+ロック待機期限はopenが戻ってから開始し、既定30秒・poll間隔0.1秒を維持する。
+待機時間0でも取得を一度試す。同期・非同期の所有権確定前の失敗や中断では、取得済みロックの解放と
+streamのcloseを試みる。一つの後始末が失敗しても続行し、元の例外を保持する。
+公開前の一時ファイル・descriptorも所有者が後始末する。公開済み対象や他プロセスの一時ファイルは削除しない。
+追加の後始末診断は固定文言と資源区分だけを含む。
+
+Windowsの公開処理は、調査で効果が見られた「書込み済みの同じファイルを保持する」条件に基づく暫定策である。
+既存空ファイルの初回open、一時ファイルの作成を含むOS内部のI/O停止は残る。
+ロック競合timeoutはnative openやwrite等を強制中断せず、終了時間の上限、電源断時のマーカー永続化、
+保護製品内部の動作は保証しない。更新時は関連プロセスを終了してから切り替える。
+移行コマンドやロックファイルの一括削除は不要である。
 
 ## Output allocation and locks
 
@@ -219,6 +298,22 @@ workflow期限を指定しても、キャンセルは協調的である。イベ
 chapter log は image URL、response URL、status、stage、transport、reason code、safe exception detail を記録する。`completed`、`response_received`、`response_limit_exceeded`、`redirect_rejected`、`failed` は取得段階を区別する。image-level fetch/process/save failure は対応する notification category を一度だけ送る。operation-level authentication/configuration/plugin/update/storage/unknown failure は対応する category に送る。
 
 observer、notification sender、sink、Python log capture の cleanup failure は safe diagnostic warning に留め、主 operation の result/exception を変更しない。互換性のため定義される event でも、core に明確な判定点がなければ自動発火しない。設計上の理由は [observability explanation](../explanation/observability.md) を参照する。
+
+SMTP 通知は全宛先がサーバーに受理された場合に成功とする。`send_message()` の拒否辞書が非空なら
+部分拒否、`SMTPRecipientsRefused` なら全拒否として扱い、`NOTIFICATION_FAILED` を1回発火する。
+`error_code` はそれぞれ `smtp_partial_recipients_refused`、`smtp_all_recipients_refused` とする。
+部分拒否では一部宛先へ送信済みであり、自動再送は行わない。受理は受信箱への最終到達の保証ではなく、
+通知失敗は download/workflow の結果や CLI 終了コードを変更しない。
+
+拒否時の有効な通常ログ・console・debug.log には、固定の分類、拒否辞書の件数、`smtp_host`、
+`refused_domains` を記録する。`smtp_host` は組込み email sender の送信設定にあるホスト、
+`refused_domains` は拒否されたアドレスの `@` 以降を安全に抽出した、重複なし・ソート済みの一覧である。
+DNS 名は小文字の IDNA ASCII 表記、IP は正規化済み表記にする。ポートはホスト表示から除く。
+不正・解析不能な値は `unknown` とし、元の文字列を表示しない。独自 sender の SMTP ホストが不明な場合も
+`unknown` とする。DNS/MX 検索は行わず、接続先 IP や配送先 MX ホストを特定する機能ではない。
+宛先ドメインと SMTP ホストは診断として開示するが、ローカル部分・表示名・SMTP 応答本文・認証情報は
+表示しない。イベントにはホストを追加せず、既存の `error`/`error_class` の秘匿を維持する。
+
 ## Workflow履歴の保存安全性
 
 `state/workflow-history.json`はprofile内全feedの実行概要をschema 1で保持する。専用の短い共有ファイルロック下でread/merge/保持制御/atomic writeを行い、別feed・別プロセスの記録消失を防ぐ。開始済み保存はキャンセル時も確定させ、その後でキャンセルを伝播する。未知schema・破損を上書きしない。表示・整理ではエラー、workflow記録時には安全な警告と保存失敗フラグにする。

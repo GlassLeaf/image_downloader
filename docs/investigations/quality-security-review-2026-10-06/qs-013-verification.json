@@ -1,0 +1,254 @@
+{
+  "issue": "QS-013",
+  "base_commit": "92a3d0cdd3f81eba553bd2920b9c768922947edb",
+  "implementation_commit": "d7e6a1bec2b58a66e702356f16c8dc3d7a107cd9",
+  "date": "2026-10-11",
+  "timezone": "Asia/Tokyo",
+  "local": {
+    "platform": "Windows-10-10.0.19045-SP0",
+    "python": "3.11.4",
+    "new_regressions": {
+      "httpx_0_28_1": {
+        "passed": 64
+      },
+      "httpx_0_27_0": {
+        "passed": 64,
+        "bootstrap_warnings": 1
+      }
+    },
+    "public_api_and_documentation": {
+      "passed": 21
+    },
+    "ruff": "success",
+    "mypy": {
+      "result": "success",
+      "source_files": 95
+    },
+    "full_v3": {
+      "passed": 1685,
+      "failed": 1,
+      "skipped": 17,
+      "duration_seconds": 679.33,
+      "coverage_percent": 88.19
+    },
+    "failure": {
+      "test": "tests/v3/application/test_workflow_history.py::test_independent_processes_merge_under_shared_history_lock",
+      "assertion": "process.exitcode is None after process.join(60)",
+      "same_test_on_baseline": "failed",
+      "baseline_duration_seconds": 67.09,
+      "sandbox_recheck_duration_seconds": 64.83,
+      "unsandboxed_recheck_duration_seconds": 70.27,
+      "root_cause": "unconfirmed"
+    },
+    "package_smoke": "success (offline)",
+    "source_test_files_checked": 175,
+    "source_test_changes_during_verification": 0
+  },
+  "ci": {
+    "run_id": 38069118436,
+    "url": "https://github.com/GlassLeaf/image_downloader/actions/runs/38069118436",
+    "head_sha": "d7e6a1bec2b58a66e702356f16c8dc3d7a107cd9",
+    "final_status": "completed",
+    "final_conclusion": "success",
+    "run_attempt": 2,
+    "jobs_succeeded": 15,
+    "jobs_total": 15,
+    "initial_failure": {
+      "job_name": "test (windows-latest, 3.14)",
+      "job_id": 114262739004,
+      "test": "tests/v3/application/test_workflow_logging.py::test_cancel_or_timeout_distinguishes_interrupted_and_not_started[True]",
+      "error": "TimeoutError at started.wait() with 5-second timeout",
+      "rerun_job_id": 114294266537,
+      "rerun_result": "success",
+      "code_changed_between_attempts": false,
+      "root_cause": "unconfirmed"
+    },
+    "tests": [
+      {
+        "id": 114262738903,
+        "name": "test (ubuntu-latest, 3.12)",
+        "conclusion": "success",
+        "pytest": [
+          "1690 passed, 13 skipped, 174 warnings in 57.15s"
+        ],
+        "coverage": [
+          "Total coverage: 88.04%"
+        ],
+        "lint": true,
+        "mypy": [
+          "Success: no issues found in 95 source files"
+        ]
+      },
+      {
+        "id": 114262738923,
+        "name": "test (windows-latest, 3.11)",
+        "conclusion": "success",
+        "pytest": [
+          "1691 passed, 12 skipped in 289.67s (0:04:49)"
+        ],
+        "coverage": [
+          "Total coverage: 88.26%"
+        ],
+        "lint": true,
+        "mypy": [
+          "Success: no issues found in 95 source files"
+        ]
+      },
+      {
+        "id": 114262738959,
+        "name": "test (windows-latest, 3.12)",
+        "conclusion": "success",
+        "pytest": [
+          "1691 passed, 12 skipped in 302.93s (0:05:02)"
+        ],
+        "coverage": [
+          "Total coverage: 88.26%"
+        ],
+        "lint": true,
+        "mypy": [
+          "Success: no issues found in 95 source files"
+        ]
+      },
+      {
+        "id": 114262738978,
+        "name": "test (macos-latest, 3.13)",
+        "conclusion": "success",
+        "pytest": [
+          "1690 passed, 13 skipped in 131.13s (0:02:11)"
+        ],
+        "coverage": [
+          "Total coverage: 88.04%"
+        ],
+        "lint": true,
+        "mypy": [
+          "Success: no issues found in 95 source files"
+        ]
+      },
+      {
+        "id": 114262738981,
+        "name": "test (macos-latest, 3.12)",
+        "conclusion": "success",
+        "pytest": [
+          "1690 passed, 13 skipped in 150.07s (0:02:30)"
+        ],
+        "coverage": [
+          "Total coverage: 88.04%"
+        ],
+        "lint": true,
+        "mypy": [
+          "Success: no issues found in 95 source files"
+        ]
+      },
+      {
+        "id": 114262738984,
+        "name": "test (ubuntu-latest, 3.13)",
+        "conclusion": "success",
+        "pytest": [
+          "1690 passed, 13 skipped, 174 warnings in 68.83s (0:01:08)"
+        ],
+        "coverage": [
+          "Total coverage: 88.04%"
+        ],
+        "lint": true,
+        "mypy": [
+          "Success: no issues found in 95 source files"
+        ]
+      },
+      {
+        "id": 114262738991,
+        "name": "test (ubuntu-latest, 3.14)",
+        "conclusion": "success",
+        "pytest": [
+          "1690 passed, 13 skipped, 1 warning in 102.67s (0:01:42)"
+        ],
+        "coverage": [
+          "Total coverage: 87.97%"
+        ],
+        "lint": true,
+        "mypy": [
+          "Success: no issues found in 95 source files"
+        ]
+      },
+      {
+        "id": 114262739079,
+        "name": "test (windows-latest, 3.13)",
+        "conclusion": "success",
+        "pytest": [
+          "1691 passed, 12 skipped in 286.91s (0:04:46)"
+        ],
+        "coverage": [
+          "Total coverage: 88.26%"
+        ],
+        "lint": true,
+        "mypy": [
+          "Success: no issues found in 95 source files"
+        ]
+      },
+      {
+        "id": 114262739086,
+        "name": "test (ubuntu-latest, 3.11)",
+        "conclusion": "success",
+        "pytest": [
+          "1690 passed, 13 skipped in 61.05s (0:01:01)"
+        ],
+        "coverage": [
+          "Total coverage: 88.04%"
+        ],
+        "lint": true,
+        "mypy": [
+          "Success: no issues found in 95 source files"
+        ]
+      },
+      {
+        "id": 114262739116,
+        "name": "test (macos-latest, 3.14)",
+        "conclusion": "success",
+        "pytest": [
+          "1690 passed, 13 skipped, 1 warning in 141.59s (0:02:21)"
+        ],
+        "coverage": [
+          "Total coverage: 87.97%"
+        ],
+        "lint": true,
+        "mypy": [
+          "Success: no issues found in 95 source files"
+        ]
+      },
+      {
+        "id": 114262739129,
+        "name": "test (macos-latest, 3.11)",
+        "conclusion": "success",
+        "pytest": [
+          "1690 passed, 13 skipped in 124.18s (0:02:04)"
+        ],
+        "coverage": [
+          "Total coverage: 88.04%"
+        ],
+        "lint": true,
+        "mypy": [
+          "Success: no issues found in 95 source files"
+        ]
+      },
+      {
+        "id": 114294266537,
+        "name": "test (windows-latest, 3.14)",
+        "conclusion": "success",
+        "pytest": [
+          "1691 passed, 12 skipped, 1 warning in 169.27s (0:02:49)"
+        ],
+        "coverage": [
+          "Total coverage: 88.20%"
+        ],
+        "lint": true,
+        "mypy": [
+          "Success: no issues found in 95 source files"
+        ]
+      }
+    ],
+    "package_smoke": [
+      "ubuntu-latest",
+      "windows-latest",
+      "macos-latest"
+    ]
+  }
+}

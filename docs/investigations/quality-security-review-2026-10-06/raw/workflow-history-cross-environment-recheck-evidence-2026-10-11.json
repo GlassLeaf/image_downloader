@@ -1,0 +1,756 @@
+{
+  "recorded_at": "2026-10-11T08:54:39.011769+09:00",
+  "commit": "c4ef652bed1d3fa45813b1e2e790b327b9e82b68",
+  "branch": "codex/fix-qs-013-construction-cleanup",
+  "update": {
+    "previous_commit": "0d63138526eacc5cb128cb17084fd1f72a4fcc39",
+    "method": "fetch then merge --ff-only",
+    "initial_worktree": "clean",
+    "new_changes": "investigation documents and probes only"
+  },
+  "source_sha256_before": {
+    "src/image_downloader/storage/interprocess_lock.py": "a42aa7fb0a2038d8fc68a07942d4b385ad0bea240afbce7a95e828fc02e0f21f",
+    "src/image_downloader/storage/workflow_history.py": "ec31093a7173c9ba65713a353cf185f2746f180feee446b8a5b2ab2311383194",
+    "tests/v3/application/test_workflow_history.py": "a1b6e402a6460a0d3697a73be6967bb6c1c19ab0f3839712c1e21e2cce5488ad"
+  },
+  "source_sha256_after": {
+    "src/image_downloader/storage/interprocess_lock.py": "a42aa7fb0a2038d8fc68a07942d4b385ad0bea240afbce7a95e828fc02e0f21f",
+    "src/image_downloader/storage/workflow_history.py": "ec31093a7173c9ba65713a353cf185f2746f180feee446b8a5b2ab2311383194",
+    "tests/v3/application/test_workflow_history.py": "a1b6e402a6460a0d3697a73be6967bb6c1c19ab0f3839712c1e21e2cce5488ad"
+  },
+  "source_unchanged": true,
+  "git_source_blobs": {
+    "src/image_downloader/storage/interprocess_lock.py": "5ca9df58c3d0c38aab0972ea0933a3a8abd62d03",
+    "src/image_downloader/storage/workflow_history.py": "5c0865ea876dffa8a5989336a93eb09e43cdcadd",
+    "tests/v3/application/test_workflow_history.py": "b825e6347fe73d94d40beccd63a039798d3655a2"
+  },
+  "alternate_git_source_blobs_match": true,
+  "environment": {
+    "observed_at": "2026-10-11T08:41:02.472141+09:00",
+    "commit": "c4ef652bed1d3fa45813b1e2e790b327b9e82b68",
+    "platform": "Windows-10-10.0.19045-SP0",
+    "windows": {
+      "EditionID": "Core",
+      "DisplayVersion": "22H2",
+      "CurrentBuildNumber": "19045",
+      "UBR": 7727
+    },
+    "python": "3.11.4 (tags/v3.11.4:d2340ef, Jun  7 2023, 05:45:37) [MSC v.1934 64 bit (AMD64)]",
+    "executable": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+    "prefix": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv",
+    "base_prefix": "C:\\Program Files\\Python311",
+    "packages": {
+      "pytest": "9.1.1",
+      "pytest-cov": "7.1.0",
+      "pytest-asyncio": "1.4.0",
+      "pytest-mock": "3.15.1",
+      "httpx": "0.28.1",
+      "anyio": "4.14.2",
+      "ruff": "0.16.5",
+      "mypy": "2.3.1",
+      "psutil": "7.2.2"
+    },
+    "guard64_loaded_in_fresh_python": true,
+    "pytest_entrypoints": [
+      {
+        "name": "anyio",
+        "value": "anyio.pytest_plugin"
+      },
+      {
+        "name": "asyncio",
+        "value": "pytest_asyncio.plugin"
+      },
+      {
+        "name": "pytest_cov",
+        "value": "pytest_cov.plugin"
+      },
+      {
+        "name": "pytest_mock",
+        "value": "pytest_mock"
+      }
+    ]
+  },
+  "security_state_before": {
+    "observed_at": "2026-10-11T08:34:10.8869760+09:00",
+    "source": "root/SecurityCenter2:AntiVirusProduct",
+    "products": [
+      {
+        "displayName": "Windows Defender",
+        "productState": 393472
+      },
+      {
+        "displayName": "COMODO Antivirus",
+        "productState": 397312
+      }
+    ],
+    "comodo_processes": [
+      {
+        "ProcessName": "cis",
+        "Id": 42648
+      },
+      {
+        "ProcessName": "cis",
+        "Id": 44068
+      },
+      {
+        "ProcessName": "cis",
+        "Id": 46548
+      },
+      {
+        "ProcessName": "cmdagent",
+        "Id": 3228
+      },
+      {
+        "ProcessName": "cmdagent",
+        "Id": 4092
+      }
+    ]
+  },
+  "security_configuration_changed_by_investigator": false,
+  "alternate_evidence": {
+    "files": {
+      "raw\\workflow-history-alternate-environment-evidence.json": "7b5034d4a75d00935974c32c401cf179e04f99df24e5dbc7629b5d3737980312",
+      "raw\\workflow-history-repeatability-evidence-2026-10-11.json": "d3dcc65d7ee64ba99d310cd9aa017f9d516b17f210b413d882eaef947b8d676d"
+    },
+    "pairs": [
+      {
+        "pair": 1,
+        "order": [
+          "missing",
+          "no-initialization"
+        ],
+        "missing_errors": 7,
+        "no_initialization_errors": 0
+      },
+      {
+        "pair": 2,
+        "order": [
+          "no-initialization",
+          "missing"
+        ],
+        "missing_errors": 9,
+        "no_initialization_errors": 0
+      },
+      {
+        "pair": 3,
+        "order": [
+          "missing",
+          "no-initialization"
+        ],
+        "missing_errors": 7,
+        "no_initialization_errors": 0
+      },
+      {
+        "pair": 4,
+        "order": [
+          "no-initialization",
+          "missing"
+        ],
+        "missing_errors": 11,
+        "no_initialization_errors": 0
+      },
+      {
+        "pair": 5,
+        "order": [
+          "missing",
+          "no-initialization"
+        ],
+        "missing_errors": 12,
+        "no_initialization_errors": 0
+      }
+    ],
+    "total_missing_attempts": 3000,
+    "total_missing_errors": 46,
+    "all_46_tracebacks_verified_as_initialization_flush_PermissionError": true,
+    "no_initialization_attempts": 3000,
+    "no_initialization_errors": 0,
+    "all_pair_protocols_completed": true,
+    "history_tests": 20,
+    "history_passed": 20,
+    "comparison_limits": [
+      "Different Windows build, security environment and Python virtual environment",
+      "Alternate environment reported no COMODO; absence of all OS protection is not asserted",
+      "Raw source hashes can differ with CRLF/LF; Git blobs match",
+      "Natural-test success is not evidence of absence of contention errors"
+    ]
+  },
+  "published_contention": {
+    "command": [
+      "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+      "C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py",
+      "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-cross-environment-recheck-20261011\\contention-01",
+      "--rounds",
+      "200",
+      "--record-all-errors"
+    ],
+    "execution_environment": "outside Codex sandbox",
+    "exitcode": 1,
+    "probe_sha256": "ebcc611eec0805d9356268838092d4a1565fe2632d2f76c438707b7bcb65a200",
+    "observations": [
+      {
+        "variant": "missing",
+        "rounds": 0,
+        "worker_count": 3,
+        "workers": [],
+        "counter": 2,
+        "successful_acquisitions": 0,
+        "errors": 0,
+        "record_all_errors": true,
+        "parent_error": "Traceback (most recent call last):\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 96, in scenario\n    barrier.wait(20)\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690, in wait\n    self._wait(timeout)\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 728, in _wait\n    raise BrokenBarrierError\nthreading.BrokenBarrierError\n",
+        "process_exitcodes": [
+          0,
+          0,
+          -15
+        ],
+        "seconds": 27.594,
+        "final_lock_size": 1,
+        "sampled_lock_stacks": [
+          "worker-2.stack.txt"
+        ],
+        "sampled_stack_contents": {
+          "worker-2.stack.txt": "Timeout (0:00:08)!\nThread 0x0000ebf4 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x0000ebf4 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x0000ebf4 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\n"
+        },
+        "statistics_incomplete": true,
+        "requested_rounds": 200,
+        "errors_zero_means_no_worker_results": true,
+        "terminated_worker_exitcode_is_probe_cleanup": -15
+      },
+      {
+        "variant": "empty",
+        "rounds": 3,
+        "worker_count": 3,
+        "workers": [],
+        "counter": 11,
+        "successful_acquisitions": 0,
+        "errors": 0,
+        "record_all_errors": true,
+        "parent_error": "Traceback (most recent call last):\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 96, in scenario\n    barrier.wait(20)\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690, in wait\n    self._wait(timeout)\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 730, in _wait\n    raise BrokenBarrierError\nthreading.BrokenBarrierError\n",
+        "process_exitcodes": [
+          0,
+          0,
+          -15
+        ],
+        "seconds": 27.188,
+        "final_lock_size": 1,
+        "sampled_lock_stacks": [
+          "worker-2.stack.txt"
+        ],
+        "sampled_stack_contents": {
+          "worker-2.stack.txt": "Timeout (0:00:08)!\nThread 0x0000eaf8 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x0000eaf8 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x0000eaf8 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\n"
+        },
+        "statistics_incomplete": true,
+        "requested_rounds": 200,
+        "errors_zero_means_no_worker_results": true,
+        "terminated_worker_exitcode_is_probe_cleanup": -15
+      },
+      {
+        "variant": "seeded",
+        "rounds": 13,
+        "worker_count": 3,
+        "workers": [],
+        "counter": 41,
+        "successful_acquisitions": 0,
+        "errors": 0,
+        "record_all_errors": true,
+        "parent_error": "Traceback (most recent call last):\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 96, in scenario\n    barrier.wait(20)\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690, in wait\n    self._wait(timeout)\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 728, in _wait\n    raise BrokenBarrierError\nthreading.BrokenBarrierError\n",
+        "process_exitcodes": [
+          0,
+          0,
+          -15
+        ],
+        "seconds": 29.407,
+        "final_lock_size": 1,
+        "sampled_lock_stacks": [
+          "worker-2.stack.txt"
+        ],
+        "sampled_stack_contents": {
+          "worker-2.stack.txt": "Timeout (0:00:08)!\nThread 0x0000ebc4 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x0000ebc4 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x0000ebc4 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\src\\image_downloader\\storage\\interprocess_lock.py\", line 149 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\n"
+        },
+        "statistics_incomplete": true,
+        "requested_rounds": 200,
+        "errors_zero_means_no_worker_results": true,
+        "terminated_worker_exitcode_is_probe_cleanup": -15
+      },
+      {
+        "variant": "no-initialization",
+        "rounds": 23,
+        "worker_count": 3,
+        "workers": [],
+        "counter": 71,
+        "successful_acquisitions": 0,
+        "errors": 0,
+        "record_all_errors": true,
+        "parent_error": "Traceback (most recent call last):\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 96, in scenario\n    barrier.wait(20)\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690, in wait\n    self._wait(timeout)\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 730, in _wait\n    raise BrokenBarrierError\nthreading.BrokenBarrierError\n",
+        "process_exitcodes": [
+          -15,
+          0,
+          0
+        ],
+        "seconds": 32.515,
+        "final_lock_size": 0,
+        "sampled_lock_stacks": [
+          "worker-0.stack.txt"
+        ],
+        "sampled_stack_contents": {
+          "worker-0.stack.txt": "Timeout (0:00:08)!\nThread 0x0000d970 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-cross-environment-recheck-20261011\\contention-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-cross-environment-recheck-20261011\\contention-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py\", line 147 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x0000d970 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-cross-environment-recheck-20261011\\contention-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-cross-environment-recheck-20261011\\contention-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py\", line 147 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x0000d970 (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-cross-environment-recheck-20261011\\contention-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-cross-environment-recheck-20261011\\contention-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py\", line 147 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\n"
+        },
+        "statistics_incomplete": true,
+        "requested_rounds": 200,
+        "errors_zero_means_no_worker_results": true,
+        "terminated_worker_exitcode_is_probe_cleanup": -15
+      }
+    ],
+    "limits": [
+      "Incomplete protocol: zero errors/successes means missing worker result arrays",
+      "Three workers and repeated file deletion/recreation per round differ from natural profile save",
+      "Parent barrier deadline is 20 seconds, not the original test's 60-second join",
+      "Product five-second timeout begins after open and cannot cover the observed open wait"
+    ]
+  },
+  "isolated_copies": {
+    "contention-01": {
+      "path": ".runtime\\history-cross-environment-recheck-20261011\\contention-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py",
+      "sha256": "42d0edfcea6b0805c0f3a74bfd4133065c006a5407277acb7b3cca957bac280b",
+      "change": "Only the two synchronous/asynchronous initialization calls removed"
+    },
+    "native-no-initialization-01": {
+      "path": ".runtime\\history-cross-environment-recheck-20261011\\native-no-initialization-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py",
+      "sha256": "42d0edfcea6b0805c0f3a74bfd4133065c006a5407277acb7b3cca957bac280b",
+      "change": "Only the two synchronous/asynchronous initialization calls removed"
+    }
+  },
+  "native_no_initialization": {
+    "command": [
+      "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+      "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-cross-environment-recheck-20261011\\observe_contention_native.py",
+      "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-cross-environment-recheck-20261011\\native-no-initialization-01",
+      "--rounds",
+      "200",
+      "--record-all-errors",
+      "--variants",
+      "no-initialization"
+    ],
+    "exitcode": 1,
+    "execution_environment": "outside Codex sandbox",
+    "observation": {
+      "variant": "no-initialization",
+      "rounds": 8,
+      "worker_count": 3,
+      "workers": [],
+      "counter": 26,
+      "successful_acquisitions": 0,
+      "errors": 0,
+      "record_all_errors": true,
+      "parent_error": "Traceback (most recent call last):\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 96, in scenario\n    barrier.wait(20)\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 690, in wait\n    self._wait(timeout)\n  File \"C:\\Program Files\\Python311\\Lib\\threading.py\", line 730, in _wait\n    raise BrokenBarrierError\nthreading.BrokenBarrierError\n",
+      "process_exitcodes": [
+        0,
+        0,
+        -15
+      ],
+      "seconds": 31.0,
+      "final_lock_size": 0,
+      "sampled_lock_stacks": [
+        "worker-2.stack.txt"
+      ],
+      "requested_rounds": 200,
+      "statistics_incomplete": true
+    },
+    "worker_metadata": {
+      "pid": 60792,
+      "ppid": 60740,
+      "observed_at": "2026-10-11T08:50:05.454088+09:00"
+    },
+    "native_stack": {
+      "pid": 60792,
+      "tid": 60796,
+      "frames": [
+        {
+          "frame": 0,
+          "pc": "0x7ffbd58ee054",
+          "module": "C:\\Windows\\SYSTEM32\\ntdll.dll",
+          "symbol": "ZwCreateFile",
+          "displacement": "0x14"
+        },
+        {
+          "frame": 1,
+          "pc": "0x7ffbd58ee054",
+          "module": "C:\\Windows\\SYSTEM32\\ntdll.dll",
+          "symbol": "ZwCreateFile",
+          "displacement": "0x14"
+        },
+        {
+          "frame": 2,
+          "pc": "0x7ffbd2a6ca43",
+          "module": "C:\\Windows\\system32\\guard64.dll",
+          "symbol": "Exported",
+          "displacement": "0x18bb3"
+        },
+        {
+          "frame": 3,
+          "pc": "0x7ffbd31dea39",
+          "module": "C:\\Windows\\System32\\KERNELBASE.dll",
+          "symbol": "CreateFileW",
+          "displacement": "0x5f9"
+        },
+        {
+          "frame": 4,
+          "pc": "0x7ffbd31de4a6",
+          "module": "C:\\Windows\\System32\\KERNELBASE.dll",
+          "symbol": "CreateFileW",
+          "displacement": "0x66"
+        },
+        {
+          "frame": 5,
+          "pc": "0x7ffbd301f10b",
+          "module": "C:\\Windows\\System32\\ucrtbase.dll",
+          "symbol": "wsplitpath_s",
+          "displacement": "0x35b"
+        },
+        {
+          "frame": 6,
+          "pc": "0x7ffbd30a5321",
+          "module": "C:\\Windows\\System32\\ucrtbase.dll",
+          "symbol": "wmktemp_s",
+          "displacement": "0x191"
+        },
+        {
+          "frame": 7,
+          "pc": "0x7ffbd30a56ee",
+          "module": "C:\\Windows\\System32\\ucrtbase.dll",
+          "symbol": "wopen",
+          "displacement": "0x1e"
+        },
+        {
+          "frame": 8,
+          "pc": "0x7ffb649d366d",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "PyObject_CallFunction_SizeT",
+          "displacement": "0x35d"
+        },
+        {
+          "frame": 9,
+          "pc": "0x7ffb649d3454",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "PyObject_CallFunction_SizeT",
+          "displacement": "0x144"
+        },
+        {
+          "frame": 10,
+          "pc": "0x7ffb649ad331",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "PyObject_GetBuffer",
+          "displacement": "0x25f1"
+        },
+        {
+          "frame": 11,
+          "pc": "0x7ffb649abfa4",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "PyObject_GetBuffer",
+          "displacement": "0x1264"
+        },
+        {
+          "frame": 12,
+          "pc": "0x7ffb649a20f9",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "PyNumber_TrueDivide",
+          "displacement": "0x1825"
+        },
+        {
+          "frame": 13,
+          "pc": "0x7ffb649d3341",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "PyObject_CallFunction_SizeT",
+          "displacement": "0x31"
+        },
+        {
+          "frame": 14,
+          "pc": "0x7ffb649d2f9d",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "PyAST_Compile",
+          "displacement": "0x7bd"
+        },
+        {
+          "frame": 15,
+          "pc": "0x7ffb649d2abe",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "PyAST_Compile",
+          "displacement": "0x2de"
+        },
+        {
+          "frame": 16,
+          "pc": "0x7ffb64959a26",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "PyEval_EvalFrameDefault",
+          "displacement": "0x4406"
+        },
+        {
+          "frame": 17,
+          "pc": "0x7ffb649af564",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "PyFunction_Vectorcall",
+          "displacement": "0x1a4"
+        },
+        {
+          "frame": 18,
+          "pc": "0x7ffb649bf5a6",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "PyIter_Send",
+          "displacement": "0x20fe"
+        },
+        {
+          "frame": 19,
+          "pc": "0x7ffb649bfb3f",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "PyIter_Send",
+          "displacement": "0x2697"
+        },
+        {
+          "frame": 20,
+          "pc": "0x7ffb6495ae10",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "PyEval_EvalFrameDefault",
+          "displacement": "0x57f0"
+        },
+        {
+          "frame": 21,
+          "pc": "0x7ffb649af564",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "PyFunction_Vectorcall",
+          "displacement": "0x1a4"
+        },
+        {
+          "frame": 22,
+          "pc": "0x7ffb64977568",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "PyList_AsTuple",
+          "displacement": "0x4fc"
+        },
+        {
+          "frame": 23,
+          "pc": "0x7ffb6495a696",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "PyEval_EvalFrameDefault",
+          "displacement": "0x5076"
+        },
+        {
+          "frame": 24,
+          "pc": "0x7ffb649af564",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "PyFunction_Vectorcall",
+          "displacement": "0x1a4"
+        },
+        {
+          "frame": 25,
+          "pc": "0x7ffb64977568",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "PyList_AsTuple",
+          "displacement": "0x4fc"
+        },
+        {
+          "frame": 26,
+          "pc": "0x7ffb6495a696",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "PyEval_EvalFrameDefault",
+          "displacement": "0x5076"
+        },
+        {
+          "frame": 27,
+          "pc": "0x7ffb64972f73",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "PyMapping_Check",
+          "displacement": "0x1eb"
+        },
+        {
+          "frame": 28,
+          "pc": "0x7ffb649727db",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "PyEval_EvalCode",
+          "displacement": "0x97"
+        },
+        {
+          "frame": 29,
+          "pc": "0x7ffb649e2582",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "Py_SourceAsString",
+          "displacement": "0x646"
+        },
+        {
+          "frame": 30,
+          "pc": "0x7ffb649e24fe",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "Py_SourceAsString",
+          "displacement": "0x5c2"
+        },
+        {
+          "frame": 31,
+          "pc": "0x7ffb649e269f",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "PyRun_StringFlags",
+          "displacement": "0x7b"
+        },
+        {
+          "frame": 32,
+          "pc": "0x7ffb64a3efc5",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "PyRun_SimpleStringFlags",
+          "displacement": "0x41"
+        },
+        {
+          "frame": 33,
+          "pc": "0x7ffb64a3f098",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "PyRun_SimpleStringFlags",
+          "displacement": "0x114"
+        },
+        {
+          "frame": 34,
+          "pc": "0x7ffb64a40d64",
+          "module": "C:\\Program Files\\Python311\\python311.dll",
+          "symbol": "Py_RunMain",
+          "displacement": "0x34c"
+        }
+      ]
+    },
+    "python_stack": "Timeout (0:00:08)!\nThread 0x0000ed7c (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-cross-environment-recheck-20261011\\native-no-initialization-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-cross-environment-recheck-20261011\\native-no-initialization-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py\", line 147 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-cross-environment-recheck-20261011\\observe_contention_native.py\", line 28 in observed_worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x0000ed7c (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-cross-environment-recheck-20261011\\native-no-initialization-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-cross-environment-recheck-20261011\\native-no-initialization-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py\", line 147 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-cross-environment-recheck-20261011\\observe_contention_native.py\", line 28 in observed_worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\nTimeout (0:00:08)!\nThread 0x0000ed7c (most recent call first):\n  File \"C:\\Program Files\\Python311\\Lib\\pathlib.py\", line 1044 in open\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-cross-environment-recheck-20261011\\native-no-initialization-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py\", line 96 in acquire\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-cross-environment-recheck-20261011\\native-no-initialization-01\\no-initialization-source\\src\\image_downloader\\storage\\interprocess_lock.py\", line 147 in __enter__\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\docs\\investigations\\quality-security-review-2026-10-06\\probes\\history_lock_contention.py\", line 44 in worker\n  File \"C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-cross-environment-recheck-20261011\\observe_contention_native.py\", line 28 in observed_worker\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 108 in run\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\process.py\", line 314 in _bootstrap\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 133 in _main\n  File \"C:\\Program Files\\Python311\\Lib\\multiprocessing\\spawn.py\", line 120 in spawn_main\n  File \"<string>\", line 1 in <module>\n",
+    "same_file_r_plus_b_lock_probe": {
+      "acquired_and_released": true,
+      "elapsed": 0.0
+    },
+    "observer": {
+      "scope": "Owned child only, verified recorded and current parent PID before sampling",
+      "worker_wrapper": "Writes PID metadata then calls original published worker",
+      "sha256": "b10730e0ad46d473e0749c7167123ea8503e3c4de220db831b719b6d0af58487"
+    },
+    "native_stack_sha256": "c8a19584ad177a97cc4f1b5b6d71fa41234be2a01c4db58af433e05e1d75993d",
+    "limits": [
+      "Export symbol names identify nearest symbols, not COMODO internal functions",
+      "No kernel stack or independently controlled individual security feature"
+    ]
+  },
+  "v3_full": {
+    "command": [
+      "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+      "-m",
+      "pytest",
+      "tests/v3",
+      "-q",
+      "--cov=image_downloader",
+      "--cov-report=term",
+      "--cov-report=json:.runtime/history-cross-environment-recheck-20261011/coverage.json",
+      "--junitxml=.runtime/history-cross-environment-recheck-20261011/v3-junit.xml"
+    ],
+    "coverage_file": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-cross-environment-recheck-20261011\\coverage.data",
+    "execution_environment": "outside Codex sandbox",
+    "pytest_plugin_autoload": "normal",
+    "suite": {
+      "name": "pytest",
+      "errors": "0",
+      "failures": "1",
+      "skipped": "17",
+      "tests": "1703",
+      "time": "654.945",
+      "timestamp": "2026-10-11T08:37:27.072338+09:00",
+      "hostname": "DESKTOP-SI8TC8F"
+    },
+    "exitcode": 1,
+    "pytest_reported_seconds": 655.11,
+    "passed": 1685,
+    "failed": [
+      {
+        "classname": "tests.v3.distribution.test_signed_plugin_checkout",
+        "name": "test_signed_plugins_survive_windows_line_ending_conversion",
+        "time": "0.621",
+        "failure": "repository_root = WindowsPath('C:/Users/pc01/source/repos/image-downloader')\ntmp_path = WindowsPath('C:/Users/pc01/AppData/Local/Temp/pytest-of-pc01/pytest-1314/test_signed_plugins_survive_wi0')\n\n    def test_signed_plugins_survive_windows_line_ending_conversion(repository_root: Path, tmp_path: Path) -> None:\n        git = shutil.which(\"git\")\n        if git is None:\n            pytest.skip(\"Git is required to exercise checkout line ending conversion\")\n        checkout = tmp_path / \"checkout\"\n>       subprocess.run(\n            [\n                git, \"clone\", \"--quiet\", \"--no-checkout\", \"--no-hardlinks\", \"-c\", \"core.autocrlf=true\",\n                str(repository_root), str(checkout),\n            ],\n            check=True,\n            capture_output=True,\n        )\n\ntests\\v3\\distribution\\test_signed_plugin_checkout.py:17: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _\n\ninput = None, capture_output = True, timeout = None, check = True\npopenargs = (['C:\\\\Program Files\\\\Git\\\\cmd\\\\git.EXE', 'clone', '--quiet', '--no-checkout', '--no-hardlinks', '-c', ...],)\nkwargs = {'stdout': -1, 'stderr': -1}\n\n    def run(*popenargs,\n            input=None, capture_output=False, timeout=None, check=False, **kwargs):\n        \"\"\"Run command with arguments and return a CompletedProcess instance.\n    \n        The returned instance will have attributes args, returncode, stdout and\n        stderr. By default, stdout and stderr are not captured, and those attributes\n        will be None. Pass stdout=PIPE and/or stderr=PIPE in order to capture them,\n        or pass capture_output=True to capture both.\n    \n        If check is True and the exit code was non-zero, it raises a\n        CalledProcessError. The CalledProcessError object will have the return code\n        in the returncode attribute, and output & stderr attributes if those streams\n        were captured.\n    \n        If timeout is given, and the process takes too long, a TimeoutExpired\n        exception will be raised.\n    \n        There is an optional argument \"input\", allowing you to\n        pass bytes or a string to the subprocess's stdin.  If you use this argument\n        you may not also use the Popen constructor's \"stdin\" argument, as\n        it will be used internally.\n    \n        By default, all communication is in bytes, and therefore any \"input\" should\n        be bytes, and the stdout and stderr will be bytes. If in text mode, any\n        \"input\" should be a string, and stdout and stderr will be strings decoded\n        according to locale encoding, or by \"encoding\" if set. Text mode is\n        triggered by setting any of text, encoding, errors or universal_newlines.\n    \n        The other arguments are the same as for the Popen constructor.\n        \"\"\"\n        if input is not None:\n            if kwargs.get('stdin') is not None:\n                raise ValueError('stdin and input arguments may not both be used.')\n            kwargs['stdin'] = PIPE\n    \n        if capture_output:\n            if kwargs.get('stdout') is not None or kwargs.get('stderr') is not None:\n                raise ValueError('stdout and stderr arguments may not be used '\n                                 'with capture_output.')\n            kwargs['stdout'] = PIPE\n            kwargs['stderr'] = PIPE\n    \n        with Popen(*popenargs, **kwargs) as process:\n            try:\n                stdout, stderr = process.communicate(input, timeout=timeout)\n            except TimeoutExpired as exc:\n                process.kill()\n                if _mswindows:\n                    # Windows accumulates the output in a single blocking\n                    # read() call run on child threads, with the timeout\n                    # being done in a join() on those threads.  communicate()\n                    # _after_ kill() is required to collect that and add it\n                    # to the exception.\n                    exc.stdout, exc.stderr = process.communicate()\n                else:\n                    # POSIX _communicate already populated the output so\n                    # far into the TimeoutExpired exception.\n                    process.wait()\n                raise\n            except:  # Including KeyboardInterrupt, communicate handled that.\n                process.kill()\n                # We don't call process.wait() as .__exit__ does that for us.\n                raise\n            retcode = process.poll()\n            if check and retcode:\n>               raise CalledProcessError(retcode, process.args,\n                                         output=stdout, stderr=stderr)\nE               subprocess.CalledProcessError: Command '['C:\\\\Program Files\\\\Git\\\\cmd\\\\git.EXE', 'clone', '--quiet', '--no-checkout', '--no-hardlinks', '-c', 'core.autocrlf=true', 'C:\\\\Users\\\\pc01\\\\source\\\\repos\\\\image-downloader', 'C:\\\\Users\\\\pc01\\\\AppData\\\\Local\\\\Temp\\\\pytest-of-pc01\\\\pytest-1314\\\\test_signed_plugins_survive_wi0\\\\checkout']' returned non-zero exit status 128.\n\nC:\\Program Files\\Python311\\Lib\\subprocess.py:571: CalledProcessError"
+      }
+    ],
+    "skips_by_reason": {
+      "symlink creation is unavailable": 2,
+      "symbolic links are unavailable in this environment": 2,
+      "local Mailpit opt-in required": 12,
+      "symlinks are unavailable": 1
+    },
+    "original_history_test": {
+      "classname": "tests.v3.application.test_workflow_history",
+      "name": "test_independent_processes_merge_under_shared_history_lock",
+      "time": "2.835",
+      "result": "passed"
+    },
+    "coverage_totals": {
+      "covered_lines": 9254,
+      "num_statements": 10192,
+      "percent_covered": 88.18693865124068,
+      "percent_covered_display": "88",
+      "missing_lines": 938,
+      "excluded_lines": 90,
+      "percent_statements_covered": 90.7967032967033,
+      "percent_statements_covered_display": "91",
+      "num_branches": 2946,
+      "num_partial_branches": 478,
+      "covered_branches": 2332,
+      "missing_branches": 614,
+      "percent_branches_covered": 79.1581805838425,
+      "percent_branches_covered_display": "79"
+    },
+    "coverage_version": "7.16.0",
+    "coverage_threshold": 75,
+    "coverage_threshold_met": true
+  },
+  "clone_failure_diagnosis": {
+    "observed_at": "2026-10-11T08:50:44.314103+09:00",
+    "command": [
+      "C:\\Program Files\\Git\\cmd\\git.EXE",
+      "clone",
+      "--quiet",
+      "--no-checkout",
+      "--no-hardlinks",
+      "-c",
+      "core.autocrlf=true",
+      "C:\\Users\\pc01\\source\\repos\\image-downloader",
+      "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-cross-environment-recheck-20261011\\clone-diagnostic-01"
+    ],
+    "returncode": 128,
+    "stdout": "",
+    "stderr": "fatal: detected dubious ownership in repository at 'C:\\Users\\pc01\\source\\repos\\image-downloader/.git'\n'C:\\Users\\pc01\\source\\repos\\image-downloader/.git' is owned by:\n\tDESKTOP-SI8TC8F/CodexSandboxOffline (S-1-5-21-1823143413-1530136249-3288285937-1004)\nbut the current user is:\n\tDESKTOP-SI8TC8F/pc01 (S-1-5-21-1823143413-1530136249-3288285937-1002)\nTo add an exception for this directory, call:\n\n\tgit config --global --add safe.directory 'C:\\Users\\pc01\\source\\repos\\image-downloader/.git'\n"
+  },
+  "signed_checkout_targeted_retest": {
+    "started_at": "2026-10-11T08:51:20.905385+09:00",
+    "finished_at": "2026-10-11T08:51:30.107674+09:00",
+    "command": [
+      "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+      "-m",
+      "pytest",
+      "tests/v3/distribution/test_signed_plugin_checkout.py",
+      "-q",
+      "--junitxml=C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\history-cross-environment-recheck-20261011\\signed-checkout-retest-junit.xml"
+    ],
+    "returncode": 0,
+    "process_local_git_config": {
+      "key": "safe.directory",
+      "value": "C:/Users/pc01/source/repos/image-downloader/.git"
+    },
+    "global_git_config_modified": false
+  },
+  "static_checks": {
+    "ruff": "passed",
+    "mypy": "passed, 95 source files"
+  },
+  "runtime_log_sha256": {
+    "v3-full.log": "55f24c83e7d72f91e65d50232136ea68bee125a6367a7662edc86e7d0053ec59",
+    "v3-junit.xml": "9c23df88c21da21783808a704ccb4f58e7f192e4e553fa83062d7f91743ab1dc",
+    "coverage.json": "44ea42e694ddb3cd8f0ae1ab97e3fad90f127b4f67cb7ad5bda6fd4a59e67eb1",
+    "contention-01.log": "77cd583ff5ed43a88098c8b9087baf2c96e0ba4922b50851fa82c463790a43a9",
+    "native-no-initialization-01.log": "fdf073c1a48d213b74085327b98f9ff1b5c9b2e4eba2f7b37df95a870fd5868b",
+    "signed-checkout-retest.log": "8263067472f5f4c402c19683dc665febd7c0daeab688f3edf3d49d775d6b4a0a",
+    "signed-checkout-retest-junit.xml": "0f30858e1282b192b5d8e12040dea925086c4cc9303ff7e53ff327c4635c248c",
+    "ruff.log": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+    "mypy.log": "e1933d29513c905ba6bf6828838a39f7d132a341e1fb63954bb71e0b3341fcff"
+  },
+  "conclusions": [
+    "Initialization flush errors have a confirmed exclusion-free initialization race; COMODO is not required",
+    "Removing initialization is insufficient to guarantee against open stalls under local contention",
+    "Local no-initialization stall follows guard64.dll and NtCreateFile; exact OS/security cause remains unconfirmed",
+    "Latest full run's single failure was local Git ownership validation before plugin signature verification",
+    "A scoped child-process safe.directory made that unchanged checkout test pass; global Git config untouched",
+    "Full run is still recorded as failed and is not relabeled success by combining separate targeted results"
+  ]
+}

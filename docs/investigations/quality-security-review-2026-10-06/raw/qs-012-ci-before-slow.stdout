@@ -1,0 +1,68 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+___ test_cancel_or_timeout_distinguishes_interrupted_and_not_started[True] ____
+C:\Program Files\Python311\Lib\asyncio\tasks.py:490: in wait_for
+    return fut.result()
+           ^^^^^^^^^^^^
+C:\Program Files\Python311\Lib\asyncio\locks.py:213: in wait
+    await fut
+E   asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+tests\v3\application\test_workflow_logging.py:310: in test_cancel_or_timeout_distinguishes_interrupted_and_not_started
+    asyncio.run(scenario())
+C:\Program Files\Python311\Lib\asyncio\runners.py:190: in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+C:\Program Files\Python311\Lib\asyncio\runners.py:118: in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Program Files\Python311\Lib\asyncio\base_events.py:653: in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+tests\v3\application\test_workflow_logging.py:296: in scenario
+    await asyncio.wait_for(started.wait(), 5)
+C:\Program Files\Python311\Lib\asyncio\tasks.py:492: in wait_for
+    raise exceptions.TimeoutError() from exc
+E   TimeoutError
+-------------------------- Captured stdout teardown ---------------------------
+workflow events: [('run_started', None), ('round_started', None), ('plan_saved', None), ('url_started', 'https://example.test/a'), ('url_finished', 'https://example.test/a'), ('url_started', 'https://example.test/b'), ('url_finished', 'https://example.test/b'), ('retry_wait', None), ('round_started', None), ('plan_saved', None), ('run_finished', None)]
+final flags: {'timed_out': True, 'cancelled': False, 'exit_code': 5}
+=========================== short test summary info ===========================
+FAILED tests/v3/application/test_workflow_logging.py::test_cancel_or_timeout_distinguishes_interrupted_and_not_started[True]
+1 failed in 6.18s
+Task exception was never retrieved
+future: <Task finished name='Task-2' coro=<DownloadService.workflow() done, defined at C:\Users\pc01\source\repos\image-downloader\src\image_downloader\application\service.py:779> exception=WorkflowRetryTimeoutError()>
+Traceback (most recent call last):
+  File "C:\Users\pc01\source\repos\image-downloader\src\image_downloader\application\workflow.py", line 162, in run
+    await self.round(number, (record, plugin))
+  File "C:\Users\pc01\source\repos\image-downloader\src\image_downloader\application\workflow.py", line 295, in round
+    selected = await finish_transaction(partial(self.prepare, update.plugin_id, snapshot, number))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pc01\source\repos\image-downloader\src\image_downloader\storage\workflow.py", line 24, in finish_transaction
+    return await asyncio.shield(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+asyncio.exceptions.CancelledError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\pc01\source\repos\image-downloader\src\image_downloader\application\workflow.py", line 138, in run
+    async with timeout:
+  File "C:\Program Files\Python311\Lib\asyncio\timeouts.py", line 111, in __aexit__
+    raise TimeoutError from exc_val
+TimeoutError
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\pc01\source\repos\image-downloader\src\image_downloader\application\service.py", line 817, in workflow
+    return await execute_workflow(
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\pc01\source\repos\image-downloader\src\image_downloader\application\workflow.py", line 477, in execute_workflow
+    raise failure
+  File "C:\Users\pc01\source\repos\image-downloader\src\image_downloader\application\workflow.py", line 423, in execute_workflow
+    await execution.run()
+  File "C:\Users\pc01\source\repos\image-downloader\src\image_downloader\application\workflow.py", line 174, in run
+    raise error from exc
+image_downloader.exceptions.WorkflowRetryTimeoutError

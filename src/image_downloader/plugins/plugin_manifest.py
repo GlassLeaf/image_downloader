@@ -502,6 +502,11 @@ def collect_plugin_file_tree(directory: Path) -> dict[str, str]:
 
 def verify_plugin_tree(manifest: PluginManifest) -> None:
     """Verify the declared tree and its aggregate digest against local files."""
+    _verified_plugin_tree(manifest)
+
+
+def _verified_plugin_tree(manifest: PluginManifest) -> dict[str, str]:
+    """Return the exact tree accepted by the declared content hashes."""
     actual = collect_plugin_file_tree(manifest.directory)
     declared_tree = manifest.value.get("file_tree")
     declared_digest = manifest.value.get("file_tree_sha256")
@@ -510,6 +515,7 @@ def verify_plugin_tree(manifest: PluginManifest) -> None:
     expected = {str(key): str(value) for key, value in declared_tree.items()}
     if actual != expected or _sha256(canonical_jcs(actual)) != declared_digest:
         raise PluginError("plugin file tree hash does not match")
+    return actual
 
 
 def plugin_content_digest(directory: Path) -> str:
@@ -559,13 +565,26 @@ def verify_manifest(
     mode: PluginVerificationMode,
 ) -> CatalogEntry | None:
     """Validate one manifest under the selected CLI/runtime policy."""
+    entry, _ = _verify_manifest_with_tree(manifest, catalog, mode=mode)
+    return entry
+
+
+def _verify_manifest_with_tree(
+    manifest: PluginManifest,
+    catalog: PluginCatalog | None,
+    *,
+    mode: PluginVerificationMode,
+) -> tuple[CatalogEntry | None, dict[str, str] | None]:
+    """Keep the very same tree used to accept a signature or content pin."""
     if mode in {"off", "bypass-all"}:
-        return None
+        return None, None
+    actual: dict[str, str] | None = None
     if mode == "bypass-catalog":
-        verify_signed_plugin_source(manifest)
-        return None
+        actual = _verified_plugin_tree(manifest)
+        verify_plugin_signature(manifest)
+        return None, actual
     if mode in {"strict", "warn"}:
-        verify_plugin_tree(manifest)
+        actual = _verified_plugin_tree(manifest)
     if catalog is None:
         raise PluginError("plugin catalog is unavailable")
     entry = catalog.find(manifest.id)
@@ -573,22 +592,23 @@ def verify_manifest(
         raise PluginError("plugin is not trusted")
     if mode == "bypass-signature":
         if entry.content_pinned:
+            actual = collect_plugin_file_tree(manifest.directory)
             matches = (
                 entry.kind == manifest.kind
                 and entry.manifest_digest == manifest.digest
-                and entry.content_digest == plugin_content_digest(manifest.directory)
+                and entry.content_digest == _sha256(canonical_jcs(actual))
             )
         else:
             matches = _legacy_catalog_pin_matches(manifest, entry)
             if matches:
-                verify_plugin_tree(manifest)
+                actual = _verified_plugin_tree(manifest)
         if not matches:
             raise PluginError("plugin catalog pin does not match manifest")
-        return entry
+        return entry, actual
     if not _legacy_catalog_pin_matches(manifest, entry):
         raise PluginError("plugin catalog pin does not match manifest")
     verify_plugin_signature(manifest, public_key=entry.public_key)
-    return entry
+    return entry, actual
 
 
 def author_config(manifest: PluginManifest) -> Mapping[str, Any]:

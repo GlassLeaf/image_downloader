@@ -1,0 +1,163 @@
+2026-10-12T11:17:45.1554939Z =================================== FAILURES ===================================
+2026-10-12T11:17:45.1555462Z ____ test_cancel_or_timeout_distinguishes_interrupted_and_not_started[True] ____
+2026-10-12T11:17:45.1555804Z 
+2026-10-12T11:17:45.1555995Z fut = <coroutine object Event.wait at 0x7f2dec131a80>, timeout = 5
+2026-10-12T11:17:45.1556282Z 
+2026-10-12T11:17:45.1556876Z     async def wait_for(fut, timeout):
+2026-10-12T11:17:45.1557284Z         """Wait for the single Future or coroutine to complete, with timeout.
+2026-10-12T11:17:45.1557668Z     
+2026-10-12T11:17:45.1557903Z         Coroutine will be wrapped in Task.
+2026-10-12T11:17:45.1558182Z     
+2026-10-12T11:17:45.1558476Z         Returns result of the Future or coroutine.  When a timeout occurs,
+2026-10-12T11:17:45.1559008Z         it cancels the task and raises TimeoutError.  To avoid the task
+2026-10-12T11:17:45.1559313Z         cancellation, wrap it in shield().
+2026-10-12T11:17:45.1559516Z     
+2026-10-12T11:17:45.1559713Z         If the wait is cancelled, the task is also cancelled.
+2026-10-12T11:17:45.1559967Z     
+2026-10-12T11:17:45.1560546Z         If the task suppresses the cancellation and returns a value instead,
+2026-10-12T11:17:45.1560858Z         that value is returned.
+2026-10-12T11:17:45.1561054Z     
+2026-10-12T11:17:45.1561216Z         This function is a coroutine.
+2026-10-12T11:17:45.1561420Z         """
+2026-10-12T11:17:45.1561664Z         # The special case for timeout <= 0 is for the following case:
+2026-10-12T11:17:45.1561937Z         #
+2026-10-12T11:17:45.1562101Z         # async def test_waitfor():
+2026-10-12T11:17:45.1562311Z         #     func_started = False
+2026-10-12T11:17:45.1562509Z         #
+2026-10-12T11:17:45.1562666Z         #     async def func():
+2026-10-12T11:17:45.1563068Z         #         nonlocal func_started
+2026-10-12T11:17:45.1563281Z         #         func_started = True
+2026-10-12T11:17:45.1563486Z         #
+2026-10-12T11:17:45.1563642Z         #     try:
+2026-10-12T11:17:45.1563838Z         #         await asyncio.wait_for(func(), 0)
+2026-10-12T11:17:45.1564079Z         #     except asyncio.TimeoutError:
+2026-10-12T11:17:45.1564312Z         #         assert not func_started
+2026-10-12T11:17:45.1564521Z         #     else:
+2026-10-12T11:17:45.1564691Z         #         assert False
+2026-10-12T11:17:45.1564877Z         #
+2026-10-12T11:17:45.1565047Z         # asyncio.run(test_waitfor())
+2026-10-12T11:17:45.1565260Z     
+2026-10-12T11:17:45.1565402Z     
+2026-10-12T11:17:45.1565568Z         if timeout is not None and timeout <= 0:
+2026-10-12T11:17:45.1565797Z             fut = ensure_future(fut)
+2026-10-12T11:17:45.1566001Z     
+2026-10-12T11:17:45.1566151Z             if fut.done():
+2026-10-12T11:17:45.1566342Z                 return fut.result()
+2026-10-12T11:17:45.1566540Z     
+2026-10-12T11:17:45.1566709Z             await _cancel_and_wait(fut)
+2026-10-12T11:17:45.1566922Z             try:
+2026-10-12T11:17:45.1567088Z                 return fut.result()
+2026-10-12T11:17:45.1567319Z             except exceptions.CancelledError as exc:
+2026-10-12T11:17:45.1567571Z                 raise TimeoutError from exc
+2026-10-12T11:17:45.1567789Z     
+2026-10-12T11:17:45.1567956Z         async with timeouts.timeout(timeout):
+2026-10-12T11:17:45.1568180Z >           return await fut
+2026-10-12T11:17:45.1568369Z                    ^^^^^^^^^
+2026-10-12T11:17:45.1568485Z 
+2026-10-12T11:17:45.1568676Z /opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/asyncio/tasks.py:520: 
+2026-10-12T11:17:45.1569078Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+2026-10-12T11:17:45.1569273Z 
+2026-10-12T11:17:45.1569408Z self = <asyncio.locks.Event object at 0x7f2dec956cf0 [unset]>
+2026-10-12T11:17:45.1569618Z 
+2026-10-12T11:17:45.1569705Z     async def wait(self):
+2026-10-12T11:17:45.1569916Z         """Block until the internal flag is true.
+2026-10-12T11:17:45.1570343Z     
+2026-10-12T11:17:45.1570544Z         If the internal flag is true on entry, return True
+2026-10-12T11:17:45.1570867Z         immediately.  Otherwise, block until another coroutine calls
+2026-10-12T11:17:45.1571173Z         set() to set the flag to true, then return True.
+2026-10-12T11:17:45.1571400Z         """
+2026-10-12T11:17:45.1571558Z         if self._value:
+2026-10-12T11:17:45.1571829Z             return True
+2026-10-12T11:17:45.1572043Z     
+2026-10-12T11:17:45.1572389Z         fut = self._get_loop().create_future()
+2026-10-12T11:17:45.1572633Z         self._waiters.append(fut)
+2026-10-12T11:17:45.1572842Z         try:
+2026-10-12T11:17:45.1573003Z >           await fut
+2026-10-12T11:17:45.1573207Z E           asyncio.exceptions.CancelledError
+2026-10-12T11:17:45.1573389Z 
+2026-10-12T11:17:45.1573597Z /opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/asyncio/locks.py:212: CancelledError
+2026-10-12T11:17:45.1573884Z 
+2026-10-12T11:17:45.1574039Z The above exception was the direct cause of the following exception:
+2026-10-12T11:17:45.1574249Z 
+2026-10-12T11:17:45.1574447Z tmp_path = PosixPath('/tmp/pytest-of-runner/pytest-0/test_cancel_or_timeout_disting1')
+2026-10-12T11:17:45.1574770Z timeout = True
+2026-10-12T11:17:45.1574873Z 
+2026-10-12T11:17:45.1574992Z     @pytest.mark.parametrize("timeout", [False, True])
+2026-10-12T11:17:45.1575365Z     def test_cancel_or_timeout_distinguishes_interrupted_and_not_started(tmp_path, timeout):
+2026-10-12T11:17:45.1575722Z         started = asyncio.Event()
+2026-10-12T11:17:45.1575923Z     
+2026-10-12T11:17:45.1576268Z         class Blocked(Gallery):
+2026-10-12T11:17:45.1576577Z             async def inspect(self, url, context):
+2026-10-12T11:17:45.1576993Z                 if url == A.url and (not timeout or self.checks > 1):
+2026-10-12T11:17:45.1577384Z                     started.set()
+2026-10-12T11:17:45.1577917Z                     await asyncio.Event().wait()
+2026-10-12T11:17:45.1578270Z                 if timeout and url == A.url:
+2026-10-12T11:17:45.1578573Z                     raise PluginError()
+2026-10-12T11:17:45.1578818Z                 return await super().inspect(url, context)
+2026-10-12T11:17:45.1579060Z     
+2026-10-12T11:17:45.1579218Z         async def scenario():
+2026-10-12T11:17:45.1579463Z             async with compose(tmp_path, Blocked()) as service:
+2026-10-12T11:17:45.1579737Z                 await attach_transport(service)
+2026-10-12T11:17:45.1580091Z                 task = asyncio.create_task(
+2026-10-12T11:17:45.1580482Z                     service.workflow(FEED, workflow_retry_delay=0, workflow_retry_timeout=0.2 if timeout else None)
+2026-10-12T11:17:45.1580841Z                 )
+2026-10-12T11:17:45.1581038Z                 await asyncio.wait_for(started.wait(), 5)
+2026-10-12T11:17:45.1581286Z                 if not timeout:
+2026-10-12T11:17:45.1581483Z                     task.cancel()
+2026-10-12T11:17:45.1581870Z                 with pytest.raises(WorkflowRetryTimeoutError if timeout else asyncio.CancelledError) as captured:
+2026-10-12T11:17:45.1582270Z                     await task
+2026-10-12T11:17:45.1582499Z                 result = captured.value.workflow_result
+2026-10-12T11:17:45.1582743Z                 records = events(result)
+2026-10-12T11:17:45.1583064Z                 assert any(r["event"] == "url_interrupted" and r["url"] == A.url for r in records)
+2026-10-12T11:17:45.1583440Z                 assert records[-1]["timed_out"] is timeout
+2026-10-12T11:17:45.1583718Z                 assert records[-1]["cancelled"] is not timeout
+2026-10-12T11:17:45.1583971Z                 if not timeout:
+2026-10-12T11:17:45.1584265Z                     assert not any(r["event"] == "url_started" and r["url"] == B.url for r in records)
+2026-10-12T11:17:45.1584622Z                     assert records[-1]["items"][1]["attempt_count"] == 0
+2026-10-12T11:17:45.1584882Z     
+2026-10-12T11:17:45.1585043Z >       asyncio.run(scenario())
+2026-10-12T11:17:45.1585168Z 
+2026-10-12T11:17:45.1585274Z tests/v3/application/test_workflow_logging.py:310: 
+2026-10-12T11:17:45.1585566Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+2026-10-12T11:17:45.1585942Z /opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/asyncio/runners.py:195: in run
+2026-10-12T11:17:45.1586275Z     return runner.run(main)
+2026-10-12T11:17:45.1586462Z            ^^^^^^^^^^^^^^^^
+2026-10-12T11:17:45.1586737Z /opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/asyncio/runners.py:118: in run
+2026-10-12T11:17:45.1587086Z     return self._loop.run_until_complete(task)
+2026-10-12T11:17:45.1587578Z            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-12T11:17:45.1588153Z /opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/asyncio/base_events.py:691: in run_until_complete
+2026-10-12T11:17:45.1588765Z     return future.result()
+2026-10-12T11:17:45.1589043Z            ^^^^^^^^^^^^^^^
+2026-10-12T11:17:45.1589378Z tests/v3/application/test_workflow_logging.py:296: in scenario
+2026-10-12T11:17:45.1589673Z     await asyncio.wait_for(started.wait(), 5)
+2026-10-12T11:17:45.1590124Z /opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/asyncio/tasks.py:519: in wait_for
+2026-10-12T11:17:45.1590479Z     async with timeouts.timeout(timeout):
+2026-10-12T11:17:45.1590700Z                ^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-10-12T11:17:45.1590944Z _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+2026-10-12T11:17:45.1591137Z 
+2026-10-12T11:17:45.1591222Z self = <Timeout [expired]>
+2026-10-12T11:17:45.1591458Z exc_type = <class 'asyncio.exceptions.CancelledError'>
+2026-10-12T11:17:45.1591796Z exc_val = CancelledError(), exc_tb = <traceback object at 0x7f2dec9a30c0>
+2026-10-12T11:17:45.1592022Z 
+2026-10-12T11:17:45.1592095Z     async def __aexit__(
+2026-10-12T11:17:45.1592286Z         self,
+2026-10-12T11:17:45.1592474Z         exc_type: Optional[Type[BaseException]],
+2026-10-12T11:17:45.1592721Z         exc_val: Optional[BaseException],
+2026-10-12T11:17:45.1593381Z         exc_tb: Optional[TracebackType],
+2026-10-12T11:17:45.1593618Z     ) -> Optional[bool]:
+2026-10-12T11:17:45.1593865Z         assert self._state in (_State.ENTERED, _State.EXPIRING)
+2026-10-12T11:17:45.1594125Z     
+2026-10-12T11:17:45.1594295Z         if self._timeout_handler is not None:
+2026-10-12T11:17:45.1594537Z             self._timeout_handler.cancel()
+2026-10-12T11:17:45.1594760Z             self._timeout_handler = None
+2026-10-12T11:17:45.1594956Z     
+2026-10-12T11:17:45.1595115Z         if self._state is _State.EXPIRING:
+2026-10-12T11:17:45.1595332Z             self._state = _State.EXPIRED
+2026-10-12T11:17:45.1595543Z     
+2026-10-12T11:17:45.1595827Z             if self._task.uncancel() <= self._cancelling and exc_type is exceptions.CancelledError:
+2026-10-12T11:17:45.1596208Z                 # Since there are no new cancel requests, we're
+2026-10-12T11:17:45.1596457Z                 # handling this.
+2026-10-12T11:17:45.1596686Z >               raise TimeoutError from exc_val
+2026-10-12T11:17:45.1596913Z E               TimeoutError
+2026-10-12T11:17:45.1597038Z 
+2026-10-12T11:17:45.1597250Z /opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/asyncio/timeouts.py:115: TimeoutError

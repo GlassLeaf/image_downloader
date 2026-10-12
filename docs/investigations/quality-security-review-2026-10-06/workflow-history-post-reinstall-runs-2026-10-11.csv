@@ -1,0 +1,19 @@
+﻿label,variant,complete,seconds,rounds,planned_attempts,saved_worker_results,missing_worker_results,saved_open_count,saved_errors_lower_bound,max_returned_open_seconds,pending_open_count,max_pending_open_seconds,statistics_scope
+repeat-01-short-current,current,False,27.264999999999873,3,90,2,1,8,0,0.0078105999996296305,1,25.07900000000018,saved workers only; missing is not zero
+repeat-01-short-no-initialization,no-initialization,True,8.844000000000051,30,90,3,0,90,0,0.0038586999999097316,0,,all workers
+repeat-01-append-created,open-only-append,False,66.42200000000003,23,6000,2,1,48,0,0.0016375999998672341,1,65.01499999999987,saved workers only; missing is not zero
+repeat-01-append-stable,open-only-append,True,3.2660000000000764,2000,6000,3,0,6000,0,0.003207899999779329,0,,all workers
+repeat-01-readwrite-created,open-only-readwrite,False,66.5619999999999,39,6000,2,1,80,0,0.005405899999914254,1,65.07900000000018,saved workers only; missing is not zero
+repeat-01-readwrite-stable,open-only-readwrite,True,3.2029999999999745,2000,6000,3,0,6000,0,0.003222700000151235,0,,all workers
+repeat-02-short-no-initialization,no-initialization,True,7.608999999999924,30,90,3,0,90,0,0.0029525999998440966,0,,all workers
+repeat-02-short-current,current,False,28.25,10,90,2,1,22,0,0.004069699999945442,1,24.858999999999924,saved workers only; missing is not zero
+repeat-02-append-created,open-only-append,False,66.42200000000003,35,6000,2,1,72,0,0.0016306999996231752,1,65.0630000000001,saved workers only; missing is not zero
+repeat-02-append-stable,open-only-append,True,3.2029999999999745,2000,6000,3,0,6000,0,0.0031381000003420922,0,,all workers
+repeat-02-readwrite-created,open-only-readwrite,False,66.64100000000008,44,6000,2,1,90,0,0.007755499999802851,1,64.92200000000003,saved workers only; missing is not zero
+repeat-02-readwrite-stable,open-only-readwrite,True,3.719000000000051,2000,6000,3,0,6000,0,0.035330700000031356,0,,all workers
+repeat-03-short-current,current,False,29.592999999999847,17,90,2,1,36,0,0.013200299999880372,1,25.108999999999924,saved workers only; missing is not zero
+repeat-03-short-no-initialization,no-initialization,False,29.313000000000102,15,90,2,1,32,0,0.0018800000002556772,1,24.96900000000005,saved workers only; missing is not zero
+repeat-03-append-created,open-only-append,False,66.45299999999997,0,6000,2,1,2,0,0.0011340999999447376,1,64.9369999999999,saved workers only; missing is not zero
+repeat-03-append-stable,open-only-append,True,4.235000000000127,2000,6000,3,0,6000,0,0.01746359999970082,0,,all workers
+repeat-03-readwrite-created,open-only-readwrite,False,68.40700000000015,3,6000,2,1,8,0,0.18420000000014625,1,65.11000000000013,saved workers only; missing is not zero
+repeat-03-readwrite-stable,open-only-readwrite,True,3.1720000000000255,2000,6000,3,0,6000,0,0.00315439999985756,0,,all workers

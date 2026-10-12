@@ -150,6 +150,10 @@ site overlay または main config の `plugin_settings.<id>.download_policy.pre
 
 browser cookie は `cookie browser-import DOMAIN`、バックアップ・移行は `cookie export` と `cookie import` を使う。passphrase、cookie 値、raw credential を CLI option、YAML、ログへ書かない。plugin 用 secret は keyring または環境変数から logical reference で解決する。[secure operations](operate-securely.md) と [plugin secrets](../reference/configuration.md#config-secrets) を参照する。
 
+QS-016 の修正後も接頭辞は `IMAGE_DOWNLOADER_PLUGIN_` のままで、環境変数名は `IMAGE_DOWNLOADER_PLUGIN_<ID_HEX>_<REFERENCE_HEX>` になる。各フィールドは元の文字列全体の UTF-8（`surrogatepass`）bytes を大文字の16進表現にした値である。旧名への fallback はない。旧名だけを設定している場合は keyring へ進み、利用可能な値がなければ `SecretNotFound` になる。
+
+keyring のみの利用者、YAML の reference、公開 API は従来どおりである。環境変数の利用者は新名で認証・取得を確認し、他の plugin/profile が使っていないと確認した旧名を User/System 環境、shell 設定、`.env`、CI 設定などの定義元から削除する。アプリは環境変数を自動削除しない。[名前だけを生成する例と移行手順](../maintenance/migration.md#plugin-secret-environment-migration) を参照する。
+
 ### 7. plugin を安全に導入・診断するには？
 
 `plugin install SOURCE --yes` は staged install、署名・tree・class の検証、catalog trust を行う。導入後は `plugin list` と `doctor --json` で確認する。`strict` verification を通常運用の既定とし、`warn` や bypass mode は復旧・開発用途だけにする。[plugin package and trust](../reference/plugin-package.md#plugin-catalog) を参照する。
@@ -273,6 +277,12 @@ async with RuntimeComposer(
 ```
 
 import と設定ロードを含む完全な例は [embedded download tutorial](../tutorials/embedded-download.md) を参照する。
+
+`compose()`自体が失敗してserviceを返さなかった場合は、composerが作成済みの資源を解放し、
+元の例外・中断を再送出する。callerが部分的なserviceを閉じる必要はない。
+失敗時はcookie保存・通知送信を行わず、作成済みのlogやdirectoryは残す。
+動作中のasyncio event loop内からでも同期APIを使えるが、失敗時はcleanupの完了を待つ。
+詳細は[組立て時の所有権](../reference/runtime-behavior.md#runtime-construction)を参照する。
 
 ### 2. `DownloadResult` と例外はどう使い分けるか？
 
@@ -437,11 +447,25 @@ image-downloader workflow URL --download-scope all
 画像の相対URLはリダイレクト後の最終レスポンスURLを基準に解決する。最初の`base href`が
 有効なHTTP(S) URLなら、その値（相対指定も可）を基準にする。空のhrefは最終レスポンスURLを使い、
 不正なURLやHTTP(S)以外のbaseは無視して最終レスポンスURLへ戻る。後続のbaseは採用しない。
-画像のRefererはbaseのURLではなく最終レスポンスURLである。
+画像の自動RefererはbaseのURLではなく最終レスポンスURLを参照元とする。
+コア提供の`GenericHtmlPlugin`クラス本体では、userinfo・fragmentを常に除去し、
+同一オリジンにはパス・クエリを保持したURL、別オリジンには`scheme://host[:port]/`だけを使う。
+HTTPSからHTTPへの画像要求では自動Refererを省略する。サブドメイン・異なるportも別オリジンである。
+manifest／RequestSpecの`referer`がoriginや`None`に変わるため、完全なページURLを要求するCDNは403等になり得る。
+403やHTMLの宣言を理由に完全URLへ戻す処理はない。必要なサイトでは独自プラグインがRefererを明示する。
+
+独自プラグイン・継承クラスと、プラグインや設定で明示したRefererは従来の扱いを維持する。
+自動値が`None`でも、`network.headers`の明示Refererがあれば送信される。
+同一オリジンのクエリと明示Refererの秘密部分は保持される。[自動値の保証範囲](../reference/runtime-behavior.md#組込み汎用htmlの自動referer)を参照する。
 
 `core.generic-html`は指定ページ自身を1件の候補として返し、リンク先を巡回しない。初回・未完了・`all`ではページを取得し、完了済みの`updated`では画像一覧が変わったときだけ取得する。revisionはURL・index・image_idの返却順の一覧（重複を含む）を固定JSONにしてSHA-256を計算する。本文・タイトル・保存設定の変更は対象外。画像追加・削除・順序・ID・署名クエリを含むURLの変更は対象になる。
 
 これは画像データのハッシュではないため、URLが同じまま画像内容だけが変わる場合は検出できない。更新確認と選択後のmanifest取得でHTMLを別々に取得するため、両者の間にページが変わることもある。追加周回の成功画像保持・再取得条件は従来どおり。画像0件でもgenericは1章を返すため、通常取得とworkflowはいずれも成功する。空manifest許可設定が制御するのは章0件である。
+
+Referer制限は画像URL・index・image_idとrevisionの計算方式を変えず、既存の完了状態を移行しない。
+完了済みの`updated`を一律に再取得させる変更ではない。追加周回では`ImageResource`全体の比較を維持するため、
+別オリジン画像の自動Refererが同じoriginに留まれば、ページのクエリ変更だけでは成功画像を再取得しなくなる。
+同一オリジン画像ではページのクエリを保持するので、その変化は従来どおり再取得条件になる。
 
 `--dry-run`はHTMLによる一覧確認だけを行い、対象manifest・画像を取得せず履歴も保存しない。別のプラグインが更新確認に非対応なら、安全な固定エラー`update_check_unsupported`（終了コード4）で停止する。古い履歴の`plugin_error`は書き換えない。詳しくは[CLI](../reference/cli.md)と[API](../reference/library-api.md)を参照。
 

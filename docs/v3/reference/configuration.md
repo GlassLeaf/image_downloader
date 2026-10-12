@@ -290,7 +290,25 @@ image_processors:
 ```
 
 <!-- claim: TAX-CONFIG-SECRETS -->
-raw credential を YAML、manifest、catalog、plugin source、log、exception に書かない。logical secret `name` の reference はまず `IMAGE_DOWNLOADER_PLUGIN_<NORMALIZED_ID>_<REFERENCE>` environment variable、次に keyring service `image-downloader.plugin.<plugin-id>` の username `<REFERENCE>` から解決する。どちらにもなければ `SecretNotFound` を送出する。
+raw credential を YAML、manifest、catalog、plugin source、log、exception に書かない。logical secret `name` の reference は、次の environment variable 名で解決する。
+
+```text
+IMAGE_DOWNLOADER_PLUGIN_<ID_HEX>_<REFERENCE_HEX>
+```
+
+`ID_HEX` と `REFERENCE_HEX` は、それぞれ元の plugin ID と reference 全体に `value.encode("utf-8", "surrogatepass").hex().upper()` を適用した値である。短縮、hash、文字置換は行わない。接頭辞に版番号を付けず、アプリの版更新だけでは変更しない恒久的な規約とする。直接 API と複数 runtime でも同じ規則を使い、Windows の大文字・小文字を区別しない環境でも名前が衝突しないよう、符号化後は大文字に統一する。
+
+plugin ID `com.example.a-b`、reference `TOKEN` の名前は次になる。
+
+```text
+IMAGE_DOWNLOADER_PLUGIN_636F6D2E6578616D706C652E612D62_544F4B454E
+```
+
+空でない environment value をそのまま優先する。未設定または空文字なら、従来と同じ keyring service `image-downloader.plugin.<plugin-id>` の username `<REFERENCE>` を参照する。keyring が `None` を返せば `SecretNotFound("required plugin secret is unavailable")`、空文字なら従来どおりその値を返す。logical name が未構成、または reference が空なら取得前に `SecretNotFound("required plugin secret is not configured")` となる。取得は各 `get(name)` 時に行い、値を cache しない。
+
+旧形式 `IMAGE_DOWNLOADER_PLUGIN_<NORMALIZED_ID>_<NORMALIZED_REFERENCE>` は読み出さない。現行の有効 ID は `.` が必須なので、旧名の接頭辞以降には区切りを含めて `_` が最低2個あり、新名では1個だけである。有効な現行 ID から生成される新旧名は衝突しない。旧名への fallback、値の自動コピー、環境変数の自動削除は行わない。
+
+YAML、ID・reference の検証規則、keyring の識別子、公開 API は変更しない。keyring のみの利用者は移行不要で、プラグインの再署名も不要である。環境変数の利用者は名前を移行し、他の plugin/profile が使っていないと確認した旧名を定義元から削除する。[移行・旧名削除手順](../maintenance/migration.md#plugin-secret-environment-migration) を参照する。
 
 <a id="config-migration"></a>
 

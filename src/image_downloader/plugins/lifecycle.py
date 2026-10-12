@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib.machinery
 import importlib.util
 import re
 import sys
@@ -26,12 +25,13 @@ from .plugin_manifest import (
     PluginVerificationMode,
     _is_link,
     _require_regular,
+    _verified_plugin_tree,
+    _verify_manifest_with_tree,
     author_config,
     catalog_path,
     read_manifest,
-    verify_manifest,
-    verify_plugin_tree,
 )
+from .source_loader import _NAMESPACE_FINDER, _SourceContext, _SourceLoader
 
 _PLUGIN_MODULE_ROOT = "_image_downloader_plugins"
 _MODULES_LOCK = RLock()
@@ -46,8 +46,14 @@ class PluginDiagnostic:
     warning: bool = False
 
 
+class _RecordSourceBinding:
+    # A non-dataclass slot keeps the public DTO's fields, signature and equality.
+    __slots__ = ("_source_hashes",)
+    _source_hashes: Mapping[str, str] | None
+
+
 @dataclass(frozen=True, slots=True)
-class PluginRecord:
+class PluginRecord(_RecordSourceBinding):
     """Immutable description of a verified plugin.
 
     Imported classes and module names are deliberately owned by
@@ -66,6 +72,26 @@ class PluginRecord:
     @property
     def kind(self) -> PluginKind:
         return self.manifest.kind
+
+
+def _bind_record_sources(record: PluginRecord, hashes: Mapping[str, str] | None) -> PluginRecord:
+    """Attach detached constraints before publishing the immutable record."""
+    object.__setattr__(record, "_source_hashes", MappingProxyType(dict(hashes)) if hashes is not None else None)
+    return record
+
+
+def _record_source_hashes(record: PluginRecord) -> Mapping[str, str] | None:
+    if hasattr(record, "_source_hashes"):
+        return record._source_hashes
+    # Publicly constructed records have no verifier mode attached.
+    if record.catalog is not None and record.catalog.content_pinned:
+        _, hashes = _verify_manifest_with_tree(
+            record.manifest, PluginCatalog((record.catalog,)), mode="bypass-signature"
+        )
+        return hashes
+    if isinstance(record.manifest.value.get("file_tree"), Mapping):
+        return _verified_plugin_tree(record.manifest)
+    return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -158,14 +184,16 @@ class PluginManifestVerifier:
         for candidate in discovery.candidates:
             manifest = candidate.manifest
             try:
-                pin = verify_manifest(manifest, catalog, mode=self.mode)
-                records.append(PluginRecord(manifest, author_config(manifest), pin))
+                pin, hashes = _verify_manifest_with_tree(manifest, catalog, mode=self.mode)
+                records.append(_bind_record_sources(PluginRecord(manifest, author_config(manifest), pin), hashes))
                 diagnostics.append(PluginDiagnostic(manifest.id, str(candidate.directory), True))
             except Exception as exc:
                 if self.mode == "warn" and isinstance(exc, PluginError):
                     try:
-                        verify_plugin_tree(manifest)
-                        records.append(PluginRecord(manifest, author_config(manifest), None))
+                        hashes = _verified_plugin_tree(manifest)
+                        records.append(
+                            _bind_record_sources(PluginRecord(manifest, author_config(manifest), None), hashes)
+                        )
                         diagnostics.append(
                             PluginDiagnostic(manifest.id, str(candidate.directory), True, str(exc), True)
                         )
@@ -272,19 +300,20 @@ class PluginClassLoader:
             filename = str(entry["file"])
             source = record.manifest.directory / filename
             _require_regular(source, "plugin entry must be a regular non-link file")
+            context = _SourceContext(record.manifest.directory, _record_source_hashes(record))
             plugin_name = re.sub(r"[^a-zA-Z0-9_]", "_", record.id)
             namespace = f"{_PLUGIN_MODULE_ROOT}.{plugin_name}_{record.manifest.digest[:12]}_{self._instance_token}"
             self._install_namespace_package(namespace, record.manifest.directory)
-            module_name = f"{namespace}.entry"
-            loader = importlib.machinery.SourceFileLoader(module_name, str(source))
-            spec = importlib.util.spec_from_loader(module_name, loader)
-            if spec is None:
-                self._remove_namespace(namespace)
-                raise PluginError("plugin entry source cannot be loaded")
-            module = importlib.util.module_from_spec(spec)
-            module.__package__ = namespace
-            sys.modules[module_name] = module
             try:
+                _NAMESPACE_FINDER.register(namespace, context)
+                module_name = f"{namespace}.entry"
+                loader = _SourceLoader(module_name, str(source), context)
+                spec = importlib.util.spec_from_loader(module_name, loader)
+                if spec is None:
+                    raise PluginError("plugin entry source cannot be loaded")
+                module = importlib.util.module_from_spec(spec)
+                module.__package__ = namespace
+                sys.modules[module_name] = module
                 loader.exec_module(module)
                 value = getattr(module, str(entry["class"]))
                 if not isinstance(value, type):
@@ -295,6 +324,9 @@ class PluginClassLoader:
             except Exception as exc:
                 self._remove_namespace(namespace)
                 raise PluginError("plugin entry import failed") from exc
+            except BaseException:
+                self._remove_namespace(namespace)
+                raise
             return value, namespace
 
     @staticmethod
@@ -314,6 +346,7 @@ class PluginClassLoader:
     @staticmethod
     def _remove_namespace(namespace: str) -> None:
         with _MODULES_LOCK:
+            _NAMESPACE_FINDER.unregister(namespace)
             prefix = f"{namespace}."
             for name in tuple(sys.modules):
                 if name == namespace or name.startswith(prefix):
