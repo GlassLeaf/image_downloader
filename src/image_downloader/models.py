@@ -311,8 +311,11 @@ class Chapter:
     subtitle: str = ""
     images: tuple[ImageResource, ...] = ()
     chapter_id: str | None = None
+    allow_empty_images: bool | None = field(default=None, kw_only=True, repr=False)
 
     def __post_init__(self) -> None:
+        if self.allow_empty_images is not None and not isinstance(self.allow_empty_images, bool):
+            raise TypeError("Chapter.allow_empty_images must be bool or None")
         object.__setattr__(self, "images", tuple(self.images))
 
 
@@ -325,8 +328,11 @@ class DownloadManifest:
     access: str | None = None
     revision: str | None = None
     metadata: Mapping[str, str] = field(default_factory=freeze_mapping)
+    allow_empty_chapters: bool | None = field(default=None, kw_only=True, repr=False)
 
     def __post_init__(self) -> None:
+        if self.allow_empty_chapters is not None and not isinstance(self.allow_empty_chapters, bool):
+            raise TypeError("DownloadManifest.allow_empty_chapters must be bool or None")
         object.__setattr__(self, "chapters", tuple(self.chapters))
         object.__setattr__(
             self,

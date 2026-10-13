@@ -140,12 +140,22 @@ def _full_manifest_json(result: ManifestInspectionResult) -> dict[str, object]:
         "access": manifest.access,
         "revision": manifest.revision,
         "metadata": dict(manifest.metadata),
+        **(
+            {"allow_empty_chapters": manifest.allow_empty_chapters}
+            if manifest.allow_empty_chapters is not None
+            else {}
+        ),
         "chapters": [
             {
                 "number": chapter.number,
                 "title": chapter.title,
                 "subtitle": chapter.subtitle,
                 "chapter_id": chapter.chapter_id,
+                **(
+                    {"allow_empty_images": chapter.allow_empty_images}
+                    if chapter.allow_empty_images is not None
+                    else {}
+                ),
                 "images": [
                     {
                         "url": image.url,

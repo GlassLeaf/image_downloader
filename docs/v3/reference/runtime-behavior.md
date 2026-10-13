@@ -141,6 +141,27 @@ output path は trusted root の配下だけに作る。managed directory/file/l
 
 通常downloadの成果物には短い絶対パスの`--output-dir`を指定できる。profileのCookie・state・logも深い場合は、既存データを退避して必要なprofileツリーを短い`storage.data_root`へ移し、`config explain`で解決先を確認する。`--output-dir`だけではprofileデータの場所は変わらない。Windowsでは実行PythonとOSの長いパス対応も確認する。実測結果と再実行コマンドは[R15検証記録](../../investigations/implementation-review-2026-10-04/r15-details.md)を参照する。
 
+## Empty download results
+
+章一覧0件・各章の画像0件の許可判定は、各download試行で一度だけ共通検査を行う。
+章一覧0件には`download.allow_empty_chapter_manifest`の拒否を優先し、設定がtrueの場合も
+`DownloadManifest.allow_empty_chapters=False`なら`PluginError("plugin returned an empty manifest")`とする。
+章がある場合、画像0件かつ`Chapter.allow_empty_images=False`の章が一つでもあれば
+`PluginError("plugin returned an empty image list")`とし、全章の通常画像ダウンロードを開始しない。
+画像0件の章で指定がNoneまたはTrueなら許可する。画像のある章のFalse指定は取得を妨げない。
+
+共通検査は既存の章0件検査と同じ位置で、inspect・ledger更新・BEFORE_MANIFESTの保留保存・
+全章のAFTER_MANIFEST処理の後、章の画像ジョブ開始前に行う。ページ取得・追加ファイル処理を
+取り消さず、後始末と既存のPluginError失敗・再試行経路を使う。拒否結果は成功通知・完了登録しない。
+許可された空結果、既存ファイルのスキップ、更新対象URL0件の従来挙動は維持する。
+
+inspectionは許可指定の型を検証するが、空という理由では拒否しない。
+`verify workflow`は取得検証を続け、許可された空結果も`no_images` / `not_acquired`とする。
+履歴・状態schemaと既存の完了状態は変更せず、未指定の旧プラグイン・組込み汎用HTMLの画像0件成功は残る。
+
+`allow_empty_chapter_manifest`は互換性のため当面維持する将来の整理対象であり、現在はfalseの拒否を
+優先する。今回は削除・無効化・自動移行を行わず、整理時期と移行方法は別途決定する。
+
 ## Update state
 
 <a id="runtime-update-state"></a>

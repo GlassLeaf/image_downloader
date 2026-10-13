@@ -19,6 +19,7 @@
 #   chapter_concurrency: 3           # integer >= 1
 #   image_concurrency_per_chapter: 8 # integer >= 1; fetch/process/save jobs per chapter
 #   continue_on_image_error: true
+#   # Retained for compatibility; future cleanup timing and migration are undecided.
 #   allow_empty_chapter_manifest: false
 # output:
 #   directory_format: '%CHAPTER_NUMBER%_%CONTENT_TITLE%_%CHAPTER_TITLE%'
