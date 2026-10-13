@@ -330,6 +330,8 @@ class PluginInvoker:
             raise self._error(hook, "inspect returned invalid manifest metadata")
         if any(not isinstance(key, str) or not isinstance(item, str) for key, item in value.metadata.items()):
             raise self._error(hook, "inspect returned invalid manifest metadata")
+        if value.allow_empty_chapters is not None and not isinstance(value.allow_empty_chapters, bool):
+            raise self._error(hook, "inspect returned invalid allow_empty_chapters")
         for chapter_index, chapter in enumerate(value.chapters):
             if not isinstance(chapter, Chapter):
                 raise self._error(hook, f"inspect returned an invalid chapter at chapters[{chapter_index}]")
@@ -342,6 +344,8 @@ class PluginInvoker:
             raise self._error(hook, f"inspect returned invalid chapter text at chapters[{chapter_index}]")
         if chapter.chapter_id is not None and not isinstance(chapter.chapter_id, str):
             raise self._error(hook, f"inspect returned an invalid chapter ID at chapters[{chapter_index}]")
+        if chapter.allow_empty_images is not None and not isinstance(chapter.allow_empty_images, bool):
+            raise self._error(hook, "inspect returned invalid allow_empty_images")
         for image_index, image in enumerate(chapter.images):
             if not isinstance(image, ImageResource):
                 path = f"chapters[{chapter_index}].images[{image_index}]"

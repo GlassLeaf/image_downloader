@@ -1,0 +1,196 @@
+{
+  "base_commit": "f78b95f115ffa3b8b309cd0fa0f0018df56cd8aa",
+  "branch": "codex/fix-qs-005-empty-result-policy",
+  "working_tree_changes": true,
+  "source_sha256": {
+    "src/image_downloader/models.py": "5d961601e8f5bc0a7f86c46bb0e6ef826d24db14707ec76b74dae6022b74a789",
+    "src/image_downloader/plugins/plugin_invoker.py": "daa9999780e731f82d2fd4b826016ed80ab691e6a042816221201d10cda29118",
+    "src/image_downloader/application/service.py": "9e1d9ed333bb4999fdf2b9e45d68210b89f8a916012d9373033e39b79327aecc",
+    "src/image_downloader/commands/inspect.py": "e764dc1c2879d42fb11c3f42990153e3ffcdadb0b91038088655f92c1dacbc0b",
+    "src/image_downloader/config-template.yaml": "3696a307dc8e06692e15929a42397dcfb7a424ccacfed3decf191c46174df738",
+    "tests/v3/application/test_empty_result_policy.py": "6d543c7ae88d27a5188e438610c978385309f74e33f88448a50dee87d07d852b"
+  },
+  "v3": {
+    "passed": 2182,
+    "skipped": 17,
+    "coverage": {
+      "covered_lines": 9632,
+      "num_statements": 10562,
+      "percent_covered": 88.74560375146541,
+      "percent_covered_display": "89",
+      "missing_lines": 930,
+      "excluded_lines": 90,
+      "percent_statements_covered": 91.19484946032948,
+      "percent_statements_covered_display": "91",
+      "num_branches": 3086,
+      "num_partial_branches": 476,
+      "covered_branches": 2480,
+      "missing_branches": 606,
+      "percent_branches_covered": 80.36292935839275,
+      "percent_branches_covered_display": "80"
+    }
+  },
+  "checks": {
+    "v3-final": {
+      "check": "v3-final",
+      "command": [
+        "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+        "-m",
+        "pytest",
+        "-q",
+        "tests/v3",
+        "--cov=image_downloader",
+        "--cov-report=term",
+        "--cov-report=json:.runtime/qs-series/qs005-coverage.json",
+        "--tb=short",
+        "-ra"
+      ],
+      "started_utc": "2026-10-13T14:16:19.582973+00:00",
+      "elapsed_seconds": 652.47,
+      "exit_code": 0,
+      "python": "3.11.4 (tags/v3.11.4:d2340ef, Jun  7 2023, 05:45:37) [MSC v.1934 64 bit (AMD64)]",
+      "platform": "Windows-10-10.0.19045-SP0",
+      "base_commit": "f78b95f115ffa3b8b309cd0fa0f0018df56cd8aa",
+      "branch": "codex/fix-qs-005-empty-result-policy",
+      "working_tree_changes": true,
+      "versions": {
+        "pytest": "9.1.1",
+        "pytest-cov": "7.1.0",
+        "ruff": "0.16.5",
+        "mypy": "2.3.1",
+        "httpx": "0.28.1",
+        "pydantic": "2.13.5"
+      }
+    },
+    "ruff": {
+      "check": "ruff",
+      "command": [
+        "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+        "-m",
+        "ruff",
+        "check",
+        "."
+      ],
+      "started_utc": "2026-10-13T14:05:33.756147+00:00",
+      "elapsed_seconds": 0.8,
+      "exit_code": 0,
+      "python": "3.11.4 (tags/v3.11.4:d2340ef, Jun  7 2023, 05:45:37) [MSC v.1934 64 bit (AMD64)]",
+      "platform": "Windows-10-10.0.19045-SP0",
+      "base_commit": "f78b95f115ffa3b8b309cd0fa0f0018df56cd8aa",
+      "branch": "codex/fix-qs-005-empty-result-policy",
+      "working_tree_changes": true,
+      "versions": {
+        "pytest": "9.1.1",
+        "pytest-cov": "7.1.0",
+        "ruff": "0.16.5",
+        "mypy": "2.3.1",
+        "httpx": "0.28.1",
+        "pydantic": "2.13.5"
+      }
+    },
+    "mypy": {
+      "check": "mypy",
+      "command": [
+        "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+        "-m",
+        "mypy",
+        "src/image_downloader"
+      ],
+      "started_utc": "2026-10-13T14:05:36.056453+00:00",
+      "elapsed_seconds": 3.25,
+      "exit_code": 0,
+      "python": "3.11.4 (tags/v3.11.4:d2340ef, Jun  7 2023, 05:45:37) [MSC v.1934 64 bit (AMD64)]",
+      "platform": "Windows-10-10.0.19045-SP0",
+      "base_commit": "f78b95f115ffa3b8b309cd0fa0f0018df56cd8aa",
+      "branch": "codex/fix-qs-005-empty-result-policy",
+      "working_tree_changes": true,
+      "versions": {
+        "pytest": "9.1.1",
+        "pytest-cov": "7.1.0",
+        "ruff": "0.16.5",
+        "mypy": "2.3.1",
+        "httpx": "0.28.1",
+        "pydantic": "2.13.5"
+      }
+    },
+    "pip-check": {
+      "check": "pip-check",
+      "command": [
+        "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+        "-m",
+        "pip",
+        "check"
+      ],
+      "started_utc": "2026-10-13T14:05:38.061587+00:00",
+      "elapsed_seconds": 6.25,
+      "exit_code": 0,
+      "python": "3.11.4 (tags/v3.11.4:d2340ef, Jun  7 2023, 05:45:37) [MSC v.1934 64 bit (AMD64)]",
+      "platform": "Windows-10-10.0.19045-SP0",
+      "base_commit": "f78b95f115ffa3b8b309cd0fa0f0018df56cd8aa",
+      "branch": "codex/fix-qs-005-empty-result-policy",
+      "working_tree_changes": true,
+      "versions": {
+        "pytest": "9.1.1",
+        "pytest-cov": "7.1.0",
+        "ruff": "0.16.5",
+        "mypy": "2.3.1",
+        "httpx": "0.28.1",
+        "pydantic": "2.13.5"
+      }
+    },
+    "build": {
+      "check": "build",
+      "command": [
+        "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+        "-m",
+        "build",
+        "--no-isolation"
+      ],
+      "started_utc": "2026-10-13T14:05:39.415501+00:00",
+      "elapsed_seconds": 15.02,
+      "exit_code": 0,
+      "python": "3.11.4 (tags/v3.11.4:d2340ef, Jun  7 2023, 05:45:37) [MSC v.1934 64 bit (AMD64)]",
+      "platform": "Windows-10-10.0.19045-SP0",
+      "base_commit": "f78b95f115ffa3b8b309cd0fa0f0018df56cd8aa",
+      "branch": "codex/fix-qs-005-empty-result-policy",
+      "working_tree_changes": true,
+      "versions": {
+        "pytest": "9.1.1",
+        "pytest-cov": "7.1.0",
+        "ruff": "0.16.5",
+        "mypy": "2.3.1",
+        "httpx": "0.28.1",
+        "pydantic": "2.13.5"
+      }
+    },
+    "package-smoke": {
+      "check": "package-smoke",
+      "command": [
+        "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+        "tools/release_smoke.py",
+        "--offline"
+      ],
+      "started_utc": "2026-10-13T14:06:46.771531+00:00",
+      "elapsed_seconds": 35.95,
+      "exit_code": 0,
+      "python": "3.11.4 (tags/v3.11.4:d2340ef, Jun  7 2023, 05:45:37) [MSC v.1934 64 bit (AMD64)]",
+      "platform": "Windows-10-10.0.19045-SP0",
+      "base_commit": "f78b95f115ffa3b8b309cd0fa0f0018df56cd8aa",
+      "branch": "codex/fix-qs-005-empty-result-policy",
+      "working_tree_changes": true,
+      "versions": {
+        "pytest": "9.1.1",
+        "pytest-cov": "7.1.0",
+        "ruff": "0.16.5",
+        "mypy": "2.3.1",
+        "httpx": "0.28.1",
+        "pydantic": "2.13.5"
+      }
+    }
+  },
+  "ci": {
+    "executed_for_these_changes": false,
+    "configured_test_jobs": 12,
+    "configured_package_smoke_jobs": 3
+  }
+}

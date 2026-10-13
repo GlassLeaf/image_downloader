@@ -548,9 +548,8 @@ class DownloadService:
         await additional.flush_pending(manifest)
         for chapter in manifest.chapters:
             await additional.run(AdditionalFileHookPoint.AFTER_MANIFEST, manifest=manifest, chapter=chapter)
+        self._validate_empty_manifest_policy(manifest)
         if not manifest.chapters:
-            if not self.config.download.allow_empty_chapter_manifest:
-                raise PluginError("plugin returned an empty manifest")
             await self._empty_reporter(manifest, record, url, plugin_values)
             result = DownloadResult(url, manifest, ())
         else:
@@ -589,6 +588,15 @@ class DownloadService:
                 chapter_result=chapter_result,
             )
         return replace(result, additional_files=tuple(ledger.additional_files if ledger else additional.outcomes))
+
+    def _validate_empty_manifest_policy(self, manifest: DownloadManifest) -> None:
+        """Resolve empty-result permissions once, before starting chapter downloads."""
+        if not manifest.chapters:
+            if not self.config.download.allow_empty_chapter_manifest or manifest.allow_empty_chapters is False:
+                raise PluginError("plugin returned an empty manifest")
+            return
+        if any(not chapter.images and chapter.allow_empty_images is False for chapter in manifest.chapters):
+            raise PluginError("plugin returned an empty image list")
 
     def _collect_output_format_values(
         self,

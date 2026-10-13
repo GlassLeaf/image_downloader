@@ -112,6 +112,12 @@ mapping は再帰 merge、scalar/list/`null` は高い layer が置換する。I
 | `plugin_settings.<id>.download_policy.preserve_image_start_order` | strict boolean; `true` なら chapter/image job の開始を manifest 順に直列化する。default `false` |
 | `fallback.generic_html.enabled` | strict boolean; `true` |
 
+`download.allow_empty_chapter_manifest`は章一覧0件だけを制御し、各章の画像0件は制御しない。
+`false`はプラグインの`DownloadManifest.allow_empty_chapters=True`より優先して拒否する。
+`true`でもプラグインが`allow_empty_chapters=False`を返せば拒否する。
+この設定は互換性のため当面維持する、将来の整理対象である。今回は削除・無効化・自動移行を
+行わず、整理時期と移行方法は別途決定する。[空結果の規則](plugin-hooks.md#empty-result-permissions)を参照する。
+
 `finite number`の設定では、float変換限界を超える巨大整数も、項目名・設定層を持つ既存の
 `ConfigurationError`として拒否する。bool・文字列・NaN・無限値、正数／非負数の既存条件と
 既定値は維持し、実用的な数値上限や新しい設定項目は追加しない。入力値を診断へ出力しない。

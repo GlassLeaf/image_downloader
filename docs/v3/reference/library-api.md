@@ -28,6 +28,9 @@ Feed checks and selected-page inspection each fetch HTML separately; there is no
 Unchanged image URLs with changed image bytes cannot be detected by this revision, which is not an
 image-content hash. Zero images still produce one chapter and a page candidate: normal download and
 workflow both succeed. `allow_empty_chapter_manifest` controls zero chapters, not zero images.
+The optional `DownloadManifest.allow_empty_chapters` and per-`Chapter.allow_empty_images`
+permissions are described in [empty-result permissions](plugin-hooks.md#empty-result-permissions).
+Omitted permissions preserve this built-in behavior; inspection does not enforce empty-result rejection.
 Plugins without update support raise public `UpdateCheckUnsupportedError`, a `PluginError` subclass,
 for checking, workflow and planning; its safe code is `update_check_unsupported` (CLI exit 4).
 
@@ -127,7 +130,7 @@ The operation is serial with run/check_updates/inspect/close. Dedicated state an
 | `TransportCookie` / `TransportHeader` / `TransportRequestMetadata` | `(name, value)`、`(name, value)`、`(url, headers: Mapping[str, tuple[str, ...]], cookies=())`。後者は実送信された一つの request hop の immutable snapshot であり、cookie jar 全体ではない。headers は同名 header の複数値を失わない。 |
 | `ImageTransportMetadata` | `(initial_request, final_request, response_url, response_headers, plugin_data=<fresh frozen string mapping>, is_redacted=False)`。成功した画像 fetch の transform 専用 snapshot。`initial_request` は AuthFlow 適用後の最初の実送信、`final_request` は redirect 後の最終 hop、response headers は複数 `Set-Cookie` を含め同名値を保持する。artifact、result、event、CLI JSON、log には自動コピーされない。 |
 | `ImageSaveOptions` | `format, extension, quality, optimize, progressive, lossless, compress_level, exif=False`。`None` は config/default を使う。`format="ORIGINAL"` は core 再エンコードを止める plugin 指定であり、extension/encoder fields と組み合わせられない。 |
-| `Chapter` / `DownloadManifest` | immutable chapter/images と `(title, chapters, content_id=None, author=None, access=None, revision=None, metadata=<fresh frozen mapping>)`。plugin は複数 chapter を返す manifest 内で `Chapter.number` を重複させず、1 始まりの連番を使うことが推奨される。各 `Chapter.images` でも `ImageResource.index` を重複させず、1 始まりの連番を使うことが推奨される。core は採番・重複を修正しない。 |
+| `Chapter` / `DownloadManifest` | immutable chapter/images。`Chapter(number, title, subtitle="", images=(), chapter_id=None, *, allow_empty_images=None)` と `DownloadManifest(title, chapters, content_id=None, author=None, access=None, revision=None, metadata=<fresh frozen mapping>, *, allow_empty_chapters=None)`。新しい許可指定はboolまたはNoneで、keyword-only・repr対象外・比較対象。既存の位置引数と位置パターンは維持する。plugin は複数 chapter を返す manifest 内で `Chapter.number` を重複させず、1 始まりの連番を使うことが推奨される。各 `Chapter.images` でも `ImageResource.index` を重複させず、1 始まりの連番を使うことが推奨される。core は採番・重複を修正しない。 |
 | `ImageFailure` | `kind, exception_type, message, code, reason, response_url, http_status, output_path, transport`。URL/章/index を持たない。 |
 | `ImageOutcome` | `(image, kind, path=None, failure=None)`。failure と画像の相関はここから得る。 |
 | `DownloadResult` | `(source_url, manifest, chapters)`。`saved_files`/`skipped_files` は absolute path string tuple、`failures` は相関を失う flatten tuple。 |

@@ -49,9 +49,9 @@ This is the signature-level reference for the stable facades in the [API invento
 
 | DTO | declared constructor / fields |
 | --- | --- |
-| `Chapter` | `Chapter(number: int, title: str, subtitle: str = "", images: tuple[ImageResource, ...] = (), chapter_id: str | None = None)` |
+| `Chapter` | `Chapter(number: int, title: str, subtitle: str = "", images: tuple[ImageResource, ...] = (), chapter_id: str | None = None, *, allow_empty_images: bool | None = None)` |
 | `ChapterResult` | `ChapterResult(chapter: Chapter, outcomes: tuple[ImageOutcome, ...])` |
-| `DownloadManifest` | `DownloadManifest(title: str, chapters: tuple[Chapter, ...], content_id: str | None = None, author: str | None = None, access: str | None = None, revision: str | None = None, metadata: Mapping[str, str] = <factory: freeze_mapping>)` |
+| `DownloadManifest` | `DownloadManifest(title: str, chapters: tuple[Chapter, ...], content_id: str | None = None, author: str | None = None, access: str | None = None, revision: str | None = None, metadata: Mapping[str, str] = <factory: freeze_mapping>, *, allow_empty_chapters: bool | None = None)` |
 | `DownloadResult` | `DownloadResult(source_url: str, manifest: DownloadManifest, chapters: tuple[ChapterResult, ...], additional_files: tuple[AdditionalFileOutcome, ...] = ())` |
 | `AdditionalFileSpec` | `AdditionalFileSpec(file_id: str, relative_path: str, request: RequestSpec | None = None, data: bytes | None = None)` |
 | `AdditionalFileHookContext` | `AdditionalFileHookContext(point: AdditionalFileHookPoint, operation_id: str, attempt_number: int, operation_url: str, invocation_id: str = "", manifest: DownloadManifest | None = None, chapter: Chapter | None = None, image: ImageResource | None = None, response: RequestResponse | None = None, artifact: ImageArtifact | None = None, image_outcome: ImageOutcome | None = None, chapter_result: ChapterResult | None = None)` |

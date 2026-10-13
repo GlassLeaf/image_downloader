@@ -1,0 +1,25 @@
+{
+  "check": "build",
+  "command": [
+    "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+    "-m",
+    "build",
+    "--no-isolation"
+  ],
+  "started_utc": "2026-10-13T14:05:39.415501+00:00",
+  "elapsed_seconds": 15.02,
+  "exit_code": 0,
+  "python": "3.11.4 (tags/v3.11.4:d2340ef, Jun  7 2023, 05:45:37) [MSC v.1934 64 bit (AMD64)]",
+  "platform": "Windows-10-10.0.19045-SP0",
+  "base_commit": "f78b95f115ffa3b8b309cd0fa0f0018df56cd8aa",
+  "branch": "codex/fix-qs-005-empty-result-policy",
+  "working_tree_changes": true,
+  "versions": {
+    "pytest": "9.1.1",
+    "pytest-cov": "7.1.0",
+    "ruff": "0.16.5",
+    "mypy": "2.3.1",
+    "httpx": "0.28.1",
+    "pydantic": "2.13.5"
+  }
+}

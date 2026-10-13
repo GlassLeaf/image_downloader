@@ -27,6 +27,47 @@ selection は enabled site unit の `matches_with_config()`（ある場合）と
 codeは`update_check_unsupported`、安全な固定reasonは`selected plugin does not support update checks`。
 hook内の通常の失敗や不正な返却値は引き続き`PluginError`として区別する。
 
+## Empty-result permissions
+
+<a id="empty-result-permissions"></a>
+
+プラグインは、返す`DownloadManifest`にkeyword-onlyの`allow_empty_chapters`、各`Chapter`に
+keyword-onlyの`allow_empty_images`を任意に指定できる。両方ともboolまたはNone（既定値）のみ。
+constructorでの不正型は値を含まない固定文言のTypeError、hook内の構築失敗や不正返却値は
+既存のPluginError経路で扱う。metadataによる指定と必須hookの追加はない。
+
+| 対象 | 許可・拒否 |
+| --- | --- |
+| 章一覧0件 | 設定`allow_empty_chapter_manifest=False`なら常に拒否。設定Trueの場合はmanifestのNone/Trueを許可、Falseを拒否 |
+| ある章の画像0件 | そのChapterのNone/Trueを許可、Falseを拒否。禁止された空章が一つでもあればmanifest全体を拒否 |
+| 画像のある章 | `allow_empty_images=False`でも通常処理を継続 |
+
+作品全体の画像合計では判定せず、章一覧0件にはChapterの画像許可指定を適用しない。
+例えば公開前の章だけ空を許可し、通常の章には画像を要求できる。
+
+```python
+manifest = DownloadManifest(
+    "Book",
+    (
+        Chapter(1, "Published", images=published_images, allow_empty_images=False),
+        Chapter(2, "Coming soon", images=(), allow_empty_images=True),
+    ),
+    allow_empty_chapters=False,
+)
+```
+
+新フィールドはreprに出さず、比較には含める。既存位置引数・位置パターンを維持するが、
+DTOのfields・signature・slotsは拡張される。新フィールドを渡すプラグインはこの拡張に対応する
+本体版が必要で、旧本体ではTypeErrorになる。版番号を変更していないため、番号だけで対応を
+判別しない。使用前にconstructor signatureの対応を確認するか、対応する配布版を運用で指定する。
+変更したプラグインは通常どおり再署名・再インストールする。未変更プラグインの再署名は不要で、
+署名manifest形式・API version 3は維持する。
+
+inspectは空でも結果を返し、詳細JSON（all）は非Noneの許可指定だけを表示する。
+許可された空結果のdownload/workflow成功は画像の取得を保証せず、verify workflowでは
+no_images / not_acquiredになる。未指定の旧プラグイン・組込み汎用HTMLの空画像成功は残る。
+既存の完了状態を自動解除しない。
+
 ## Optional additional files
 
 選択されたsite pluginは任意に `AdditionalFileProvider` を実装できる。
