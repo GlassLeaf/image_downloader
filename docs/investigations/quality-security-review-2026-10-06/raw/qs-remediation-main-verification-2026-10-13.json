@@ -1,0 +1,1144 @@
+{
+  "review_completed_at_utc": "2026-10-13T10:22:22.520073+00:00",
+  "repository": "GlassLeaf/image_downloader",
+  "integration": {
+    "main_commit": "f78b95f115ffa3b8b309cd0fa0f0018df56cd8aa",
+    "branch": "main",
+    "worktree": "",
+    "fixes": {
+      "QS-001": [
+        {
+          "sha": "1e5b47e0aadb64c726bd1f5d43076d73350475b4",
+          "subject": "Fix QS-001 verified plugin source loading",
+          "ancestor_of_main": true,
+          "files": [
+            {
+              "path": "src/image_downloader/plugins/lifecycle.py",
+              "fix_blob": "fa1f69175f796eb065e97b7ae27d3b4d17dcfa5b",
+              "main_blob": "fa1f69175f796eb065e97b7ae27d3b4d17dcfa5b",
+              "later_changed": false
+            },
+            {
+              "path": "src/image_downloader/plugins/management.py",
+              "fix_blob": "a2e67415c32a99f9d95e693ec26afd53d02f2e5f",
+              "main_blob": "a2e67415c32a99f9d95e693ec26afd53d02f2e5f",
+              "later_changed": false
+            },
+            {
+              "path": "src/image_downloader/plugins/plugin_manifest.py",
+              "fix_blob": "0ec5ddc06535563cd47e5d0d68a7fa1b2d425598",
+              "main_blob": "0ec5ddc06535563cd47e5d0d68a7fa1b2d425598",
+              "later_changed": false
+            },
+            {
+              "path": "src/image_downloader/plugins/source_loader.py",
+              "fix_blob": "0f86a3f9a723bcfe2991663c06decad311bc0a15",
+              "main_blob": "0f86a3f9a723bcfe2991663c06decad311bc0a15",
+              "later_changed": false
+            },
+            {
+              "path": "tests/v3/plugins/test_verified_source_loading.py",
+              "fix_blob": "c6842471a27d4d4fbc3ae9031332513b395cf08e",
+              "main_blob": "c6842471a27d4d4fbc3ae9031332513b395cf08e",
+              "later_changed": false
+            }
+          ]
+        }
+      ],
+      "QS-002": [
+        {
+          "sha": "78351020373937c7aa660e5748bea10c7414f215",
+          "subject": "Fix QS-002 automatic generic HTML Referer disclosure",
+          "ancestor_of_main": true,
+          "files": [
+            {
+              "path": "src/image_downloader/plugins/builtin.py",
+              "fix_blob": "ff9d43b9327d276852fe2f0535cce97b7c7b4d76",
+              "main_blob": "ff9d43b9327d276852fe2f0535cce97b7c7b4d76",
+              "later_changed": false
+            },
+            {
+              "path": "tests/v3/application/test_generic_workflow.py",
+              "fix_blob": "6e19d85391135a899f90ebb6dd17865b836479a0",
+              "main_blob": "6e19d85391135a899f90ebb6dd17865b836479a0",
+              "later_changed": false
+            }
+          ]
+        }
+      ],
+      "QS-010": [
+        {
+          "sha": "a668cb30633eb8bf2ce059fc5810ffb33926582b",
+          "subject": "Fix QS-010 finite-number validation boundaries",
+          "ancestor_of_main": true,
+          "files": [
+            {
+              "path": "src/image_downloader/_numeric.py",
+              "fix_blob": "591584c6f76fb71ad927b47d202d9f062a5b2bfe",
+              "main_blob": "591584c6f76fb71ad927b47d202d9f062a5b2bfe",
+              "later_changed": false
+            },
+            {
+              "path": "src/image_downloader/application/service.py",
+              "fix_blob": "a09f8c721bd0b683bf9301e0685e41a0d431a139",
+              "main_blob": "a09f8c721bd0b683bf9301e0685e41a0d431a139",
+              "later_changed": false
+            },
+            {
+              "path": "src/image_downloader/commands/validation.py",
+              "fix_blob": "36f4d79e1d3d117cd4ad6554f4b072a94c752fc1",
+              "main_blob": "36f4d79e1d3d117cd4ad6554f4b072a94c752fc1",
+              "later_changed": false
+            },
+            {
+              "path": "src/image_downloader/commands/workflow.py",
+              "fix_blob": "c47a86c605a18a72b2f72fd6bdf543d7a656f36f",
+              "main_blob": "c47a86c605a18a72b2f72fd6bdf543d7a656f36f",
+              "later_changed": false
+            },
+            {
+              "path": "src/image_downloader/configuration/models.py",
+              "fix_blob": "26abde89a533ff8a9c388482cf0c77f82a8ab007",
+              "main_blob": "26abde89a533ff8a9c388482cf0c77f82a8ab007",
+              "later_changed": false
+            },
+            {
+              "path": "src/image_downloader/storage/interprocess_lock.py",
+              "fix_blob": "757e197226e029547a35f6601c9618389efe3bce",
+              "main_blob": "757e197226e029547a35f6601c9618389efe3bce",
+              "later_changed": false
+            },
+            {
+              "path": "tests/v3/configuration/test_finite_numbers.py",
+              "fix_blob": "a8cd9f3af147584845b68857f301ca2dffe064ac",
+              "main_blob": "a8cd9f3af147584845b68857f301ca2dffe064ac",
+              "later_changed": false
+            }
+          ]
+        }
+      ],
+      "QS-011": [
+        {
+          "sha": "49e950aef70afc44be5bcb8226be56230e745885",
+          "subject": "Fix QS-011 encrypted cookie data validation",
+          "ancestor_of_main": true,
+          "files": [
+            {
+              "path": "src/image_downloader/storage/cookies.py",
+              "fix_blob": "2afbc418e51829832b98d6fb94a7af4362245f86",
+              "main_blob": "2afbc418e51829832b98d6fb94a7af4362245f86",
+              "later_changed": false
+            },
+            {
+              "path": "tests/v3/storage_output/test_cookie_data_validation.py",
+              "fix_blob": "77ec6970a27e1b9075e6b64bce96b4662b64b203",
+              "main_blob": "77ec6970a27e1b9075e6b64bce96b4662b64b203",
+              "later_changed": false
+            }
+          ]
+        }
+      ],
+      "QS-012": [
+        {
+          "sha": "1cb31d98be6250a255148c07a7e79c860c6b0882",
+          "subject": "Fix QS-012 SMTP recipient refusal reporting",
+          "ancestor_of_main": true,
+          "files": [
+            {
+              "path": "src/image_downloader/observability/notifications.py",
+              "fix_blob": "d519868f3cc4b0bce23940e9d299a5cba5ce5bc8",
+              "main_blob": "d519868f3cc4b0bce23940e9d299a5cba5ce5bc8",
+              "later_changed": false
+            },
+            {
+              "path": "tests/v3/observability/test_notifications_v3.py",
+              "fix_blob": "098b2c61c7b925a7e4b782a89756adac4ed9cebc",
+              "main_blob": "098b2c61c7b925a7e4b782a89756adac4ed9cebc",
+              "later_changed": false
+            },
+            {
+              "path": "tests/v3/observability/test_smtp_refusal.py",
+              "fix_blob": "ba9895334b5d0812804674942e0d4125faf51f1c",
+              "main_blob": "ba9895334b5d0812804674942e0d4125faf51f1c",
+              "later_changed": false
+            }
+          ]
+        },
+        {
+          "sha": "2586ee69425437b973f55204c40d7a779bc5bae2",
+          "subject": "Make workflow interruption logging test deterministic",
+          "ancestor_of_main": true,
+          "files": [
+            {
+              "path": "tests/v3/application/test_workflow_logging.py",
+              "fix_blob": "81dbfeaaf423214abfc3f1114f7cfd980d002a42",
+              "main_blob": "81dbfeaaf423214abfc3f1114f7cfd980d002a42",
+              "later_changed": false
+            }
+          ]
+        }
+      ],
+      "QS-013": [
+        {
+          "sha": "d7e6a1bec2b58a66e702356f16c8dc3d7a107cd9",
+          "subject": "Fix QS-013 resource cleanup on composition failure",
+          "ancestor_of_main": true,
+          "files": [
+            {
+              "path": "src/image_downloader/application/composer.py",
+              "fix_blob": "9d4e6863aedf7f2c52bd008f5f1fcc5ca7a380f2",
+              "main_blob": "9d4e6863aedf7f2c52bd008f5f1fcc5ca7a380f2",
+              "later_changed": false
+            },
+            {
+              "path": "src/image_downloader/application/construction.py",
+              "fix_blob": "47ac4bd049a8ffaba8ca1b63e2ebb3bccd677f9c",
+              "main_blob": "47ac4bd049a8ffaba8ca1b63e2ebb3bccd677f9c",
+              "later_changed": false
+            },
+            {
+              "path": "src/image_downloader/media/image_processor.py",
+              "fix_blob": "b1933a2dd0c2df5c54d2f33e2bd84fcc01ddcdfe",
+              "main_blob": "b1933a2dd0c2df5c54d2f33e2bd84fcc01ddcdfe",
+              "later_changed": false
+            },
+            {
+              "path": "src/image_downloader/observability/logging.py",
+              "fix_blob": "ff4045e4e2020228ec11c00e03a39799da6ccd49",
+              "main_blob": "ff4045e4e2020228ec11c00e03a39799da6ccd49",
+              "later_changed": false
+            },
+            {
+              "path": "src/image_downloader/transport/gateway.py",
+              "fix_blob": "0783b4544502a84642ef108aad949a6cfad9f226",
+              "main_blob": "f9af54fc2978eff87bbd86c6e108aa3e82bf5e47",
+              "later_changed": true
+            },
+            {
+              "path": "tests/v3/application/test_composition_cleanup.py",
+              "fix_blob": "dfe128a541b0ba8da8394a9da1405b0788f90f3b",
+              "main_blob": "dfe128a541b0ba8da8394a9da1405b0788f90f3b",
+              "later_changed": false
+            }
+          ]
+        },
+        {
+          "sha": "3d40a0f5af64a59dbe771c78ccf93f9434abb1fa",
+          "subject": "Fix lock initialization under acquired interprocess lock",
+          "ancestor_of_main": true,
+          "files": [
+            {
+              "path": "src/image_downloader/storage/interprocess_lock.py",
+              "fix_blob": "46a628e5c1727a1fc3313aeb593b4322c93ccea7",
+              "main_blob": "757e197226e029547a35f6601c9618389efe3bce",
+              "later_changed": true
+            },
+            {
+              "path": "tests/v3/storage_output/test_interprocess_lock.py",
+              "fix_blob": "6ee43c6ebdf751455bbc19465f8d6e8e46928260",
+              "main_blob": "72b581f0d58f1f7cb911515bdff4e59151cdce42",
+              "later_changed": true
+            }
+          ]
+        },
+        {
+          "sha": "3f77918a98064f41e808ec6498b778cbba3ae1ab",
+          "subject": "Publish initialized Windows lock files before opening",
+          "ancestor_of_main": true,
+          "files": [
+            {
+              "path": "src/image_downloader/storage/interprocess_lock.py",
+              "fix_blob": "309963f081d1ce633915d49326cb7c35cddf45e3",
+              "main_blob": "757e197226e029547a35f6601c9618389efe3bce",
+              "later_changed": true
+            },
+            {
+              "path": "tests/v3/storage_output/test_interprocess_lock.py",
+              "fix_blob": "9357d47b26d75e53240d87389de37ff758f8d297",
+              "main_blob": "72b581f0d58f1f7cb911515bdff4e59151cdce42",
+              "later_changed": true
+            }
+          ]
+        },
+        {
+          "sha": "81563932116d9c4c0d26482f2b80f42ef9cf134f",
+          "subject": "Retry returned Windows sharing conflicts once without creating locks",
+          "ancestor_of_main": true,
+          "files": [
+            {
+              "path": "src/image_downloader/storage/interprocess_lock.py",
+              "fix_blob": "681f29597c732509fac61e48671d6de5526f692f",
+              "main_blob": "757e197226e029547a35f6601c9618389efe3bce",
+              "later_changed": true
+            },
+            {
+              "path": "tests/v3/storage_output/test_interprocess_lock.py",
+              "fix_blob": "28218a9a3e19d7508ea9500d810289b4a7022429",
+              "main_blob": "72b581f0d58f1f7cb911515bdff4e59151cdce42",
+              "later_changed": true
+            }
+          ]
+        },
+        {
+          "sha": "e7e45e00cb2ec574b6d4bd71af9e80572c75a676",
+          "subject": "Wait once for sharing conflicts while preserving lock file identities",
+          "ancestor_of_main": true,
+          "files": [
+            {
+              "path": "src/image_downloader/storage/interprocess_lock.py",
+              "fix_blob": "872a7213bc335be64f5e1373173e8e2ff1af1b9f",
+              "main_blob": "757e197226e029547a35f6601c9618389efe3bce",
+              "later_changed": true
+            },
+            {
+              "path": "tests/v3/storage_output/test_interprocess_lock.py",
+              "fix_blob": "72b581f0d58f1f7cb911515bdff4e59151cdce42",
+              "main_blob": "72b581f0d58f1f7cb911515bdff4e59151cdce42",
+              "later_changed": false
+            }
+          ]
+        },
+        {
+          "sha": "469f0c695e8dcb219ca3869a79d5a15443e64db7",
+          "subject": "Document temporary Windows lock mitigation and investigation results",
+          "ancestor_of_main": true,
+          "files": [
+            {
+              "path": "src/image_downloader/storage/interprocess_lock.py",
+              "fix_blob": "13c8198492a1658d4724ae7bef0649236cee06bb",
+              "main_blob": "757e197226e029547a35f6601c9618389efe3bce",
+              "later_changed": true
+            }
+          ]
+        }
+      ],
+      "QS-016": [
+        {
+          "sha": "aee66c92733270fe6434da1e59610e00eac5e466",
+          "subject": "Fix QS-016 plugin secret environment namespace collisions",
+          "ancestor_of_main": true,
+          "files": [
+            {
+              "path": "src/image_downloader/credentials/plugin_secrets.py",
+              "fix_blob": "a483a0ff05b37904f4da860fb71e76438fed348a",
+              "main_blob": "5e395ac1b6bb470370e9804bb457a2afdc02a7da",
+              "later_changed": true
+            },
+            {
+              "path": "tests/v3/credentials/test_plugin_secrets.py",
+              "fix_blob": "a6539492678f896531a27af4d9e66afb408c0d95",
+              "main_blob": "8010c77bb9ac8169d3af3b40eefb4f212b35b325",
+              "later_changed": true
+            }
+          ]
+        }
+      ],
+      "QS-015": [
+        {
+          "sha": "9b820c15d9936d49cbe04f9013245d7aaba0f6d1",
+          "subject": "fix(api)!: add Error suffix to public exception names",
+          "ancestor_of_main": true,
+          "files": [
+            {
+              "path": "pyproject.toml",
+              "fix_blob": "8341b8b9686fdce34c63382d6022f17b32abf459",
+              "main_blob": "8341b8b9686fdce34c63382d6022f17b32abf459",
+              "later_changed": false
+            },
+            {
+              "path": "src/image_downloader/__init__.py",
+              "fix_blob": "2663ba891419c718896c554f57aa1c0131b811e9",
+              "main_blob": "2663ba891419c718896c554f57aa1c0131b811e9",
+              "later_changed": false
+            },
+            {
+              "path": "src/image_downloader/credentials/plugin_secrets.py",
+              "fix_blob": "5e395ac1b6bb470370e9804bb457a2afdc02a7da",
+              "main_blob": "5e395ac1b6bb470370e9804bb457a2afdc02a7da",
+              "later_changed": false
+            },
+            {
+              "path": "src/image_downloader/exceptions.py",
+              "fix_blob": "65948fb6a61740f280b653324cb32f32714a142f",
+              "main_blob": "65948fb6a61740f280b653324cb32f32714a142f",
+              "later_changed": false
+            },
+            {
+              "path": "src/image_downloader/transport/gateway.py",
+              "fix_blob": "f9af54fc2978eff87bbd86c6e108aa3e82bf5e47",
+              "main_blob": "f9af54fc2978eff87bbd86c6e108aa3e82bf5e47",
+              "later_changed": false
+            },
+            {
+              "path": "tests/v3/credentials/test_plugin_secrets.py",
+              "fix_blob": "8010c77bb9ac8169d3af3b40eefb4f212b35b325",
+              "main_blob": "8010c77bb9ac8169d3af3b40eefb4f212b35b325",
+              "later_changed": false
+            },
+            {
+              "path": "tests/v3/distribution/test_exception_names.py",
+              "fix_blob": "b05846d5e13876a2b33e79fd36dc72762c09043a",
+              "main_blob": "b05846d5e13876a2b33e79fd36dc72762c09043a",
+              "later_changed": false
+            },
+            {
+              "path": "tests/v3/distribution/test_public_api_and_docs.py",
+              "fix_blob": "fedaf500ad6c74b435fc2872e845d81a648050d0",
+              "main_blob": "fedaf500ad6c74b435fc2872e845d81a648050d0",
+              "later_changed": false
+            }
+          ]
+        }
+      ]
+    },
+    "source_and_test_sha256": {
+      ".github/workflows/quality.yml": "1b23747796c4f625d874897b3deb0f748ce117757d9f390c47eacee6f2ff1acd",
+      "pyproject.toml": "ea80bbc9234195412ef1e2f1d96a0dfb3a9c36936eda784a014efd875ac4519a",
+      "src/image_downloader/__init__.py": "50df62b94d6c119532e8a7e99972feb795058481c637a825b93d0b7efdf73740",
+      "src/image_downloader/__main__.py": "935a1c1166b0c1ea35a82256345000bf2c73ded718d77773bc27a71ecce28f7d",
+      "src/image_downloader/_numeric.py": "36cb25b54876858156c904f5d0ec714dfe193795a52acd3890edd475ee3a6010",
+      "src/image_downloader/application/__init__.py": "debb37c467d80208cef63389f7b8fd2b9de3c084b6e1fedab1aebff9d6fe9b1b",
+      "src/image_downloader/application/additional_files.py": "b02f37e6a70f147356e6a4a22523a77a05c85c347063e923090ef4de7ef4d1ec",
+      "src/image_downloader/application/composer.py": "09fd410c3f41312610f29c3804c11615e30bde165b221c4819e6e1fdfb463d37",
+      "src/image_downloader/application/construction.py": "c505cf29c9d6fa1760537cbb104ce320593b86a712f78a63c1eff7f5d17e8aee",
+      "src/image_downloader/application/dependencies.py": "94b03c98ab477cd08eb1586652525561b140ccb73517757cf7dde5f0aef6ce16",
+      "src/image_downloader/application/log_verification.py": "372b751ef1af915a44af0e10eb9e7b0346c23e560babec329aa1804eebc226d1",
+      "src/image_downloader/application/service.py": "8ba9bfea74257b76d009632e33d56c613c21c6ac078a0af74b5a3c5b1b7ca552",
+      "src/image_downloader/application/verification_recording.py": "6486c0096e16f68f7f76c1351722198f58119960542bb3375938402afee75398",
+      "src/image_downloader/application/workflow.py": "1218f0216061313f9e2f318acbb8d08e89d0286f1d9e92e26ff70d93701d36e1",
+      "src/image_downloader/application/workflow_plan.py": "cf0797ab27e6ce5edb32613a59550c118de922117081576a8dda7beda2a2e468",
+      "src/image_downloader/application/workflow_recording.py": "895d65a6b67f910d70070e15b6b51341deca362cc885ba3139d20cd46b83041f",
+      "src/image_downloader/application/workflow_reporting.py": "4d50d36180388c1c2f784c27c672a0f13651343fd49f398ef1e161f13f94cb56",
+      "src/image_downloader/application/workflow_retry.py": "88a895290268a930f3eec4bb8870f61e2452cfc92fe550c91a9cc06cbf5b40d3",
+      "src/image_downloader/application/workflow_selection.py": "ee8a102a263010bf8a178277499ff4fb3fb04221240ac4ec4fea48b2e0526fd2",
+      "src/image_downloader/application/workflow_state.py": "599db916b5b60b53cf1d2889367d376b0c24d9557d023294a3adf7b5bb790c66",
+      "src/image_downloader/application/workflow_verification.py": "ef466ec1367473a10509a66499396acbdac124d195d1b4cffdb5c5470532882d",
+      "src/image_downloader/cli.py": "d312732c0214b43c4c2225bd903797ca4582826960fff3dcefabc76209cad595",
+      "src/image_downloader/commands/__init__.py": "a386d2839cbafeca876d1cb91e276e69d7620606e34f48c8f72fe79a8b99bfb1",
+      "src/image_downloader/commands/config.py": "be049b7326c1b06abc67f5e1f120bc2b9e15353a5aff74eaddb0285791a11d07",
+      "src/image_downloader/commands/constants.py": "1d151b011b7842214d8ea27d8e82535203642ec4c2cd7b9f46c22dcffe5444d4",
+      "src/image_downloader/commands/cookie.py": "b0045d300f130f763c090b03ac3bf4a87eac5d56a9277c32ae09bcf854dd3845",
+      "src/image_downloader/commands/dispatch.py": "3d1c23431ddceee007aaab10205d689c7fd5c54816766b9c7021844854b6ad54",
+      "src/image_downloader/commands/doctor.py": "6d370662cf26416fb434a48ec9861f9a86a8c140d96fbf9f79867bdf93561c77",
+      "src/image_downloader/commands/download.py": "c92fd990cd24d44097926daacd0a9c4ca869dab4e009a1f4ceebb6d6206c0a0a",
+      "src/image_downloader/commands/inspect.py": "9899cd79300f390c7f74be09e02ad6ca1e9b2ea06233aa81df111e514b0eff16",
+      "src/image_downloader/commands/options.py": "a9617c284984b74e6c719b06c83cdf36319454fe4b89fb49fefe4f5c5d83a951",
+      "src/image_downloader/commands/parser.py": "d1c03f0af61b46f90e7960190ba5ef4a31f3583c1c9acaafd56930983423bfb7",
+      "src/image_downloader/commands/plugin.py": "d59f89e69ae4493b1e36e0afb309c7c6b7b5601b92601050f39cbb78566d0e9b",
+      "src/image_downloader/commands/reporting.py": "6cea3d261564d74c7379a4da103525057055366383b5ca523bf205188220353b",
+      "src/image_downloader/commands/setup.py": "86488df06460e6eb94baeb17616c8380df6d02a47231473908ff981b9480848e",
+      "src/image_downloader/commands/state.py": "762545b90ad1760981573af2113c0fa0f8f7df1f8bf565c931cdc3954f57aca1",
+      "src/image_downloader/commands/state_formatting.py": "42735dd5981dca2c554849239e08ea4fd5303278343fe0944fcd2f502bb9dab7",
+      "src/image_downloader/commands/validation.py": "a4177db0f96fed6e6c68361c808397d9ab64da07c2f842df94e31f6304d578f2",
+      "src/image_downloader/commands/verify.py": "24b6f9f3353131f4a204b0c0885b40d9583dcd99f41579608a99a871e02fcf37",
+      "src/image_downloader/commands/workflow.py": "7960436ce7bee59ce1e40192ee9ad3d38701071fcfe66e6f4b99fea66fcaf8fb",
+      "src/image_downloader/config.py": "9b01551b1838aafbd2037360b77429046828f6f8c26e8483fd9cb34622dd484b",
+      "src/image_downloader/configuration/__init__.py": "6d3a944b311d544cf974137d5e63dce54901c53355ff2c06ceb60d49dc89f6c5",
+      "src/image_downloader/configuration/hosts.py": "1ebab057bd78fbd8b0a7f0b8d2fb1c05d284ddafdeee5116392b96fea65ca503",
+      "src/image_downloader/configuration/layers.py": "b0517fe2c84605369e2eada926ce8f95cdd1bb969378507ffbc8ead23feda84d",
+      "src/image_downloader/configuration/models.py": "76ecf99047424edbe7570401aa8fb765e5cb3f7751c18cad1ad28c22ecce5fa2",
+      "src/image_downloader/configuration/paths.py": "943a6d821b4e9047b77389b9ee01a7a015dd5ef1d531fa2d2a2f406221dd56ac",
+      "src/image_downloader/credentials/__init__.py": "9c4a3ad782610efaed27fca550da6ce1942ae06e094ba273313f00aa833e146d",
+      "src/image_downloader/credentials/keyring.py": "9745578511c7f468095ce30b253dfc0e77996d9b6ce1f30bb29d9645dec3b3fc",
+      "src/image_downloader/credentials/plugin_secrets.py": "537940edebb757b6c17cf89d7306ace44a7a16a8612f6c0fc45672bae6e81674",
+      "src/image_downloader/diagnostics.py": "e8f82ef52cbeef2395c38f20c10f873839fab5e874b3e5be380a5b60f5225d7f",
+      "src/image_downloader/exceptions.py": "c90c458b0ca9f212fd402acd9c23c82bcc69eb9f52e79900b7479439cd71f451",
+      "src/image_downloader/immutable.py": "35e4d82dd5d9292d3fc944605d2995218c683e673af0b9908263ecd69fb02e6b",
+      "src/image_downloader/media/__init__.py": "e0854fc7d5308cc073968bf3831ffec48e84652a311e7a8e19af6eddaa6c891f",
+      "src/image_downloader/media/artifact_pipeline.py": "6649bc6ae334976c4908adba0b2539abbe02c4cc91465c8d398d8a7cc7b9ab8d",
+      "src/image_downloader/media/image_processor.py": "6104a9158d27dde53e5ac956746b2302dc3fd0638f951ec2d0a93c8b3005aed8",
+      "src/image_downloader/media/processor_chain.py": "e1a15bd99d36941cced9ca77ada3580cddb8e894fe9d70bbcc271d78673e57ff",
+      "src/image_downloader/models.py": "6b0477d3154039a0dfda606ff1d65e1441799a0a8fa2ddc89afd35527d8bc7d5",
+      "src/image_downloader/observability/__init__.py": "2b84a19c04889b0330ec518418100c9af98c7b3a9cd193c8145ea1c53548972b",
+      "src/image_downloader/observability/chapter_reporter.py": "784fbf24960c995c0424cb3e407a32ca7f8c9706bf8420a4ca52377d3de95c19",
+      "src/image_downloader/observability/diagnostic_safety.py": "777fabef8a496af0f47bddfc3c2c2708a8fce0a0a0312e47a56338393808dc90",
+      "src/image_downloader/observability/events.py": "305e5e2f01a6d9ca8c71d2c6a5286532b4989ebfea2cad0cb762403ee83f628b",
+      "src/image_downloader/observability/logging.py": "abf990158ab8189a69b758a927e89d2214b53eb365e987db9c9a5124cf62fa66",
+      "src/image_downloader/observability/notifications.py": "6fd49d7e98a348b289d5ccb0d030e89da9e7c004a89301955bc1b573ce3d45f7",
+      "src/image_downloader/observability/scope.py": "b17da6451f1252e3c083c7129f73d5f4a35cced1699bab4ac2a5cda5c9ab4135",
+      "src/image_downloader/output/__init__.py": "e3c2e96a90016e6b5149069c35848c97a6224bd8f3801f13fbcf66621cdeadb4",
+      "src/image_downloader/output/format_tokens.py": "47e1ef0b051d9815d5eaa8e574cb2ed202d8d44cad6bbff9866ea629051d6e7b",
+      "src/image_downloader/output/original_filename.py": "5d8cdb3c9b5bccfb94266639520f7b2575c5be3dab1ea1f3cf0ddc6591e5237b",
+      "src/image_downloader/output/output_allocator.py": "760f9a748a2a4a6bad43882e4fc30b31ca5e5d15f9d87cf83a7e36887c3f6e4b",
+      "src/image_downloader/output/output_lock.py": "8a768fc9bcd9945dcdf225efd487af7f258e6afac8db1ef36dee140976e2335a",
+      "src/image_downloader/plugins/__init__.py": "cbc06f0981cfd7dc8388eed756db6c2b3ea579668f60e9ac3561a08ea81cea01",
+      "src/image_downloader/plugins/builtin.py": "52c76a6c2387b6169a4f77771042c67168c7e426db49ff446a9f06d0b59ded4b",
+      "src/image_downloader/plugins/format_values.py": "1c973e01e6b0e357e7cf79033d449426860d21c0d4420197859479e16c224a13",
+      "src/image_downloader/plugins/html_encoding.py": "02c93fe059413ecfebca58d6af8990f204b34853d1a60bb89ade2e64b347f211",
+      "src/image_downloader/plugins/lifecycle.py": "0b311c612ad681a00b2c9b43a0a37a20f5784f8c8bf75a3d522b08c5487656a6",
+      "src/image_downloader/plugins/management.py": "5e1919a8354a44ba596ffea7162552658ebda4749efea6098d8469a2ef77e187",
+      "src/image_downloader/plugins/plugin_invoker.py": "445a28dab501f9cf54abaadfde2a107c82cf3fccd7facfb6cb2ee6702b0f57f1",
+      "src/image_downloader/plugins/plugin_manifest.py": "56e02bb2073e7e16b321756c29ae4f41de798b981506f102ce3992a595e64ac8",
+      "src/image_downloader/plugins/runtime.py": "1f5d0f0ee7f23603312377ba45db1e899aac446c2a1edea4e28a2c8b9c1eca8a",
+      "src/image_downloader/plugins/source_loader.py": "9a6896bbb8737e155b68096335d1173d5cc065de5311678f8cf4e4b180329075",
+      "src/image_downloader/ports.py": "843c215fd9774b5f698e953d64d064027c09394d7f3a226f5f06e9d9ee7b3b21",
+      "src/image_downloader/privacy/__init__.py": "4af4d03d28b58867f33b0fbb10c1300585eb7578d0dabe7a91dcb6a3837323db",
+      "src/image_downloader/privacy/log_safety.py": "fc8692e386f851c3900f3550ace74610795e52300fef228f807cfd2b44ea693f",
+      "src/image_downloader/privacy/sensitive_values.py": "2f75f570a0acda4925596688baef73fa254efd8c00f08cd68a1a8ff7034ed3ae",
+      "src/image_downloader/runtime.py": "ddb1c22b9afb1e188ce5bc9450bed3c33c3c3a223d04ecc4c1ad23cb64498cfe",
+      "src/image_downloader/security.py": "14b2b8cbe8aed0a7365a3850c83170535acfe304984dc1ca0d46608cb2c88e00",
+      "src/image_downloader/storage/__init__.py": "e3d3985e9cf715f2128cb1d56c433d9db09f858c7d2f06bd29c870cb7dc7581e",
+      "src/image_downloader/storage/_path_limits.py": "c34c9803e766f9ea0cb5f24de556251e62b8adbd6f5c5b31d3e7b636b14183ac",
+      "src/image_downloader/storage/cookies.py": "0885a9d6a10dc36b348467de56be1f84c70e208b487935bdd7e7c25517ce85fd",
+      "src/image_downloader/storage/filesystem.py": "a1bd9ff3e5a92f2056abbe86276dc4a2bfc40db7a7af213cbcbed7142730d434",
+      "src/image_downloader/storage/interprocess_lock.py": "93c06b53d3c193e1465131e2cd455b1bfc78a92c7f485860db3ecaa5a6239d76",
+      "src/image_downloader/storage/path_safety.py": "e58d33930d74d5f8292d440818845cde715a7ee2fa82df45b080a642272e13fc",
+      "src/image_downloader/storage/state.py": "e952fb6589a6a68625b1314c4a1218e0f7d221978bc36d0372d8a0732f0e039b",
+      "src/image_downloader/storage/workflow.py": "eb329bb36f0eb98d4e95a84d76f210745dce32181ac990ca02b9803ed53365b2",
+      "src/image_downloader/storage/workflow_history.py": "ec31093a7173c9ba65713a353cf185f2746f180feee446b8a5b2ab2311383194",
+      "src/image_downloader/storage/workflow_history_schema.py": "041bd798eb9d84b7973103bcd029d67c8f2c128cadcfc8da6850a891bd112a24",
+      "src/image_downloader/storage/workflow_logging.py": "632becc1f3e63f8347169f857059fc79a214ba59b4f92c698ac11ddc9952b128",
+      "src/image_downloader/transport/__init__.py": "5b2b795bbf0b72dc2874c08852bfff67c504f23c1b144705e8f7c4d80f671ac0",
+      "src/image_downloader/transport/gateway.py": "d1e6283df3ccf9ff40d38f4c46a8036216615613666b3433a6393d748d777044",
+      "tests/v3/application/test_additional_files.py": "f4e4b02707f3c4ba1c00ab74e8aecdaa07b69818d9e1935251e581194f375d49",
+      "tests/v3/application/test_composition_cleanup.py": "51bddd5a9b333200836d567861595d1d01b67e1e58114980ae32ca7246067a51",
+      "tests/v3/application/test_dependency_injection.py": "8235236b278d0d04dca76671bac3c21de5dc3b293fe2ae9774facadb3a0fd6fe",
+      "tests/v3/application/test_generic_workflow.py": "be964b61134b4e60f87d14fbac0a8f4764493a0770e9d75e477e3f07bd4a96d2",
+      "tests/v3/application/test_html_encoding.py": "65075bb168fa9d8e0e180490a559e42501982bebf1ac7822fb21b2a9e344465c",
+      "tests/v3/application/test_html_encoding_isolation.py": "b265097a9cafd5fee5697ea71315ac7eadbdd3f8b22ca9ecc5f1e597d0c32a5e",
+      "tests/v3/application/test_image_validation.py": "86b5d6393d538591216edd9ba4febb0654d94aee952d6d9e3b919b2b4a75eabf",
+      "tests/v3/application/test_inspection.py": "78817d3de9e051862796dc3ed656cd2fe60a60af05efee1bb0988ca4b72d33b4",
+      "tests/v3/application/test_log_verification.py": "43d8439eb572ac0fbc76484df036502698484debfe0360a3e037a0355445348b",
+      "tests/v3/application/test_media_processing.py": "0f553f4d3df1bf7e34b4c8f1057558cb68f7c4dea3e479a3dca2df4f2fd6fa00",
+      "tests/v3/application/test_runtime_hardening.py": "68f1e7da4752ea1e3ebd6b584ac98aafc59e63c5510e42f9a66c93a8834f695d",
+      "tests/v3/application/test_workflow.py": "2a87374155ee5f70e5b2f3949ad0bd81fc018548797c99be713a67e1d2351805",
+      "tests/v3/application/test_workflow_history.py": "a1b6e402a6460a0d3697a73be6967bb6c1c19ab0f3839712c1e21e2cce5488ad",
+      "tests/v3/application/test_workflow_logging.py": "5ba9fa36c8366a5351c6c4c4777e1650696dcf595e20e34555046f0e565a6699",
+      "tests/v3/application/test_workflow_plan.py": "8e343f01d0171af4f3cbeab167b3c47666a76643d4c82b020d6b76a810acaa13",
+      "tests/v3/application/test_workflow_retry.py": "3a265d5b14b311c9acf209abc68d41f803335d0ffcf82a36df8695fe3f0db2b2",
+      "tests/v3/application/test_workflow_verification.py": "85e7f07a842a39d0154d4348f26c25c634b38d845d023aec81f5274dd9929c23",
+      "tests/v3/cli/conftest.py": "78b60f4e19543e9bab140555daef67efce37474d2773c4036c6ed57613d6a0aa",
+      "tests/v3/cli/test_argument_diagnostics.py": "3285c6deab6c740f714491301dca0004b41a67e593439a2d81dfa42d76b84cda",
+      "tests/v3/cli/test_choice_contracts.py": "4cd6bb54ed5c55fb55600a5ee0c8218588d8af985793cc15d7a94a4d8b80b355",
+      "tests/v3/cli/test_cli_commands.py": "d5b5fdf57a3e39876609db1400ce11af0fdede62912764b3771d6cfcc0ea1c46",
+      "tests/v3/cli/test_cli_json_contracts.py": "0f1ee245ab0aa157e5157f69cf1394de44c0f345dd02234dd9b24680ee51deb2",
+      "tests/v3/cli/test_definition_extensions.py": "425217dfc863626bdbcffdcf599ce50ecaf64c5bc663ab79a980a04e450ad689",
+      "tests/v3/cli/test_definition_reductions.py": "2934820d85bd6304408a40201ae4428810d3eb15fba827d5df4d2b9ce9ed90c6",
+      "tests/v3/cli/test_fixed_roots.py": "8e9f75ff54083ff826a7af79b7a97481e69f45eb68a562bf6f037f1ff172e2a1",
+      "tests/v3/cli/test_html_encoding_command_boundary.py": "5b4fd4133b683e4e5d61144fcb4116ab1ccdf98e47f6825a835b86c848c6c89e",
+      "tests/v3/cli/test_initial_config_persistence.py": "04cef92b72fb046781acfeeee1166c2ed1444b97ee4ff669ba5eb8481f9d9539",
+      "tests/v3/cli/test_json_errors.py": "5d20c439f728cad2ab1969be3140fcb15ce9323b19cc31c2d897aba627d1a330",
+      "tests/v3/cli/test_verify_cli.py": "91aef5a4cedb7fa19fd75d6c24ea8ba1f4167509e0337b6561b4238fd17bbefb",
+      "tests/v3/cli/test_workflow_cli.py": "8b655baac32f6c7953dc9231549335a382cc1f5af26a434b519743232d649be7",
+      "tests/v3/cli/test_workflow_display.py": "76a9b21558dd5e126ac20eb15e87babf0266674f394197bb1e60014b9a20be59",
+      "tests/v3/cli/test_workflow_selection.py": "a48f96013c32a8ee86b6bfa9d88fcb5dc2a673b5e3ea2991a342ae53c95e7c71",
+      "tests/v3/cli/test_workflow_state_cli.py": "d034db4c213a325161d75681414030a8174b0f708b137079ccd2d3dc43af8e81",
+      "tests/v3/configuration/test_finite_numbers.py": "3469e0242f81b116193307c3271f1bc73b63dcb04b19d333b07955f76ee310f7",
+      "tests/v3/configuration/test_immutable_values.py": "d42702505652357b30ac45b41e68574e413bf8541628048b4cf0554b1d1ceb06",
+      "tests/v3/configuration/test_resolution_and_validation.py": "67fd62eb9bb2c422998a410e8ddf96a5051965a7fc915de9405964f08f365cc7",
+      "tests/v3/conftest.py": "aa6789a6cd6b2cdef3e2878854002eb1228478823abb45ac790db485abdecaa0",
+      "tests/v3/credentials/test_plugin_secrets.py": "1c4ee513ed3e7961b834febd53724580ce72a63732d123fb2490f18c6b4e29a5",
+      "tests/v3/distribution/test_ci_configuration.py": "d7304d92d3427a1d81dfc6eaf9bf82c1ef1c7743e209e27c5ce10eff8a53c5e9",
+      "tests/v3/distribution/test_documentation_reference_contracts.py": "231b627af7ad174d9feb2de3bb1e7cef253448ed03b6716eb1107acb59addce4",
+      "tests/v3/distribution/test_exception_names.py": "4a6218b40f750de1362f74f1f9d3883e2d1e4d19bf6a4ec68cece5f3dfc2b636",
+      "tests/v3/distribution/test_module_boundaries.py": "fc6787cb51c3e1ef7df83714a3ae9f244992cb7a5b84b6f3f756f308bcc98eaf",
+      "tests/v3/distribution/test_public_api_and_docs.py": "28d840aff74259dfa82d69f5e4dd2f9f19e92b3fbe1102642446a950d0f13966",
+      "tests/v3/distribution/test_quality_configuration.py": "47f6242ff6e4004d61d64fef37037c1a5bb6ca3a1030dec4163ccde0393ff82c",
+      "tests/v3/distribution/test_release_smoke_diagnostics.py": "310c5df794327cbb24d5397338dfa23dc89fa274c5c34feeb0de454138f839c8",
+      "tests/v3/distribution/test_signed_plugin_checkout.py": "2f3ca58a84fb7719841688c53533b50509d11bc4b836570ed3d270deed37c3f0",
+      "tests/v3/distribution/test_signing_tool_consistency.py": "6bafc4f657b256e93a77ad68b8eae5f854ead1a8d02d89fe489919608b7f62d8",
+      "tests/v3/observability/conftest.py": "2d23537141bf46342f6f15461aee6ee0ad0c2e4da24e68308d7f5a818bf800d6",
+      "tests/v3/observability/test_event_notification_contract.py": "88b8ca25c0a64bcea2a38f05f72ed0cdee03b98c2cc563bb4ae3c0d04549f6d8",
+      "tests/v3/observability/test_locator_safety.py": "61a53703a33bbdf40a8c24e05402e8476eab7474341b35375506741b810ad976",
+      "tests/v3/observability/test_logging_failure_consistency.py": "0954c618cbc5a99a21813cd06f4ae3d1610a274df7a2a76f562af0775e12adab",
+      "tests/v3/observability/test_mailpit_integration.py": "f051d5480bd186ba4930858459356c2a8b40071cb348bfaa88fd7f61dd36fa20",
+      "tests/v3/observability/test_notifications_v3.py": "4846e972aa26ac1ba793b73d4bc51c60c5edd4817eff7d51f35fb05dc9aedb34",
+      "tests/v3/observability/test_plugin_logging.py": "458037f8bc90c0e59d4663ddd041a5fc90f6aedda016e2919fb0eb27c111e367",
+      "tests/v3/observability/test_sensitive_values.py": "bb41c55ddd5c5c909a4c2d165fd62462563204fdd3ed5c189cde6388df4206d9",
+      "tests/v3/observability/test_smtp_refusal.py": "34e5f452ef764e34a5ef3555a546b8b47b9d81fd123ad2574c56282978083291",
+      "tests/v3/plugins/test_example_annotation_contracts.py": "7819ea7b66ad9f5b6393aa07d0a6c87f552187f416074dc118482b83ae2b6ca8",
+      "tests/v3/plugins/test_local_site_plugins.py": "112bd438429ca3bc0dd0c9bc3ab2bc4d193f141dcf0f1144a2c8837fd7d56822",
+      "tests/v3/plugins/test_metadata_bridge_examples.py": "5ffa23567a2adc0bf73ffcca5a663a69bd486aecf776fa245b3f8a0c4905d849",
+      "tests/v3/plugins/test_migrated_v2_plugin_sources.py": "6a01d20158a68b6a430e89bf6ed4f1ae8e086280d99d9d629e4fd4ebd67133fa",
+      "tests/v3/plugins/test_output_format_values.py": "adfc35254233d940361489b46c140f9ea7a4624215d0faad95f2dcf07f5c56b6",
+      "tests/v3/plugins/test_plugin_operation_boundary.py": "7321ece08f26f630dede4704eb9ca2a87d19a6afafd9ead03124fa1ef38d2d1a",
+      "tests/v3/plugins/test_plugin_v3.py": "9f989e7f3e1a4d749e233611c8265403bcd161d24b2bf4f7bff87c403189a26f",
+      "tests/v3/plugins/test_processor_lifecycle.py": "5f2f0ce6ae4dc8f698a12bd99e86f4489b519d9d68d7f465459666075a2ddbe6",
+      "tests/v3/plugins/test_processor_source_units.py": "5f565b8e369e4d487f0c2ebd4512583620bc3269d6cd73bab80a6a2f23e42adf",
+      "tests/v3/plugins/test_site_operation_transport_metadata.py": "46213f8e3e33d48863b89ab5ed9703b40846dc66fe4b43d3dbd9fee3a7693bb5",
+      "tests/v3/plugins/test_verified_source_loading.py": "aed61c40c1981c970620359466b3cc00fef3c34595b5ae997f74e0a87f76b35d",
+      "tests/v3/storage_output/test_cookie_data_validation.py": "157b22555e63327e68b530f4a849b51b0651cbc7d1b467731c2180244548f6b3",
+      "tests/v3/storage_output/test_cookies.py": "8d975e510c468787c3d2348999dbd719afe60ca98b9efcd8078a677ca764a502",
+      "tests/v3/storage_output/test_interprocess_lock.py": "80c0ca4256d852037b236d37c59d70966f9cd5eebb43e209e7ee628de3ab2823",
+      "tests/v3/storage_output/test_original_filename.py": "fb293a4d01fbc8a5eaec48d80d57eb32047de8c30542d052bd59daa3e0b1f539",
+      "tests/v3/storage_output/test_output_allocator.py": "41a1e21e83bd3738d5f94e079eb2d8b4f6327aa94f806fa1f84f29ea43787156",
+      "tests/v3/storage_output/test_output_directory_lock.py": "5ad5a6c5fcce4ae9104cfe68cbcf252ae592bcfc332c4d16e4d37d456c06d746",
+      "tests/v3/storage_output/test_path_limits.py": "fa8332755f241746adc76fc6ced1ce27c5458e660c02779496ca7c028a0df1ad",
+      "tests/v3/storage_output/test_update_state_scoping.py": "8da71404e984f63e00f42e0737d0fff734289328277c82a9ce5b03501bd5518c",
+      "tests/v3/transport/test_redirect_safety.py": "2a7e97490af8c921feacf55e7f0b939a7cd1258a37978a2ce3e31372bb40dd6d",
+      "tools/release_smoke.py": "5b2e18d9f8daedefb18b86bcd686cae0248d42aae79e27a30a288a7e65f4840c"
+    }
+  },
+  "github": {
+    "checked_at_utc": "2026-10-13T10:14:17.469Z",
+    "repository": "GlassLeaf/image_downloader",
+    "remote_main_commit": "f78b95f115ffa3b8b309cd0fa0f0018df56cd8aa",
+    "workflow_run": {
+      "id": 38293432656,
+      "name": "quality",
+      "head_branch": "main",
+      "head_sha": "f78b95f115ffa3b8b309cd0fa0f0018df56cd8aa",
+      "status": "completed",
+      "conclusion": "success",
+      "run_attempt": 1,
+      "html_url": "https://github.com/GlassLeaf/image_downloader/actions/runs/38293432656",
+      "created_at": "2026-10-12T18:48:46Z",
+      "updated_at": "2026-10-12T18:55:53Z"
+    },
+    "jobs": [
+      {
+        "id": 114958714549,
+        "name": "package-smoke (ubuntu-latest)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 114958714694,
+        "name": "package-smoke (windows-latest)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 114958714809,
+        "name": "package-smoke (macos-latest)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 114958714819,
+        "name": "test (macos-latest, 3.14)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 114958715012,
+        "name": "test (ubuntu-latest, 3.11)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 114958715126,
+        "name": "test (macos-latest, 3.13)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 114958715139,
+        "name": "test (ubuntu-latest, 3.12)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 114958715161,
+        "name": "test (windows-latest, 3.12)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 114958715166,
+        "name": "test (windows-latest, 3.14)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 114958715187,
+        "name": "test (macos-latest, 3.12)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 114958715231,
+        "name": "test (ubuntu-latest, 3.14)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 114958715242,
+        "name": "test (macos-latest, 3.11)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 114958715277,
+        "name": "test (windows-latest, 3.11)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 114958715360,
+        "name": "test (windows-latest, 3.13)",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "id": 114958715381,
+        "name": "test (ubuntu-latest, 3.13)",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ],
+    "pull_requests": [
+      {
+        "number": 17,
+        "title": "QS-015: 公開例外名へError接尾辞を付ける",
+        "state": "closed",
+        "html_url": "https://github.com/GlassLeaf/image_downloader/pull/17",
+        "merged_at": "2026-10-12T18:48:43Z",
+        "merge_commit_sha": "f78b95f115ffa3b8b309cd0fa0f0018df56cd8aa",
+        "head": {
+          "ref": "codex/fix-qs-015-exception-error-suffix",
+          "sha": "9b820c15d9936d49cbe04f9013245d7aaba0f6d1"
+        },
+        "base": {
+          "ref": "main"
+        }
+      },
+      {
+        "number": 16,
+        "title": "test: state commit開始後にworkflow期限を発火させる",
+        "state": "closed",
+        "html_url": "https://github.com/GlassLeaf/image_downloader/pull/16",
+        "merged_at": "2026-10-12T16:33:30Z",
+        "merge_commit_sha": "097faf819210791ec29a482c2e0debbd3226969f",
+        "head": {
+          "ref": "codex/fix-workflow-state-commit-test-timing",
+          "sha": "74d4abc552af5f3b8d9bd07b7ed00d92ae77c8ce"
+        },
+        "base": {
+          "ref": "main"
+        }
+      },
+      {
+        "number": 15,
+        "title": "Fix QS-011: validate encrypted cookie containers and records",
+        "state": "closed",
+        "html_url": "https://github.com/GlassLeaf/image_downloader/pull/15",
+        "merged_at": "2026-10-12T15:59:48Z",
+        "merge_commit_sha": "c4138e080030ea8ab324faa062bac4354264eefe",
+        "head": {
+          "ref": "codex/fix-qs-011-cookie-data-validation",
+          "sha": "49e950aef70afc44be5bcb8226be56230e745885"
+        },
+        "base": {
+          "ref": "main"
+        }
+      },
+      {
+        "number": 14,
+        "title": "Fix QS-010: normalize huge numeric inputs at validation boundaries",
+        "state": "closed",
+        "html_url": "https://github.com/GlassLeaf/image_downloader/pull/14",
+        "merged_at": "2026-10-12T14:31:22Z",
+        "merge_commit_sha": "67ab96d7eaab78bf3fbd100717a9c60333a0045c",
+        "head": {
+          "ref": "codex/fix-qs-010-finite-number-validation",
+          "sha": "a668cb30633eb8bf2ce059fc5810ffb33926582b"
+        },
+        "base": {
+          "ref": "main"
+        }
+      },
+      {
+        "number": 13,
+        "title": "Integrate verified quality and security fixes into main",
+        "state": "closed",
+        "html_url": "https://github.com/GlassLeaf/image_downloader/pull/13",
+        "merged_at": "2026-10-12T13:46:41Z",
+        "merge_commit_sha": "583026be40f92e3926f3e222b26bbbdfcacbf83d",
+        "head": {
+          "ref": "codex/fix-qs-016-secret-env",
+          "sha": "2586ee69425437b973f55204c40d7a779bc5bae2"
+        },
+        "base": {
+          "ref": "main"
+        }
+      },
+      {
+        "number": 12,
+        "title": "Fix QS-013 cleanup and interprocess lock initialization",
+        "state": "closed",
+        "html_url": "https://github.com/GlassLeaf/image_downloader/pull/12",
+        "merged_at": "2026-10-12T06:17:41Z",
+        "merge_commit_sha": "2994570ac01becb674cf8b4c114db3411cb74df6",
+        "head": {
+          "ref": "codex/fix-qs-013-construction-cleanup",
+          "sha": "469f0c695e8dcb219ca3869a79d5a15443e64db7"
+        },
+        "base": {
+          "ref": "codex/fix-qs-016-secret-env"
+        }
+      },
+      {
+        "number": 11,
+        "title": "Fix QS-016: encode plugin secret environment names without collisions",
+        "state": "closed",
+        "html_url": "https://github.com/GlassLeaf/image_downloader/pull/11",
+        "merged_at": null,
+        "merge_commit_sha": "28aa9f81b5e363395391847adc33147bc426b90d",
+        "head": {
+          "ref": "codex/fix-qs-016-secret-env",
+          "sha": "92a3d0cdd3f81eba553bd2920b9c768922947edb"
+        },
+        "base": {
+          "ref": "codex/fix-qs-002-auto-referer"
+        }
+      },
+      {
+        "number": 10,
+        "title": "Fix QS-002: constrain built-in HTML automatic Referer",
+        "state": "closed",
+        "html_url": "https://github.com/GlassLeaf/image_downloader/pull/10",
+        "merged_at": null,
+        "merge_commit_sha": "f2b410c356de91bcb5779d729204e5bb2d327aea",
+        "head": {
+          "ref": "codex/fix-qs-002-auto-referer",
+          "sha": "78351020373937c7aa660e5748bea10c7414f215"
+        },
+        "base": {
+          "ref": "codex/fix-qs-001-source-loading"
+        }
+      },
+      {
+        "number": 9,
+        "title": "QS-001: 検証したソースbytesを入口と相対importで実行する",
+        "state": "closed",
+        "html_url": "https://github.com/GlassLeaf/image_downloader/pull/9",
+        "merged_at": null,
+        "merge_commit_sha": "e34c4f4a78d1d7ce4cc35af54629d73521d3f4bd",
+        "head": {
+          "ref": "codex/fix-qs-001-source-loading",
+          "sha": "1e5b47e0aadb64c726bd1f5d43076d73350475b4"
+        },
+        "base": {
+          "ref": "main"
+        }
+      }
+    ],
+    "issues": [
+      {
+        "number": 8,
+        "title": "[QS-015] 2件の例外クラス名にError接尾辞がない",
+        "state": "closed",
+        "state_reason": "completed",
+        "closed_at": "2026-10-12T23:01:57Z",
+        "html_url": "https://github.com/GlassLeaf/image_downloader/issues/8"
+      },
+      {
+        "number": 7,
+        "title": "[QS-016] 異なるプラグインIDが同じ環境変数の秘密を受け取る",
+        "state": "closed",
+        "state_reason": "completed",
+        "closed_at": "2026-10-06T15:32:42Z",
+        "html_url": "https://github.com/GlassLeaf/image_downloader/issues/7"
+      },
+      {
+        "number": 6,
+        "title": "[QS-013] runtime組立て失敗後も動的プラグインmoduleが残る",
+        "state": "closed",
+        "state_reason": "completed",
+        "closed_at": "2026-10-12T06:18:39Z",
+        "html_url": "https://github.com/GlassLeaf/image_downloader/issues/6"
+      },
+      {
+        "number": 5,
+        "title": "[QS-012] SMTPの一部宛先拒否を通知成功として扱う",
+        "state": "closed",
+        "state_reason": "completed",
+        "closed_at": "2026-10-12T12:13:54Z",
+        "html_url": "https://github.com/GlassLeaf/image_downloader/issues/5"
+      },
+      {
+        "number": 4,
+        "title": "[QS-011] 不正cookieデータでAttributeErrorやKeyErrorが露出する",
+        "state": "closed",
+        "state_reason": "completed",
+        "closed_at": "2026-10-12T16:10:24Z",
+        "html_url": "https://github.com/GlassLeaf/image_downloader/issues/4"
+      },
+      {
+        "number": 3,
+        "title": "[QS-010] 巨大な整数設定がConfigurationErrorではなくOverflowErrorになる",
+        "state": "closed",
+        "state_reason": "completed",
+        "closed_at": "2026-10-12T15:10:37Z",
+        "html_url": "https://github.com/GlassLeaf/image_downloader/issues/3"
+      },
+      {
+        "number": 2,
+        "title": "[QS-002] 別オリジンの画像取得へページURL内の秘密情報を送信する",
+        "state": "closed",
+        "state_reason": "completed",
+        "closed_at": "2026-10-06T12:58:40Z",
+        "html_url": "https://github.com/GlassLeaf/image_downloader/issues/2"
+      },
+      {
+        "number": 1,
+        "title": "[QS-001] 未署名のbytecodeがstrict検証を通過して実行される",
+        "state": "closed",
+        "state_reason": "completed",
+        "closed_at": "2026-10-06T10:47:27Z",
+        "html_url": "https://github.com/GlassLeaf/image_downloader/issues/1"
+      }
+    ],
+    "remote_main_final_check": {
+      "checked_at_utc": "2026-10-13T10:19:06.136Z",
+      "commit": "f78b95f115ffa3b8b309cd0fa0f0018df56cd8aa"
+    },
+    "repair_branches": [
+      {
+        "name": "codex/fix-qs-001-source-loading",
+        "commit": "1e5b47e0aadb64c726bd1f5d43076d73350475b4",
+        "ancestor_of_main": true
+      },
+      {
+        "name": "codex/fix-qs-002-auto-referer",
+        "commit": "78351020373937c7aa660e5748bea10c7414f215",
+        "ancestor_of_main": true
+      },
+      {
+        "name": "codex/fix-qs-010-finite-number-validation",
+        "commit": "a668cb30633eb8bf2ce059fc5810ffb33926582b",
+        "ancestor_of_main": true
+      },
+      {
+        "name": "codex/fix-qs-011-cookie-data-validation",
+        "commit": "49e950aef70afc44be5bcb8226be56230e745885",
+        "ancestor_of_main": true
+      },
+      {
+        "name": "codex/fix-qs-013-construction-cleanup",
+        "commit": "469f0c695e8dcb219ca3869a79d5a15443e64db7",
+        "ancestor_of_main": true
+      },
+      {
+        "name": "codex/fix-qs-015-exception-error-suffix",
+        "commit": "9b820c15d9936d49cbe04f9013245d7aaba0f6d1",
+        "ancestor_of_main": true
+      },
+      {
+        "name": "codex/fix-qs-016-secret-env",
+        "commit": "2586ee69425437b973f55204c40d7a779bc5bae2",
+        "ancestor_of_main": true
+      }
+    ]
+  },
+  "environment": {
+    "platform": "Windows-10-10.0.19045-SP0",
+    "python": "3.11.4 (tags/v3.11.4:d2340ef, Jun  7 2023, 05:45:37) [MSC v.1934 64 bit (AMD64)]",
+    "executable": "C:\\Users\\pc01\\source\\repos\\image-downloader\\.runtime\\quality-venv\\Scripts\\python.exe",
+    "tool_versions": {
+      "pytest": "9.1.1",
+      "pytest-cov": "7.1.0",
+      "ruff": "0.16.5",
+      "mypy": "2.3.1",
+      "httpx": "0.28.1",
+      "pydantic": "2.13.5",
+      "Pillow": "12.3.0",
+      "PyYAML": "6.0.1",
+      "cryptography": "49.0.0"
+    }
+  },
+  "local_v3": {
+    "command": [
+      "C:/Users/pc01/source/repos/image-downloader/.runtime/quality-venv/Scripts/python.exe",
+      "-m",
+      "pytest",
+      "tests/v3",
+      "--cov=src/image_downloader",
+      "--cov-report=term-missing",
+      "--cov-report=json:.runtime/qs-series/main-integration-review-20261013/coverage.json",
+      "--cov-fail-under=75",
+      "--junitxml=.runtime/qs-series/main-integration-review-20261013/v3.xml",
+      "-q"
+    ],
+    "exitcode": 0,
+    "watchdog": false,
+    "supervisor_seconds": 695.8429999999935,
+    "counts": {
+      "passed": 2128,
+      "skipped": 17
+    },
+    "coverage_totals": {
+      "covered_lines": 9614,
+      "num_statements": 10546,
+      "percent_covered": 88.70778267254038,
+      "percent_covered_display": "89",
+      "missing_lines": 932,
+      "excluded_lines": 90,
+      "percent_statements_covered": 91.16252607623744,
+      "percent_statements_covered_display": "91",
+      "num_branches": 3074,
+      "num_partial_branches": 476,
+      "covered_branches": 2468,
+      "missing_branches": 606,
+      "percent_branches_covered": 80.28627195836044,
+      "percent_branches_covered_display": "80"
+    },
+    "related_test_file_counts": {
+      "QS-001": {
+        "tests.v3.plugins.test_verified_source_loading": {
+          "passed": 81,
+          "skipped": 1
+        }
+      },
+      "QS-002": {
+        "tests.v3.application.test_generic_workflow": {
+          "passed": 76
+        }
+      },
+      "QS-010": {
+        "tests.v3.configuration.test_finite_numbers": {
+          "passed": 137
+        }
+      },
+      "QS-011": {
+        "tests.v3.storage_output.test_cookie_data_validation": {
+          "passed": 153
+        }
+      },
+      "QS-012": {
+        "tests.v3.observability.test_smtp_refusal": {
+          "passed": 52
+        }
+      },
+      "QS-013": {
+        "tests.v3.application.test_composition_cleanup": {
+          "passed": 64
+        },
+        "tests.v3.storage_output.test_interprocess_lock": {
+          "passed": 94
+        }
+      },
+      "QS-016": {
+        "tests.v3.credentials.test_plugin_secrets": {
+          "passed": 40
+        }
+      },
+      "QS-015": {
+        "tests.v3.distribution.test_exception_names": {
+          "passed": 12
+        }
+      }
+    },
+    "skips": [
+      {
+        "classname": "tests.v3.application.test_log_verification",
+        "test": "test_symlink_is_not_followed",
+        "reason": "symlink creation is unavailable"
+      },
+      {
+        "classname": "tests.v3.application.test_workflow_verification",
+        "test": "test_missing_parent_directory_and_unsafe_link",
+        "reason": "symlink creation is unavailable"
+      },
+      {
+        "classname": "tests.v3.cli.test_fixed_roots",
+        "test": "test_config_link_is_not_treated_as_a_missing_or_valid_configuration",
+        "reason": "symbolic links are unavailable in this environment"
+      },
+      {
+        "classname": "tests.v3.cli.test_fixed_roots",
+        "test": "test_plugin_config_file_rejects_link_leaf_and_ancestor",
+        "reason": "symbolic links are unavailable in this environment"
+      },
+      {
+        "classname": "tests.v3.observability.test_mailpit_integration",
+        "test": "test_mailpit_smtp_unicode",
+        "reason": "local Mailpit opt-in required"
+      },
+      {
+        "classname": "tests.v3.observability.test_mailpit_integration",
+        "test": "test_mailpit_download_cli[success-0-download_success]",
+        "reason": "local Mailpit opt-in required"
+      },
+      {
+        "classname": "tests.v3.observability.test_mailpit_integration",
+        "test": "test_mailpit_download_cli[partial-5-download_partial_success]",
+        "reason": "local Mailpit opt-in required"
+      },
+      {
+        "classname": "tests.v3.observability.test_mailpit_integration",
+        "test": "test_mailpit_download_cli[decode-1-image_processing_failed]",
+        "reason": "local Mailpit opt-in required"
+      },
+      {
+        "classname": "tests.v3.observability.test_mailpit_integration",
+        "test": "test_mailpit_download_cli[conflict-1-image_save_failed]",
+        "reason": "local Mailpit opt-in required"
+      },
+      {
+        "classname": "tests.v3.observability.test_mailpit_integration",
+        "test": "test_mailpit_aggregation_redaction",
+        "reason": "local Mailpit opt-in required"
+      },
+      {
+        "classname": "tests.v3.observability.test_mailpit_integration",
+        "test": "test_mailpit_selection_routes[disabled]",
+        "reason": "local Mailpit opt-in required"
+      },
+      {
+        "classname": "tests.v3.observability.test_mailpit_integration",
+        "test": "test_mailpit_selection_routes[unselected]",
+        "reason": "local Mailpit opt-in required"
+      },
+      {
+        "classname": "tests.v3.observability.test_mailpit_integration",
+        "test": "test_mailpit_selection_routes[route]",
+        "reason": "local Mailpit opt-in required"
+      },
+      {
+        "classname": "tests.v3.observability.test_mailpit_integration",
+        "test": "test_mailpit_smtp_failure_isolation",
+        "reason": "local Mailpit opt-in required"
+      },
+      {
+        "classname": "tests.v3.observability.test_mailpit_integration",
+        "test": "test_mailpit_workflow_final_only[retry-0]",
+        "reason": "local Mailpit opt-in required"
+      },
+      {
+        "classname": "tests.v3.observability.test_mailpit_integration",
+        "test": "test_mailpit_workflow_final_only[always_fail-1]",
+        "reason": "local Mailpit opt-in required"
+      },
+      {
+        "classname": "tests.v3.plugins.test_verified_source_loading",
+        "test": "test_source_symlinks_are_rejected_before_execution",
+        "reason": "symlinks are unavailable"
+      }
+    ],
+    "stdout_log": "qs-remediation-main-verification-2026-10-13-v3.stdout",
+    "log_encoding": "utf-8",
+    "log_sha256": "0a92e14d761506fc36ba5046898ccd2ef0b0c14a2440f084103275e0e6afc9ea"
+  },
+  "quality_checks": [
+    {
+      "command": "python -m ruff check .",
+      "result": "passed",
+      "output": "All checks passed!"
+    },
+    {
+      "command": "python -m ruff check . --select N818 --ignore-noqa --config lint.ignore=[]",
+      "result": "passed",
+      "output": "All checks passed!"
+    },
+    {
+      "command": "python -m mypy src/image_downloader",
+      "result": "passed",
+      "output": "Success: no issues found in 96 source files"
+    },
+    {
+      "command": "python -m pip check",
+      "result": "passed",
+      "output": "No broken requirements found."
+    }
+  ],
+  "source_and_test_files_verified_unchanged": 175,
+  "changed_source_and_test_files": [],
+  "limitations": [
+    "COMODO protection-state comparisons and dedicated long-running lock probes were not repeated in this review.",
+    "The Windows first-publication and sharing-retry changes remain temporary mitigations; native I/O stalls remain possible.",
+    "Package smoke and the cross-platform/version matrix were verified from CI for the exact main commit, not locally rerun.",
+    "Opt-in Mailpit and local symlink privilege checks were skipped; the detailed skip reasons are retained."
+  ]
+}
