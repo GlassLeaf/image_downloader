@@ -78,6 +78,13 @@ image-downloader --dry-run workflow https://example.test/feed --download-scope a
 
 `workflow URL` checks the selected update provider, then downloads selected URLs sequentially.
 
+画像・付属ファイルの保存先は通常downloadと同じ`<profile>/downloads`で、`--output-dir`で変更する。
+workflow専用の画像ディレクトリは作らず、`output.directory_format`も通常どおり適用する。
+取得予定・逐次ログは`<profile>/logs/workflow`に保存し、`--output-dir`では移動しない。
+通常診断は`<profile>/logs/debug.log`、章ログは画像の各章ディレクトリの`log.log`、
+実行履歴は`<profile>/state/workflow-history.json`に残る。
+対象ページURLと実際の画像要求URLの記録先・伏字の違いは[ログの保存先とURL](logging.md#workflow-output-locations)を参照する。
+
 `core.generic-html` also supports workflow: the only candidate is the requested page itself, not linked
 pages. Its revision compares the ordered extracted image URL/index/image_id list (duplicates included),
 ignoring title/body/save settings. URL query or ordering changes count as updates; changed image bytes
@@ -187,6 +194,16 @@ Intermediate failures remain in logs/events/JSON; download notifications contain
 Stopped workflows retain completed results and unprocessed targets. Diagnostics go to stderr in JSON mode.
 Success or no selected targets returns 0; image/URL failures with saved/skipped files return 5;
 failures without saved/skipped files return 1. Fatal stops use existing exception codes, cancellation uses 130.
+
+更新一覧取得中の`PluginError`は全体停止（通常4）だが、個別URLの`PluginError`は失敗として記録し、
+次のURLへ進む。通常の`plugin_error`は追加周回の対象となる。発生箇所ごとの規則は
+[エラー境界](runtime-behavior.md#workflow-error-boundaries)を参照する。
+通常表示は各URLの`状態: URL`をstdoutへ、全体結果・選択理由・`URL results`をstderrへ出す。
+例外停止時は`error [コード]: 理由`、キャンセル時は`workflow cancelled`もstderrへ出す。
+`--json`では途中までの結果・`stop_error`・`cancelled`を一文書に含め、診断出力はstderrへ送る。
+実行開始後の例外・協調的キャンセルでは、有効で書込み可能な専用ログに終了記録も残す。
+記録項目、`run_corrected`、開始前の失敗や強制終了時の制限は
+[中断時の記録](logging.md#workflow-interruption-records)を参照する。
 
 <a id="cli-options"></a>
 

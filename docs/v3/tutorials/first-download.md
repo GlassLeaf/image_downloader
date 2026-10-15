@@ -27,3 +27,10 @@ image-downloader workflow "https://example.test/feed" --download-scope updated -
 既定の `updated` は初回に全件を取得し、以降は追加・変更・未完了の対象を取得する。
 `all` は今回一覧に存在する全URLを毎回処理する。既存ファイルへの対応は通常の設定に従う。
 一覧から消えた対象の保存済み画像は削除しない。
+
+画像は通常downloadと同じ`<data_root>/profiles/<profile名>/downloads`に保存する。
+`--output-dir`で画像の保存先を変えても、workflowの予定・逐次ログは同じprofileの`logs/workflow`に残る。
+予定URLと実際に処理を始めたURLの区別、画像のHTTP要求ログは
+[ログの保存先とURL](../reference/logging.md#workflow-output-locations)を参照する。
+pluginエラーによる継続／停止、再試行、キャンセル時の結果は
+[workflow FAQ](../how-to/faq.md)から確認できる。

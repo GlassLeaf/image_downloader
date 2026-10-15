@@ -15,6 +15,26 @@ profileの`logs/workflow`でUTC開始日時・RUN_IDごとの`_run1.plan.json`�
 専用記録は原文URLを含み、自動削除されない。`state workflow prune`は専用ログを整理しない。
 書込みのOS I/O停止、強制終了時の欠落などは[専用ログ](../reference/logging.md#workflow-execution-files)を参照する。
 
+### workflowの画像とログは同じディレクトリに出力されるか？
+
+画像・付属ファイルは通常downloadと同じ`<profile>/downloads`（`--output-dir`で変更可能）に保存する。
+workflow専用の画像ディレクトリは作らない。専用記録は`<profile>/logs/workflow`で、
+`--output-dir`を変更しても移動しない。画像のHTTP要求URLは伏字処理された`logs/debug.log`、
+画像locatorと保存先は各章の`log.log`で確認する。対象ページの原文URLを残す専用記録とは範囲が異なる。
+詳細は[保存先とURLの一覧](../reference/logging.md#workflow-output-locations)を参照する。
+
+### workflow中のpluginエラーやキャンセルを確認するには？
+
+更新一覧取得中の`PluginError`は全体停止、個別URLの`PluginError`は当該URLを失敗として次へ進む。
+通常の`plugin_error`は既定で600秒待って追加1周を試みる。派生エラーの再試行可否と終了コードは
+[エラー境界](../reference/runtime-behavior.md#workflow-error-boundaries)を参照する。
+
+有効で書込み可能な逐次ログには、処理中URLの`url_interrupted`と実行全体の`run_finished`を残す。
+終了記録の`cancelled`、`timed_out`、`stop_error`と、URL別状態・試行回数で原因と着手状況を確認する。
+キャンセルの終了コードは130。`--json`でも途中までの結果と中断情報を返す。
+開始前の失敗・ログ無効化・書込み失敗・強制終了では記録がない場合がある。
+具体的な項目とJSON例は[中断時の記録](../reference/logging.md#workflow-interruption-records)を参照する。
+
 この FAQ は API v3 の利用時によくある判断を、CLI 利用者、Python ライブラリ利用者、plugin 開発者の観点から要約するものである。設定値、API signature、例外、hook の順序・回数・並行性はここで再定義しない。各回答からリンクする [Reference](../reference/configuration.md) と [execution lifecycle](../explanation/execution-lifecycle.md) が正本である。
 
 提示された質問には Q6 が含まれていないため、本書にも Q6 の項目はない。

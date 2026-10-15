@@ -193,6 +193,33 @@ Started transactions finish before cancellation propagates. Completed URLs survi
 Authentication/request/plugin/existing-file-conflict errors abort that URL and continue with other URLs;
 configuration, storage/lock/safety errors and unexpected failures abort the workflow.
 
+<a id="workflow-error-boundaries"></a>
+
+### Workflowの処理順序とエラー境界
+
+通常実行は、逐次ログ開始、更新元plugin選択・feedロック取得、更新一覧取得、履歴比較・対象選択と
+未完了状態保存、当該周回の予定保存、対象URLごとのmanifest・画像取得、成功URLの完了状態保存の順に進む。
+再試行対象が残れば待機して追加周回を行い、最後に実行履歴・終了ログを保存する。
+CLIはservice close後に結果を表示し、closeで結果が変われば履歴と終了ログを補正する。
+
+| エラー発生箇所・種類 | 挙動 |
+| --- | --- |
+| 更新元plugin選択・更新一覧取得中の`PluginError` | 全体停止。対象未確定ならその周回の予定は作らず、通常の`PluginError`の終了コードは4 |
+| 個別URLのmanifest取得・cleanup等の`PluginError` | 当該URLを`failed`として結果・試行を保持し、次のURLへ進む。通常の`plugin_error`は追加周回の再試行対象 |
+| 画像単位で結果に収められた失敗 | URLを`partial`などとして保持し、再試行可能な失敗・未処理画像を追加周回で処理 |
+| 設定・状態・保存／ロックのエラー、想定外の内部例外 | 全体停止。既に確定した成果物・結果と未処理対象を保持 |
+| 予定ファイル保存失敗 | `workflow_plan_log_error`、終了コード1。その周回のmanifest・画像取得を開始しない |
+| 逐次ログの作成・追記失敗 | 安全な警告を出し、失敗した形式への追記を止め、取得・他方のログ・履歴保存を続行 |
+
+追加周回は既定で1回、待機600秒。更新一覧を再取得し、成功画像の保持と対象選択には
+[再試行規則](#workflow-retry-rounds)を適用する。`PluginError`の派生エラーすべてが再試行可能なわけではなく、
+未対応機能などは対象外となる。再試行が終わっても個別URL・画像の失敗が残る場合、保存／スキップ済み画像が
+あれば終了コード5、なければ1となる。個別URLのplugin失敗だけを根拠に全体の終了コード4にはしない。
+
+全体停止・キャンセルでも開始済みの保存を確定し、終了記録を試みる。
+逐次ログの項目・欠落条件は[中断時の記録](logging.md#workflow-interruption-records)、
+コンソールとJSONは[CLI reference](cli.md#workflow)を参照する。
+
 ### Workflow dry-run
 
 CLI `workflow --dry-run` / library `plan_workflow()` use a shared pure initial-round selection calculation.
