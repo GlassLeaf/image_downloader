@@ -168,11 +168,14 @@ def test_stderr_failure_cannot_change_saved_result(tmp_path: Path, monkeypatch: 
     asyncio.run(scenario())
 
 
-def test_cli_success_exit_code_survives_post_save_log_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("stage", ["file_saved", "close"])
+def test_cli_success_exit_code_survives_post_save_log_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, stage: str
+) -> None:
     async def scenario() -> None:
         service = _service(tmp_path)
         await _gallery(service)
-        _inject_logger_failure(service, monkeypatch, "file_saved")
+        _inject_logger_failure(service, monkeypatch, stage)
         config = service.config
 
         class Composer:

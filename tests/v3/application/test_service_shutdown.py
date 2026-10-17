@@ -7,7 +7,7 @@ import threading
 
 import pytest
 from support.synchronization import managed_task, wait_until_started
-from support.workflow import FEED, Gallery, compose
+from support.workflow import FEED, Gallery, attach_transport, compose
 
 from image_downloader import (
     AuthenticationError,
@@ -16,7 +16,9 @@ from image_downloader import (
     WorkflowExecutionError,
     WorkflowPlanCancelledError,
     WorkflowPlanError,
+    WorkflowRequest,
 )
+from image_downloader.application.workflow_state import WorkflowStateService
 from image_downloader.models import WorkflowPlanResult, WorkflowResult
 
 
@@ -36,14 +38,14 @@ def primary_error(kind):
 
 
 @pytest.mark.parametrize("kind", ["operation", "workflow", "plan", "cancel", "plan_cancel", "interrupt", "exit"])
-@pytest.mark.parametrize("stage", ["gateway", "registry"])
+@pytest.mark.parametrize("stage", ["gateway", "registry", "logger"])
 def test_context_exit_keeps_primary_exception_and_partial_result(tmp_path, monkeypatch, capsys, kind, stage):
     async def scenario():
         service = compose(tmp_path, Gallery())
         primary = primary_error(kind)
         resource = getattr(service, stage)
         original = resource.close
-        if stage == "gateway":
+        if stage in {"gateway", "logger"}:
 
             async def close():
                 await original()
@@ -71,11 +73,12 @@ def test_context_exit_keeps_primary_exception_and_partial_result(tmp_path, monke
 
     asyncio.run(scenario())
     diagnostic = capsys.readouterr().err
-    assert "service cleanup failed" in diagnostic
+    expected = "diagnostic logging failed" if stage == "logger" else "service cleanup failed"
+    assert expected in diagnostic
     assert "secondary-secret" not in diagnostic
 
 
-@pytest.mark.parametrize("stage", ["cookies", "gateway", "worker"])
+@pytest.mark.parametrize("stage", ["cookies", "gateway", "worker", "logger"])
 @pytest.mark.parametrize("repeat_cancel", [False, True])
 def test_cancelled_close_settles_resources_and_concurrent_waiters(
     tmp_path, monkeypatch, stage, repeat_cancel
@@ -119,6 +122,9 @@ def test_cancelled_close_settles_resources_and_concurrent_waiters(
 
         async def logger():
             order.append("logger")
+            if stage == "logger":
+                started.set()
+                await release.wait()
             await logger_close()
 
         monkeypatch.setattr(service, "_persist_cookies", cookies)
@@ -138,7 +144,8 @@ def test_cancelled_close_settles_resources_and_concurrent_waiters(
                             await asyncio.sleep(0)
                         assert not first.done() and not second.done()
                         assert service._operation_lock.locked()
-                        assert "registry" not in order
+                        if stage != "logger":
+                            assert "registry" not in order
                     finally:
                         release.set()
                         worker_release.set()
@@ -166,6 +173,7 @@ def test_shutdown_runs_all_resources_and_preserves_failure_priority(tmp_path, mo
         first = AuthenticationError("first failure")
         second = KeyboardInterrupt() if fatal else RuntimeError("second failure")
         gateway_close, registry_close = service.gateway.close, service.registry.close
+        logger_close = service.logger.close
 
         async def cookies():
             raise first
@@ -178,9 +186,14 @@ def test_shutdown_runs_all_resources_and_preserves_failure_priority(tmp_path, mo
             registry_close()
             raise second
 
+        async def logger():
+            await logger_close()
+            raise RuntimeError("token=logger-secret")
+
         monkeypatch.setattr(service, "_persist_cookies", cookies)
         monkeypatch.setattr(service.gateway, "close", gateway)
         monkeypatch.setattr(service.registry, "close", registry)
+        monkeypatch.setattr(service.logger, "close", logger)
         expected = second if fatal else first
         with pytest.raises(type(expected)) as caught:
             await service.close()
@@ -258,7 +271,15 @@ def test_logger_close_failure_stays_diagnostic(tmp_path, monkeypatch, capsys):
             raise RuntimeError("token=logger-secret")
 
         monkeypatch.setattr(service.logger, "close", close)
-        await service.close()
+        async with service:
+            await attach_transport(service)
+            result = await service.workflow(WorkflowRequest(url=FEED, workflow_retries=0))
+            assert result.history_saved
+            history = WorkflowStateService(service.config)
+            before = history.get_run(result.run_id)
+            assert before is not None and before.exit_code == 0
+        assert history.get_run(result.run_id) == before
+        assert all(item.status == "success" for item in result.items)
         assert service.gateway.client.is_closed and service.image_processor._closed
 
     asyncio.run(scenario())

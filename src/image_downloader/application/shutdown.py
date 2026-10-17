@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import sys
 from collections.abc import Awaitable, Callable
+from functools import partial
 from typing import Protocol
 
 from ..media.image_processor import ImageProcessor
@@ -35,6 +36,15 @@ async def close_service(service: _Closable, *, primary: BaseException | None = N
         warn_shutdown_failure()
 
 
+async def _close_logger(logger: DownloadLogger) -> None:
+    """Ordinary diagnostic failures never enter shutdown failure precedence."""
+    try:
+        await logger.close()
+    except Exception:
+        # Cancellation and fatal exceptions belong to the resource owner.
+        warn_diagnostic_failure()
+
+
 async def shutdown_resources(
     *,
     persist_cookies: Callable[[], Awaitable[None]] | None,
@@ -58,6 +68,7 @@ async def shutdown_resources(
         gateway.close,
         close_image_processor,
         close_registry,
+        partial(_close_logger, logger),
     ]
     failures: list[BaseException] = []
     for close in callbacks:
@@ -65,13 +76,6 @@ async def shutdown_resources(
             await close()
         except BaseException as exc:
             failures.append(exc)
-    try:
-        await logger.close()
-    except Exception:
-        # Logging remains best effort, including during a successful close.
-        warn_diagnostic_failure()
-    except BaseException as exc:
-        failures.append(exc)
     if not failures:
         return None
     # Keep a fatal interruption over ordinary cleanup errors; otherwise retain

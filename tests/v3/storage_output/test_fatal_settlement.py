@@ -30,7 +30,7 @@ PROBE = textwrap.dedent(
     from image_downloader.storage.transactions import finish_transaction
 
     kind, mode, root = sys.argv[1:]
-    failure = {"exit": SystemExit, "interrupt": KeyboardInterrupt}[kind]("fatal job")
+    failure = {"exit": SystemExit, "interrupt": KeyboardInterrupt, "cancel": asyncio.CancelledError}[kind]("fatal job")
     events = []
 
     def fail_sync(*args):
@@ -47,10 +47,10 @@ PROBE = textwrap.dedent(
         events.append("queued")
 
     async def main():
-        primary = ValueError("operation failed") if mode == "service_primary" else failure
+        primary = ValueError("operation failed") if mode.endswith("_primary") else failure
         service = None
         try:
-            if mode in {"service", "service_primary"}:
+            if mode.startswith("service"):
                 root = Path(sys.argv[3])
                 config = AppConfig.model_validate({
                     "storage": {"data_root": str(root / "data")},
@@ -59,8 +59,17 @@ PROBE = textwrap.dedent(
                     "logging": {"console": {"enabled": False}},
                 })
                 service = RuntimeComposer(config, config_root=root, plugin_root=root / "plugins").compose()
-                service.cookie_store.persist_delta = fail_sync
-                if mode == "service_primary":
+                if mode.startswith("service_logger"):
+                    original_close = service.logger.close
+
+                    async def close_logger():
+                        await original_close()
+                        raise failure
+
+                    service.logger.close = close_logger
+                else:
+                    service.cookie_store.persist_delta = fail_sync
+                if mode.endswith("_primary"):
                     async with service:
                         raise primary
                 else:
@@ -91,9 +100,11 @@ PROBE = textwrap.dedent(
 )
 
 
-@pytest.mark.parametrize("kind", ["exit", "interrupt"])
+@pytest.mark.parametrize("kind", ["exit", "interrupt", "cancel"])
 @pytest.mark.parametrize(
-    "mode", ["transaction", "history", "allocation", "bounded", "factory", "service", "service_primary"]
+    "mode",
+    ["transaction", "history", "allocation", "bounded", "factory", "service", "service_primary",
+     "service_logger", "service_logger_primary"],
 )
 def test_fatal_failures_do_not_escape_the_owners_event_loop(tmp_path, kind, mode):
     # A regression can stop asyncio.run itself. Isolate it from pytest so the
@@ -105,7 +116,9 @@ def test_fatal_failures_do_not_escape_the_owners_event_loop(tmp_path, kind, mode
         timeout=30,
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    expected = "ValueError" if mode == "service_primary" else "SystemExit" if kind == "exit" else "KeyboardInterrupt"
+    expected = "ValueError" if mode.endswith("_primary") else {
+        "exit": "SystemExit", "interrupt": "KeyboardInterrupt", "cancel": "CancelledError"
+    }[kind]
     assert json.loads(result.stdout) == {"caught": expected}
 
 
