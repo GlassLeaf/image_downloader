@@ -7,7 +7,7 @@
 
 | 段階 | 実装状況 | 確認できる構造 | 検証状況 |
 | --- | --- | --- | --- |
-| 検証基盤 | 実装済み | supportの共通helper、開始待ちと業務期限の分離、タスク所有権 | 基点・今回の全体検証で成功。多環境CIは下記 |
+| 検証基盤 | 実装済み | supportの共通helper、開始待ちと業務期限の分離、タスク所有権 | ローカル・多環境CIで成功。結果は下記 |
 | 内部の受け渡し・失敗処理 | 実装済み | 不変の操作別リクエスト、SiteOperation、型付き失敗情報、確定待ち | 同上 |
 | ダウンロード処理の分割 | 実装済み | Download・Chapter・Image実行器、既存ArtifactPipelineの利用 | 同上 |
 | workflowの独立 | 実装済み | WorkflowRuntime、実行・計画・確定処理、画像保持判定 | 同上 |
@@ -32,9 +32,9 @@
 
 | 項目 | 実装・整備状況 | 残作業 |
 | --- | --- | --- |
-| 多環境CIの結果確認 | 12組合せの品質検査と3 OSの配布smoke、JUnit・coverage XML、checkout識別情報を整備 | 最新変更の全15ジョブの成功を確認し、下記へ記録する |
-| 進捗文書の更新 | この文書を正本として追加。旧計画・開発タスクを日付付き基準記録として区別 | 最終検証結果を追記する |
-| ログ終了例外の方針 | ログ固有の通常例外抑制を非公開helperへ分離。仕様と回帰テストに明記 | ローカル検証済み。多環境CIを確認する |
+| 多環境CIの結果確認 | 12組合せの品質検査と3 OSの配布smoke、JUnit・coverage XML、checkout識別情報を整備 | 検証済みheadの全15ジョブ成功。記録追記後の最新headも確認する |
+| 進捗文書の更新 | この文書を正本として追加。旧計画・開発タスクを日付付き基準記録として区別 | ローカル・CI結果を記録済み |
+| ログ終了例外の方針 | ログ固有の通常例外抑制を非公開helperへ分離。仕様と回帰テストに明記 | ローカル・多環境CIで確認済み |
 
 ### 終了例外の合意事項
 
@@ -68,14 +68,39 @@
 
 ### 多環境CI
 
-現時点では今回の変更を含むCIは未実行です。実行後に、PR、対象head SHA、checkout SHA、run ID・attempt、ジョブ別の結果とリンクを記録します。PR用merge commitとhead commitは区別します。
+2026-10-17、[Draft PR #19](https://github.com/GlassLeaf/image_downloader/pull/19)の[quality実行 #93](https://github.com/GlassLeaf/image_downloader/actions/runs/39029189845)は、**全15ジョブ成功**で完了しました。
 
-| ジョブ | OS | Python | 結果 |
-| --- | --- | --- | --- |
-| 品質検査 | Ubuntu | 3.11 / 3.12 / 3.13 / 3.14 | 未実行 |
-| 品質検査 | Windows | 3.11 / 3.12 / 3.13 / 3.14 | 未実行 |
-| 品質検査 | macOS | 3.11 / 3.12 / 3.13 / 3.14 | 未実行 |
-| 配布smoke | Ubuntu / Windows / macOS | 3.11 | 未実行 |
+- 検証対象head SHA: `9cb6641d39c47a7f83bc23562459c88c6041c94c`。
+- checkout SHA（PR用merge commit）: `48bc3bc6e9db6221740c4ff719e0ab867f53ecfc`。全15ジョブの記録を照合しました。
+- run ID: `39029189845`、attempt: `1`。
+- 品質検査12環境のJUnit・coverage XML成果物を確認済み。いずれも対象headに一致し、保存期間は14日です。
+- この表は上記SHAの確定記録です。記録追記のpush後も最新headのCIを確認し、その最終SHAとrun URLはPR本文に記録します。
+
+| ジョブ | OS | Python | 結果・ジョブへのリンク | 成功 / スキップ | coverage |
+| --- | --- | --- | --- | --- | --- |
+| 品質検査 | Ubuntu | 3.11 | [success](https://github.com/GlassLeaf/image_downloader/actions/runs/39029189845/job/117386045495) | 2,308 / 17 | 89.34% |
+| 品質検査 | Ubuntu | 3.12 | [success](https://github.com/GlassLeaf/image_downloader/actions/runs/39029189845/job/117386045374) | 2,308 / 17 | 89.34% |
+| 品質検査 | Ubuntu | 3.13 | [success](https://github.com/GlassLeaf/image_downloader/actions/runs/39029189845/job/117386045364) | 2,308 / 17 | 89.34% |
+| 品質検査 | Ubuntu | 3.14 | [success](https://github.com/GlassLeaf/image_downloader/actions/runs/39029189845/job/117386045523) | 2,308 / 17 | 89.27% |
+| 品質検査 | Windows | 3.11 | [success](https://github.com/GlassLeaf/image_downloader/actions/runs/39029189845/job/117386045442) | 2,313 / 12 | 89.68% |
+| 品質検査 | Windows | 3.12 | [success](https://github.com/GlassLeaf/image_downloader/actions/runs/39029189845/job/117386045353) | 2,313 / 12 | 89.68% |
+| 品質検査 | Windows | 3.13 | [success](https://github.com/GlassLeaf/image_downloader/actions/runs/39029189845/job/117386045479) | 2,313 / 12 | 89.68% |
+| 品質検査 | Windows | 3.14 | [success](https://github.com/GlassLeaf/image_downloader/actions/runs/39029189845/job/117386045550) | 2,313 / 12 | 89.62% |
+| 品質検査 | macOS | 3.11 | [success](https://github.com/GlassLeaf/image_downloader/actions/runs/39029189845/job/117386045468) | 2,308 / 17 | 89.34% |
+| 品質検査 | macOS | 3.12 | [success](https://github.com/GlassLeaf/image_downloader/actions/runs/39029189845/job/117386045274) | 2,308 / 17 | 89.34% |
+| 品質検査 | macOS | 3.13 | [success](https://github.com/GlassLeaf/image_downloader/actions/runs/39029189845/job/117386045414) | 2,308 / 17 | 89.34% |
+| 品質検査 | macOS | 3.14 | [success](https://github.com/GlassLeaf/image_downloader/actions/runs/39029189845/job/117386045435) | 2,308 / 17 | 89.27% |
+| 配布smoke | Ubuntu | 3.11 | [success](https://github.com/GlassLeaf/image_downloader/actions/runs/39029189845/job/117386045154) | — | — |
+| 配布smoke | Windows | 3.11 | [success](https://github.com/GlassLeaf/image_downloader/actions/runs/39029189845/job/117386045309) | — | — |
+| 配布smoke | macOS | 3.11 | [success](https://github.com/GlassLeaf/image_downloader/actions/runs/39029189845/job/117386045328) | — | — |
+
+Windows CIではシンボリックリンク作成が可能なため、ローカルでスキップした5件も成功しました。Windows CIのスキップ12件はMailpit任意実行です。Ubuntu・macOSの17件はMailpitの12件とWindows固有の5件です。全環境でcoverage下限75%を満たしています。
+
+### 多環境で確認した非推奨警告
+
+UbuntuのPython 3.12・3.13では、既存のProcessPoolExecutorが使用する標準のfork起動に関する警告が187件ありました。Python 3.14では依存ライブラリpublicsuffix2のcodecs.openに関する警告が1件あり、ActionsランタイムにもNode.js由来の非推奨警告があります。いずれもテスト失敗とは区別します。
+
+今回の範囲ではプロセス起動方式や依存バージョンを変更せず、後続の互換性保守候補として残します。これらはタスク未回収や未取得例外の警告ではありません。
 
 各ジョブの未実行・キャンセル・スキップを成功として数えません。pytest内のOS条件によるスキップと、任意のMailpit未実行は理由を記録します。環境間で同じテスト件数になることは要求しません。
 
