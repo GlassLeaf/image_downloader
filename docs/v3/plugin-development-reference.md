@@ -1,3 +1,5 @@
-# Moved: Plugin development reference
+<a id="moved-plugin-development-reference"></a>
 
-The canonical package and hook contracts are [reference/plugin-package.md](reference/plugin-package.md) and [reference/plugin-hooks.md](reference/plugin-hooks.md). This compatibility page defines no plugin contract.
+# 移動先：プラグイン開発リファレンス
+
+パッケージとフックの契約の正本は[プラグインパッケージリファレンス](reference/plugin-package.md)と[プラグインフックリファレンス](reference/plugin-hooks.md)です。この移動案内ページでは、プラグインの契約を定義しません。

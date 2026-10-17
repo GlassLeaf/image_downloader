@@ -5,15 +5,13 @@ import sys
 import types
 from pathlib import Path
 
+import image_downloader.observability.notification_delivery as delivery
 from image_downloader.config import Notification
-from image_downloader.observability import notifications
 from image_downloader.observability.events import EventBus, EventName, EventPayload
-from image_downloader.observability.logging import DebugFileSink, DownloadLogger
-from image_downloader.observability.notifications import (
-    DesktopNotificationSender,
-    NotificationService,
-    _send_mail,
-)
+from image_downloader.observability.log_sinks import DebugFileSink
+from image_downloader.observability.logging import DownloadLogger
+from image_downloader.observability.notification_delivery import DesktopNotificationSender, _send_mail
+from image_downloader.observability.notifications import NotificationService
 
 
 class CapturingSender:
@@ -281,8 +279,8 @@ class FakeSmtpClient:
 def test_notification_smtp_tls_modes_are_local(monkeypatch) -> None:
     implicit_tls = FakeSmtpClient()
     starttls = FakeSmtpClient()
-    monkeypatch.setattr(notifications.smtplib, "SMTP_SSL", lambda *_args, **_kwargs: implicit_tls)
-    monkeypatch.setattr(notifications.smtplib, "SMTP", lambda *_args, **_kwargs: starttls)
+    monkeypatch.setattr(delivery.smtplib, "SMTP_SSL", lambda *_args, **_kwargs: implicit_tls)
+    monkeypatch.setattr(delivery.smtplib, "SMTP", lambda *_args, **_kwargs: starttls)
     _send_mail(
         {
             "smtp_host": "mail.test",

@@ -9,6 +9,7 @@ import image_downloader
 import image_downloader.cli as cli
 import image_downloader.config as config
 import image_downloader.output.output_allocator as output_allocator
+import image_downloader.plugins.plugin_catalog as plugin_catalog
 import image_downloader.plugins.plugin_manifest as plugin_manifest
 import image_downloader.runtime as runtime
 import image_downloader.security as security
@@ -49,7 +50,7 @@ def test_facades_preserve_moved_public_imports() -> None:
     assert runtime.OutputAllocator is output_allocator.OutputAllocator
     assert runtime.OutputAllocation is output_allocator.OutputAllocation
     assert security.PluginManifest is plugin_manifest.PluginManifest
-    assert security.PluginCatalog is plugin_manifest.PluginCatalog
+    assert security.PluginCatalog is plugin_catalog.PluginCatalog
     assert security.read_manifest is plugin_manifest.read_manifest
     assert security.PluginRecord is plugin_lifecycle.PluginRecord
     assert security.PluginClassLoader is plugin_lifecycle.PluginClassLoader
@@ -94,3 +95,82 @@ def test_leaf_modules_do_not_import_their_compatibility_facades(repository_root:
         assert forbidden not in imports, (
             f"{relative_path} imports its facade {forbidden}; this creates a circular boundary"
         )
+
+
+def test_application_and_cli_runtime_import_graph_is_acyclic(repository_root: Path) -> None:
+    """Include delayed imports; TYPE_CHECKING edges do not execute at runtime."""
+    source = repository_root / "src"
+    modules = {
+        ".".join(path.relative_to(source).with_suffix("").parts).removesuffix(".__init__"): path
+        for path in (source / "image_downloader").rglob("*.py")
+    }
+    graph: dict[str, set[str]] = {name: set() for name in modules}
+
+    class Imports(ast.NodeVisitor):
+        def __init__(self, module: str, path: Path) -> None:
+            self.module, self.path = module, path
+
+        def visit_If(self, node: ast.If) -> None:
+            checking = (isinstance(node.test, ast.Name) and node.test.id == "TYPE_CHECKING") or (
+                isinstance(node.test, ast.Attribute) and node.test.attr == "TYPE_CHECKING"
+            )
+            for child in node.orelse if checking else (*node.body, *node.orelse):
+                self.visit(child)
+
+        def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+            base = self.module.split(".") if self.path.name == "__init__.py" else self.module.split(".")[:-1]
+            prefix = base[: len(base) - node.level + 1] if node.level else []
+            origin = ".".join(prefix + ([node.module] if node.module else []))
+            for alias in node.names:
+                child = origin + "." + alias.name
+                target = child if child in modules else origin
+                if target in modules:
+                    graph[self.module].add(target)
+
+    for name, path in modules.items():
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        Imports(name, path).visit(tree)
+        if name.startswith("image_downloader.application.workflow"):
+            assert not any(isinstance(node, ast.ImportFrom) and node.module == "service" for node in ast.walk(tree)), (
+                f"{name} depends on the public service instead of explicit workflow capabilities"
+            )
+
+    finished: set[str] = set()
+    visiting: list[str] = []
+
+    def visit(name: str) -> None:
+        assert name not in visiting, "runtime import cycle: " + " -> ".join((*visiting, name))
+        if name in finished:
+            return
+        visiting.append(name)
+        for dependency in sorted(graph[name]):
+            visit(dependency)
+        visiting.pop()
+        finished.add(name)
+
+    for name in graph:
+        visit(name)
+
+
+def test_application_does_not_call_filesystem_private_methods(repository_root: Path) -> None:
+    for path in (repository_root / "src" / "image_downloader" / "application").glob("*.py"):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Attribute) or not node.attr.startswith("_"):
+                continue
+            owner = node.value
+            is_filesystem = (
+                isinstance(owner, ast.Name) and owner.id == "filesystem"
+                or isinstance(owner, ast.Attribute) and owner.attr == "filesystem"
+            )
+            assert not is_filesystem, f"{path.name}:{node.lineno} calls filesystem.{node.attr}"
+
+
+def test_application_uses_storage_operations_instead_of_storage_details(repository_root: Path) -> None:
+    forbidden_members = {"_read", "_source_key", "_validate_read_only"}
+    for path in (repository_root / "src" / "image_downloader" / "application").glob("*.py"):
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if isinstance(node, ast.Attribute):
+                assert node.attr not in forbidden_members, f"{path.name}:{node.lineno} uses {node.attr}"
+            if isinstance(node, ast.ImportFrom):
+                assert "storage._" not in (node.module or ""), f"{path.name} imports private storage code"

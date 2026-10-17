@@ -1,8 +1,8 @@
-# Logging reference
+# ログリファレンス
 
 <a id="logging-reference"></a>
 
-## Workflow execution files
+## workflowの実行記録ファイル
 
 <a id="workflow-execution-files"></a>
 
@@ -92,40 +92,34 @@ OS I/O停止によって記録処理も無期限に待つ可能性があり、�
 
 引数・設定検証やservice構築など、workflow実行開始前の失敗では専用の終了記録は作らない。
 逐次ログを無効化した場合、dry-run、ログ書込み失敗、強制終了・電源断にも上記の記録保証はない。
-通常終了・例外停止・キャンセル時の画面表示は[CLI reference](cli.md#workflow)を参照する。
+通常終了・例外停止・キャンセル時の画面表示は[CLIリファレンス](cli.md#workflow)を参照する。
 
-## Diagnostic logging API
+<a id="diagnostic-logging-api"></a>
 
-`image_downloader.observability.logging.__all__` is stable. Logging is diagnostic only; use `DownloadResult`, exceptions, and CLI exit status as the result source of truth.
+## 診断ログAPI
 
-Exact constructor and callable signatures, including each `DownloadLogger` member,
-are listed one per row in the [public signature index](api-signatures.md#logging-api).
-This page defines their delivery and failure semantics.
+`image_downloader.observability.logging.__all__`は安定した公開APIです。ログは診断用です。結果の判定には`DownloadResult`、例外、CLIの終了コードを使ってください。
 
-| API | signature / behavior |
+各`DownloadLogger`メンバーを含む正確なコンストラクター・呼出しシグネチャは、[公開シグネチャ一覧](api-signatures.md#logging-api)に1行ずつ掲載しています。このページでは配送と失敗時の扱いを定義します。
+
+| API | シグネチャ・動作 |
 | --- | --- |
-| `LogRecord(message, chapter_id=None, metadata={}, trusted=False)` | `formatted() -> str` returns safe display text. |
-| `ChapterFailureRecord(url, response_url, path, stage, image_index, http_status, code, reason, exception_type, message, transport=None)` | immutable input for a chapter failure group. |
-| `LogSink` | `async write(record) -> None`; `async close() -> None`。custom sink は concurrent write を安全に扱う。 |
-| `ChapterFileSink(path=None, *, filesystem=None, relative_path=None)` | path または filesystem+relative path が必要。`async write/close` は file を直列化する。 |
-| `DebugFileSink` | `ChapterFileSink` に UTC timestamp/chapter/module を追加する。 |
+| `LogRecord(message, chapter_id=None, metadata={}, trusted=False)` | `formatted() -> str`は安全な表示用テキストを返します。 |
+| `ChapterFailureRecord(url, response_url, path, stage, image_index, http_status, code, reason, exception_type, message, transport=None)` | 章の失敗グループを表す不変の入力です。 |
+| `LogSink` | `async write(record) -> None`; `async close() -> None`。独自の出力先では並行する書込みを安全に扱います。 |
+| `ChapterFileSink(path=None, *, filesystem=None, relative_path=None)` | path、またはfilesystemと相対パスの組合せが必要です。`async write/close`はファイル操作を直列化します。 |
+| `DebugFileSink` | `ChapterFileSink`にUTC日時・章・モジュールを追加します。 |
 | `ConsoleSink(stream=None)` | `async write(record) -> None`。 |
-| `DownloadLogger(sinks=None)` | safety/capture/chapter registration と、下記 record/close method を所有する。 |
+| `DownloadLogger(sinks=None)` | 安全化・収集・章の登録と、下記の記録・終了メソッドを管理します。 |
 
-`DownloadLogger.configure_safety(logging, output_root=None)`、`safe_url(value)`、`safe_locator(value)`、`set_chapter_summary_console(enabled)`、`begin_python_log_capture(namespaces)`、`end_python_log_capture()` は synchronous configuration method である。`flush_python_log_capture()`、`core(...)`、`log(...)`、`chapter_header(...)`、`chapter_download(...)`、`chapter_save(...)`、`chapter_error_group(...)`、`chapter_done(...)`、`close_chapter(...)`、`error_detail(...)`、`debug(...)`、`close()` は **async** で await が必要である。
+`DownloadLogger.configure_safety(logging, output_root=None)`、`safe_url(value)`、`safe_locator(value)`、`set_chapter_summary_console(enabled)`、`begin_python_log_capture(namespaces)`、`end_python_log_capture()` は同期の設定メソッドです。`flush_python_log_capture()`、`core(...)`、`log(...)`、`chapter_header(...)`、`chapter_download(...)`、`chapter_save(...)`、`chapter_error_group(...)`、`chapter_done(...)`、`close_chapter(...)`、`error_detail(...)`、`debug(...)`、`close()` は**非同期**で、awaitが必要です。
 
-`core(event, *, module, chapter_id=None, url=None, path=None, method=None, status=None, bytes_count=None, count=None, plugin_id=None, attempt=None, action=None, error=None, url_is_locator=False, debug=False, include_chapter=False)` は event/module allowlist に限定し、任意 raw message は受け取らない。`url_is_locator=True` は画像 locator を URL として再構文解析せず安全に表示する内部 runtime 指定である。duplicate chapter registration と duplicate capture start は `RuntimeError`。caller は close と write を race させてはならない。
+`core(event, *, module, chapter_id=None, url=None, path=None, method=None, status=None, bytes_count=None, count=None, plugin_id=None, attempt=None, action=None, error=None, url_is_locator=False, debug=False, include_chapter=False)` はevent・moduleの許可一覧に限定し、任意の生メッセージは受け取りません。`url_is_locator=True` は、画像のlocatorをURLとして再解析せず安全に表示する、実行時の内部指定です。章の重複登録と収集の重複開始は`RuntimeError`です。呼出し元は、終了と書込みを競合させないでください。
 
-`safe_log_text(value, *, maximum=4096)`、`mask_log_text(value, *, safe_query_parameters=None, safe_fragment_parameters=None)`、`safe_url(value, *, safe_query_parameters=None, safe_fragment_parameters=None)`、`safe_locator(value, *, safe_query_parameters=None, safe_fragment_parameters=None)`、`safe_relative_path(value, output_root)`、`safe_exception_name(value)` は secret、URL、locator、path、exception name を安全に整形する。`safe_locator` は HTTP(S) URL を `safe_url` と同じ規則で処理し、それ以外を `locator:` 付きの masked text として表示する。これらは raw secret を保存してよい値に変換するものではない。
+`safe_log_text(value, *, maximum=4096)`、`mask_log_text(value, *, safe_query_parameters=None, safe_fragment_parameters=None)`、`safe_url(value, *, safe_query_parameters=None, safe_fragment_parameters=None)`、`safe_locator(value, *, safe_query_parameters=None, safe_fragment_parameters=None)`、`safe_relative_path(value, output_root)`、`safe_exception_name(value)` は秘密情報・URL・locator・パス・例外名を安全に整形します。`safe_locator` はHTTP(S) URLを `safe_url` と同じ規則で処理し、それ以外を `locator:` 付きの伏字テキストとして表示します。これらは、生の秘密情報を保存してよい値へ変換するものではありません。
 
-画像 event/log の `url` は `ImageResource.url` の locator を元にするため、absolute HTTP(S) URL とは限らない。observer が受ける値は safety renderer 済みで、実際の fetch URL や再利用可能な locator を表すとは限らない。plugin は locator に秘密値を置かない。
+画像のイベント・ログの `url` は `ImageResource.url` のlocatorを元にするため、絶対HTTP(S) URLとは限りません。受信側へ渡す値は安全な表示用に整形済みで、実際の取得URLや再利用可能なlocatorを表すとは限りません。プラグインはlocatorに秘密値を置かないでください。
 
-sink/observer/capture cleanup の failure は safe diagnostic warning として抑制され得る。主 download result、exception、exit status は変更しない。
+ログ出力先・イベント受信処理・ログ収集の後始末の失敗は、安全な診断警告として抑制する場合があります。ダウンロードの主結果・例外・終了コードは変更しません。
 
-`LogSink.write()` on the base class raises `NotImplementedError`; an application
-providing a custom sink must implement both async methods and tolerate concurrent
-writes. `ChapterFileSink` rejects construction without either `path` or both
-`filesystem` and `relative_path` with `ValueError`. Direct sink I/O can still
-raise its own filesystem/stream exception; failure isolation applies when
-`DownloadLogger` delivers or closes managed sinks, where it records a safe
-diagnostic warning and keeps the already determined primary result unchanged.
+基底クラスの`LogSink.write()`は`NotImplementedError`を送出します。独自の出力先では、両方の非同期メソッドを実装し、並行する書込みに対応してください。`ChapterFileSink`は、`path`も`filesystem`と`relative_path`の組合せも指定しない構築を`ValueError`で拒否します。出力先を直接操作すると、ファイルシステムやストリームの例外が発生する場合があります。失敗の分離は、`DownloadLogger`が管理下の出力先へ配送・終了する際に適用します。その場合は安全な診断警告を記録し、すでに確定した主結果を維持します。

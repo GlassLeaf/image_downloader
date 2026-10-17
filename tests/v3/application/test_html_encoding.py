@@ -10,7 +10,7 @@ import httpx
 import pytest
 from PIL import Image
 
-from image_downloader import AppConfig, RuntimeComposer
+from image_downloader import AppConfig, RuntimeComposer, WorkflowRequest
 from image_downloader.models import RequestResponse
 from image_downloader.plugins import builtin
 from image_downloader.plugins.builtin import GenericHtmlPlugin
@@ -222,7 +222,7 @@ def test_core_workflow_saves_unicode_paths_and_original_bytes(tmp_path, monkeypa
 
     async def scenario():
         async with RuntimeComposer(config, config_root=tmp_path, plugin_root=tmp_path / "plugins").compose() as service:
-            result = await service.workflow("https://example.test/gallery/", workflow_retries=0)
+            result = await service.workflow(WorkflowRequest(url="https://example.test/gallery/", workflow_retries=0))
             assert result.items[0].status == "success"
             paths = result.items[0].download.saved_files
             assert len(paths) == 1

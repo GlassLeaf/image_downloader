@@ -62,9 +62,7 @@ TUTORIAL_SIGNATURES: dict[str, tuple[tuple[tuple[str, str], ...], str]] = {
 def _source_paths(repository_root: Path) -> tuple[Path, ...]:
     template = repository_root / "examples" / "plugin-v3-template" / "sample_plugin.py"
     source_units = tuple(
-        path
-        for path in sorted((repository_root / "plugin-sources").rglob("*.py"))
-        if "vendor" not in path.parts
+        path for path in sorted((repository_root / "plugin-sources").rglob("*.py")) if "vendor" not in path.parts
     )
     return (template, *source_units)
 

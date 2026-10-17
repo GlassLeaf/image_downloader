@@ -6,9 +6,27 @@ the smallest exception family that matches the recovery they can perform.
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
-from typing import Final
+from typing import TYPE_CHECKING, Final
+
+if TYPE_CHECKING:
+    from .diagnostics import Diagnostic
+    from .models import WorkflowPlanResult, WorkflowResult
+
+
+@dataclass(frozen=True, slots=True)
+class ImageFailureContext:
+    """Classified image context, attached only after its failure has been reported."""
+
+    stage: str
+    transport: str
+    image_url: str
+    response_url: str | None = None
+    http_status: int | None = None
+    output_path: str | None = None
 
 
 class ImageDownloaderError(Exception):
@@ -16,9 +34,8 @@ class ImageDownloaderError(Exception):
 
     code = "image_downloader_error"
     reason = "image downloader operation failed"
-    _image_failure_reported = False
-    _image_failure_context: dict[str, object] | None = None
-    _core_diagnostic: object | None = None
+    image_failure: ImageFailureContext | None = None
+    _core_diagnostic: Diagnostic | None = None
 
 
 class ConfigurationError(ImageDownloaderError, ValueError):
@@ -174,9 +191,16 @@ class ImageProcessorClosedError(ImageProcessingError):
     reason = "image processor is closed"
 
 
+class PathLengthDiagnostic(StrEnum):
+    COMPONENT = "component"
+    PATH = "path"
+    POSSIBLE = "possible"
+
+
 class StorageError(ImageDownloaderError):
     code = "storage_error"
     reason = "storage operation failed"
+    path_length_diagnostic: PathLengthDiagnostic | None = None
 
 
 class WorkflowPlanLogError(StorageError):
@@ -220,6 +244,53 @@ class InterProcessLockError(StorageError):
     reason = "inter-process lock operation failed"
 
 
+class WorkflowExecutionError(ImageDownloaderError):
+    """A stopped workflow with its settled partial result and original cause."""
+
+    code = "workflow_execution_error"
+    reason = "workflow execution stopped"
+
+    def __init__(self, result: WorkflowResult, cause: Exception) -> None:
+        super().__init__(self.reason)
+        self.result, self.cause = result, cause
+        self.__cause__ = cause
+
+
+class WorkflowPlanError(ImageDownloaderError):
+    """An unsuccessful workflow preview with its confirmed partial result."""
+
+    code = "workflow_plan_error"
+    reason = "workflow planning stopped"
+
+    def __init__(self, result: WorkflowPlanResult, cause: Exception) -> None:
+        super().__init__(self.reason)
+        self.result, self.cause = result, cause
+        self.__cause__ = cause
+
+
+class WorkflowCancelledError(asyncio.CancelledError):
+    """Cancellation remains cancellation and carries the settled workflow result."""
+
+    def __init__(self, result: WorkflowResult) -> None:
+        super().__init__("workflow cancelled")
+        self.result = result
+
+
+class WorkflowPlanCancelledError(asyncio.CancelledError):
+    """A cancelled preview with the information confirmed before interruption."""
+
+    def __init__(self, result: WorkflowPlanResult) -> None:
+        super().__init__("workflow planning cancelled")
+        self.result = result
+
+
+def operation_cause(error: BaseException) -> BaseException:
+    """Recover the operational cause for existing diagnostics and CLI status codes."""
+    while isinstance(error, (WorkflowExecutionError, WorkflowPlanError)):
+        error = error.cause
+    return error
+
+
 @dataclass(frozen=True, slots=True)
 class ErrorCatalogEntry:
     """One stable, user-facing contract entry for a public exception."""
@@ -242,6 +313,8 @@ class ErrorCatalogEntry:
 
 ERROR_CATALOG: Final[tuple[ErrorCatalogEntry, ...]] = (
     ErrorCatalogEntry(ImageDownloaderError),
+    ErrorCatalogEntry(WorkflowExecutionError, ("result", "cause")),
+    ErrorCatalogEntry(WorkflowPlanError, ("result", "cause")),
     ErrorCatalogEntry(WorkflowRetryTimeoutError),
     ErrorCatalogEntry(ConfigurationError),
     ErrorCatalogEntry(ArgumentError),
@@ -307,6 +380,7 @@ _PATH_LENGTH_MESSAGES = {
 def error_info_for(error: BaseException) -> ErrorInfo:
     """Return the stable public view of an error without exposing ``str(error)``."""
 
+    error = operation_cause(error)
     if not isinstance(error, ImageDownloaderError):
         return ErrorInfo(
             "unexpected_runtime_error",
@@ -322,8 +396,8 @@ def error_info_for(error: BaseException) -> ErrorInfo:
     http_status = getattr(error, "http_status", getattr(error, "status", None))
     message = reason
     if type(error) is StorageError:
-        diagnostic = error.__dict__.get("_path_length_diagnostic")
-        if isinstance(diagnostic, str):
+        diagnostic = error.path_length_diagnostic
+        if isinstance(diagnostic, PathLengthDiagnostic):
             message = _PATH_LENGTH_MESSAGES.get(diagnostic, reason)
     return ErrorInfo(code, reason, exception, message, response_url, http_status, output_path)
 

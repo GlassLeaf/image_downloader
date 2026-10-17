@@ -1,14 +1,18 @@
-# Maintenance index
+<a id="maintenance-index"></a>
 
-| responsibility | canonical document |
+# 保守資料の索引
+
+| 担当する内容 | 正本の文書 |
 | --- | --- |
-| test and documentation contracts | [Testing](testing.md) |
-| implementation baseline and planned work | [Implementation plan](implementation-plan.md) |
-| development backlog and acceptance criteria | [Development tasks](development-tasks.md) |
-| v2/v3 state and configuration migration | [Migration](migration.md) |
-| package and public release | [Release](release.md) |
-| internal architecture and non-stable boundary | [Architecture](architecture.md) |
-| historical claim preservation | [Legacy coverage ledger](legacy-coverage.md) |
-| external-dependency and maintainer-policy backlog | [Open documentation TODOs](open-documentation-todos.md) |
+| テストと文書の契約 | [検証](testing.md) |
+| 今回のリファクタリング進捗・検証結果 | [リファクタリングの進捗](refactoring-progress.md) |
+| 2026-10-03基準の実装棚卸しと計画 | [実装計画](implementation-plan.md) |
+| 2026-10-03基準の開発課題と受入基準 | [開発タスク](development-tasks.md) |
+| v2/v3の状態・設定の移行 | [移行](migration.md) |
+| パッケージと一般公開 | [リリース](release.md) |
+| 内部構造と非公開の実装境界 | [アーキテクチャ](architecture.md) |
+| アプリケーションのリクエストAPIと型付きワークフロー例外 | [アプリケーションAPIの移行](application-api-migration.md) |
+| 過去の記述の保全 | [旧資料の対応台帳](legacy-coverage.md) |
+| 外部依存と保守担当者の方針に関する課題 | [文書の未決事項](open-documentation-todos.md) |
 
-Maintenance documents are for repository maintainers. Stable consumer interfaces remain in [Reference](../README.md).
+保守資料はリポジトリの保守担当者向けです。利用者向けの安定したインターフェースは、[参照資料](../README.md)を正本とします。

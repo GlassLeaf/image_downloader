@@ -12,7 +12,7 @@ import httpx
 import pytest
 from PIL import Image, ImageFile
 
-from image_downloader import AppConfig, RuntimeComposer, WorkflowStateService
+from image_downloader import AppConfig, RuntimeComposer, WorkflowRequest, WorkflowStateService
 from image_downloader.config import resolve_application_config
 from image_downloader.exceptions import (
     ImageContentTypeError,
@@ -212,11 +212,13 @@ def test_processor_corruption_is_detected_before_save(core, output_format, corru
 @pytest.mark.parametrize("case", ["invalid", "valid", "mixed"])
 def test_download_validation_reaches_save_boundary(tmp_path, mime, case):
     body = b"not image data" if case == "invalid" else _image_bytes()
-    config = AppConfig.model_validate({
-        "storage": {"data_root": str(tmp_path / "data")},
-        "plugins": {"root": str(tmp_path / "plugins")},
-        "logging": {"console": {"enabled": False}},
-    })
+    config = AppConfig.model_validate(
+        {
+            "storage": {"data_root": str(tmp_path / "data")},
+            "plugins": {"root": str(tmp_path / "plugins")},
+            "logging": {"console": {"enabled": False}},
+        }
+    )
 
     async def scenario():
         async with RuntimeComposer(config, config_root=tmp_path, plugin_root=tmp_path / "plugins").compose() as service:
@@ -238,7 +240,7 @@ def test_download_validation_reaches_save_boundary(tmp_path, mime, case):
             if case == "invalid":
                 destination.parent.mkdir(parents=True)
                 destination.write_bytes(b"existing file must survive")
-            result = await service.workflow("https://example.test/gallery", workflow_retries=0)
+            result = await service.workflow(WorkflowRequest(url="https://example.test/gallery", workflow_retries=0))
             download = result.items[0].download
             assert download is not None
             if case != "invalid":
@@ -249,12 +251,19 @@ def test_download_validation_reaches_save_boundary(tmp_path, mime, case):
                 else:
                     assert len(download.failures) == 1 and download.failures[0].code == "image_decode_error"
                     assert result.items[0].status == "partial"
-                    assert not WorkflowStateService(config).get_workflow("https://example.test/gallery")[0].items[0].completed
+                    assert (
+                        not WorkflowStateService(config)
+                        .get_workflow("https://example.test/gallery")[0]
+                        .items[0]
+                        .completed
+                    )
             else:
                 assert not saved and not download.saved_files
                 assert download.failures[0].code == "image_decode_error"
                 assert destination.read_bytes() == b"existing file must survive"
                 assert result.items[0].status != "success"
-                assert not WorkflowStateService(config).get_workflow("https://example.test/gallery")[0].items[0].completed
+                assert (
+                    not WorkflowStateService(config).get_workflow("https://example.test/gallery")[0].items[0].completed
+                )
 
     asyncio.run(scenario())

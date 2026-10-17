@@ -8,7 +8,7 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import cast
 
-from ..exceptions import AuthenticationError, ConfigurationError, ErrorInfo, PluginError
+from ..exceptions import AuthenticationError, ConfigurationError, ErrorInfo, PluginError, operation_cause
 from ..models import DownloadResult, WorkflowResult
 from ..privacy.log_safety import safe_exception_name, safe_relative_path, safe_url
 from .additional_files import additional_file_payload
@@ -16,6 +16,7 @@ from .verification_recording import verification_evidence
 
 
 def stopped_status(error: BaseException) -> int:
+    error = operation_cause(error)
     if isinstance(error, asyncio.CancelledError):
         return 130
     if isinstance(error, ConfigurationError):

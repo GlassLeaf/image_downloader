@@ -1,3 +1,5 @@
-# Moved: v3 corpus coverage ledger
+<a id="moved-v3-corpus-coverage-ledger"></a>
 
-The maintained corpus claim ledger is [maintenance/legacy-coverage.md](maintenance/legacy-coverage.md). Historical snapshots are in [archive](../../archive/docs/legacy/).
+# 移動先：旧v3文書との対応台帳
+
+保守している文書の仕様対応表は[旧v3文書との対応台帳](maintenance/legacy-coverage.md)です。履歴のスナップショットは[アーカイブ](../../archive/docs/legacy/)にあります。

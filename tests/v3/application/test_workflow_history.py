@@ -10,11 +10,15 @@ from pathlib import Path
 from uuid import uuid4
 
 import pytest
-from test_workflow import FEED, B, Gallery, attach_transport, compose
+from support.errors import expect_workflow_error
+from support.synchronization import managed_task, wait_until_started
+from support.workflow import FEED, B, Gallery, attach_transport, compose
 
 from image_downloader import (
     PluginError,
     UpdateStateError,
+    WorkflowPlanRequest,
+    WorkflowRequest,
     WorkflowResult,
     WorkflowRetryTimeoutError,
     WorkflowRunRecord,
@@ -169,7 +173,7 @@ def test_workflow_records_success_failure_recovery_and_dry_run(tmp_path):
         async with compose(tmp_path, gallery) as service:
             await attach_transport(service)
             gallery.fail = {B.url}
-            first = await service.workflow(FEED, workflow_retries=0)
+            first = await service.workflow(WorkflowRequest(url=FEED, workflow_retries=0))
             assert first.history_saved and first.run_id
             state = WorkflowStateService(service.config)
             run = state.get_run(first.run_id)
@@ -178,13 +182,13 @@ def test_workflow_records_success_failure_recovery_and_dry_run(tmp_path):
             assert "images" not in json.dumps(dict(run.details), default=list)
             assert [i.completed for i in state.get_workflow(FEED)[0].items] == [True, False]
             gallery.fail.clear()
-            recovered = await service.workflow(FEED, workflow_retries=0)
+            recovered = await service.workflow(WorkflowRequest(url=FEED, workflow_retries=0))
             assert state.get_run(recovered.run_id).exit_code == 0
             assert recovered.run_id != first.run_id
-            empty = await service.workflow(FEED, workflow_retries=0)
+            empty = await service.workflow(WorkflowRequest(url=FEED, workflow_retries=0))
             assert state.get_run(empty.run_id).details["items"] == ()
             count = len(state.list_runs())
-            await service.plan_workflow(FEED)
+            await service.plan_workflow(WorkflowPlanRequest(url=FEED))
             assert len(state.list_runs()) == count
             with pytest.raises(FrozenInstanceError):
                 run.exit_code = 9
@@ -204,7 +208,7 @@ def test_recording_failure_does_not_replace_workflow_result(tmp_path, monkeypatc
         gallery = Gallery()
         async with compose(tmp_path, gallery) as service:
             await attach_transport(service)
-            result = await service.workflow(FEED, workflow_retries=0)
+            result = await service.workflow(WorkflowRequest(url=FEED, workflow_retries=0))
             assert [i.status for i in result.items] == ["success", "success"]
             assert result.history_saved is False
             assert result.history_warning
@@ -221,9 +225,9 @@ def test_global_failure_is_recorded_with_original_exception(tmp_path):
 
     async def scenario():
         async with compose(tmp_path, Broken()) as service:
-            with pytest.raises(PluginError) as error:
-                await service.workflow(FEED, workflow_retries=0)
-            result = error.value.workflow_result
+            with expect_workflow_error(PluginError) as error:
+                await service.workflow(WorkflowRequest(url=FEED, workflow_retries=0))
+            result = error.value.result
             assert result.history_saved
             run = WorkflowStateService(service.config).get_run(result.run_id)
             assert run.exit_code == 4
@@ -234,7 +238,7 @@ def test_global_failure_is_recorded_with_original_exception(tmp_path):
 
 @pytest.mark.parametrize("operation", ["recovery", "timeout", "cleanup", "cancel"])
 def test_journal_preserves_attempts_timeout_cleanup_and_cancellation(tmp_path, operation):
-    from test_workflow_retry import RetryGallery, transport
+    from support.workflow_retry import RetryGallery, transport
 
     async def scenario():
         gallery = RetryGallery()
@@ -261,11 +265,11 @@ def test_journal_preserves_attempts_timeout_cleanup_and_cancellation(tmp_path, o
                 options.update(workflow_retry_delay=100, workflow_retry_timeout=0.001)
             if operation in {"cancel", "timeout"}:
                 error_type = asyncio.CancelledError if operation == "cancel" else WorkflowRetryTimeoutError
-                with pytest.raises(error_type) as error:
-                    await service.workflow(FEED, **options)
-                result = error.value.workflow_result
+                with expect_workflow_error(error_type) as error:
+                    await service.workflow(WorkflowRequest(url=FEED, **options))
+                result = error.value.result
             else:
-                result = await service.workflow(FEED, **options)
+                result = await service.workflow(WorkflowRequest(url=FEED, **options))
             assert result.history_saved
             run = WorkflowStateService(service.config).get_run(result.run_id)
             assert run.exit_code == {"recovery": 0, "timeout": 5, "cleanup": 0, "cancel": 130}[operation]
@@ -281,30 +285,32 @@ def test_journal_preserves_attempts_timeout_cleanup_and_cancellation(tmp_path, o
 
 
 def test_cancel_during_history_write_finishes_and_records_cancel(tmp_path, monkeypatch):
-    started, release = threading.Event(), threading.Event()
-    original = WorkflowHistoryStore.save
-
-    def delayed(self, record, **kwargs):
-        started.set()
-        assert release.wait(5)
-        return original(self, record, **kwargs)
-
-    monkeypatch.setattr(WorkflowHistoryStore, "save", delayed)
-
     async def scenario():
+        started, release = asyncio.Event(), threading.Event()
+        loop = asyncio.get_running_loop()
+        original = WorkflowHistoryStore.save
+
+        def delayed(self, record, **kwargs):
+            loop.call_soon_threadsafe(started.set)
+            assert release.wait(30)
+            return original(self, record, **kwargs)
+
+        monkeypatch.setattr(WorkflowHistoryStore, "save", delayed)
         async with compose(tmp_path, Gallery()) as service:
             await attach_transport(service)
-            task = asyncio.create_task(service.workflow(FEED, workflow_retries=0))
-            assert await asyncio.to_thread(started.wait, 5)
-            task.cancel()
-            release.set()
-            with pytest.raises(asyncio.CancelledError) as error:
-                await task
-            result = error.value.workflow_result
-            assert result.cancelled and result.history_saved
-            run = WorkflowStateService(service.config).get_run(result.run_id)
-            assert run.exit_code == 130 and run.details["cancelled"]
-            assert len(run.details["items"]) == 2
+            async with managed_task(service.workflow(WorkflowRequest(url=FEED, workflow_retries=0))) as task:
+                try:
+                    await wait_until_started(started, task)
+                    task.cancel()
+                finally:
+                    release.set()
+                with pytest.raises(asyncio.CancelledError) as error:
+                    await task
+                result = error.value.result
+                assert result.cancelled and result.history_saved
+                run = WorkflowStateService(service.config).get_run(result.run_id)
+                assert run.exit_code == 130 and run.details["cancelled"]
+                assert len(run.details["items"]) == 2
 
     asyncio.run(scenario())
 
@@ -319,13 +325,13 @@ def test_history_configuration_requires_positive_integers(value):
 
 def test_profile_filtering_history_only_feed_and_config_changes(tmp_path):
     from image_downloader.configuration.paths import resolve_paths
-    from image_downloader.storage.state import UpdateState
+    from image_downloader.storage.source_identity import source_key
 
     service = compose(tmp_path, Gallery())
     state = WorkflowStateService(service.config)
     history = WorkflowHistoryStore(FileSystem(resolve_paths(service.config)["state"]), service.config.workflow_history)
     now = datetime.now(UTC)
-    old = replace(record(ended=now - timedelta(days=30)), feed_key=UpdateState._source_key(FEED))
+    old = replace(record(ended=now - timedelta(days=30)), feed_key=source_key(FEED))
     history.save(old, now=now)
     assert state.get_workflow(FEED)[0].checked_at is None
     assert state.get_workflow(FEED)[0].source_url == FEED

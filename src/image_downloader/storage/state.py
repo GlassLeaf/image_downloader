@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from hashlib import sha256
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +14,8 @@ from ..exceptions import PluginError, UpdateStateError
 from ..models import UpdateCandidate, UpdateChange, UpdateChangeKind, UpdateSnapshot
 from .filesystem import FileSystem
 from .interprocess_lock import InterProcessFileLock
+from .source_identity import source_key
+from .transactions import finish_transaction
 
 _SCHEMA_VERSION = 2
 _Record = dict[str, str | None]
@@ -66,18 +67,8 @@ class UpdateState:
         source_url: str,
         snapshot: UpdateSnapshot,
     ) -> tuple[UpdateChange, ...]:
-        """Wait for the disk transaction off-loop, finishing it before cancellation exits."""
-        task = asyncio.create_task(asyncio.to_thread(self.apply_snapshot, plugin_id, source_url, snapshot))
-        try:
-            return await asyncio.shield(task)
-        except asyncio.CancelledError:
-            while not task.done():
-                try:
-                    await asyncio.shield(task)
-                except asyncio.CancelledError:
-                    continue
-            task.result()
-            raise
+        """Finish a started state transaction before cancellation leaves its lock."""
+        return await finish_transaction(partial(self.apply_snapshot, plugin_id, source_url, snapshot))
 
     def _apply_snapshot_unlocked(
         self,
@@ -87,9 +78,9 @@ class UpdateState:
     ) -> tuple[UpdateChange, ...]:
         document = self._read()
         plugin_sources = document.sources.setdefault(plugin_id, {})
-        source_key = self._source_key(source_url)
-        source_exists = source_key in plugin_sources
-        previous = plugin_sources[source_key].records if source_exists else {}
+        key = source_key(source_url)
+        source_exists = key in plugin_sources
+        previous = plugin_sources[key].records if source_exists else {}
         current: dict[str, _Record] = {}
         changes: list[UpdateChange] = []
         for candidate in snapshot.candidates:
@@ -122,11 +113,11 @@ class UpdateState:
                         old["revision"],
                     )
                 )
-        plugin_sources[source_key] = _SourceSnapshot(snapshot.checked_at.isoformat(), current)
+        plugin_sources[key] = _SourceSnapshot(snapshot.checked_at.isoformat(), current)
         self._write(document)
         return tuple(changes)
 
-    def _validate_read_only(self) -> None:
+    def validate(self) -> None:
         """Read and validate without migrating or updating history."""
         with self._lock():
             self._read()
@@ -135,10 +126,6 @@ class UpdateState:
         self.filesystem.ensure_directory()
         self.filesystem.exists(self.lock_relative)  # Reject an existing symlink/reparse point.
         return InterProcessFileLock(self.filesystem.path(self.lock_relative), timeout_seconds=self.lock_timeout_seconds)
-
-    @staticmethod
-    def _source_key(source_url: str) -> str:
-        return sha256(source_url.encode("utf-8")).hexdigest()
 
     @staticmethod
     def _identity(candidate: UpdateCandidate) -> str:

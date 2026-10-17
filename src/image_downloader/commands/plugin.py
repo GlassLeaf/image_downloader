@@ -8,66 +8,38 @@ import sys
 from pathlib import Path
 from typing import cast
 
+from image_downloader.plugins.plugin_catalog import PluginCatalog
+from image_downloader.plugins.plugin_manifest import PluginVerificationMode, effective_verification_mode, read_manifest
+
 from ..exceptions import ConfigurationError
 from ..plugins.management import install_plugin, revoke_plugin, trust_plugin, uninstall_plugin
-from ..plugins.plugin_manifest import (
-    PluginCatalog,
-    PluginVerificationMode,
-    effective_verification_mode,
-    read_manifest,
-)
 from ..plugins.runtime import PluginRuntime
 from .constants import EXIT_SUCCESS
+from .prepared import PluginArguments, PreparedCommand
 from .setup import (
     _config_for,
     _persist_initial_user_config,
     _plugin_root,
 )
-from .validation import _reject_command_options, validate_arguments
+from .validation import validate_arguments
 
 
 class PluginCommandHandler:
-    async def handle(self, args: argparse.Namespace) -> int:
-        _reject_command_options(
-            args,
-            (
-                "plugin_config",
-                "plugin_config_file",
-                "plugin_id",
-                "force_plugin_id",
-                "plugin_download_policy",
-                "plugin_download_policy_file",
-                "fallback_generic",
-                "host",
-                "no_console_log",
-                "list_updated_urls",
-                "export_cookies",
-                "import_cookies",
-                "import_browser_cookies",
-                "existing_file",
-                "image_format",
-                "force_image_format",
-                "output_dir",
-                "directory_format",
-                "inspection_data",
-            ),
-            "plugin",
-        )
-        return plugin_command(args)
+    async def handle(self, command: PreparedCommand) -> int:
+        return _plugin_command(command)
 
 
-def _confirm(args: argparse.Namespace, description: str) -> None:
+def _confirm(args: PluginArguments, description: str) -> None:
     if args.yes:
         return
     if not sys.stdin.isatty() or input(f"{description}. Continue? [y/N] ").strip().lower() not in {"y", "yes"}:
         raise ConfigurationError("plugin change was not confirmed (pass --yes for non-interactive use)")
 
 
-def _plugin_root_for_mutation(args: argparse.Namespace) -> Path:
+def _plugin_root_for_mutation(args: PluginArguments) -> Path:
     config, _, _, configuration_source = _config_for(
         args,
         None,
-        allow_root_setup=True,
         rewrite_user_layers=True,
     )
     root = _plugin_root(args, config)
@@ -75,10 +47,10 @@ def _plugin_root_for_mutation(args: argparse.Namespace) -> Path:
     return root
 
 
-def _plugin_list(args: argparse.Namespace, words: list[str]) -> int:
+def _plugin_list(args: PluginArguments, words: list[str]) -> int:
     if words:
         raise ConfigurationError("plugin list takes no arguments")
-    config, _, _, _ = _config_for(args, None, allow_root_setup=True)
+    config, _, _, _ = _config_for(args, None)
     root = _plugin_root(args, config)
     try:
         catalog = PluginCatalog.load(root / "catalog.json") if (root / "catalog.json").exists() else PluginCatalog(())
@@ -112,7 +84,7 @@ def _plugin_list(args: argparse.Namespace, words: list[str]) -> int:
     return EXIT_SUCCESS
 
 
-def _plugin_source_mutation(args: argparse.Namespace, command: str, words: list[str]) -> int:
+def _plugin_source_mutation(args: PluginArguments, command: str, words: list[str]) -> int:
     if len(words) != 1:
         raise ConfigurationError(f"plugin {command} requires one absolute plugin directory")
     plugin_source = Path(words[0])
@@ -149,7 +121,7 @@ def _plugin_source_mutation(args: argparse.Namespace, command: str, words: list[
     return EXIT_SUCCESS
 
 
-def _plugin_id_mutation(args: argparse.Namespace, command: str, words: list[str]) -> int:
+def _plugin_id_mutation(args: PluginArguments, command: str, words: list[str]) -> int:
     if len(words) != 1:
         raise ConfigurationError(f"plugin {command} requires an ID")
     plugin_id = words[0]
@@ -166,16 +138,20 @@ def _plugin_id_mutation(args: argparse.Namespace, command: str, words: list[str]
 
 
 def plugin_command(args: argparse.Namespace) -> int:
-    if not getattr(args, "_arguments_validated", False):
-        validate_arguments(args)
+    return _plugin_command(validate_arguments(args))
+
+
+def _plugin_command(command: PreparedCommand) -> int:
+    args = command.arguments
+    assert isinstance(args, PluginArguments)
     words = list(args.command_args)
     if not words:
         raise ConfigurationError("plugin command is required: install, trust, revoke, uninstall, or list")
-    command = words.pop(0)
-    if command == "list":
+    action = words.pop(0)
+    if action == "list":
         return _plugin_list(args, words)
-    if command in {"install", "trust"}:
-        return _plugin_source_mutation(args, command, words)
-    if command in {"revoke", "uninstall"}:
-        return _plugin_id_mutation(args, command, words)
+    if action in {"install", "trust"}:
+        return _plugin_source_mutation(args, action, words)
+    if action in {"revoke", "uninstall"}:
+        return _plugin_id_mutation(args, action, words)
     raise ConfigurationError("unknown plugin command")

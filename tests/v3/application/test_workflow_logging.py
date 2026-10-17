@@ -9,12 +9,22 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-from test_workflow import FEED, A, B, Gallery, attach_transport, compose
-from test_workflow_retry import RetryGallery, transport
+from support.errors import expect_workflow_error
+from support.synchronization import managed_task, wait_until_started
+from support.workflow import FEED, A, B, Gallery, attach_transport, compose
+from support.workflow_retry import RetryGallery, transport
 
-from image_downloader import PluginError, UpdateCandidate, WorkflowPlanLogError, WorkflowRetryTimeoutError
-from image_downloader.commands.workflow import _revise_after_close, workflow_payload
-from image_downloader.config import WorkflowLogging, resolve_paths
+from image_downloader import (
+    PluginError,
+    UpdateCandidate,
+    WorkflowPlanLogError,
+    WorkflowPlanRequest,
+    WorkflowRequest,
+    WorkflowRetryTimeoutError,
+)
+from image_downloader.application.workflow_finalizer import revise_after_close
+from image_downloader.commands.workflow import workflow_payload
+from image_downloader.config import resolve_paths
 from image_downloader.exceptions import StorageError, error_info_for
 from image_downloader.storage.filesystem import FileSystem
 from image_downloader.storage.workflow_logging import WorkflowLogWriter
@@ -64,7 +74,7 @@ def test_plan_is_complete_before_first_manifest_and_raw_urls_are_dedicated(tmp_p
         gallery = Checked()
         async with compose(tmp_path, gallery) as service:
             await attach_transport(service)
-            result = await service.workflow(FEED, workflow_retries=0)
+            result = await service.workflow(WorkflowRequest(url=FEED, workflow_retries=0))
             assert gallery.seen == [raw, B.url]
             plan = plans(result)[0]
             assert plan["workflow_history_absent"] is True
@@ -107,9 +117,9 @@ def test_plan_failure_prevents_every_download_in_that_round(tmp_path, monkeypatc
         gallery = RetryGallery()
         async with compose(tmp_path, gallery, network={"max_attempts": 1}) as service:
             await transport(service, gallery)
-            with pytest.raises(WorkflowPlanLogError) as captured:
-                await service.workflow(FEED, workflow_retry_delay=0)
-            result = captured.value.workflow_result
+            with expect_workflow_error(WorkflowPlanLogError) as captured:
+                await service.workflow(WorkflowRequest(url=FEED, workflow_retry_delay=0))
+            result = captured.value.result
             assert result.stop_error.code == "workflow_plan_log_error"
             assert len(gallery.seen) == failing_round - 1
             assert len(result.workflow_log.plan_files) == failing_round - 1
@@ -126,7 +136,7 @@ def test_retry_round_plan_is_new_and_success_is_retained(tmp_path):
         gallery = RetryGallery()
         async with compose(tmp_path, gallery, network={"max_attempts": 1}) as service:
             await transport(service, gallery)
-            result = await service.workflow(FEED, workflow_retry_delay=0)
+            result = await service.workflow(WorkflowRequest(url=FEED, workflow_retry_delay=0))
             initial, retry = plans(result)
             assert initial["workflow_history_absent"] is True
             assert retry["workflow_history_absent"] is False
@@ -148,23 +158,23 @@ def test_empty_unchanged_all_removed_republished_plans(tmp_path):
         gallery = Gallery()
         async with compose(tmp_path, gallery) as service:
             await attach_transport(service)
-            first = await service.workflow(FEED, workflow_retries=0)
+            first = await service.workflow(WorkflowRequest(url=FEED, workflow_retries=0))
             first_bytes = Path(first.workflow_log.plan_files[0]).read_bytes()
-            unchanged = await service.workflow(FEED, workflow_retries=0)
+            unchanged = await service.workflow(WorkflowRequest(url=FEED, workflow_retries=0))
             assert plans(unchanged)[0]["selected_urls"] == []
             assert not plans(unchanged)[0]["workflow_history_absent"]
-            all_result = await service.workflow(FEED, download_scope="all", workflow_retries=0)
+            all_result = await service.workflow(WorkflowRequest(url=FEED, download_scope="all", workflow_retries=0))
             assert all(p["reasons"] == ["all"] for p in plans(all_result)[0]["selected_urls"])
             gallery.candidates = ()
-            empty = await service.workflow(FEED, workflow_retries=0)
+            empty = await service.workflow(WorkflowRequest(url=FEED, workflow_retries=0))
             assert plans(empty)[0]["candidates"] == 0
             assert [c["kind"] for c in plans(empty)[0]["changes"]] == ["removed", "removed"]
             assert [r["url"] for r in events(empty) if r["event"] == "target_removed"] == [A.url, B.url]
             gallery.candidates = (A,)
-            published = await service.workflow(FEED, workflow_retries=0)
+            published = await service.workflow(WorkflowRequest(url=FEED, workflow_retries=0))
             assert plans(published)[0]["selected_urls"][0]["reasons"] == ["added"]
             gallery.candidates = (UpdateCandidate(A.url, "a", "2"),)
-            changed = await service.workflow(FEED, workflow_retries=0)
+            changed = await service.workflow(WorkflowRequest(url=FEED, workflow_retries=0))
             assert plans(changed)[0]["selected_urls"][0]["reasons"] == ["changed"]
             assert Path(first.workflow_log.plan_files[0]).read_bytes() == first_bytes
 
@@ -190,7 +200,7 @@ def test_progress_sinks_fail_independently_and_downloads_continue(tmp_path, monk
     async def scenario():
         async with compose(tmp_path, Gallery()) as service:
             await attach_transport(service)
-            result = await service.workflow(FEED, workflow_retries=0)
+            result = await service.workflow(WorkflowRequest(url=FEED, workflow_retries=0))
             assert [item.status for item in result.items] == ["success", "success"]
             summary = result.workflow_log
             assert getattr(summary, kind + "_saved") is False
@@ -210,12 +220,11 @@ def test_progress_sinks_fail_independently_and_downloads_continue(tmp_path, monk
 )
 def test_configuration_and_api_override_do_not_disable_plans(tmp_path, configured, override, enabled):
     async def scenario():
-        async with compose(tmp_path, Gallery()) as service:
-            service.config = service.config.model_copy(
-                update={"workflow_logging": WorkflowLogging(progress_enabled=configured)}
-            )
+        async with compose(tmp_path, Gallery(), workflow_logging={"progress_enabled": configured}) as service:
             await attach_transport(service)
-            result = await service.workflow(FEED, workflow_retries=0, workflow_progress_log=override)
+            result = await service.workflow(
+                WorkflowRequest(url=FEED, workflow_retries=0, workflow_progress_log=override)
+            )
             assert len(result.workflow_log.plan_files) == 1
             assert result.workflow_log.progress_enabled is enabled
             if not enabled:
@@ -233,12 +242,12 @@ def test_dry_run_and_unconfirmed_check_create_no_plans(tmp_path):
 
     async def scenario():
         async with compose(tmp_path, Gallery()) as service:
-            await service.plan_workflow(FEED)
+            await service.plan_workflow(WorkflowPlanRequest(url=FEED))
             assert not (resolve_paths(service.config)["logs"] / "workflow").exists()
         async with compose(tmp_path, Fails()) as service:
-            with pytest.raises(PluginError) as captured:
-                await service.workflow(FEED)
-            assert captured.value.workflow_result.workflow_log.plan_files == ()
+            with expect_workflow_error(PluginError) as captured:
+                await service.workflow(WorkflowRequest(url=FEED))
+            assert captured.value.result.workflow_log.plan_files == ()
 
     asyncio.run(scenario())
 
@@ -261,9 +270,9 @@ def test_close_correction_is_independent_of_history_failure(tmp_path):
     async def scenario():
         async with compose(tmp_path, Gallery()) as service:
             await attach_transport(service)
-            result = await service.workflow(FEED, workflow_retries=0)
+            result = await service.workflow(WorkflowRequest(url=FEED, workflow_retries=0))
             result = replace(result, history_saved=False, stop_error=error_info_for(StorageError()))
-            revised, status = await _revise_after_close(service.config, result, 1, service.outputs.root)
+            revised, status = await revise_after_close(service.config, result, 1, service.outputs.root)
             assert status == 1 and revised.history_saved is False
             record = events(revised)[-1]
             assert record["event"] == "run_corrected"
@@ -304,25 +313,24 @@ def test_cancel_or_timeout_distinguishes_interrupted_and_not_started(tmp_path, t
     async def scenario():
         async with compose(tmp_path, Blocked()) as service:
             await attach_transport(service)
-            task = asyncio.create_task(
-                service.workflow(FEED, workflow_retry_delay=0, workflow_retry_timeout=0.2 if timeout else None)
-            )
-            try:
-                await asyncio.wait_for(started.wait(), 5)
+            async with managed_task(
+                service.workflow(
+                    WorkflowRequest(url=FEED, workflow_retry_delay=0, workflow_retry_timeout=0.2 if timeout else None)
+                )
+            ) as task:
+                await wait_until_started(started, task)
                 if timeout:
                     assert retry_deadline is not None
                     retry_deadline.reschedule(asyncio.get_running_loop().time())
                 else:
                     task.cancel()
-                with pytest.raises(WorkflowRetryTimeoutError if timeout else asyncio.CancelledError) as captured:
+                with expect_workflow_error(
+                    WorkflowRetryTimeoutError if timeout else asyncio.CancelledError
+                ) as captured:
                     await asyncio.wait_for(task, 5)
-            finally:
-                if not task.done():
-                    task.cancel()
-                await asyncio.gather(task, return_exceptions=True)
             if timeout:
                 assert retry_deadline.expired()
-            result = captured.value.workflow_result
+            result = captured.value.result
             records = events(result)
             assert any(r["event"] == "url_interrupted" and r["url"] == A.url for r in records)
             assert records[-1]["timed_out"] is timeout
@@ -335,32 +343,34 @@ def test_cancel_or_timeout_distinguishes_interrupted_and_not_started(tmp_path, t
 
 
 def test_cancel_waits_for_started_plan_write(tmp_path, monkeypatch):
-    started, release = threading.Event(), threading.Event()
-    original = FileSystem.write_bytes_atomic_new
-
-    def block(self, relative, data):
-        if str(relative).endswith(".plan.json"):
-            started.set()
-            assert release.wait(5)
-        return original(self, relative, data)
-
-    monkeypatch.setattr(FileSystem, "write_bytes_atomic_new", block)
-
     async def scenario():
+        started, release = asyncio.Event(), threading.Event()
+        loop = asyncio.get_running_loop()
+        original = FileSystem.write_bytes_atomic_new
+
+        def block(self, relative, data):
+            if str(relative).endswith(".plan.json"):
+                loop.call_soon_threadsafe(started.set)
+                assert release.wait(30)
+            return original(self, relative, data)
+
+        monkeypatch.setattr(FileSystem, "write_bytes_atomic_new", block)
         gallery = Gallery()
         async with compose(tmp_path, gallery) as service:
-            task = asyncio.create_task(service.workflow(FEED))
-            assert await asyncio.to_thread(started.wait, 5)
-            task.cancel()
-            await asyncio.sleep(0)
-            assert not task.done()
-            release.set()
-            with pytest.raises(asyncio.CancelledError) as captured:
-                await task
-            result = captured.value.workflow_result
-            assert len(result.workflow_log.plan_files) == 1
-            assert gallery.seen == []
-            assert events(result)[-1]["cancelled"]
+            async with managed_task(service.workflow(WorkflowRequest(url=FEED))) as task:
+                try:
+                    await wait_until_started(started, task)
+                    task.cancel()
+                    await asyncio.sleep(0)
+                    assert not task.done()
+                finally:
+                    release.set()
+                with pytest.raises(asyncio.CancelledError) as captured:
+                    await task
+                result = captured.value.result
+                assert len(result.workflow_log.plan_files) == 1
+                assert gallery.seen == []
+                assert events(result)[-1]["cancelled"]
 
     asyncio.run(scenario())
 
@@ -372,7 +382,8 @@ def test_parallel_runs_have_separate_files_and_history_ids(tmp_path):
                 await attach_transport(first)
                 await attach_transport(second)
                 one, two = await asyncio.gather(
-                    first.workflow(FEED, workflow_retries=0), second.workflow(FEED + "2", workflow_retries=0)
+                    first.workflow(WorkflowRequest(url=FEED, workflow_retries=0)),
+                    second.workflow(WorkflowRequest(url=FEED + "2", workflow_retries=0)),
                 )
                 assert one.run_id != two.run_id
                 assert set(one.workflow_log.plan_files).isdisjoint(two.workflow_log.plan_files)
@@ -383,37 +394,39 @@ def test_parallel_runs_have_separate_files_and_history_ids(tmp_path):
 
 
 def test_cancellation_during_final_log_write_preserves_success_and_revises_history(tmp_path, monkeypatch):
-    started, release = threading.Event(), threading.Event()
-    original = WorkflowLogWriter.finish
-
-    def block(self, result, exit_code, outcome, *, correction=False):
-        if not correction:
-            started.set()
-            assert release.wait(5)
-        return original(self, result, exit_code, outcome, correction=correction)
-
-    monkeypatch.setattr(WorkflowLogWriter, "finish", block)
-
     async def scenario():
         from image_downloader import WorkflowStateService
 
+        started, release = asyncio.Event(), threading.Event()
+        loop = asyncio.get_running_loop()
+        original = WorkflowLogWriter.finish
+
+        def block(self, result, exit_code, outcome, *, correction=False):
+            if not correction:
+                loop.call_soon_threadsafe(started.set)
+                assert release.wait(30)
+            return original(self, result, exit_code, outcome, correction=correction)
+
+        monkeypatch.setattr(WorkflowLogWriter, "finish", block)
         async with compose(tmp_path, Gallery()) as service:
             await attach_transport(service)
-            task = asyncio.create_task(service.workflow(FEED, workflow_retries=0))
-            assert await asyncio.to_thread(started.wait, 5)
-            task.cancel()
-            await asyncio.sleep(0)
-            assert not task.done()
-            release.set()
-            with pytest.raises(asyncio.CancelledError) as captured:
-                await task
-            result = captured.value.workflow_result
-            assert result.cancelled
-            assert all(item.status == "success" for item in result.items)
-            assert events(result)[-1]["event"] == "run_corrected"
-            assert events(result)[-1]["exit_code"] == 130
-            saved = WorkflowStateService(service.config).get_run(result.run_id)
-            assert saved.exit_code == 130
+            async with managed_task(service.workflow(WorkflowRequest(url=FEED, workflow_retries=0))) as task:
+                try:
+                    await wait_until_started(started, task)
+                    task.cancel()
+                    await asyncio.sleep(0)
+                    assert not task.done()
+                finally:
+                    release.set()
+                with pytest.raises(asyncio.CancelledError) as captured:
+                    await task
+                result = captured.value.result
+                assert result.cancelled
+                assert all(item.status == "success" for item in result.items)
+                assert events(result)[-1]["event"] == "run_corrected"
+                assert events(result)[-1]["exit_code"] == 130
+                saved = WorkflowStateService(service.config).get_run(result.run_id)
+                assert saved.exit_code == 130
 
     asyncio.run(scenario())
 
@@ -439,7 +452,7 @@ def test_final_text_failure_is_recorded_in_surviving_jsonl(tmp_path, monkeypatch
     async def scenario():
         async with compose(tmp_path, Gallery()) as service:
             await attach_transport(service)
-            result = await service.workflow(FEED, workflow_retries=0)
+            result = await service.workflow(WorkflowRequest(url=FEED, workflow_retries=0))
             assert result.workflow_log.text_saved is False
             record = events(result)[-1]
             assert record["event"] == "recording_failed"

@@ -8,6 +8,7 @@ from typing import cast
 
 import pytest
 
+from image_downloader import DownloadRequest
 from image_downloader.config import AppConfig
 from image_downloader.exceptions import HttpTransportError, PluginError
 from image_downloader.models import (
@@ -83,9 +84,7 @@ def test_invoker_converts_unexpected_hook_exceptions_with_plugin_and_hook_identi
         (
             DownloadManifest(
                 "Book",
-                (
-                    Chapter(1, "Chapter", images=(ImageResource("image:1", original_filename="folder/name.webp"),)),
-                ),
+                (Chapter(1, "Chapter", images=(ImageResource("image:1", original_filename="folder/name.webp"),)),),
             ),
             r"invalid original filename at chapters\[0\]\.images\[0\]",
         ),
@@ -578,7 +577,7 @@ def test_download_service_routes_inspect_through_plugin_invoker(tmp_path: Path) 
         service.registry.resolve = lambda *_args, **_kwargs: (record, plugin)  # type: ignore[method-assign]
         try:
             with pytest.raises(PluginError, match="hook=inspect") as caught:
-                await service.run("https://example.test/gallery")
+                await service.download(DownloadRequest(url="https://example.test/gallery"))
             assert isinstance(caught.value.__cause__, RuntimeError)
         finally:
             await service.close()

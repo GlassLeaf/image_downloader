@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import asyncio
-import io
 import json
 from dataclasses import asdict
 from pathlib import Path
 
 import httpx
 import pytest
-from PIL import Image
+from support.additional_files import URL, install, png, service
 
 from image_downloader import (
     AdditionalFileHookPoint as Point,
@@ -17,57 +16,21 @@ from image_downloader import (
     AdditionalFileSpec as Spec,
 )
 from image_downloader import (
-    AppConfig,
     Chapter,
     DownloadManifest,
+    DownloadRequest,
     ImageFetchRequest,
     ImageResource,
+    InspectRequest,
     RequestSpec,
-    RuntimeComposer,
+    UpdateCheckRequest,
+    WorkflowPlanRequest,
+    WorkflowRequest,
 )
 from image_downloader.application.additional_files import additional_file_payload
 from image_downloader.exceptions import AuthenticationError
 from image_downloader.plugins.builtin import GenericHtmlPlugin
 from image_downloader.storage import FileSystem
-
-URL = "https://example.test/gallery"
-
-
-def png():
-    stream = io.BytesIO()
-    Image.new("RGB", (2, 2), "white").save(stream, "PNG")
-    return stream.getvalue()
-
-
-async def service(root, handler=None, **overrides):
-    config = {
-        "storage": {"data_root": str(root / "data")},
-        "plugins": {"root": str(root / "plugins")},
-        "logging": {"console": {"enabled": False}},
-        "output": {"directory_format": "%CHAPTER_NUMBER%", "existing_file": "skip"},
-        "network": {"max_attempts": 1},
-    }
-    config.update(overrides)
-    result = RuntimeComposer(AppConfig.model_validate(config), config_root=root, plugin_root=root / "plugins").compose()
-    await result.gateway.client.aclose()
-    data = png()
-
-    def default(request):
-        if request.url.path == "/gallery":
-            return httpx.Response(200, text="<img src='/image.png'>", request=request)
-        return httpx.Response(200, content=data, headers={"content-type": "image/png"}, request=request)
-
-    result.gateway.client = httpx.AsyncClient(transport=httpx.MockTransport(handler or default))
-    return result
-
-
-def install(monkeypatch, points, provider, received=None, saved=None):
-    monkeypatch.setattr(GenericHtmlPlugin, "additional_file_hook_points", lambda self, context: points, raising=False)
-    monkeypatch.setattr(GenericHtmlPlugin, "additional_files", provider, raising=False)
-    if received:
-        monkeypatch.setattr(GenericHtmlPlugin, "additional_file_received", received, raising=False)
-    if saved:
-        monkeypatch.setattr(GenericHtmlPlugin, "additional_file_saved", saved, raising=False)
 
 
 def test_all_stages_raw_data_and_cleanup_order(tmp_path, monkeypatch):
@@ -103,7 +66,7 @@ def test_all_stages_raw_data_and_cleanup_order(tmp_path, monkeypatch):
     async def scenario():
         runtime = await service(tmp_path)
         try:
-            result = await runtime.run(URL)
+            result = await runtime.download(DownloadRequest(url=URL))
             assert len(result.saved_files) == 2
             assert not result.failures
             assert len(received) == 13 and len(saved) == 14
@@ -158,7 +121,7 @@ def test_received_key_used_for_request_and_transform(tmp_path, monkeypatch):
     async def scenario():
         runtime = await service(tmp_path, handler)
         try:
-            result = await runtime.run(URL)
+            result = await runtime.download(DownloadRequest(url=URL))
             assert len(result.saved_files) == 1
             assert "private-test-key" not in json.dumps(additional_file_payload(result, runtime.outputs.root))
             assert "private-test-key" not in next((tmp_path / "data").rglob("debug.log")).read_text()
@@ -185,9 +148,9 @@ def test_skip_callback_observes_existing_content(tmp_path, monkeypatch):
     async def scenario():
         runtime = await service(tmp_path)
         try:
-            first = await runtime.run(URL)
+            first = await runtime.download(DownloadRequest(url=URL))
             Path(saved[0].path).write_bytes(b"old")
-            second = await runtime.run(URL)
+            second = await runtime.download(DownloadRequest(url=URL))
             assert len(first.saved_files) == 1 and len(second.skipped_files) == 1
             assert received == [b"new", b"new"]
             assert saved[1].status == "skipped" and saved[1].data == b"old"
@@ -256,8 +219,8 @@ def test_optional_failures_preserve_images(tmp_path, monkeypatch, kind):
     async def scenario():
         runtime = await service(tmp_path, handler)
         try:
-            await runtime.run(URL)
-            result = await runtime.run(URL)
+            await runtime.download(DownloadRequest(url=URL))
+            result = await runtime.download(DownloadRequest(url=URL))
             assert not result.failures and len(result.skipped_files) == 1
             phase = "hook" if kind in {"path", "return"} else kind
             assert any(x.phase == phase and x.status == "failed" for x in result.additional_files)
@@ -301,7 +264,7 @@ def test_workflow_retains_image_results_and_history(tmp_path, monkeypatch):
 
         runtime = await service(tmp_path, handler)
         try:
-            result = await runtime.workflow(URL, workflow_retries=1, workflow_retry_delay=0)
+            result = await runtime.workflow(WorkflowRequest(url=URL, workflow_retries=1, workflow_retry_delay=0))
             assert result.items[0].status == "success"
             assert sorted(received) == [(1, 1), (2, 1), (2, 2)]
             assert counts["/good.png"] == 1 and counts["/retry.png"] == 2
@@ -343,7 +306,7 @@ def test_unsafe_paths_rejected_before_request(tmp_path, monkeypatch, path):
     async def scenario():
         runtime = await service(tmp_path)
         try:
-            result = await runtime.run(URL)
+            result = await runtime.download(DownloadRequest(url=URL))
             assert len(result.saved_files) == 1
             assert result.additional_files[0].phase == "hook"
             assert result.additional_files[0].status == "failed"
@@ -372,7 +335,7 @@ def test_byte_limit_and_missing_required_key(tmp_path, monkeypatch):
         runtime = await service(tmp_path, network={"max_attempts": 1, "max_response_bytes": 512})
         try:
             with pytest.raises(AuthenticationError):
-                await runtime.run(URL)
+                await runtime.download(DownloadRequest(url=URL))
             assert len(received) == 1 and received[0].status == "failed"
             assert received[0].data is None
         finally:
@@ -437,7 +400,7 @@ def test_cancelled_callback_propagates_and_cleans_temporary(tmp_path, monkeypatc
         runtime = await service(tmp_path)
         try:
             with pytest.raises(asyncio.CancelledError):
-                await runtime.run(URL)
+                await runtime.download(DownloadRequest(url=URL))
             assert roots and all(not p.exists() for p in roots)
         finally:
             await runtime.close()
@@ -469,9 +432,9 @@ def test_inspection_and_update_do_not_call_provider(tmp_path, monkeypatch):
     async def scenario():
         runtime = await service(tmp_path)
         try:
-            await runtime.inspect(URL)
-            await runtime.check_updates(URL)
-            await runtime.plan_workflow(URL)
+            await runtime.inspect(InspectRequest(url=URL))
+            await runtime.check_updates(UpdateCheckRequest(url=URL))
+            await runtime.plan_workflow(WorkflowPlanRequest(url=URL))
         finally:
             await runtime.close()
 
@@ -512,7 +475,7 @@ def test_after_request_data_is_available_to_parallel_transforms(tmp_path, monkey
     async def scenario():
         runtime = await service(tmp_path, download={"image_concurrency_per_chapter": 2})
         try:
-            result = await runtime.run(URL)
+            result = await runtime.download(DownloadRequest(url=URL))
             assert len(result.saved_files) == 2 and not result.failures
             assert len(set(seen)) == 2
         finally:
@@ -533,7 +496,7 @@ def test_invalid_declaration_is_optional(tmp_path, monkeypatch, declaration):
     async def scenario():
         runtime = await service(tmp_path)
         try:
-            result = await runtime.run(URL)
+            result = await runtime.download(DownloadRequest(url=URL))
             assert len(result.saved_files) == 1
             assert [(x.phase, x.status) for x in result.additional_files] == [("declaration", "failed")]
         finally:
@@ -564,7 +527,7 @@ def test_before_manifest_with_no_chapters_has_no_save_callback(tmp_path, monkeyp
     async def scenario():
         runtime = await service(tmp_path, download={"allow_empty_chapter_manifest": True})
         try:
-            result = await runtime.run(URL)
+            result = await runtime.download(DownloadRequest(url=URL))
             assert not result.saved_files and not result.failures
             assert result.additional_files[-1].status == "no_target"
         finally:
@@ -632,11 +595,11 @@ def test_all_additional_byte_sources_are_bounded(tmp_path, monkeypatch, source):
     async def scenario():
         runtime = await service(tmp_path, handler, network={"max_attempts": 1, "max_response_bytes": 512})
         try:
-            result = await runtime.run(URL)
+            result = await runtime.download(DownloadRequest(url=URL))
             assert len(result.saved_files) == 1 and not result.failures
             if source == "existing":
                 Path(saved[0].path).write_bytes(b"x" * 600)
-                result = await runtime.run(URL)
+                result = await runtime.download(DownloadRequest(url=URL))
                 assert not result.failures and len(result.skipped_files) == 1
                 assert saved[-1].status == "skipped" and saved[-1].data is None
                 assert saved[-1].read_error is not None
@@ -672,7 +635,7 @@ def test_after_download_runs_for_returned_image_failures(tmp_path, monkeypatch):
     async def scenario():
         runtime = await service(tmp_path, handler)
         try:
-            result = await runtime.run(URL)
+            result = await runtime.download(DownloadRequest(url=URL))
             assert len(result.failures) == 1 and not result.saved_files
             assert seen == [Point.AFTER_DOWNLOAD]
             assert any(x.status == "saved" for x in result.additional_files)

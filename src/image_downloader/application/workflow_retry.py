@@ -15,6 +15,7 @@ from ..models import (
     DownloadResult,
     ImageOutcome,
     ImageOutcomeKind,
+    ImageResource,
     WorkflowImageResult,
 )
 
@@ -51,6 +52,20 @@ class ImageLedger:
         self._additional_identities: dict[int, tuple[str, str]] = {}
         self._current_additional_identities: dict[tuple[int, int], tuple[str, str]] = {}
 
+    def mark_attempted(self, chapter_position: int, image_position: int) -> None:
+        self.attempted.add((chapter_position, image_position))
+
+    def retained_outcome(self, chapter_position: int, image_position: int) -> ImageOutcome | None:
+        position = (chapter_position, image_position)
+        return self.outcomes[position] if position in self.retained else None
+
+    @staticmethod
+    def can_retain(outcome: ImageOutcome, image: ImageResource) -> bool:
+        # Full equality deliberately includes acquisition, transform and save inputs.
+        return outcome.image == image and (
+            outcome.kind is not ImageOutcomeKind.FAILED or not ImageLedger._retryable_outcome(outcome)
+        )
+
     def start_attempt(self) -> None:
         self.attempt_number += 1
         self.retained = set(self.outcomes)
@@ -61,12 +76,12 @@ class ImageLedger:
         chapter_keys = ["id:" + c.chapter_id if c.chapter_id else f"number:{c.number}" for c in manifest.chapters]
         counts = Counter(chapter_keys)
         identities = {}
-        for cp, chapter in enumerate(manifest.chapters):
+        for chapter_position, chapter in enumerate(manifest.chapters):
             keys = ["id:" + i.image_id if i.image_id else "locator:" + i.url for i in chapter.images]
             image_counts = Counter(keys)
-            for ip, key in enumerate(keys):
-                if counts[chapter_keys[cp]] == 1 and image_counts[key] == 1:
-                    identities[cp, ip] = (chapter_keys[cp], key)
+            for image_position, key in enumerate(keys):
+                if counts[chapter_keys[chapter_position]] == 1 and image_counts[key] == 1:
+                    identities[chapter_position, image_position] = (chapter_keys[chapter_position], key)
         return identities
 
     def begin(self, manifest: DownloadManifest, plugin_id: str) -> None:
@@ -82,14 +97,16 @@ class ImageLedger:
         for pos, identity in self._identities(manifest).items():
             outcome = old.get(identity)
             image = manifest.chapters[pos[0]].images[pos[1]]
-            if outcome is not None and outcome.image == image:
-                if outcome.kind is not ImageOutcomeKind.FAILED or not self._retryable_outcome(outcome):
-                    self.outcomes[pos] = replace(outcome, image=image)
-                    self.retained.add(pos)
+            if outcome is not None and self.can_retain(outcome, image):
+                self.outcomes[pos] = replace(outcome, image=image)
+                self.retained.add(pos)
         identities = self._identities(manifest)
         self._current_additional_identities = {
-            (id(manifest.chapters[cp]), id(manifest.chapters[cp].images[ip])): identity
-            for (cp, ip), identity in identities.items()
+            (
+                id(manifest.chapters[chapter_position]),
+                id(manifest.chapters[chapter_position].images[image_position]),
+            ): identity
+            for (chapter_position, image_position), identity in identities.items()
         }
         retained = {identities[pos]: pos for pos in self.retained}
         kept = []
@@ -99,11 +116,11 @@ class ImageLedger:
             if item.image_index is None or item.attempt_number == self.attempt_number:
                 kept.append(item)
             elif item_identity is not None and item_identity in retained:
-                cp, ip = retained[item_identity]
+                chapter_position, image_position = retained[item_identity]
                 item = replace(
                     item,
-                    chapter_number=manifest.chapters[cp].number,
-                    image_index=manifest.chapters[cp].images[ip].index,
+                    chapter_number=manifest.chapters[chapter_position].number,
+                    image_index=manifest.chapters[chapter_position].images[image_position].index,
                 )
                 kept.append(item)
             else:
@@ -137,9 +154,13 @@ class ImageLedger:
             tuple(
                 ChapterResult(
                     chapter,
-                    tuple(self.outcomes[cp, ip] for ip in range(len(chapter.images)) if (cp, ip) in self.outcomes),
+                    tuple(
+                        self.outcomes[chapter_position, image_position]
+                        for image_position in range(len(chapter.images))
+                        if (chapter_position, image_position) in self.outcomes
+                    ),
                 )
-                for cp, chapter in enumerate(self.manifest.chapters)
+                for chapter_position, chapter in enumerate(self.manifest.chapters)
             ),
             tuple(self.additional_files),
         )
@@ -149,16 +170,18 @@ class ImageLedger:
             return ()
         return tuple(
             WorkflowImageResult(
-                cp + 1,
-                ip + 1,
+                chapter_position + 1,
+                image_position + 1,
                 image,
-                self.outcomes[cp, ip].kind.value if (cp, ip) in self.outcomes else "unprocessed",
-                (cp, ip) in self.retained,
-                self.outcomes.get((cp, ip)),
-                (cp, ip) in self.attempted,
+                self.outcomes[chapter_position, image_position].kind.value
+                if (chapter_position, image_position) in self.outcomes
+                else "unprocessed",
+                (chapter_position, image_position) in self.retained,
+                self.outcomes.get((chapter_position, image_position)),
+                (chapter_position, image_position) in self.attempted,
             )
-            for cp, chapter in enumerate(self.manifest.chapters)
-            for ip, image in enumerate(chapter.images)
+            for chapter_position, chapter in enumerate(self.manifest.chapters)
+            for image_position, image in enumerate(chapter.images)
         )
 
     def needs_retry(self, error: ErrorInfo | None) -> bool:

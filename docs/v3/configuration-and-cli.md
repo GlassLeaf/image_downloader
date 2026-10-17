@@ -1,3 +1,5 @@
-# Moved: configuration and CLI
+<a id="moved-configuration-and-cli"></a>
 
-Use [reference/configuration.md](reference/configuration.md) for configuration and [reference/cli.md](reference/cli.md) for commands. This compatibility page defines no behavior.
+# 移動先：設定とCLI
+
+設定は[設定リファレンス](reference/configuration.md)、コマンドは[CLIリファレンス](reference/cli.md)を参照してください。この移動案内ページでは、動作を定義しません。

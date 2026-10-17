@@ -8,7 +8,9 @@ from typing import Literal
 import httpx
 import pytest
 from PIL import Image
+from support.synchronization import managed_task, wait_until_started
 
+from image_downloader import DownloadRequest
 from image_downloader.config import AppConfig, Notification
 from image_downloader.exceptions import (
     AuthenticationError,
@@ -19,7 +21,8 @@ from image_downloader.exceptions import (
 )
 from image_downloader.observability.events import EventBus, EventName, EventPayload
 from image_downloader.observability.logging import DownloadLogger
-from image_downloader.observability.notifications import NotificationService, validate_notification_delivery
+from image_downloader.observability.notification_delivery import validate_notification_delivery
+from image_downloader.observability.notifications import NotificationService
 from image_downloader.runtime import ArtifactPipeline, DownloadService, RuntimeComposer
 from image_downloader.storage import FileSystem
 from image_downloader.transport.gateway import OperationRequestGateway
@@ -82,7 +85,7 @@ def test_success_emits_image_and_operation_events_in_order(tmp_path: Path) -> No
         await _mock_gallery(service, ("good.png",))
         observed = _record_events(service)
         try:
-            result = await service.run("https://example.test/gallery")
+            result = await service.download(DownloadRequest(url="https://example.test/gallery"))
             assert len(result.saved_files) == 1
             return observed
         finally:
@@ -140,7 +143,7 @@ def test_stage_failure_emitted_once_even_in_fail_fast(
         observed = _record_events(service)
         try:
             if continue_on_image_error:
-                result = await service.run("https://example.test/gallery")
+                result = await service.download(DownloadRequest(url="https://example.test/gallery"))
                 assert len(result.failures) == 1
                 if stage == "save":
                     assert result.failures[0].exception_type == "StorageError"
@@ -148,7 +151,7 @@ def test_stage_failure_emitted_once_even_in_fail_fast(
             else:
                 expected_error = StorageError if stage == "save" else ImageDownloaderError
                 with pytest.raises(expected_error):
-                    await service.run("https://example.test/gallery")
+                    await service.download(DownloadRequest(url="https://example.test/gallery"))
             return observed
         finally:
             await service.close()
@@ -170,8 +173,8 @@ def test_mixed_results_emit_partial_success(tmp_path: Path) -> None:
         await _mock_gallery(service, ("good.png", "bad.png"), failing="bad.png")
         observed = _record_events(service)
         try:
-            first = await service.run("https://example.test/gallery")
-            second = await service.run("https://example.test/gallery")
+            first = await service.download(DownloadRequest(url="https://example.test/gallery"))
+            second = await service.download(DownloadRequest(url="https://example.test/gallery"))
             return observed, len(first.saved_files), len(second.skipped_files)
         finally:
             await service.close()
@@ -219,7 +222,7 @@ def test_image_decode_failure_has_transport_context_in_events_notifications_and_
             {"desktop": sender},
         )
         try:
-            result = await service.run("https://example.test/gallery")
+            result = await service.download(DownloadRequest(url="https://example.test/gallery"))
             await notifications.flush(source_url="https://example.test/gallery")
             log = next((tmp_path / "data").rglob("log.log")).read_text(encoding="utf-8")
             return payloads[0], sender.messages[0], log, result.failures[0]
@@ -261,7 +264,7 @@ def test_http_status_failure_keeps_final_response_url_and_transport_state(tmp_pa
         payloads: list[EventPayload] = []
         service.events.on(EventName.FETCH_FAILED, payloads.append)
         try:
-            result = await service.run("https://example.test/gallery")
+            result = await service.download(DownloadRequest(url="https://example.test/gallery"))
             log = next((tmp_path / "data").rglob("log.log")).read_text(encoding="utf-8")
             return payloads[0], log, result.failures[0]
         finally:
@@ -302,7 +305,7 @@ def test_existing_file_error_is_a_controlled_save_conflict_with_diagnostics(tmp_
             {"desktop": sender},
         )
         try:
-            result = await service.run("https://example.test/gallery")
+            result = await service.download(DownloadRequest(url="https://example.test/gallery"))
             await notifications.flush(source_url="https://example.test/gallery")
             log = next((tmp_path / "data").rglob("log.log")).read_text(encoding="utf-8")
             return payloads[0], sender.messages[0], log, result, result.failures[0]
@@ -343,7 +346,7 @@ def test_existing_file_error_raises_the_specific_exception_when_fail_fast(tmp_pa
         await _mock_gallery(service, ("blocked.png",))
         try:
             with pytest.raises(ExistingFileConflictError) as raised:
-                await service.run("https://example.test/gallery")
+                await service.download(DownloadRequest(url="https://example.test/gallery"))
             assert raised.value.relative_path == Path("0001_Gallery_Gallery") / "0001.png"
             assert raised.value.policy == "error"
         finally:
@@ -363,7 +366,7 @@ def test_fail_fast_save_error_keeps_stage_context_in_event_and_chapter_log(tmp_p
         service.events.on(EventName.SAVE_FAILED, payloads.append)
         try:
             with pytest.raises(ExistingFileConflictError):
-                await service.run("https://example.test/gallery")
+                await service.download(DownloadRequest(url="https://example.test/gallery"))
             log = next((tmp_path / "data").rglob("log.log")).read_text(encoding="utf-8")
             return payloads[0], log
         finally:
@@ -385,7 +388,7 @@ def test_image_authentication_failure_uses_fetch_category_with_image_context(
     async def fail_image(*_args: object, **_kwargs: object) -> object:
         raise AuthenticationError("token=secret")
 
-    monkeypatch.setattr(OperationRequestGateway, "execute_image", fail_image)
+    monkeypatch.setattr(OperationRequestGateway, "execute_image_with_metadata", fail_image)
 
     async def scenario() -> tuple[list[EventName], EventPayload, str]:
         service = _service(tmp_path)
@@ -395,7 +398,7 @@ def test_image_authentication_failure_uses_fetch_category_with_image_context(
         service.events.on(EventName.FETCH_FAILED, payloads.append)
         try:
             with pytest.raises(AuthenticationError):
-                await service.run("https://example.test/gallery")
+                await service.download(DownloadRequest(url="https://example.test/gallery"))
             log = next((tmp_path / "data").rglob("log.log")).read_text(encoding="utf-8")
             return observed, payloads[0], log
         finally:
@@ -420,13 +423,13 @@ def test_cancelled_operation_emits_after_but_not_failed(tmp_path: Path, monkeypa
             started.set()
             await asyncio.Event().wait()
 
-        monkeypatch.setattr(service, "_run_operation", blocked)
+        monkeypatch.setattr(service._downloads, "execute", blocked)
         try:
-            task = asyncio.create_task(service.run("https://example.test/gallery"))
-            await started.wait()
-            task.cancel()
-            with pytest.raises(asyncio.CancelledError):
-                await task
+            async with managed_task(service.download(DownloadRequest(url="https://example.test/gallery"))) as task:
+                await wait_until_started(started, task)
+                task.cancel()
+                with pytest.raises(asyncio.CancelledError):
+                    await task
             return observed
         finally:
             await service.close()
@@ -436,7 +439,9 @@ def test_cancelled_operation_emits_after_but_not_failed(tmp_path: Path, monkeypa
 
 def test_notification_defaults_off_and_validates_only_active_routes(monkeypatch: pytest.MonkeyPatch) -> None:
     assert not Notification().enabled
-    monkeypatch.setattr("image_downloader.observability.notifications.importlib.util.find_spec", lambda _name: None)
+    monkeypatch.setattr(
+        "image_downloader.observability.notification_delivery.importlib.util.find_spec", lambda _name: None
+    )
     validate_notification_delivery(Notification())
     with pytest.raises(ConfigurationError, match=r"image-downloader\[notify\]"):
         validate_notification_delivery(Notification(enabled=True))
@@ -461,7 +466,9 @@ def test_notification_defaults_off_and_validates_only_active_routes(monkeypatch:
 def test_compose_rejects_missing_desktop_dependency_before_building_service(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr("image_downloader.observability.notifications.importlib.util.find_spec", lambda _name: None)
+    monkeypatch.setattr(
+        "image_downloader.observability.notification_delivery.importlib.util.find_spec", lambda _name: None
+    )
     plugin_root = (tmp_path / "plugins").resolve()
     config = AppConfig.model_validate(
         {

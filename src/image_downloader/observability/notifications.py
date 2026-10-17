@@ -1,28 +1,22 @@
 from __future__ import annotations
 
-import asyncio
-import importlib.util
 import json
-import os
-import re
-import smtplib
-import ssl
-from collections import Counter
 from collections.abc import Mapping
 from contextlib import contextmanager
-from email.errors import HeaderParseError
-from email.headerregistry import Address
-from email.message import EmailMessage
 from functools import partial
-from ipaddress import ip_address
-from typing import Any, Protocol
 
-from ..configuration.models import Email, Notification, NotificationCategory, NotificationMethod
-from ..credentials.keyring import load_secret
-from ..exceptions import ConfigurationError
+from image_downloader.observability.notification_delivery import (
+    EmailNotificationSender,
+    NotificationSender,
+    _smtp_diagnostic_host,
+    _smtp_refusal_diagnostic,
+)
+
+from ..configuration.models import Notification, NotificationCategory, NotificationMethod
 from ..models import WorkflowItemResult
 from .events import EventBus, EventName, EventPayload
 from .logging import DownloadLogger, safe_exception_name
+from .notification_content import render_notification
 
 NOTIFICATION_SOURCES: Mapping[EventName, NotificationCategory] = {
     EventName.FETCH_FAILED: "fetch_error",
@@ -43,142 +37,6 @@ NOTIFICATION_SOURCES: Mapping[EventName, NotificationCategory] = {
     EventName.DOWNLOAD_SUCCESS: "download_success",
     EventName.DOWNLOAD_PARTIAL_SUCCESS: "download_partial_success",
 }
-
-_IMAGE_NOTIFICATION_LABELS: Mapping[NotificationCategory, str] = {
-    "fetch_error": "image_fetch_failed",
-    "process_error": "image_processing_failed",
-    "save_error": "image_save_failed",
-}
-_NOTIFICATION_EXAMPLE_LIMIT = 5
-_NOTIFICATION_URL_LIMIT = 256
-_NOTIFICATION_BODY_LIMIT = 4096
-
-
-def _normalize_diagnostic_host(value: str) -> str:
-    """Retain only a DNS name or IP address, never arbitrary diagnostic text."""
-    if not value or any(character.isspace() or ord(character) < 32 or ord(character) == 127 for character in value):
-        return "unknown"
-    literal = value.startswith("[") and value.endswith("]")
-    host = value[1:-1] if literal else value
-    ipv6_literal = host.lower().startswith("ipv6:")
-    if ipv6_literal:
-        host = host[5:]
-    if "%" in host:
-        return "unknown"
-    try:
-        address = ip_address(host)
-        return address.compressed if not ipv6_literal or address.version == 6 else "unknown"
-    except ValueError:
-        if literal or ipv6_literal:
-            return "unknown"
-    try:
-        host = host.encode("idna").decode("ascii").lower().removesuffix(".")
-    except UnicodeError:
-        return "unknown"
-    labels = host.split(".")
-    if len(host) > 253 or any(re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?", label) is None for label in labels):
-        return "unknown"
-    return host
-
-
-def _smtp_diagnostic_host(value: str) -> str:
-    if value.startswith("["):
-        match = re.fullmatch(r"(\[[^\[\]]+\])(?::([0-9]{1,5}))?", value)
-        if match is None or (match[2] is not None and int(match[2]) > 65535):
-            return "unknown"
-        value = match[1]
-    elif value.count(":") == 1:
-        host, _, port = value.partition(":")
-        if re.fullmatch(r"[0-9]{1,5}", port) is None or int(port) > 65535:
-            return "unknown"
-        value = host
-    return _normalize_diagnostic_host(value)
-
-
-def _refused_domains(recipients: Mapping[str, object]) -> tuple[str, ...]:
-    domains: set[str] = set()
-    for recipient in recipients:
-        try:
-            if any(ord(character) < 32 or ord(character) == 127 for character in recipient):
-                raise ValueError("invalid diagnostic address")
-            domain = Address(addr_spec=recipient).domain
-        except (HeaderParseError, ValueError, IndexError, RecursionError):
-            domain = ""
-        domains.add(_normalize_diagnostic_host(domain))
-    return tuple(sorted(domains))
-
-
-class _PartialRecipientRefusalError(RuntimeError):
-    def __init__(self, recipients: Mapping[str, object]) -> None:
-        super().__init__("some SMTP recipients were refused")
-        self.refused_count = len(recipients)
-        self.refused_domains = _refused_domains(recipients)
-
-
-def _smtp_refusal_diagnostic(error: Exception) -> tuple[str, int, tuple[str, ...]] | None:
-    if isinstance(error, _PartialRecipientRefusalError):
-        return "smtp_partial_recipients_refused", error.refused_count, error.refused_domains
-    if isinstance(error, smtplib.SMTPRecipientsRefused):
-        return "smtp_all_recipients_refused", len(error.recipients), _refused_domains(error.recipients)
-    return None
-
-
-class NotificationSender(Protocol):
-    async def send(self, title: str, message: str) -> bool: ...
-
-
-def validate_notification_delivery(config: Notification) -> None:
-    """Validate only the methods reachable from enabled notification categories."""
-    if not config.enabled:
-        return
-    selected_routes = [config.routes.get(category, config.methods) for category in config.notify_on]
-    if any(not route for route in selected_routes):
-        raise ConfigurationError("enabled notification categories require at least one delivery method")
-    methods = {method for route in selected_routes for method in route}
-    if "desktop" in methods and importlib.util.find_spec("desktop_notifier") is None:
-        raise ConfigurationError("desktop notification requires image-downloader[notify]")
-    if "email" in methods and (not config.email.smtp_host or not config.email.from_ or not config.email.to):
-        raise ConfigurationError("email notification requires smtp_host, from, and to")
-
-
-class DesktopNotificationSender:
-    async def send(self, title: str, message: str) -> bool:
-        try:
-            from desktop_notifier import DesktopNotifier
-        except ImportError as exc:
-            raise RuntimeError("desktop notification requires image-downloader[notify]") from exc
-        notifier = DesktopNotifier(app_name="image-downloader")
-        await notifier.send(title=title, message=message)
-        return True
-
-
-class EmailNotificationSender:
-    def __init__(self, config: Email) -> None:
-        self.config = config
-
-    async def send(self, title: str, message: str) -> bool:
-        settings = self.config.model_dump(by_alias=True, warnings=False)
-        if not settings["smtp_host"] or not settings["from"] or not settings["to"]:
-            raise RuntimeError("email notification requires smtp_host, from, and to")
-        username = settings["username"]
-        if username:
-            password = os.getenv("IMAGE_DOWNLOADER_SMTP_PASSWORD") or load_secret(
-                settings["credential_service"], username
-            )
-            if not password:
-                raise RuntimeError(
-                    "email notification requires SMTP credentials in keyring or IMAGE_DOWNLOADER_SMTP_PASSWORD"
-                )
-            settings["password"] = password
-        await asyncio.to_thread(_send_mail, settings, title, message)
-        return True
-
-
-def default_notification_senders(config: Notification) -> Mapping[NotificationMethod, NotificationSender]:
-    return {
-        "desktop": DesktopNotificationSender(),
-        "email": EmailNotificationSender(config.email),
-    }
 
 
 class NotificationService:
@@ -320,86 +178,13 @@ class NotificationService:
         for category, payload in self._records:
             grouped.setdefault(category, []).append(payload)
         self._records.clear()
-        title = "Image downloader notification"
-        lines = [f"URL: {self.logger.safe_url(source_url)}"]
-        examples: list[EventPayload] = []
-        for category in sorted(grouped):
-            payloads = sorted(grouped[category], key=self._payload_sort_key)
-            label = _IMAGE_NOTIFICATION_LABELS.get(category, category)
-            lines.append(f"{label}: count={len(payloads)}")
-            if category in _IMAGE_NOTIFICATION_LABELS:
-                reason_counts = Counter(payload.error_code or "unknown_image_failure" for payload in payloads)
-                for code, count in sorted(reason_counts.items()):
-                    lines.append(f"reason_code: {code} count={count}")
-                examples.extend(payload for payload in payloads if payload.stage is not None)
-            else:
-                reason_counts = Counter(payload.error_code or "unknown_error" for payload in payloads)
-                for code, count in sorted(reason_counts.items()):
-                    lines.append(f"reason_code: {code} count={count}")
-                first = payloads[0]
-                if first.operation is not None:
-                    lines.append("operation: " + first.operation)
-                if first.error_reason is not None:
-                    lines.append("reason: " + first.error_reason)
-                error_class = first.error_class
-                if error_class:
-                    lines.append(f"exception: {error_class}")
-        selected_examples = sorted(examples, key=self._payload_sort_key)[:_NOTIFICATION_EXAMPLE_LIMIT]
-        for position, payload in enumerate(selected_examples, start=1):
-            lines.extend(self._render_image_example(position, payload))
-        if log_path:
-            lines.append("Log: [REDACTED]")
-        detail = "\n".join(lines)
-        if len(detail) > _NOTIFICATION_BODY_LIMIT:
-            detail = detail[: _NOTIFICATION_BODY_LIMIT - 1] + "…"
+        title, detail = render_notification(
+            grouped,
+            safe_source_url=self.logger.safe_url(source_url),
+            has_log_path=bool(log_path),
+        )
         for method in self._methods_for(grouped):
             await self._deliver(method, title, detail)
-
-    @staticmethod
-    def _payload_sort_key(payload: EventPayload) -> tuple[int, int, str, str]:
-        return (
-            int(payload.chapter_id) if payload.chapter_id is not None else -1,
-            payload.image_index if payload.image_index is not None else -1,
-            payload.stage or "",
-            payload.url or "",
-        )
-
-    @staticmethod
-    def _short_url(value: str) -> str:
-        return value if len(value) <= _NOTIFICATION_URL_LIMIT else value[:_NOTIFICATION_URL_LIMIT] + "…"
-
-    def _render_image_example(self, position: int, payload: EventPayload) -> list[str]:
-        label = f"example {position}"
-        if payload.chapter_id is not None:
-            label += f": chapter={payload.chapter_id}"
-        if payload.image_index is not None:
-            label += f" image={payload.image_index}"
-        lines = [label]
-        if payload.url is not None:
-            lines.append("image_url: " + self._short_url(payload.url))
-        lines.append("stage: " + (payload.stage or "image_processing"))
-        if payload.response_url is not None:
-            lines.append("response_url: " + self._short_url(payload.response_url))
-        if payload.http_status is not None:
-            lines.append(f"http_status: {payload.http_status}")
-        transport = payload.transport
-        if (
-            transport is None
-            and payload.stage in {"image_processing", "image_save"}
-            and payload.http_status is not None
-        ):
-            transport = "completed"
-        if transport is not None:
-            lines.append("transport: " + transport)
-        if payload.path is not None:
-            lines.append("output_path: " + payload.path)
-        if payload.error_code is not None:
-            lines.append("reason_code: " + payload.error_code)
-        if payload.error_reason is not None:
-            lines.append("reason: " + payload.error_reason)
-        if payload.error_class is not None:
-            lines.append("exception: " + payload.error_class)
-        return lines
 
     def _methods_for(
         self,
@@ -464,35 +249,3 @@ class NotificationService:
         if self.events is not None:
             await self.events.emit(EventName.NOTIFICATION_FAILED, EventPayload(channel=channel))
         return False
-
-
-def _send_mail(settings: dict[str, Any], title: str, message: str) -> None:
-    mail = EmailMessage()
-    mail["Subject"] = title
-    mail["From"] = settings["from"]
-    mail["To"] = ", ".join(settings["to"])
-    mail.set_content(message)
-    context = ssl.create_default_context()
-    ssl_mode = settings.get("use_tls", True) and int(settings.get("smtp_port", 465)) == 465
-    client = (
-        smtplib.SMTP_SSL(
-            settings["smtp_host"],
-            int(settings.get("smtp_port", 465)),
-            timeout=30,
-            context=context,
-        )
-        if ssl_mode
-        else smtplib.SMTP(
-            settings["smtp_host"],
-            int(settings.get("smtp_port", 465)),
-            timeout=30,
-        )
-    )
-    with client:
-        if not ssl_mode and settings.get("use_tls", True):
-            client.starttls(context=context)
-        if settings.get("username"):
-            client.login(settings["username"], settings.get("password", ""))
-        refused = client.send_message(mail)
-    if refused:
-        raise _PartialRecipientRefusalError(refused)

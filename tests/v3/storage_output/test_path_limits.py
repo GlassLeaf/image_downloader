@@ -248,7 +248,7 @@ def test_unrelated_errors_and_missing_files_are_unchanged(tmp_path: Path, error:
 
 def test_safe_diagnostics_reject_arbitrary_marker_text() -> None:
     error = StorageError("secret text")
-    error.__dict__["_path_length_diagnostic"] = "secret marker"
+    error.path_length_diagnostic = "secret marker"
     assert error_info_for(error).message == "storage operation failed"
 
 

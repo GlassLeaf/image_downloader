@@ -19,6 +19,7 @@ from ..diagnostics import argument_error, configuration_error, configuration_sou
 from ..exceptions import ConfigurationError
 from ..immutable import thaw_json
 from ..storage.path_safety import canonical_path, existing_directory, existing_regular_file
+from .prepared import ConfigurationArguments, DoctorArguments, SiteArguments
 
 
 def _bundled_config_path() -> Path:
@@ -113,12 +114,12 @@ def _persist_initial_user_config(source: str) -> None:
         print(f"Created user configuration: {destination}", file=sys.stderr)
 
 
-def _plugin_root(args: argparse.Namespace, config: AppConfig) -> Path:
+def _plugin_root(args: ConfigurationArguments, config: AppConfig) -> Path:
     root = args.plugin_root if args.plugin_root is not None else configured_plugin_root(config)
     return existing_directory(root, "--plugin-root" if args.plugin_root is not None else "plugins.root")
 
 
-def _output_root(args: argparse.Namespace) -> Path | None:
+def _output_root(args: ConfigurationArguments) -> Path | None:
     """Return the download-only output root requested for this invocation."""
     output_dir = getattr(args, "output_dir", None)
     if output_dir is None:
@@ -126,7 +127,7 @@ def _output_root(args: argparse.Namespace) -> Path | None:
     return existing_directory(output_dir, "--output-dir")
 
 
-def _bootstrap_override(args: argparse.Namespace) -> Mapping[str, object]:
+def _bootstrap_override(args: ConfigurationArguments) -> Mapping[str, object]:
     patch: dict[str, object] = {}
     if args.data_root is not None:
         patch["storage"] = {"data_root": str(existing_directory(args.data_root, "--data-root"))}
@@ -135,102 +136,58 @@ def _bootstrap_override(args: argparse.Namespace) -> Mapping[str, object]:
     return patch
 
 
-def _runtime_overrides(args: argparse.Namespace) -> dict[str, Mapping[str, object]]:
-    prepared = getattr(args, "_prepared_plugin_config", None)
-    if prepared is not None:
-        return dict(prepared)
+def _plugin_option_overrides(
+    args: argparse.Namespace,
+    attribute: str,
+    data_field: str,
+) -> dict[str, Mapping[str, object]]:
+    """Read repeated file and inline overrides in their declared precedence order."""
+    option = "--" + attribute.replace("_", "-")
+    file_option = option + "-file"
     result: dict[str, Mapping[str, object]] = {}
-    for path in getattr(args, "plugin_config_file", []):
-        safe_path = _option_file(path, "--plugin-config-file")
-        assert safe_path is not None
+    for path in getattr(args, attribute + "_file", []):
+        safe_path = _option_file(path, file_option)
         try:
             raw = json.loads(safe_path.read_text(encoding="utf-8"))
         except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
             raise argument_error(
-                "--plugin-config-file must contain valid JSON", "invalid_value", option="--plugin-config-file"
+                f"{file_option} must contain valid JSON",
+                "invalid_value",
+                option=file_option,
             ) from exc
         if (
             not isinstance(raw, dict)
-            or set(raw) != {"plugin_id", "config"}
+            or set(raw) != {"plugin_id", data_field}
             or not isinstance(raw["plugin_id"], str)
-            or not isinstance(raw["config"], dict)
+            or not isinstance(raw[data_field], dict)
         ):
             raise argument_error(
-                "--plugin-config-file requires an object with plugin_id and config",
+                f"{file_option} requires an object with plugin_id and {data_field}",
                 "invalid_value",
-                option="--plugin-config-file",
+                option=file_option,
             )
-        current = result.get(raw["plugin_id"], {})
-        result[raw["plugin_id"]] = _deep_merge_json(current, raw["config"])
-    for item in getattr(args, "plugin_config", []):
+        plugin_id = raw["plugin_id"]
+        result[plugin_id] = _deep_merge_json(result.get(plugin_id, {}), raw[data_field])
+    for item in getattr(args, attribute, []):
         if "=" not in item:
-            raise argument_error(
-                "--plugin-config must have ID=<JSON-object> form", "invalid_value", option="--plugin-config"
-            )
+            raise argument_error(f"{option} must have ID=<JSON-object> form", "invalid_value", option=option)
         plugin_id, text = item.split("=", 1)
         try:
             value = json.loads(text)
         except json.JSONDecodeError as exc:
-            raise argument_error("--plugin-config JSON is invalid", "invalid_value", option="--plugin-config") from exc
+            raise argument_error(f"{option} JSON is invalid", "invalid_value", option=option) from exc
         if not plugin_id or not isinstance(value, dict):
-            raise argument_error(
-                "--plugin-config value must be a JSON object", "invalid_value", option="--plugin-config"
-            )
+            raise argument_error(f"{option} value must be a JSON object", "invalid_value", option=option)
         result[plugin_id] = _deep_merge_json(result.get(plugin_id, {}), value)
     return result
+
+
+def _runtime_overrides(args: argparse.Namespace) -> dict[str, Mapping[str, object]]:
+    return _plugin_option_overrides(args, "plugin_config", "config")
 
 
 def _download_policy_overrides(args: argparse.Namespace) -> dict[str, Mapping[str, object]]:
-    prepared = getattr(args, "_prepared_download_policy", None)
-    if prepared is not None:
-        return dict(prepared)
-    result: dict[str, Mapping[str, object]] = {}
-    for path in getattr(args, "plugin_download_policy_file", []):
-        safe_path = _option_file(path, "--plugin-download-policy-file")
-        assert safe_path is not None
-        try:
-            raw = json.loads(safe_path.read_text(encoding="utf-8"))
-        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise argument_error(
-                "--plugin-download-policy-file must contain valid JSON",
-                "invalid_value",
-                option="--plugin-download-policy-file",
-            ) from exc
-        if (
-            not isinstance(raw, dict)
-            or set(raw) != {"plugin_id", "download_policy"}
-            or not isinstance(raw["plugin_id"], str)
-            or not isinstance(raw["download_policy"], dict)
-        ):
-            raise argument_error(
-                "--plugin-download-policy-file requires an object with plugin_id and download_policy",
-                "invalid_value",
-                option="--plugin-download-policy-file",
-            )
-        current = result.get(raw["plugin_id"], {})
-        result[raw["plugin_id"]] = _deep_merge_json(current, raw["download_policy"])
-    for item in getattr(args, "plugin_download_policy", []):
-        if "=" not in item:
-            raise argument_error(
-                "--plugin-download-policy must have ID=<JSON-object> form",
-                "invalid_value",
-                option="--plugin-download-policy",
-            )
-        plugin_id, text = item.split("=", 1)
-        try:
-            value = json.loads(text)
-        except json.JSONDecodeError as exc:
-            raise argument_error(
-                "--plugin-download-policy JSON is invalid", "invalid_value", option="--plugin-download-policy"
-            ) from exc
-        if not plugin_id or not isinstance(value, dict):
-            raise argument_error(
-                "--plugin-download-policy value must be a JSON object",
-                "invalid_value",
-                option="--plugin-download-policy",
-            )
-        result[plugin_id] = _deep_merge_json(result.get(plugin_id, {}), value)
-    return result
+    return _plugin_option_overrides(args, "plugin_download_policy", "download_policy")
 
 
 def _option_file(path: Path, option: str) -> Path:
@@ -254,40 +211,40 @@ def _deep_merge_json(base: Mapping[str, object], override: Mapping[str, object])
     return value
 
 
-def _app_override(args: argparse.Namespace) -> Mapping[str, object]:
+def _app_override(args: ConfigurationArguments) -> Mapping[str, object]:
     patch: dict[str, object] = {}
-    if getattr(args, "existing_file", None):
-        patch["output"] = {"existing_file": args.existing_file}
-    if getattr(args, "image_format", None):
+    existing_file = getattr(args, "existing_file", None)
+    if existing_file:
+        patch["output"] = {"existing_file": existing_file}
+    image_format = getattr(args, "image_format", None)
+    if image_format:
         existing_output = patch.get("output")
         output = dict(existing_output) if isinstance(existing_output, Mapping) else {}
-        output["image_format"] = args.image_format
+        output["image_format"] = image_format
         patch["output"] = output
+    directory_format = getattr(args, "directory_format", None)
     if (
-        getattr(args, "directory_format", None) is not None
+        directory_format is not None
         and not getattr(args, "inspect_only", False)
         and not getattr(args, "list_updated_urls", False)
     ):
         existing_output = patch.get("output")
         output = dict(existing_output) if isinstance(existing_output, Mapping) else {}
-        output["directory_format"] = args.directory_format
+        output["directory_format"] = directory_format
         patch["output"] = output
     if getattr(args, "no_console_log", False) or args.json_output:
         patch["logging"] = {"console": {"enabled": False}}
     return patch
 
 
-def _fallback(args: argparse.Namespace) -> bool | None:
+def _fallback(args: SiteArguments | DoctorArguments) -> bool | None:
     return None if args.fallback_generic == "auto" else args.fallback_generic == "enabled"
 
 
 def _config_for(
-    args: argparse.Namespace,
+    args: ConfigurationArguments,
     site: str | None,
     *,
-    allow_root_setup: bool = False,
-    allow_explicit_root_setup: bool = False,
-    require_saved_user_config: bool = False,
     rewrite_user_layers: bool = False,
 ) -> tuple[AppConfig, Path, Path, str]:
     resolved = _resolved_config_for(args, site, rewrite_user_layers=rewrite_user_layers)
@@ -300,7 +257,7 @@ def _config_for(
 
 
 def _resolved_config_for(
-    args: argparse.Namespace,
+    args: ConfigurationArguments,
     site: str | None,
     *,
     rewrite_user_layers: bool = False,

@@ -20,7 +20,8 @@ from image_downloader import (
     TransformContext,
     TransportRequestMetadata,
 )
-from image_downloader.plugins.plugin_manifest import read_manifest, verify_signed_plugin_source
+from image_downloader.plugins.plugin_manifest import read_manifest
+from image_downloader.plugins.plugin_verification import verify_signed_plugin_source
 
 EXAMPLE_ROOT = Path(__file__).resolve().parents[3] / "examples" / "plugin-v3-metadata-bridge"
 

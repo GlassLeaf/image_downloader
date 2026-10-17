@@ -1,3 +1,5 @@
-# Moved: Library API reference
+<a id="moved-library-api-reference"></a>
 
-The canonical library API contract is [reference/library-api.md](reference/library-api.md). This compatibility page defines no API contract.
+# 移動先：ライブラリAPIリファレンス
+
+ライブラリAPIの契約の正本は[ライブラリAPIリファレンス](reference/library-api.md)です。この移動案内ページでは、API契約を定義しません。

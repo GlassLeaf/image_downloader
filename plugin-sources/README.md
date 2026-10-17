@@ -1,21 +1,12 @@
-# Local plugin sources
+<a id="local-plugin-sources"></a>
 
-These are signed local-plugin API v3 source units. Their runtime destination is
-configured in `.runtime/config/app.yaml`; do not copy files into the runtime
-root by hand. Re-sign a changed unit, then use `image-downloader plugin install`
-so the catalog pin is updated atomically.
+# ローカルプラグインのソース
 
-Each included unit uses `plugin-metadata.json` as input to the bundled signer.
-It is not read by runtime; the signer transfers it into `manifest.json` together
-with the generated key, file-tree, and signature fields. Change metadata, entry
-source, author YAML, or helpers before running the signer again; do not edit a
-generated manifest directly. The exact schema, optional-runtime status, and
-file-tree rules are documented in [plugin package reference](../docs/v3/reference/plugin-package.md#plugin-package).
-All authored Python definitions in these source units are type-annotated; use the
-unit matching the desired pattern as an input/output example. Vendored code is
-third-party material and is intentionally outside that guarantee. Hook meaning,
-validation, lifecycle, and exception behavior are documented in [plugin hook reference](../docs/v3/reference/plugin-hooks.md).
-The bundled signer supports both `site_plugin` and `image_processor_plugin`; the unit metadata chooses the kind.
+ここには、ローカルプラグインAPI v3の署名済みソース一式があります。実行時の配置先は`.runtime/config/app.yaml`で設定します。実行時のルートへファイルを手動でコピーしないでください。変更したプラグインを再署名してから`image-downloader plugin install`を使うことで、カタログのpinも原子的に更新できます。
+
+同梱の各プラグインは、付属の署名ツールへの入力に`plugin-metadata.json`を使います。実行時には読みません。署名ツールが、生成した鍵・ファイルツリー・署名のフィールドとともに`manifest.json`へ反映します。メタデータ、入口のソース、作者既定値のYAML、補助モジュールを変更してから署名ツールを再実行し、生成済みのmanifestは直接編集しないでください。正確なスキーマ、実行時には任意であること、ファイルツリーの規則は[プラグインパッケージリファレンス](../docs/v3/reference/plugin-package.md#plugin-package)に記載しています。
+これらのソースで独自に定義したPythonの関数・メソッドには、すべて型注釈があります。実装したい処理パターンに合うプラグインを、入出力の例として参照してください。同梱した第三者のコードは、この保証の対象外です。フックの意味、検証、ライフサイクル、例外の扱いは[プラグインフックリファレンス](../docs/v3/reference/plugin-hooks.md)に記載しています。
+付属の署名ツールは`site_plugin`と`image_processor_plugin`の両方に対応し、各プラグインのメタデータで種別を選びます。
 
 ```powershell
 python tools/sign_local_site_plugin.py `
@@ -27,24 +18,19 @@ python -m image_downloader plugin install "${PWD}/plugin-sources/generic-css-sel
   --config "${PWD}/.runtime/config/app.yaml" --plugin-root "${PWD}/.runtime/plugin-root" --yes
 ```
 
-`local.image-downloader.generic-css-selector` is enabled by default and accepts
-a CSS selector through persistent `plugin_settings` or an invocation override:
+`local.image-downloader.generic-css-selector`は既定で有効です。永続設定の`plugin_settings`、または実行ごとの上書きでCSSセレクターを指定できます。
 
 ```powershell
 image-downloader URL --plugin-config 'local.image-downloader.generic-css-selector={"selector":".viewer > img[src]"}'
 ```
 
-`local.image-downloader.paginated-catalog` is a fixture-site example for
-`https://catalog.example.test/collections/<slug>` and has higher match priority.
-It is selected before the generic plugin for that URL shape.
+`local.image-downloader.paginated-catalog`は、`https://catalog.example.test/collections/<slug>`というテスト用サイトに対応する例です。このURL形式では、優先順位が高いため汎用プラグインより先に選ばれます。
 
-## Image processor reference units
+<a id="image-processor-reference-units"></a>
 
-`artifact-history-processor` is the smallest executable processor contract: it
-validates `config.label` and immutably appends that label to `ImageArtifact.history`.
-`resize-processor` validates positive `max_width`/`max_height`, uses Pillow to
-resize within those bounds, and emits a PNG while retaining the source URL and
-image ID. They are not active merely because they are in this repository.
+## 画像プロセッサーの実装例
+
+`artifact-history-processor`は、実行可能な最小のプロセッサー契約の例です。`config.label`を検証し、そのラベルを`ImageArtifact.history`へ追加した新しい値を返します。`resize-processor`は`max_width`・`max_height`が正であることを検証し、Pillowでその範囲内へ縮小します。取得元URLと画像IDを維持してPNGを出力します。リポジトリ内に置くだけでは有効になりません。
 
 ```powershell
 python tools/sign_local_site_plugin.py `
@@ -58,7 +44,7 @@ python -m image_downloader plugin install "${PWD}/plugin-sources/resize-processo
   --config "${PWD}/.runtime/config/app.yaml" --plugin-root "${PWD}/.runtime/plugin-root" --yes
 ```
 
-Enable either or both explicitly in application YAML:
+片方または両方を、アプリケーションのYAMLで明示的に有効にします。
 
 ```yaml
 image_processors:
@@ -72,22 +58,22 @@ plugin_settings:
     config: {max_width: 1600, max_height: 1600}
 ```
 
-## Migrated v2 pattern samples
+<a id="migrated-v2-pattern-samples"></a>
 
-The following independent v3 units retain the v2 entry source filenames and
-class names. They are fixture-only examples; their `example.test` hosts are not
-real services.
+## v2の処理パターンを移行したサンプル
 
-| Category | Unit | Pattern |
+以下の独立したv3プラグインは、v2の入口ソースのファイル名とクラス名を維持しています。テスト専用の例であり、`example.test`のホストは実在するサービスではありません。
+
+| 分類 | プラグイン | 処理パターン |
 | --- | --- | --- |
-| Catalog | `chaptered-catalog` | JSON catalog, chapters, and update snapshots; completed update-provider example |
-| HTML | `public-gallery` | Public HTML image discovery with Origin/Referer |
-| API | `cursor-api-gallery` | Cursor pagination with an API-token secret |
-| Authentication | `csrf-login-gallery` | CSRF form login with username/password secrets |
-| Authentication | `oauth-media-api` | OAuth bearer-token refresh |
-| CDN | `signed-cdn-gallery` | Signed URL creation and failure recovery |
+| カタログ | `chaptered-catalog` | JSONカタログ、章、更新スナップショット。更新一覧を提供する完成例。 |
+| HTML | `public-gallery` | Origin・Referer付きの公開HTMLから画像を検出 |
+| API | `cursor-api-gallery` | APIトークンの秘密情報とカーソルによるページ分割 |
+| 認証 | `csrf-login-gallery` | ユーザー名・パスワードの秘密情報を使うCSRFフォームログイン |
+| 認証 | `oauth-media-api` | OAuthのBearerトークン更新 |
+| CDN | `signed-cdn-gallery` | 署名付きURLの作成と失敗時の回復 |
 
-Sign and install all six units with the same local signing key:
+同じローカル署名鍵で、6つすべてを署名してインストールします。
 
 ```powershell
 python tools/sign_local_site_plugin.py `
@@ -101,8 +87,7 @@ python -m image_downloader plugin install "${PWD}/plugin-sources/csrf-login-gall
   --config "${PWD}/.runtime/config/app.yaml" --plugin-root "${PWD}/.runtime/plugin-root" --yes
 ```
 
-Authentication values remain outside the unit. Configure secret references in
-`plugin_settings` (not literal credentials), for example:
+認証情報はプラグインの外部で管理します。`plugin_settings`には資格情報そのものではなく、秘密情報への参照を設定してください。
 
 ```yaml
 plugin_settings:

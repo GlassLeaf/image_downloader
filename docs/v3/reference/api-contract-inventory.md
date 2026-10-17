@@ -1,12 +1,23 @@
-# API v3 contract inventory
+<a id="api-v3-contract-inventory"></a>
+
+# API v3の公開契約一覧
 
 <a id="api-inventory"></a>
 
-この inventory は stable facade の完全な名前一覧である。個々の引数、戻り値、例外は [library API reference](library-api.md)、[configuration reference](configuration.md)、[CLI reference](cli.md)、[logging reference](logging.md) に定義する。各 block は contract test が実装の <code>__all__</code> と一致することを確認する。
+この一覧は、安定したファサードで公開する名前を網羅しています。個々の引数、戻り値、例外は[ライブラリAPIリファレンス](library-api.md)、[設定リファレンス](configuration.md)、[CLIリファレンス](cli.md)、[ログリファレンス](logging.md)で定義します。各ブロックが実装の<code>__all__</code>と一致することを、契約テストで確認します。
 
 ## image_downloader
 
 <!-- api-inventory:start image_downloader -->
+DownloadRequest
+InspectRequest
+UpdateCheckRequest
+WorkflowPlanRequest
+WorkflowRequest
+WorkflowExecutionError
+WorkflowPlanError
+WorkflowCancelledError
+WorkflowPlanCancelledError
 AdditionalFileProvider
 AdditionalFileReceiver
 AdditionalFileSaveObserver
@@ -155,6 +166,11 @@ default_plugin_root
 ## image_downloader.runtime
 
 <!-- api-inventory:start image_downloader.runtime -->
+DownloadRequest
+InspectRequest
+UpdateCheckRequest
+WorkflowPlanRequest
+WorkflowRequest
 ArtifactPipeline
 ChapterReporter
 DownloadService
@@ -168,7 +184,7 @@ UpdateState
 _RuntimeDependencies
 <!-- api-inventory:end -->
 
-<code>_RuntimeDependencies</code> は先頭 underscore を持つが、現在は facade が明示的に re-export しているため API v3 contract に含める。将来の除去は別の互換性変更として扱う。
+<code>_RuntimeDependencies</code>は先頭にアンダースコアがありますが、現在はファサードが明示的に再公開しているため、API v3の公開契約に含めます。将来の削除は別の互換性変更として扱います。
 
 ## image_downloader.security
 
@@ -243,3 +259,10 @@ safe_locator
 safe_relative_path
 safe_url
 <!-- api-inventory:end -->
+
+
+## 追加したstorage操作
+
+既存のファサードのexport集合は維持します。公開メンバーに`UpdateState.validate()`を追加しました。
+storage層の操作境界には`FileSystem.shorten_component()`、`WorkflowState.read_feeds()`、不変の`WorkflowFeedSnapshot`、`source_key()`を設けています。
+正確なシグネチャとcontext managerの扱いは[APIシグネチャ](api-signatures.md#storageの操作境界)を参照してください。

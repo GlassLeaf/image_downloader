@@ -1,3 +1,5 @@
-# Moved: Plugin author guide
+<a id="moved-plugin-author-guide"></a>
 
-Start with [tutorials/first-plugin.md](tutorials/first-plugin.md), then use [reference/plugin-package.md](reference/plugin-package.md) and [reference/plugin-hooks.md](reference/plugin-hooks.md). This compatibility page defines no plugin rule.
+# 移動先：プラグイン開発ガイド
+
+[初めてのプラグイン](tutorials/first-plugin.md)から読み始め、[パッケージリファレンス](reference/plugin-package.md)と[フックリファレンス](reference/plugin-hooks.md)を参照してください。この移動案内ページでは、プラグインの規則を定義しません。

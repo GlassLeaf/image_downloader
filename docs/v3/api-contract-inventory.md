@@ -1,3 +1,5 @@
-# Moved: API contract inventory
+<a id="moved-api-contract-inventory"></a>
 
-The canonical stable-export inventory is [reference/api-contract-inventory.md](reference/api-contract-inventory.md). This compatibility page defines no API contract.
+# 移動先：公開API一覧
+
+安定した公開APIの正本は[公開契約一覧](reference/api-contract-inventory.md)です。この移動案内ページでは、API契約を定義しません。

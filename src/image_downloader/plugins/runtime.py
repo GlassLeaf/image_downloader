@@ -7,7 +7,16 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any, cast
 
-from ..configuration.layers import deep_merge
+from image_downloader.configuration.merging import deep_merge
+from image_downloader.plugins.plugin_catalog import PluginCatalog
+from image_downloader.plugins.plugin_files import _sha256, canonical_jcs
+from image_downloader.plugins.plugin_manifest import (
+    PluginConfigOverrides,
+    PluginDownloadPolicyOverrides,
+    PluginManifest,
+    PluginVerificationMode,
+)
+
 from ..configuration.models import AppConfig, PluginDownloadPolicy, PluginSettings
 from ..exceptions import ConfigurationError, PluginError
 from ..immutable import freeze_json
@@ -22,15 +31,6 @@ from .lifecycle import (
     PluginRegistry,
 )
 from .plugin_invoker import PluginInvoker
-from .plugin_manifest import (
-    PluginCatalog,
-    PluginConfigOverrides,
-    PluginDownloadPolicyOverrides,
-    PluginManifest,
-    PluginVerificationMode,
-    _sha256,
-    canonical_jcs,
-)
 
 
 def _validate_plugin_config(
@@ -242,9 +242,7 @@ class PluginRuntime:
             return
         unexpected = set(overrides) - {site_record.id}
         if unexpected:
-            raise ConfigurationError(
-                f"runtime download policy targets an unselected plugin: {sorted(unexpected)[0]}"
-            )
+            raise ConfigurationError(f"runtime download policy targets an unselected plugin: {sorted(unexpected)[0]}")
         if any(not isinstance(value, Mapping) for value in overrides.values()):
             raise ConfigurationError("runtime download policy override must be a mapping")
         self.effective_download_policy(site_record, overrides)

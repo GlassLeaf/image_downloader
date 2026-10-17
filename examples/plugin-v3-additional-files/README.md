@@ -1,15 +1,9 @@
-# Additional-file callbacks
+<a id="additional-file-callbacks"></a>
 
-`plugin.py` is an annotated hook example based on the built-in generic HTML site.
-Integrate its methods into a packaged site plugin; this directory is not a signed installable unit.
+# 追加ファイルのコールバック
 
-Configure the site's private `metadata_url` to an HTTP(S) JSON endpoint returning a `key` string.
-Before each image request, core retrieves the JSON and invokes the receive callback. The plugin stores
-the key by operation-local image instance, then uses it in `create_image_request()` and `ImageFetchRequest.plugin_data`.
-Core saves the exact JSON bytes to the chapter's `metadata/<image-index>.json`.
-The saved callback receives the actual saved (or existing skipped) data. After normal download,
-each chapter gets a `metadata/images.json` summary.
+`plugin.py`は、組み込みの汎用HTMLサイトを基にした、注釈付きのフックの例です。パッケージ化したサイトプラグインへ各メソッドを組み込んでください。このディレクトリ自体は、署名済みのインストール可能な単位ではありません。
 
-This example intentionally persists the supplied metadata JSON. Choose only content intended for local
-storage; use ordinary request/auth hooks for credentials that should never be persisted.
-See the [hook contract](../../docs/v3/reference/plugin-hooks.md#optional-additional-files).
+サイト固有の`metadata_url`に、文字列の`key`を持つJSONを返すHTTP(S)エンドポイントを設定します。各画像要求の前に、コアがJSONを取得して受信コールバックを呼びます。プラグインは操作内の画像インスタンスごとに鍵を保持し、`create_image_request()`と`ImageFetchRequest.plugin_data`で使用します。コアは受信したJSONのバイト列をそのまま章内の`metadata/<image-index>.json`へ保存します。保存後のコールバックは、実際に保存されたデータ、またはskip時の既存データを受け取ります。通常のダウンロード完了後には、各章に`metadata/images.json`の概要を作成します。
+
+この例は、受け取ったメタデータJSONを永続化します。ローカル保存してよい内容だけを使用してください。保存すべきでない認証情報には、通常の要求・認証フックを使います。[フックの仕様](../../docs/v3/reference/plugin-hooks.md#optional-additional-files)を参照してください。

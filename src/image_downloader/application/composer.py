@@ -5,21 +5,18 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
+from image_downloader.observability.log_sinks import ConsoleSink, DebugFileSink, LogSink
+from image_downloader.observability.logging import DownloadLogger
+from image_downloader.observability.notification_delivery import (
+    default_notification_senders,
+    validate_notification_delivery,
+)
+from image_downloader.observability.notifications import NotificationService
+
 from ..configuration.models import AppConfig
 from ..configuration.paths import resolve_paths
 from ..media.image_processor import ImageProcessor
 from ..observability.events import EventBus
-from ..observability.logging import (
-    ConsoleSink,
-    DebugFileSink,
-    DownloadLogger,
-    LogSink,
-)
-from ..observability.notifications import (
-    NotificationService,
-    default_notification_senders,
-    validate_notification_delivery,
-)
 from ..output.output_lock import OutputDirectoryLocks
 from ..plugins.builtin import GenericHtmlPlugin
 from ..plugins.plugin_manifest import PluginVerificationOverride, effective_verification_mode

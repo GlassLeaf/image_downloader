@@ -211,8 +211,17 @@ def test_image_format_options_support_original_and_force_is_download_only(monkey
     calls: list[dict[str, object]] = []
 
     class Service:
-        async def run(self, *_args: object, **kwargs: object) -> object:
-            calls.append(dict(kwargs))
+        async def download(self, request) -> object:
+            calls.append(
+                {
+                    "plugin_overrides": request.plugin_overrides,
+                    "fallback_override": request.fallback_override,
+                    "plugin_id": request.plugin_id,
+                    "force_plugin": request.force_plugin,
+                    "plugin_download_policy_overrides": request.plugin_download_policy_overrides,
+                    "force_image_format": request.force_image_format,
+                }
+            )
             return SimpleNamespace(saved_files=(), skipped_files=(), failures=())
 
         async def close(self) -> None:
@@ -341,8 +350,8 @@ def test_inspection_cli_selects_request_data_and_aliases_download(monkeypatch, t
     )
 
     class Service:
-        async def inspect(self, *_args: object, **kwargs: object) -> ManifestInspectionResult:
-            assert kwargs["resolve_image_requests"] is True
+        async def inspect(self, request) -> ManifestInspectionResult:
+            assert request.resolve_image_requests is True
             print("plugin output")
             return result
 
@@ -380,7 +389,7 @@ def test_inspection_cli_selects_request_data_and_aliases_download(monkeypatch, t
     assert "plugin output" in output.err
     assert "plugin cleanup" in output.err
     assert "plugin import output" in output.err
-    assert config_calls == [{"allow_root_setup": False, "rewrite_user_layers": False}]
+    assert config_calls == [{"rewrite_user_layers": False}]
 
     http_args = build_parser().parse_args(
         ["inspect", "https://example.test/gallery", "--inspection-data", "http", "--json"]
@@ -419,7 +428,7 @@ def test_inspection_cli_selects_request_data_and_aliases_download(monkeypatch, t
     called: list[bool] = []
 
     async def alias(args: object) -> int:
-        called.append(args.manifest_only)  # type: ignore[attr-defined]
+        called.append(args.arguments.manifest_only)  # type: ignore[attr-defined]
         return cli.EXIT_SUCCESS
 
     monkeypatch.setattr(cli_download, "inspect_command", alias)
@@ -499,11 +508,11 @@ def test_command_specific_options_are_rejected_outside_their_command() -> None:
 
 
 def test_run_dispatches_explicit_and_legacy_cookie_commands(monkeypatch, tmp_path: Path) -> None:
-    handled: list[str] = []
+    handled: list[tuple[str, str]] = []
 
     class Handler:
         async def handle(self, args) -> int:
-            handled.append(getattr(args, "command_handler", "legacy"))
+            handled.append((args.arguments.cookie_action, str(args.arguments.cookie_value)))
             return 37
 
     monkeypatch.setitem(cli_dispatch._COMMAND_HANDLERS, "cookie", Handler())
@@ -513,7 +522,7 @@ def test_run_dispatches_explicit_and_legacy_cookie_commands(monkeypatch, tmp_pat
 
     assert asyncio.run(cli.run(explicit)) == 37
     assert asyncio.run(cli.run(legacy)) == 37
-    assert handled == ["cookie", "legacy"]
+    assert handled == [("export", str(tmp_path / "cookies.export"))] * 2
 
 
 def test_config_and_plugin_syntax_is_validated_by_nested_parsers() -> None:
@@ -544,7 +553,7 @@ def test_download_handler_preserves_result_exit_codes(
     closed = False
 
     class Service:
-        async def run(self, *_args: object, **_kwargs: object) -> object:
+        async def download(self, *_args: object, **_kwargs: object) -> object:
             return SimpleNamespace(saved_files=saved, skipped_files=skipped, failures=failures)
 
         async def close(self) -> None:
@@ -592,7 +601,7 @@ def test_download_json_keeps_stdout_machine_readable(monkeypatch, tmp_path: Path
         def __init__(self, active_config: AppConfig) -> None:
             self.active_config = active_config
 
-        async def run(self, *_args: object, **_kwargs: object) -> object:
+        async def download(self, *_args: object, **_kwargs: object) -> object:
             assert not self.active_config.logging.console.enabled
             print("plugin output")
             return SimpleNamespace(saved_files=("saved.jpg",), skipped_files=(), failures=(), additional_files=())
@@ -651,7 +660,7 @@ def test_download_json_includes_structured_existing_file_conflict(monkeypatch, t
     )
 
     class Service:
-        async def run(self, *_args: object, **_kwargs: object) -> object:
+        async def download(self, *_args: object, **_kwargs: object) -> object:
             return SimpleNamespace(
                 saved_files=("saved.jpg",), skipped_files=(), failures=(failure,), additional_files=()
             )
@@ -709,7 +718,7 @@ def test_download_json_makes_custom_output_failure_paths_relative(monkeypatch, t
     composer_calls: list[dict[str, object]] = []
 
     class Service:
-        async def run(self, *_args: object, **_kwargs: object) -> object:
+        async def download(self, *_args: object, **_kwargs: object) -> object:
             return SimpleNamespace(saved_files=(), skipped_files=(), failures=(failure,), additional_files=())
 
         async def close(self) -> None:

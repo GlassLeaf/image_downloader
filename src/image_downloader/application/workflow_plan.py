@@ -5,49 +5,38 @@ from __future__ import annotations
 import asyncio
 from dataclasses import replace
 from functools import partial
-from typing import TYPE_CHECKING, Literal
 
-from ..exceptions import error_info_for
+from ..exceptions import WorkflowPlanCancelledError, WorkflowPlanError, error_info_for
 from ..models import WorkflowPlanItem, WorkflowPlanResult
-from ..plugins.plugin_invoker import PluginInvoker
-from ..plugins.plugin_manifest import PluginConfigOverrides, PluginDownloadPolicyOverrides
 from ..storage.workflow import WorkflowState, finish_transaction
-from ..transport.gateway import RequestGateway
+from ..transport.gateway import RequestGateway, closing_gateway
+from .requests import WorkflowPlanRequest
+from .workflow_runtime import WorkflowRuntime
 
-if TYPE_CHECKING:
-    from .service import DownloadService
 
-
-async def plan_workflow(
-    service: DownloadService,
-    url: str,
-    scope: Literal["all", "updated"],
-    overrides: PluginConfigOverrides | None,
-    fallback: bool | None,
-    plugin_id: str | None,
-    force_plugin: bool,
-    policies: PluginDownloadPolicyOverrides | None,
-) -> WorkflowPlanResult:
+async def plan_workflow(runtime: WorkflowRuntime, request: WorkflowPlanRequest) -> WorkflowPlanResult:
+    url, scope = request.url, request.download_scope
+    overrides, fallback = request.plugin_overrides, request.fallback_override
+    plugin_id, force_plugin = request.plugin_id, request.force_plugin
+    policies = request.plugin_download_policy_overrides
     result = WorkflowPlanResult(url, scope)
     try:
-        record, plugin = service._select_site_plugin(url, overrides, fallback, plugin_id, force_plugin)
-        result = replace(result, plugin_id=record.id)
-        owned = True
-        try:
-            state = WorkflowState(service.state.filesystem)
+        async with runtime.operations.selection(
+            url, overrides, fallback, plugin_id, force_plugin, diagnostics_enabled=False
+        ) as selected:
+            record, plugin = selected.record, selected.plugin
+            result = replace(result, plugin_id=record.id)
+            state = WorkflowState(runtime.state.filesystem)
             lock = state.feed_lock(record.id, url)
             await lock.acquire_async()
             try:
                 await finish_transaction(state.validate)
-                await finish_transaction(service.state._validate_read_only)
+                await finish_transaction(runtime.state.validate)
                 gateway = RequestGateway(
-                    service.config, service.cookie_store.clone_jar(service.gateway.client.cookies.jar)
+                    runtime.config, runtime.cookie_store.clone_jar(runtime.gateway.client.cookies.jar)
                 )
-                primary_error: BaseException | None = None
-                try:
-                    # _site_operation owns cleanup even if operation construction fails.
-                    owned = False
-                    async with service._site_operation(
+                async with closing_gateway(gateway):
+                    async with runtime.operations.open(
                         url,
                         overrides,
                         fallback,
@@ -56,12 +45,13 @@ async def plan_workflow(
                         policies,
                         request_gateway=gateway,
                         diagnostics_enabled=False,
-                        selected_plugin=(record, plugin),
-                    ) as (_, _, context, _, _, invoker):
-                        snapshot = await service._fetch_update_snapshot(plugin, url, context, invoker)
+                        selected_plugin=selected,
+                    ) as operation:
+                        context, invoker = operation.context, operation.invoker
+                        snapshot = await runtime.updates.fetch_snapshot(plugin, url, context, invoker)
                         result = replace(result, snapshot=snapshot)
-                        await finish_transaction(service.state._validate_read_only)
-                        first, changes, selected = await finish_transaction(
+                        await finish_transaction(runtime.state.validate)
+                        first, changes, selected_urls = await finish_transaction(
                             partial(state.preview, record.id, url, snapshot, scope)
                         )
                         result = replace(
@@ -69,30 +59,15 @@ async def plan_workflow(
                             first_run=first,
                             changes=changes,
                             items=tuple(
-                                WorkflowPlanItem(c, c.url in selected, selected.get(c.url, ("completed",)))
+                                WorkflowPlanItem(c, c.url in selected_urls, selected_urls.get(c.url, ("completed",)))
                                 for c in snapshot.candidates
                             ),
                         )
-                except BaseException as primary:
-                    primary_error = primary
-                    raise
-                finally:
-                    try:
-                        await gateway.close()
-                    except BaseException:
-                        if primary_error is None:
-                            raise
             except BaseException as primary:
-                if owned:
-                    owned = False
-                    await service._cleanup_site_after_failure(PluginInvoker(record.id), plugin, primary, None)
+                await runtime.operations.release_selection(selected, primary, diagnostics_enabled=False)
                 raise
             finally:
                 lock.release()
-        except BaseException as primary:
-            if owned:
-                await service._cleanup_site_after_failure(PluginInvoker(record.id), plugin, primary, None)
-            raise
         return result
     except (Exception, asyncio.CancelledError) as exc:
         result = replace(
@@ -100,5 +75,16 @@ async def plan_workflow(
             stop_error=None if isinstance(exc, asyncio.CancelledError) else error_info_for(exc),
             cancelled=isinstance(exc, asyncio.CancelledError),
         )
-        exc.__dict__["workflow_plan_result"] = result
-        raise
+        if isinstance(exc, asyncio.CancelledError):
+            raise WorkflowPlanCancelledError(result) from exc
+        raise WorkflowPlanError(result, exc) from exc
+
+
+class WorkflowPlanner:
+    """Preview selection without owning the service's operation lock."""
+
+    def __init__(self, runtime: WorkflowRuntime) -> None:
+        self.runtime = runtime
+
+    async def execute(self, request: WorkflowPlanRequest) -> WorkflowPlanResult:
+        return await plan_workflow(self.runtime, request)

@@ -138,6 +138,16 @@ def test_reference_index_has_the_diataxis_entrypoints(repository_root: Path) -> 
         assert reference in index
 
 
+def test_current_guides_do_not_describe_the_removed_download_service_run(repository_root: Path) -> None:
+    # Migration examples and historical maintenance documents intentionally retain
+    # the old spelling. Only current usage guides and reference are constrained.
+    root = repository_root / "docs" / "v3"
+    removed_api = re.compile(r"(?:DownloadService|service)\.run\b|`run\(\)`")
+    for directory in ("tutorials", "how-to", "explanation", "reference"):
+        for path in (root / directory).rglob("*.md"):
+            assert removed_api.search(path.read_text(encoding="utf-8")) is None, str(path)
+
+
 def test_cli_reference_covers_every_parser_option_and_output_contract(repository_root: Path) -> None:
     reference = _read(repository_root, "docs/v3/reference/cli.md")
     for option in _command_options():
@@ -162,9 +172,9 @@ def test_cli_reference_covers_every_parser_option_and_output_contract(repository
         assert value in reference
     for marker in ("cli-forms", "cli-options", "cli-exit-status", "cli-success-json", "cli-errors"):
         assert f'<a id="{marker}"></a>' in reference
-    assert "JSON file" in reference
-    assert "YAML is not accepted" in reference
-    assert "present only when known" in reference
+    assert "JSONファイル" in reference
+    assert "YAMLを受け付けません" in reference
+    assert "判明している場合だけ含めます" in reference
 
 
 def test_configuration_plugin_and_runtime_references_cover_high_risk_semantics(
@@ -208,12 +218,12 @@ def test_configuration_plugin_and_runtime_references_cover_high_risk_semantics(
         "bypass-signature",
     ):
         assert field in package
-    assert "exact 14-field object" in package
+    assert "14フィールドからなる厳密なオブジェクト" in package
     assert "capabilities" in package
     assert "match_priority" in package
-    assert "Relaxed manifest used by bypass modes" in package
-    assert "match_priority` がなければ runtime は `0` を補完" in package
-    assert "exact object" in package
+    assert "検証を迂回するモードで使う緩和manifest" in package
+    assert "match_priority`がなければ実行時に`0`を補完" in package
+    assert "未知のフィールドもフィールドの欠落も許さない厳密なオブジェクト" in package
     for hook in ("matches_with_config", "recover_image_request", "cleanup_after_use()", "inspect"):
         assert hook in hooks
     for topic in ("AES-256-GCM", "legacy_records", "cross-origin", "max_response_bytes"):
@@ -267,14 +277,14 @@ def test_reference_documents_state_the_correct_validation_and_lifecycle_boundari
     lifecycle = _read(repository_root, "docs/v3/explanation/execution-lifecycle.md")
     tutorial = _read(repository_root, "docs/v3/tutorials/embedded-download.md")
 
-    assert "does apply" in cli
-    assert "does not alter the catalog-entry" in cli
-    assert "constructor 自体は URL を検査しない" in library
-    assert "non-empty string locator" in hooks
+    assert "上書きを**適用します**" in cli
+    assert "カタログの登録内容である`plugins`一覧は変更せず" in cli
+    assert "コンストラクター自体はURLを検査しない" in library
+    assert "空でない文字列のlocator" in hooks
     assert "RequestSpec(url=image.url)" in hooks
     assert "transport failure には recovery hook は呼ばれない" in lifecycle
     assert "HTTP response の status が `>=400`" in lifecycle
-    assert "skip allocation" in library
+    assert "既存ファイルによるスキップ用の割当て" in library
     assert 'ADDED="added"' in library
     assert "from image_downloader.config import plugin_root" in tutorial
     assert "plugin_root=plugin_root(config)" in tutorial
@@ -298,9 +308,9 @@ def test_cli_plugin_and_tutorial_references_expose_actionable_contracts(reposito
         "cookie export PATH",
         "cookie import PATH",
         "cookie browser-import DOMAIN",
-        "does not download images",
+        "画像は取得しない",
         "loaded_plugins[]",
-        "Plugin Python `print()` is redirected to stderr",
+        "プラグインのPythonの`print()`も標準エラー出力へ転送します",
     ):
         assert phrase in cli
     assert '<a id="config-storage-layout"></a>' in configuration
@@ -310,7 +320,7 @@ def test_cli_plugin_and_tutorial_references_expose_actionable_contracts(reposito
         "%CHAPTER_TITLE%",
         "%CHAPTER_SUBTITLE%",
         "%IMAGE_INDEX%",
-        "%NUM%`, `%TITLE%`, and `%SUBTITLE%` are no longer accepted",
+        "%NUM%`、`%TITLE%`、`%SUBTITLE%`は、どちらの形式でも受理しません",
         "%TITLE%",
         "%SUBTITLE%",
         "%EXT%",
@@ -318,17 +328,17 @@ def test_cli_plugin_and_tutorial_references_expose_actionable_contracts(reposito
         "cookie/cookies.enc",
     ):
         assert phrase in configuration
-    assert "filename は固定ではない" in package
+    assert "ファイル名は固定ではありません" in package
     assert "bypass-signature" in package
     assert '<a id="plugin-signing-workflow"></a>' in package
     for marker in ("plugin-contexts", "plugin-hook-errors"):
         assert f'<a id="{marker}"></a>' in hooks
     for phrase in (
-        "401 and 403",
+        "HTTP 401と403",
         "TransformContext",
         "CancelledError",
-        "ordinary `Exception`",
-        "Manifest numbering",
+        "通常の`Exception`",
+        "manifest内の採番",
         "output_format_values",
         "PluginFormatContext",
         "plugin は、manifest の採番にも責任を持つ",
@@ -337,11 +347,11 @@ def test_cli_plugin_and_tutorial_references_expose_actionable_contracts(reposito
     ):
         assert phrase in hooks
     for heading in (
-        "Check a complete update snapshot",
-        "Use a one-operation plugin override",
-        "Registry-only inspection",
-        "Handle result failures and operation failures separately",
-        "Advanced dependency injection",
+        "完全な更新スナップショットの確認",
+        "1回の操作だけプラグイン設定を上書きする",
+        "レジストリだけを使った検査",
+        "結果内の失敗と操作全体の失敗を分けて扱う",
+        "高度な依存性の注入",
     ):
         assert heading in tutorial
     python_blocks = re.findall(r"```python\n(.*?)\n```", tutorial, flags=re.DOTALL)
@@ -375,15 +385,15 @@ def test_embedded_tutorial_snippets_execute_in_an_isolated_facade(
         async def __aexit__(self, exc_type, exc, traceback) -> None:
             return None
 
-        async def run(self, url: str, **kwargs):
-            self.url = url
-            self.kwargs = kwargs
+        async def download(self, request):
+            self.url = request.url
+            self.kwargs = {"plugin_overrides": request.plugin_overrides}
             outcome = SimpleNamespace(image=SimpleNamespace(image_id="image-1"), failure=None)
             return SimpleNamespace(chapters=(SimpleNamespace(outcomes=(outcome,)),))
 
-        async def check_updates(self, url: str, **kwargs):
-            self.url = url
-            self.kwargs = kwargs
+        async def check_updates(self, request):
+            self.url = request.url
+            self.kwargs = {"plugin_overrides": request.plugin_overrides}
             return SimpleNamespace(
                 changes=(
                     SimpleNamespace(url="https://example.test/changed", kind=SimpleNamespace(value="changed")),
@@ -436,6 +446,11 @@ def test_embedded_tutorial_snippets_execute_in_an_isolated_facade(
 
     class FakeRuntimeDependencies:
         pass
+
+    import image_downloader as actual_package
+
+    for name in ["DownloadRequest", "InspectRequest", "UpdateCheckRequest", "WorkflowPlanRequest", "WorkflowRequest"]:
+        setattr(package, name, getattr(actual_package, name))
 
     package.AppConfig = FakeAppConfig
     package.RuntimeComposer = FakeComposer
@@ -499,6 +514,11 @@ def _resolve_contract_symbol(symbol: str) -> object:
             for attribute in symbol.removeprefix(prefix).split("."):
                 value = getattr(value, attribute)
             return value
+    if symbol.startswith("image_downloader."):
+        value = importlib.import_module("image_downloader")
+        for attribute in symbol.removeprefix("image_downloader.").split("."):
+            value = getattr(value, attribute)
+        return value
     raise AssertionError(f"unknown facade marker: {symbol}")
 
 
@@ -637,7 +657,7 @@ def test_coverage_ledger_has_source_evidence_and_live_destinations(repository_ro
         anchors = ANCHOR.findall(destination_document.read_text(encoding="utf-8"))
         assert match.group("anchor") in anchors, row.group("id")
         if row.group("status") == "superseded":
-            assert "see [" in destination or "The " in destination or "Dispatcher" in destination
+            assert "現在" in destination and "参照してください" in destination
 
 
 def test_coverage_ledger_quotes_snapshots_and_keeps_visible_destination_proof(

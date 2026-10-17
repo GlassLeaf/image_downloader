@@ -18,7 +18,7 @@ from image_downloader import (
     SecretNotFoundError,
     UnsupportedSiteFeatureError,
 )
-from image_downloader.commands.dispatch import _exit_status
+from image_downloader.commands.errors import _exit_status
 from image_downloader.credentials import plugin_secrets
 from image_downloader.exceptions import PUBLIC_EXCEPTION_NAMES, error_info_for
 from image_downloader.observability.logging import safe_exception_name

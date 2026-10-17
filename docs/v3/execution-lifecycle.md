@@ -1,3 +1,5 @@
-# Moved: execution lifecycle
+<a id="moved-execution-lifecycle"></a>
 
-The canonical hook ordering, recovery, and concurrency contract is [explanation/execution-lifecycle.md](explanation/execution-lifecycle.md). This compatibility page defines no lifecycle rule.
+# 移動先：実行ライフサイクル
+
+フックの順序、回復、並行性の契約の正本は[実行ライフサイクル](explanation/execution-lifecycle.md)です。この移動案内ページでは、ライフサイクルの規則を定義しません。

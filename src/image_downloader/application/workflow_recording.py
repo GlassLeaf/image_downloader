@@ -11,10 +11,12 @@ from pathlib import Path
 
 from ..configuration.models import AppConfig
 from ..configuration.paths import resolve_paths
+from ..exceptions import WorkflowCancelledError
 from ..models import WorkflowResult, WorkflowRunRecord
 from ..privacy.log_safety import safe_url
 from ..storage.filesystem import FileSystem
-from ..storage.state import UpdateState
+from ..storage.source_identity import source_key
+from ..storage.transactions import settle_operation
 from ..storage.workflow_history import WorkflowHistoryStore
 from .workflow_reporting import history_details
 
@@ -43,7 +45,7 @@ async def record_result(
         record = WorkflowRunRecord(
             result.run_id,
             plugin_id,
-            UpdateState._source_key(result.source_url),
+            source_key(result.source_url),
             safe_url(result.source_url),
             started_at,
             max(started_at, datetime.now(UTC)),
@@ -72,17 +74,22 @@ async def record_result(
             if oversized and result.history_saved:
                 warn_history(SIZE_WARNING)
                 result = replace(result, history_warning=SIZE_WARNING)
-            cancellation.__dict__["workflow_result"] = result
-            raise cancellation
+            raise WorkflowCancelledError(result) from cancellation
         if oversized:
             warn_history(SIZE_WARNING)
         return replace(result, history_saved=True, history_warning=SIZE_WARNING if oversized else None)
     except asyncio.CancelledError as exc:
-        if not hasattr(exc, "workflow_result"):
-            exc.__dict__["workflow_result"] = replace(
-                result, cancelled=True, stop_error=None, history_saved=False, history_warning=SAVE_WARNING
+        if isinstance(exc, WorkflowCancelledError):
+            raise
+        raise WorkflowCancelledError(
+            replace(
+                result,
+                cancelled=True,
+                stop_error=None,
+                history_saved=False,
+                history_warning=SAVE_WARNING,
             )
-        raise
+        ) from exc
     except Exception:
         warn_history(SAVE_WARNING)
         return replace(result, history_saved=False, history_warning=SAVE_WARNING)
@@ -118,38 +125,33 @@ async def revise_result(config: AppConfig, result: WorkflowResult, exit_code: in
             if oversized and result.history_saved:
                 warn_history(SIZE_WARNING)
                 result = replace(result, history_warning=SIZE_WARNING)
-            cancellation.__dict__["workflow_result"] = result
-            raise cancellation
+            raise WorkflowCancelledError(result) from cancellation
         if oversized:
             warn_history(SIZE_WARNING)
         return replace(result, history_saved=True, history_warning=SIZE_WARNING if oversized else None)
     except asyncio.CancelledError as exc:
-        if not hasattr(exc, "workflow_result"):
-            exc.__dict__["workflow_result"] = replace(
-                result, cancelled=True, stop_error=None, history_saved=False, history_warning=SAVE_WARNING
+        if isinstance(exc, WorkflowCancelledError):
+            raise
+        raise WorkflowCancelledError(
+            replace(
+                result,
+                cancelled=True,
+                stop_error=None,
+                history_saved=False,
+                history_warning=SAVE_WARNING,
             )
-        raise
+        ) from exc
     except Exception:
         warn_history(SAVE_WARNING)
         return replace(result, history_saved=False, history_warning=SAVE_WARNING)
 
 
 async def _settle(function: Callable[[], None]) -> asyncio.CancelledError | None:
-    """Finish a started write, preserving cancellation even if the write fails."""
-    task = asyncio.create_task(asyncio.to_thread(function))
-    cancellation = None
-    while not task.done():
-        try:
-            await asyncio.shield(task)
-        except asyncio.CancelledError as exc:
-            cancellation = exc
-        except Exception:
-            break
-    try:
-        task.result()
-    except Exception:
-        if cancellation is not None:
+    """History keeps cancellation primary even when the recording write fails."""
+    settled = await settle_operation(asyncio.to_thread(function))
+    if settled.error is not None:
+        if settled.cancellation is not None and isinstance(settled.error, Exception):
             warn_history(SAVE_WARNING)
-            raise cancellation from None
-        raise
-    return cancellation
+            raise settled.cancellation from None
+        raise settled.error
+    return settled.cancellation

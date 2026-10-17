@@ -1,14 +1,9 @@
 """Events, logging, and notifications."""
 
+from image_downloader.observability.log_sinks import ChapterFileSink, ConsoleSink, DebugFileSink, LogRecord
+from image_downloader.observability.logging import DownloadLogger, mask_log_text
+
 from .events import EventBus
-from .logging import (
-    ChapterFileSink,
-    ConsoleSink,
-    DebugFileSink,
-    DownloadLogger,
-    LogRecord,
-    mask_log_text,
-)
 
 __all__ = [
     "ChapterFileSink",

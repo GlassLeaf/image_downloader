@@ -6,7 +6,8 @@ from pathlib import Path
 
 import pytest
 
-import image_downloader.application.service as service_module
+import image_downloader.application.inspection as service_module
+from image_downloader import InspectRequest
 from image_downloader.config import AppConfig, resolve_paths
 from image_downloader.models import (
     Chapter,
@@ -128,7 +129,7 @@ def test_inspection_resolves_requests_in_manifest_order_and_records_partial_fail
         for event in service.events._handlers:
             service.events.on(event, lambda payload: observed_events.append(payload))
         try:
-            result = await service.inspect("https://example.test/gallery")
+            result = await service.inspect(InspectRequest(url="https://example.test/gallery"))
             assert plugin.calls == ["image:third", "image:bad", "image:last"]
             assert result.request_resolution_performed is True
             assert result.manifest.metadata == {"public": "yes", "source_url": "https://example.test/gallery"}
@@ -207,12 +208,14 @@ def test_manifest_only_skips_request_hooks_and_inspection_cookie_changes_are_dis
         debug_path = resolve_paths(service.config)["logs"] / "debug.log"
         debug_before = debug_path.read_bytes() if debug_path.exists() else None
         try:
-            manifest_only = await service.inspect("https://example.test/gallery", resolve_image_requests=False)
+            manifest_only = await service.inspect(
+                InspectRequest(url="https://example.test/gallery", resolve_image_requests=False)
+            )
             assert manifest_only.request_resolution_performed is False
             assert manifest_only.image_requests == ()
             assert plugin.request_calls == 0
 
-            result = await service.inspect("https://example.test/gallery")
+            result = await service.inspect(InspectRequest(url="https://example.test/gallery"))
             assert len(result.image_requests) == 1
             assert plugin.request_calls == 1
             assert InspectionGateway.seen == ["https://api.example.test/mint"]
@@ -303,7 +306,7 @@ def test_inspection_previews_the_effective_request_without_sending_an_image(
         original = service_module.RequestGateway
         monkeypatch.setattr(service_module, "RequestGateway", PreviewGateway)
         try:
-            result = await service.inspect("https://example.test/gallery")
+            result = await service.inspect(InspectRequest(url="https://example.test/gallery"))
             resolution, json_resolution = result.image_requests
             preview = resolution.effective_request
             assert preview is not None
@@ -374,7 +377,7 @@ def test_inspection_keeps_a_source_request_when_effective_request_preparation_fa
         record = service.registry.records["core.generic-html"]
         service.registry.resolve = lambda *_args, **_kwargs: (record, plugin)  # type: ignore[method-assign]
         try:
-            result = await service.inspect("https://example.test/gallery")
+            result = await service.inspect(InspectRequest(url="https://example.test/gallery"))
             failed, resolved = result.image_requests
             assert failed.status.value == "partially_resolved"
             assert failed.request == RequestSpec("https://example.test/bad")

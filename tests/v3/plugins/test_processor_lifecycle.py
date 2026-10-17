@@ -7,8 +7,9 @@ from pathlib import Path
 import httpx
 import pytest
 from PIL import Image
-from test_plugin_v3 import make_plugin
+from support.plugins import make_plugin
 
+from image_downloader import DownloadRequest
 from image_downloader.config import AppConfig
 from image_downloader.exceptions import PluginError
 from image_downloader.models import ImageArtifact
@@ -89,13 +90,13 @@ def test_processor_is_constructed_and_validated_once_per_operation_and_serialize
 
         service.registry.loader.register_class(service.registry.records[plugin_id], StatefulProcessor)
         try:
-            first = await service.run("https://example.test/gallery")
+            first = await service.download(DownloadRequest(url="https://example.test/gallery"))
             assert len(first.saved_files) == 2
             assert len(instances) == 1
             assert (instances[0].validations, instances[0].transforms, instances[0].cleanups) == (1, 2, 1)
             assert instances[0].max_active == 1
 
-            second = await service.run("https://example.test/gallery")
+            second = await service.download(DownloadRequest(url="https://example.test/gallery"))
             assert len(second.saved_files) == 2
             assert len(instances) == 2
             assert (instances[1].validations, instances[1].transforms, instances[1].cleanups) == (1, 2, 1)
@@ -126,7 +127,7 @@ def test_processor_validation_fails_before_any_request_and_cleans_up_instance(tm
         service.registry.loader.register_class(service.registry.records[plugin_id], InvalidProcessor)
         try:
             with pytest.raises(PluginError, match="hook=validate_config"):
-                await service.run("https://example.test/gallery")
+                await service.download(DownloadRequest(url="https://example.test/gallery"))
             assert requests == []
             assert closed == [True]
         finally:
@@ -163,7 +164,7 @@ def test_partial_chain_initialization_cleans_up_every_constructed_instance_in_re
         service.registry.loader.register_class(service.registry.records[second_id], SecondProcessor)
         try:
             with pytest.raises(PluginError, match="hook=validate_config"):
-                await service.run("https://example.test/gallery")
+                await service.download(DownloadRequest(url="https://example.test/gallery"))
             assert requests == []
             assert closed == [second_id, first_id]
         finally:
@@ -193,7 +194,7 @@ def test_async_cleanup_after_use_failure_becomes_plugin_error_after_successful_p
         service.registry.loader.register_class(service.registry.records[plugin_id], AsyncCloseProcessor)
         try:
             with pytest.raises(PluginError, match="hook=cleanup_after_use"):
-                await service.run("https://example.test/gallery")
+                await service.download(DownloadRequest(url="https://example.test/gallery"))
             assert calls == ["cleanup"]
         finally:
             await service.close()
@@ -222,7 +223,7 @@ def test_cleanup_failure_does_not_replace_transform_failure(tmp_path: Path) -> N
         service.registry.loader.register_class(service.registry.records[plugin_id], FailingProcessor)
         try:
             with pytest.raises(PluginError, match="hook=transform"):
-                await service.run("https://example.test/gallery")
+                await service.download(DownloadRequest(url="https://example.test/gallery"))
             assert closed == [True]
         finally:
             await service.close()
@@ -252,7 +253,7 @@ def test_cancelled_operation_cleans_up_prepared_processor(tmp_path: Path) -> Non
 
         service.registry.loader.register_class(service.registry.records[plugin_id], WaitingProcessor)
         try:
-            task = asyncio.create_task(service.run("https://example.test/gallery"))
+            task = asyncio.create_task(service.download(DownloadRequest(url="https://example.test/gallery")))
             await asyncio.wait_for(transforming.wait(), timeout=5)
             task.cancel()
             with pytest.raises(asyncio.CancelledError):

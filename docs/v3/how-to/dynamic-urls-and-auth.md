@@ -1,4 +1,6 @@
-# How to implement pagination, authentication, and dynamic image URLs
+<a id="how-to-implement-pagination-authentication-and-dynamic-image-urls"></a>
+
+# ページ分割・認証・動的な画像URLを実装する
 
 `inspect` は有限の manifest を発見する段階、`create_image_request` は画像 fetch 直前に request を組み立てる段階、`recover_image_request` は AuthFlow refresh 後にも HTTP status `>=400` が残るときに一度だけ replacement request を返す段階である。transport failure は recovery hook の対象ではない。
 
@@ -12,4 +14,4 @@ CLI は `--inspection-data url|http|all` で stdout の露出範囲を選ぶ。�
 4. CDN URL が失効した response だけを `recover_image_request` で再発行する。
 5. credential と refresh は `AuthFlow` に閉じ込め、追加 origin は明示的に opt-in する。
 
-呼出回数、auth/recovery 順、並行性、完全な signature は [execution lifecycle](../explanation/execution-lifecycle.md) と [plugin hook reference](../reference/plugin-hooks.md) を使用する。
+呼出回数、auth/recovery 順、並行性、完全な signature は [実行ライフサイクル](../explanation/execution-lifecycle.md) と [プラグインフックリファレンス](../reference/plugin-hooks.md) を使用する。

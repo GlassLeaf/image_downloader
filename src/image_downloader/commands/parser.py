@@ -5,10 +5,10 @@ import re
 import sys
 from collections.abc import Sequence
 from typing import NoReturn
-from urllib.parse import urlsplit
 
 from ..diagnostics import argument_error, safe_option
 from ..exceptions import ArgumentError
+from .argument_rules import _check_conflicts, is_http_url
 from .options import OPTIONS
 
 _COMMAND_NAMES = frozenset(
@@ -20,19 +20,6 @@ def _negative_number(value: str) -> bool:
     return bool(
         re.fullmatch(r"-(?:\d+(?:\.\d*)?(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?|inf|nan)", value, re.IGNORECASE)
     )
-
-
-def is_http_url(value: str) -> bool:
-    try:
-        parsed = urlsplit(value)
-        return (
-            parsed.scheme.lower() in {"http", "https"}
-            and bool(parsed.hostname)
-            and not any(char.isspace() or ord(char) < 32 for char in value)
-            and parsed.port != 0
-        )
-    except ValueError:
-        return False
 
 
 class _CliArgumentParser(argparse.ArgumentParser):
@@ -204,8 +191,6 @@ class _CliArgumentParser(argparse.ArgumentParser):
             parsed.config_explicit = "--config" in explicit
             parsed.command_args = _compatibility_command_args(parsed)
             if not self.structured_errors:
-                from .validation import _check_conflicts
-
                 _check_conflicts(parsed, {option.removeprefix("--") for option in explicit}, syntax_only=True)
                 if self._value_errors:
                     raise self._value_errors[0]

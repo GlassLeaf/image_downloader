@@ -5,12 +5,9 @@ import contextvars
 import logging
 import queue
 import re
-import sys
 from collections.abc import Awaitable, Iterable
-from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, TextIO, cast
+from typing import TYPE_CHECKING, cast
 
 from ..privacy.log_safety import (
     _safe_text,
@@ -22,6 +19,12 @@ from ..privacy.log_safety import (
 )
 from ..privacy.log_safety import safe_log_text as safe_log_text
 from .diagnostic_safety import warn_diagnostic_failure
+from .log_sinks import ChapterFailureRecord as ChapterFailureRecord
+from .log_sinks import ChapterFileSink as ChapterFileSink
+from .log_sinks import ConsoleSink as ConsoleSink
+from .log_sinks import DebugFileSink as DebugFileSink
+from .log_sinks import LogRecord as LogRecord
+from .log_sinks import LogSink as LogSink
 
 __all__ = [
     "LogRecord",
@@ -87,93 +90,6 @@ _SAFE_EVENTS = {
 _CAPTURE_OWNER: contextvars.ContextVar[object | None] = contextvars.ContextVar(
     "image_downloader_log_capture_owner", default=None
 )
-
-
-@dataclass(frozen=True)
-class LogRecord:
-    message: str
-    chapter_id: str | None = None
-    metadata: dict[str, str] = field(default_factory=dict)
-    trusted: bool = False
-
-    def formatted(self) -> str:
-        return self.message if self.trusted else mask_log_text(self.message)
-
-
-@dataclass(frozen=True, slots=True)
-class ChapterFailureRecord:
-    """Already-classified failure data rendered by the chapter logger."""
-
-    url: str
-    response_url: str | None
-    path: str | Path | None
-    stage: str
-    image_index: int
-    http_status: int | None
-    code: str
-    reason: str
-    exception_type: str
-    message: str
-    transport: str | None = None
-
-
-class LogSink:
-    async def write(self, record: LogRecord) -> None:
-        raise NotImplementedError
-
-    async def close(self) -> None:
-        return None
-
-
-class ChapterFileSink(LogSink):
-    def __init__(
-        self, path: Path | None = None, *, filesystem: FileSystem | None = None, relative_path: Path | None = None
-    ) -> None:
-        self.path = path
-        self._lock = asyncio.Lock()
-        if filesystem is not None and relative_path is not None:
-            self._stream = filesystem.open_text_append(relative_path, encoding="utf-8", newline="")
-        elif path is not None:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            self._stream = path.open("a", encoding="utf-8", newline="")
-        else:
-            raise ValueError("ChapterFileSink requires path or filesystem with relative_path")
-
-    async def write(self, record: LogRecord) -> None:
-        async with self._lock:
-            self._stream.write(record.formatted())
-            if not record.message.endswith("\n"):
-                self._stream.write("\n")
-            self._stream.flush()
-
-    async def close(self) -> None:
-        async with self._lock:
-            if not self._stream.closed:
-                self._stream.close()
-
-
-class DebugFileSink(ChapterFileSink):
-    """Detailed, file-only diagnostics sink."""
-
-    async def write(self, record: LogRecord) -> None:
-        detail = datetime.now(UTC).isoformat(timespec="milliseconds")
-        detail += f" [{record.chapter_id or '-'}]"
-        detail += " " + record.metadata.get("module", "library")
-        detailed = LogRecord(f"{detail} {record.message}", record.chapter_id, record.metadata, record.trusted)
-        await super().write(detailed)
-
-
-class ConsoleSink(LogSink):
-    def __init__(self, stream: TextIO | None = None) -> None:
-        self.stream = stream or sys.stdout
-        self._lock = asyncio.Lock()
-
-    async def write(self, record: LogRecord) -> None:
-        async with self._lock:
-            self.stream.write(record.formatted())
-            if not record.message.endswith("\n"):
-                self.stream.write("\n")
-            self.stream.flush()
 
 
 class _CapturedPythonLogHandler(logging.Handler):

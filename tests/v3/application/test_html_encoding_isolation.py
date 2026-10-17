@@ -13,7 +13,15 @@ import httpx
 import pytest
 from PIL import Image
 
-from image_downloader import AppConfig, RuntimeComposer
+from image_downloader import (
+    AppConfig,
+    DownloadRequest,
+    InspectRequest,
+    RuntimeComposer,
+    UpdateCheckRequest,
+    WorkflowPlanRequest,
+    WorkflowRequest,
+)
 from image_downloader.cli import main
 from image_downloader.immutable import freeze_json
 from image_downloader.models import (
@@ -124,23 +132,25 @@ def test_independent_plugin_library_operations_do_not_call_core_decoder(independ
         async with RuntimeComposer(
             config, config_root=config_path.parent, plugin_root=config_path.parent / "plugins"
         ).compose() as service:
-            inspection = await service.inspect(URL, **options)
+            inspection = await service.inspect(InspectRequest(url=URL, **options))
             assert inspection.plugin_id == PLUGIN_ID
             assert inspection.manifest == replace(MANIFEST, metadata={"source_url": URL})
-            update = await service.check_updates(URL, **options)
+            update = await service.check_updates(UpdateCheckRequest(url=URL, **options))
             assert update.plugin_id == PLUGIN_ID and update.changes[0].revision == "independent-v1"
-            plan = await service.plan_workflow(URL, **options)
+            plan = await service.plan_workflow(WorkflowPlanRequest(url=URL, **options))
             assert plan.selected_urls == (URL,)
-            download = await service.run(URL, **options)
+            download = await service.download(DownloadRequest(url=URL, **options))
             assert not download.failures and len(download.saved_files) == 1
             assert Path(download.saved_files[0]).read_bytes() == data
             assert Path(download.saved_files[0]).parent.name == "0001_日本語_日本語"
-            workflow = await service.workflow(URL, workflow_retries=0, download_scope="all", **options)
+            workflow = await service.workflow(
+                WorkflowRequest(url=URL, workflow_retries=0, download_scope="all", **options)
+            )
             assert workflow.items[0].status == "success"
             assert workflow.snapshot.candidates[0].revision == "independent-v1"
             assert Path(workflow.items[0].download.saved_files[0]).read_bytes() == data
             before = len(calls)
-            unchanged = await service.workflow(URL, workflow_retries=0, **options)
+            unchanged = await service.workflow(WorkflowRequest(url=URL, workflow_retries=0, **options))
             assert unchanged.selected_urls == ()
             assert calls[before:] == ["check"]
 
@@ -195,10 +205,10 @@ def test_core_fallback_uses_decoder_only_when_no_independent_plugin_matches(inde
         async with RuntimeComposer(
             config, config_root=config_path.parent, plugin_root=config_path.parent / "plugins"
         ).compose() as service:
-            await service.inspect(URL)
+            await service.inspect(InspectRequest(url=URL))
             assert not calls
             # This URL does not match the custom plugin. Mock response bytes are immaterial to this assertion.
-            result = await service.inspect("https://other.test/gallery/")
+            result = await service.inspect(InspectRequest(url="https://other.test/gallery/"))
             assert result.plugin_id == "core.generic-html" and result.manifest.title == "fallback"
             assert len(calls) == 1
 

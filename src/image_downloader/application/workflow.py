@@ -6,10 +6,9 @@ import asyncio
 from dataclasses import replace
 from datetime import UTC, datetime
 from functools import partial
-from typing import TYPE_CHECKING, Literal
+from typing import Literal
 from uuid import uuid4
 
-from ..configuration.models import ImageFormat
 from ..configuration.paths import resolve_paths
 from ..exceptions import (
     AuthenticationError,
@@ -34,41 +33,28 @@ from ..models import (
 from ..observability.diagnostic_safety import best_effort_diagnostic
 from ..observability.events import EventName, EventPayload
 from ..observability.scope import OperationDiagnosticsScope
-from ..plugins.lifecycle import PluginRecord
-from ..plugins.plugin_manifest import PluginConfigOverrides, PluginDownloadPolicyOverrides
-from ..ports import SitePlugin
 from ..storage.workflow import WorkflowState, finish_transaction
 from ..storage.workflow_logging import WorkflowLogWriter, item_summary
-from .workflow_recording import _settle, record_result, revise_result
-from .workflow_reporting import stopped_status, workflow_outcome, workflow_status
+from .requests import DownloadRequest, UpdateCheckRequest, WorkflowRequest
+from .site_operation import SiteSelection
+from .workflow_finalizer import WorkflowFinalizer
 from .workflow_retry import ImageLedger
-
-if TYPE_CHECKING:
-    from .service import DownloadService
+from .workflow_runtime import WorkflowRuntime
 
 
 class _WorkflowExecution:
-    def __init__(
-        self,
-        service: DownloadService,
-        url: str,
-        scope: Literal["all", "updated"],
-        overrides: PluginConfigOverrides | None,
-        fallback: bool | None,
-        plugin_id: str | None,
-        force_plugin: bool,
-        policies: PluginDownloadPolicyOverrides | None,
-        image_format: ImageFormat | None,
-        retries: int,
-        delay: float,
-        timeout: float | None,
-        progress_log: bool | None,
-    ) -> None:
-        self.service, self.url, self.scope = service, url, scope
-        self.overrides, self.fallback, self.plugin_id = overrides, fallback, plugin_id
-        self.force_plugin, self.policies, self.image_format = force_plugin, policies, image_format
-        self.retries, self.delay, self.timeout = retries, delay, timeout
-        self.state = WorkflowState(service.state.filesystem)
+    def __init__(self, runtime: WorkflowRuntime, request: WorkflowRequest) -> None:
+        self.runtime, self.url, self.scope = runtime, request.url, request.download_scope
+        self.overrides = request.plugin_overrides
+        self.fallback, self.plugin_id, self.force_plugin = (
+            request.fallback_override,
+            request.plugin_id,
+            request.force_plugin,
+        )
+        self.policies, self.image_format = request.plugin_download_policy_overrides, request.force_image_format
+        self.retries, self.delay = request.workflow_retries, request.workflow_retry_delay
+        self.timeout = request.workflow_retry_timeout
+        self.state = WorkflowState(runtime.state.filesystem)
         self.snapshot: UpdateSnapshot | None = None
         self.changes: tuple[UpdateChange, ...] = ()
         self.items: dict[str, WorkflowItemResult] = {}
@@ -79,10 +65,12 @@ class _WorkflowExecution:
         self.started_at = datetime.now(UTC)
         self.feed_plugin_id: str | None = None
         self.log = WorkflowLogWriter(
-            resolve_paths(service.config)["logs"] / "workflow",
+            resolve_paths(runtime.config)["logs"] / "workflow",
             self.run_id,
             self.started_at,
-            service.config.workflow_logging.progress_enabled if progress_log is None else progress_log,
+            runtime.config.workflow_logging.progress_enabled
+            if request.workflow_progress_log is None
+            else request.workflow_progress_log,
         )
 
     def result(self, error: BaseException | None = None) -> WorkflowResult:
@@ -123,15 +111,18 @@ class _WorkflowExecution:
                 },
             )
         )
-        record, plugin = self.service._select_site_plugin(
+        async with self.runtime.operations.selection(
             self.url, self.overrides, self.fallback, self.plugin_id, self.force_plugin
-        )
-        self.feed_plugin_id = record.id
-        lock = self.state.feed_lock(record.id, self.url)
+        ) as selected:
+            self.feed_plugin_id = selected.record.id
+            return await self._run_selected(selected)
+
+    async def _run_selected(self, selected: SiteSelection) -> WorkflowResult:
+        lock = self.state.feed_lock(selected.record.id, self.url)
         await lock.acquire_async()
         try:
-            await finish_transaction(self.state._read)
-            await self.round(0, (record, plugin))
+            await finish_transaction(self.state.validate)
+            await self.round(0, selected)
             if self.pending() and self.retries:
                 timeout = asyncio.timeout(self.timeout)
                 try:
@@ -151,7 +142,7 @@ class _WorkflowExecution:
                                 )
                             )
                             await best_effort_diagnostic(
-                                self.service.logger.core,
+                                self.runtime.logger.core,
                                 "workflow_retry_wait",
                                 module="workflow",
                                 url=self.url,
@@ -159,7 +150,7 @@ class _WorkflowExecution:
                                 debug=True,
                             )
                             await asyncio.sleep(self.delay)
-                            await self.round(number, (record, plugin))
+                            await self.round(number, selected)
                 except TimeoutError as exc:
                     if not timeout.expired():
                         raise
@@ -172,30 +163,37 @@ class _WorkflowExecution:
                         )
                     self.reported = False
                     raise error from exc
+        except BaseException as primary:
+            # Preparation owns the selected instance until check() opens it.
+            # Cleanup must finish before another process can acquire this feed.
+            await self.runtime.operations.release_selection(selected, primary)
+            raise
         finally:
             lock.release()
         return self.result()
 
-    async def check(self, selected_plugin: tuple[PluginRecord, SitePlugin]) -> tuple[UpdateResult, UpdateSnapshot]:
-        service = self.service
+    async def check(self, selected_plugin: SiteSelection) -> tuple[UpdateResult, UpdateSnapshot]:
+        runtime = self.runtime
         async with OperationDiagnosticsScope(
-            service.logger, lambda: service.notifications.flush(source_url=self.url)
+            runtime.logger, lambda: runtime.notifications.flush(source_url=self.url)
         ) as diagnostics:
-            await service.events.emit(EventName.UPDATE_CHECK_STARTED, EventPayload(url=self.url))
+            await runtime.events.emit(EventName.UPDATE_CHECK_STARTED, EventPayload(url=self.url))
             try:
                 self.reported = True
-                update, snapshot = await service._check_updates_operation(
-                    self.url,
-                    self.overrides,
-                    self.fallback,
-                    self.plugin_id,
-                    self.force_plugin,
-                    self.policies,
+                update, snapshot = await runtime.updates.execute(
+                    UpdateCheckRequest(
+                        url=self.url,
+                        plugin_overrides=self.overrides,
+                        fallback_override=self.fallback,
+                        plugin_id=self.plugin_id,
+                        force_plugin=self.force_plugin,
+                        plugin_download_policy_overrides=self.policies,
+                    ),
                     diagnostics,
                     selected_plugin=selected_plugin,
                 )
             finally:
-                await service.events.emit(EventName.UPDATE_CHECK_FINISHED, EventPayload(url=self.url))
+                await runtime.events.emit(EventName.UPDATE_CHECK_FINISHED, EventPayload(url=self.url))
         self.reported = False
         return update, snapshot
 
@@ -264,7 +262,7 @@ class _WorkflowExecution:
             self.log.event("target_removed", {"url": url, "round_number": number, "download_again": False})
         return selected
 
-    async def round(self, number: int, selected_plugin: tuple[PluginRecord, SitePlugin]) -> None:
+    async def round(self, number: int, selected_plugin: SiteSelection) -> None:
         try:
             await finish_transaction(
                 partial(
@@ -277,28 +275,22 @@ class _WorkflowExecution:
                 )
             )
             if number:
-                fresh = self.service._select_site_plugin(
+                async with self.runtime.operations.selection(
                     self.url, self.overrides, self.fallback, self.plugin_id, self.force_plugin
-                )
-                if fresh[0].id != selected_plugin[0].id:
-                    raise ConfigurationError("workflow feed plugin changed while its lock was held")
-                selected_plugin = fresh
-                await best_effort_diagnostic(
-                    self.service.logger.core,
-                    "workflow_retry_started",
-                    module="workflow",
-                    url=self.url,
-                    count=number,
-                    debug=True,
-                )
-            update, snapshot = await self.check(selected_plugin)
-            selected = await finish_transaction(partial(self.prepare, update.plugin_id, snapshot, number))
-            for url, reasons in selected.items():
-                self.reported = True
-                self.items[url] = await self.download(self.items[url], number, reasons)
-                self.reported = False
-                if self.items[url].status == "success":
-                    await finish_transaction(partial(self.state.complete, update.plugin_id, self.url, url))
+                ) as fresh:
+                    if fresh.record.id != selected_plugin.record.id:
+                        raise ConfigurationError("workflow feed plugin changed while its lock was held")
+                    await best_effort_diagnostic(
+                        self.runtime.logger.core,
+                        "workflow_retry_started",
+                        module="workflow",
+                        url=self.url,
+                        count=number,
+                        debug=True,
+                    )
+                    await self._execute_round(number, fresh)
+            else:
+                await self._execute_round(number, selected_plugin)
         except BaseException as exc:
             error = None if isinstance(exc, asyncio.CancelledError) else error_info_for(exc)
             if self.rounds and self.rounds[-1].round_number == number:
@@ -307,8 +299,18 @@ class _WorkflowExecution:
                 self.rounds.append(WorkflowRoundResult(number, None, status="stopped", error=error))
             raise
 
+    async def _execute_round(self, number: int, selected_plugin: SiteSelection) -> None:
+        update, snapshot = await self.check(selected_plugin)
+        selected = await finish_transaction(partial(self.prepare, update.plugin_id, snapshot, number))
+        for url, reasons in selected.items():
+            self.reported = True
+            self.items[url] = await self.download(self.items[url], number, reasons)
+            self.reported = False
+            if self.items[url].status == "success":
+                await finish_transaction(partial(self.state.complete, update.plugin_id, self.url, url))
+
     async def download(self, item: WorkflowItemResult, number: int, reasons: tuple[str, ...]) -> WorkflowItemResult:
-        service = self.service
+        runtime = self.runtime
         ledger = self.ledgers[item.url]
         ledger.start_attempt()
         error = None
@@ -327,24 +329,26 @@ class _WorkflowExecution:
                 )
             )
             async with OperationDiagnosticsScope(
-                service.logger, lambda: service.notifications.flush(source_url=item.url)
+                runtime.logger, lambda: runtime.notifications.flush(source_url=item.url)
             ) as diagnostics:
-                with service.notifications.defer_download():
+                with runtime.notifications.defer_download():
                     try:
-                        await service.events.emit(EventName.BEFORE_DOWNLOAD, EventPayload(url=item.url))
-                        await service._run_operation(
-                            item.url,
-                            self.overrides,
-                            self.fallback,
-                            self.plugin_id,
-                            self.force_plugin,
-                            self.policies,
-                            self.image_format,
+                        await runtime.events.emit(EventName.BEFORE_DOWNLOAD, EventPayload(url=item.url))
+                        await runtime.download.execute(
+                            DownloadRequest(
+                                url=item.url,
+                                plugin_overrides=self.overrides,
+                                fallback_override=self.fallback,
+                                plugin_id=self.plugin_id,
+                                force_plugin=self.force_plugin,
+                                plugin_download_policy_overrides=self.policies,
+                                force_image_format=self.image_format,
+                            ),
                             diagnostics,
                             ledger,
                         )
                     finally:
-                        await service.events.emit(EventName.AFTER_DOWNLOAD, EventPayload(url=item.url))
+                        await runtime.events.emit(EventName.AFTER_DOWNLOAD, EventPayload(url=item.url))
         except (
             AuthenticationError,
             PluginError,
@@ -387,98 +391,26 @@ class _WorkflowExecution:
         return result
 
 
-async def execute_workflow(
-    service: DownloadService,
-    url: str,
-    scope: Literal["all", "updated"],
-    overrides: PluginConfigOverrides | None,
-    fallback: bool | None,
-    plugin_id: str | None,
-    force_plugin: bool,
-    policies: PluginDownloadPolicyOverrides | None,
-    image_format: ImageFormat | None,
-    retries: int = 1,
-    delay: float = 600.0,
-    timeout: float | None = None,
-    progress_log: bool | None = None,
-) -> WorkflowResult:
-    execution = _WorkflowExecution(
-        service,
-        url,
-        scope,
-        overrides,
-        fallback,
-        plugin_id,
-        force_plugin,
-        policies,
-        image_format,
-        retries,
-        delay,
-        timeout,
-        progress_log,
-    )
+async def execute_workflow(runtime: WorkflowRuntime, request: WorkflowRequest) -> WorkflowResult:
+    url = request.url
+    execution = _WorkflowExecution(runtime, request)
     failure: BaseException | None = None
     try:
         try:
             await execution.run()
         except Exception as exc:
             if not execution.reported:
-                await _report_workflow_failure(service, url, exc)
+                await _report_workflow_failure(runtime, url, exc)
             raise
         finally:
             for item in execution.items.values():
-                await best_effort_diagnostic(service.notifications.workflow_item, item)
+                await best_effort_diagnostic(runtime.notifications.workflow_item, item)
     except BaseException as exc:
         failure = exc
-    result = execution.result(failure)
-    status = stopped_status(failure) if failure is not None and not result.timed_out else workflow_status(result)
-    try:
-        result = await record_result(
-            service.config,
-            result,
-            execution.feed_plugin_id,
-            execution.started_at,
-            status,
-            service.outputs.root,
-        )
-    except asyncio.CancelledError as exc:
-        result = getattr(
-            exc,
-            "workflow_result",
-            replace(
-                result,
-                cancelled=True,
-                stop_error=None,
-                history_saved=False,
-                history_warning="workflow history could not be saved; execution result is unchanged",
-            ),
-        )
-        failure = exc
-    # History persistence and dedicated progress recording are independent.
-    cancellation = await _settle(
-        partial(
-            execution.log.finish,
-            result,
-            stopped_status(failure) if failure is not None and not result.timed_out else workflow_status(result),
-            workflow_outcome(result),
-        )
-    )
-    if cancellation is not None:
-        failure = cancellation
-        result = replace(result, cancelled=True, stop_error=None)
-        try:
-            result = await revise_result(service.config, result, 130, service.outputs.root)
-        except asyncio.CancelledError as exc:
-            result = getattr(exc, "workflow_result", result)
-        await _settle(partial(execution.log.finish, result, 130, workflow_outcome(result), correction=True))
-    result = replace(result, workflow_log=execution.log.result)
-    if failure is not None:
-        failure.__dict__["workflow_result"] = result
-        raise failure
-    return result
+    return await WorkflowFinalizer(runtime).finish(execution, failure)
 
 
-async def _report_workflow_failure(service: DownloadService, url: str, error: Exception) -> None:
+async def _report_workflow_failure(runtime: WorkflowRuntime, url: str, error: Exception) -> None:
     info = error_info_for(error)
     event = (
         EventName.CONFIG_FAILED
@@ -491,8 +423,8 @@ async def _report_workflow_failure(service: DownloadService, url: str, error: Ex
         if isinstance(error, StorageError)
         else EventName.RUNTIME_FAILED
     )
-    async with OperationDiagnosticsScope(service.logger, lambda: service.notifications.flush(source_url=url)):
-        await service.events.emit(
+    async with OperationDiagnosticsScope(runtime.logger, lambda: runtime.notifications.flush(source_url=url)):
+        await runtime.events.emit(
             event,
             EventPayload(
                 url=url,
@@ -502,4 +434,14 @@ async def _report_workflow_failure(service: DownloadService, url: str, error: Ex
                 operation="workflow",
             ),
         )
-        await best_effort_diagnostic(service.logger.error_detail, error, url=url, module="workflow")
+        await best_effort_diagnostic(runtime.logger.error_detail, error, url=url, module="workflow")
+
+
+class WorkflowExecutor:
+    """Coordinate workflow rounds through explicit application capabilities."""
+
+    def __init__(self, runtime: WorkflowRuntime) -> None:
+        self.runtime = runtime
+
+    async def execute(self, request: WorkflowRequest) -> WorkflowResult:
+        return await execute_workflow(self.runtime, request)

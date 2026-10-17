@@ -10,7 +10,7 @@ import httpx
 import pytest
 from pydantic import ValidationError
 
-from image_downloader import AppConfig, RuntimeComposer, SecretNotFoundError
+from image_downloader import AppConfig, DownloadRequest, RuntimeComposer, SecretNotFoundError
 from image_downloader.credentials import plugin_secrets
 from image_downloader.runtime import RuntimeSecrets
 from image_downloader.security import install_plugin
@@ -297,7 +297,7 @@ def test_signed_auth_plugins_resolve_secrets_in_runtime_contexts_and_multiple_ru
                 services.append(await stack.enter_async_context(_compose(unit_root, plugin_sources, unit)))
             results = await asyncio.gather(
                 *(
-                    service.run(f"https://{UNIT_HOST[unit]}.example.test/works/1")
+                    service.download(DownloadRequest(url=f"https://{UNIT_HOST[unit]}.example.test/works/1"))
                     for unit, service in zip(units, services, strict=True)
                 )
             )

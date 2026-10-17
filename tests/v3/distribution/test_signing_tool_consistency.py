@@ -6,11 +6,8 @@ from pathlib import Path
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from tools.sign_local_site_plugin import file_tree, sign
 
-from image_downloader.plugins.plugin_manifest import (
-    collect_plugin_file_tree,
-    read_manifest,
-    verify_signed_plugin_source,
-)
+from image_downloader.plugins.plugin_manifest import read_manifest
+from image_downloader.plugins.plugin_verification import collect_plugin_file_tree, verify_signed_plugin_source
 
 
 def test_signer_and_verifier_cover_the_same_plugin_files(tmp_path: Path) -> None:

@@ -10,7 +10,7 @@ from pathlib import Path, PurePath
 from typing import TextIO
 
 from ..exceptions import StorageSafetyError
-from ._path_limits import _path_errors
+from ._path_limits import _component_limit, _path_errors
 
 _RESERVED_NAMES = {"CON", "PRN", "AUX", "NUL"}
 _WINDOWS_CHARACTER_REPLACEMENTS = str.maketrans(
@@ -75,6 +75,15 @@ class FileSystem:
     def path(self, relative: str | Path) -> Path:
         parts = self._parts(relative)
         return self.root.joinpath(*parts)
+
+    def validate_relative(self, relative: str | Path) -> None:
+        """Validate a managed relative path before probing an absent directory."""
+        self._parts(relative)
+
+    def shorten_component(self, value: str, *, parent: str | Path = ".") -> str:
+        """Fit an already safe component to the parent's native name limit."""
+        parts = self._parts(parent, allow_empty=True)
+        return _component_limit(self.root.joinpath(*parts)).shorten(value)
 
     def exists(self, relative: str | Path) -> bool:
         if self._lstat(self.root) is None:

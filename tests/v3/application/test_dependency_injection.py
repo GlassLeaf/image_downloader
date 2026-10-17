@@ -147,9 +147,7 @@ def test_two_services_preserve_each_others_cookie_changes(tmp_path: Path, monkey
         second.gateway.client.cookies.set("second", "two", domain="example.test")
         await first.close()
         await second.close()
-        assert {cookie.name: cookie.value for cookie in first.cookie_store.load()} == {
-            "first": "one", "second": "two"
-        }
+        assert {cookie.name: cookie.value for cookie in first.cookie_store.load()} == {"first": "one", "second": "two"}
 
     asyncio.run(scenario())
 

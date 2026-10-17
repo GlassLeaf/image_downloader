@@ -1,73 +1,27 @@
-# Maintaining CLI definitions and configuration
+<a id="maintaining-cli-definitions-and-configuration"></a>
 
-Register new options in `commands/options.py`. `OptionDefinition` owns the name,
-destination, type conversion, default, repeat behavior, choices, command scope,
-and no-op metadata. Add exclusions to `CONFLICT_GROUPS`. The parser reads these
-definitions once, regardless of the option's position in the command hierarchy.
-The validation indexes are derived at module import; this is not a runtime plugin
-registration or hot-reload API.
+# CLI定義と設定の保守
 
-The registry controls acceptance, not feature implementation. A new option also
-needs a command consumer. Type conversion alone does not enforce a positive
-number, non-empty string, safe absolute path, or existence of a file. Define
-those rules in common validation before configuration resolution. A no-op entry
-must be honored by its consumer and applicable value validation.
+新しいオプションは`commands/options.py`へ登録します。`OptionDefinition`が、名前、格納先、型変換、既定値、繰り返し指定、選択肢、適用コマンド、効果のない指定に関する情報を管理します。排他条件は`CONFLICT_GROUPS`へ追加してください。パーサーはコマンド階層内の指定位置にかかわらず、これらの定義を一度だけ読み込みます。検証用の索引はモジュールの読み込み時に生成するため、実行中のプラグイン登録やホットリロード用APIではありません。
 
-When adding a choice to an existing option, update its consumers and related
-configuration/runtime contracts together. For example, an inspection level
-needs an implementation in the inspection renderer; an image format needs
-configuration, save-option, and processing support. Adding a `choices` entry
-alone can pass argument validation and fail later, or select unintended behavior.
+定義一覧が管理するのは引数の受理条件です。機能の実装には、新しいオプションを使用するコマンド処理も必要です。型変換だけでは、正の数、空でない文字列、安全な絶対パス、ファイルの存在は保証できません。これらの規則は、設定解決より前の共通検証へ定義してください。効果のない指定として登録した項目は、使用側の処理と関連する値の検証でも、その扱いを守る必要があります。
 
-`test_choice_contracts.py` evaluates every declared output, inspection, and
-fallback choice against its consumer and checks the verification/workflow type
-contracts. These tests deliberately fail when an advertised choice has no
-corresponding contract or behavior. They complement feature-specific tests;
-schema acceptance does not prove download or image-processing success.
+実行側が新しい値を使う場合は、`commands/prepared.py`の対象コマンドの入力dataclassにも型付きフィールドを追加します。検証後は、その型に宣言した値だけを複製して実行側へ渡します。繰り返し指定や位置引数の列は不変の値へ変換し、元のNamespace・リストを保持しないでください。設定解決・実行・表示の処理では、対応するコマンド型のフィールドを参照します。
 
-Removing an option makes its former spelling an unknown option. Remove or update
-its execution consumers, compatibility attributes, specialized validation, help,
-examples, and tests together. Common validation tolerates absent optional
-definitions, but that does not make remaining execution references safe. Rename
-an option's consumers and canonical validation references as well as its registry
-entry; an explicit `dest` can preserve the Namespace attribute when appropriate.
+既存オプションに選択肢を追加するときは、その使用側と関連する設定・実行時の仕様も同時に更新します。たとえば、検査レベルには検査結果の表示処理、画像形式には設定・保存オプション・画像処理の対応が必要です。`choices`への追加だけでは、引数検証の通過後に失敗したり、意図しない挙動を選んだりするおそれがあります。
 
-When reducing or renaming choices, old explicit values must be rejected and the
-diagnostic must list only current choices. Update defaults too: argparse and
-Pydantic do not necessarily validate omitted defaults against their choice lists.
-The choice contract tests check declared defaults, a configuration-default
-roundtrip, and the bundled YAML against the current schema. CLI choices may be
-a subset of the library's choices; the contract tests allow that intentional
-restriction while continuing to reject advertised values the consumer lacks.
+`test_choice_contracts.py`は、宣言された出力・検査・フォールバックの全選択肢を使用側と照合し、検証・ワークフローの型の契約も確認します。公開した選択肢に対応する仕様や挙動がなければ、テストは失敗します。これらは機能ごとのテストを補うものであり、スキーマが値を受理するだけではダウンロードや画像処理の成功を証明できません。
 
-Choose an explicit migration policy before removing configuration fields.
-`validate_config`/direct model input rejects unknown fields, while user-managed
-YAML resolution prunes obsolete/unknown static keys before validation and can
-remove them from disk when `rewrite_user_layers=True`. Read-only resolution does
-not rewrite the file. Changing a field's choices or type rejects invalid old
-values, but no automatic value renaming or migration is provided. Check bundled
-defaults, commented templates, overlays, and runtime overrides when changing
-the schema or its constraints.
+オプションを削除すると、以前の表記は未知のオプションになります。実行側の参照、互換用属性、専用検証、ヘルプ、例、テストもまとめて削除または更新してください。共通検証は任意の定義がなくても動作しますが、実行側に残った参照の安全性は保証しません。名前を変更するときは、登録内容に加えて使用側と共通検証の参照名も変更します。必要に応じて明示的な`dest`を指定すれば、Namespaceの属性名を維持できます。
 
-Add configuration fields and permitted values to the Pydantic models in
-`configuration/models.py`. Layer sanitizing derives its fields from that schema,
-and diagnostics now derive field names from the same model instead of a separate
-name allowlist. Aliases and new numeric bounds are covered by extension tests.
-Diagnostic field traversal stops at user-defined mapping keys, even when a key
-coincides with a real schema field. Never publish arbitrary validator exceptions;
-new custom constraints need explicit, safe core diagnostic conditions.
+選択肢を減らす、または名前を変える場合は、古い値の明示指定を拒否し、診断には現在の選択肢だけを表示してください。既定値も更新します。argparseとPydanticは、省略された既定値を必ずしも選択肢一覧に照らして検証しません。選択肢の契約テストでは、宣言された既定値、設定既定値の往復変換、同梱YAMLと現行スキーマの整合性を確認します。CLIの選択肢をライブラリより少なくする設計は許容しますが、使用側が扱えない値を公開することは引き続き拒否します。
 
-For each extension, verify placement before/within/after the hierarchy, explicit
-defaults, repeated values, invalid types/choices, scope/conflicts, JSON/text
-output, help, and `--`. Invalid inputs and help must not enter configuration or
-execution. Update the CLI/configuration documentation and add tests for the
-feature's actual effect. Manually constructed legacy Namespaces cannot recover
-whether a value equal to its default was explicitly supplied; parsed Namespaces
-retain that information.
+設定フィールドを削除する前に、移行方針を明確にしてください。`validate_config`とモデルへの直接入力は未知のフィールドを拒否します。一方、利用者が管理するYAMLの解決処理は、検証前に静的スキーマの廃止キー・未知キーを除外し、`rewrite_user_layers=True`ならファイルからも削除できます。読み取り専用の解決ではファイルを書き換えません。選択肢や型の変更後に不正となる古い値は拒否しますが、値の自動改名や移行は行いません。スキーマや制約を変える際は、同梱の既定値、コメント付きテンプレート、重ね合わせ設定、実行時の上書き設定も確認してください。
 
-See `tests/v3/cli/test_definition_extensions.py` for temporary definitions and
-the [extension verification report](../../investigations/cli-arguments-2026-10-03/extension-verification.md)
-for the checked cases and execution limits.
+設定フィールドと許可値は`configuration/models.py`のPydanticモデルへ追加します。設定レイヤーの不要キー除去はこのスキーマからフィールドを取得し、診断のフィールド名も別の許可リストではなく同じモデルから取得します。別名と数値制約の追加は拡張テストで確認します。診断用のフィールド探索は、利用者が定義したマッピングキーに到達すると停止します。そのキーが実際のスキーマのフィールド名と同じでも同様です。任意のバリデーター例外をそのまま公開せず、独自制約にはコア側で安全な診断条件を明示してください。
 
-Removal and change cases are in `tests/v3/cli/test_definition_reductions.py` and
-the [reduction/change verification report](../../investigations/cli-arguments-2026-10-03/reduction-verification.md).
+拡張ごとに、階層の前・途中・後での指定、既定値の明示、繰り返し指定、不正な型・選択肢、適用範囲・競合、JSON・テキスト出力、ヘルプ、`--`を確認します。不正入力やヘルプ表示で設定解決・実行処理へ進んではいけません。CLI・設定ドキュメントを更新し、機能の実際の効果を確認するテストを追加してください。手作業で構築した従来形式のNamespaceでは、既定値と等しい値が明示されたかを復元できません。パーサーが生成したNamespaceは、その情報を保持します。
+
+一時的な定義を使う例は`tests/v3/cli/test_definition_extensions.py`を、確認済みケースと検証範囲は[拡張検証レポート](../../investigations/cli-arguments-2026-10-03/extension-verification.md)を参照してください。
+
+削除・変更のケースは`tests/v3/cli/test_definition_reductions.py`と[削除・変更検証レポート](../../investigations/cli-arguments-2026-10-03/reduction-verification.md)にあります。

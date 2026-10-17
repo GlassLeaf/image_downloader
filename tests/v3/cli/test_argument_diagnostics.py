@@ -183,7 +183,7 @@ def test_order_duplicates_empty_values_and_command_named_values(tmp_path):
     source.mkdir()
     args = build_parser().parse_args(["plugin", "install", "--yes", str(source), "--selection-priority=0"])
     assert args.command_args == ["install", str(source)]
-    assert validate_arguments(args) == "plugin"
+    assert validate_arguments(args).name == "plugin"
     args = build_parser().parse_args(["config", "profile", "--json", "init", "new_profile"])
     assert args.command_args == ["profile", "init", "new_profile"]
     args = build_parser().parse_args(
@@ -334,7 +334,7 @@ def test_validation_passes_stop_at_handler_boundary(monkeypatch):
 
     class Boundary:
         async def handle(self, args):
-            seen.append(args.command_handler)
+            seen.append(args.name)
             return 31
 
     monkeypatch.setitem(dispatch._COMMAND_HANDLERS, "download", Boundary())
@@ -350,9 +350,9 @@ def test_override_file_is_validated_once_and_namespace_can_be_reused(tmp_path, m
 
     class Boundary:
         async def handle(self, args):
-            seen.append(setup._runtime_overrides(args))
+            seen.append(args.plugin_config)
             path.write_text("private-value is invalid JSON", encoding="utf-8")
-            assert setup._runtime_overrides(args) == seen[-1]
+            assert args.plugin_config == seen[-1]
             return 0
 
     monkeypatch.setitem(dispatch._COMMAND_HANDLERS, "download", Boundary())

@@ -6,11 +6,30 @@ import asyncio
 import json
 from pathlib import Path
 
+import pytest
+
 import image_downloader.cli as cli
 import image_downloader.commands.cookie as cookie_command
 import image_downloader.commands.dispatch as dispatch
 import image_downloader.commands.plugin as plugin_command
+from image_downloader import WorkflowExecutionError, WorkflowPlanError
+from image_downloader.commands.errors import _error_payload, _exit_status
 from image_downloader.config import AppConfig
+from image_downloader.diagnostics import argument_error
+from image_downloader.models import WorkflowPlanResult, WorkflowResult
+
+
+@pytest.mark.parametrize("planning", (False, True))
+def test_workflow_errors_render_the_original_diagnostic_and_status(planning):
+    cause = argument_error("--plugin requires a value", "missing_value", option="--plugin")
+    url = "https://example.test/feed"
+    error = (
+        WorkflowPlanError(WorkflowPlanResult(url, "updated"), cause)
+        if planning
+        else WorkflowExecutionError(WorkflowResult(url, "updated", None, (), ()), cause)
+    )
+    assert _error_payload(error, operation="workflow") == _error_payload(cause, operation="workflow")
+    assert _exit_status(error) == cli.EXIT_CONFIGURATION
 
 
 def test_config_initialization_commands_emit_fixed_json_objects(tmp_path: Path, capsys) -> None:

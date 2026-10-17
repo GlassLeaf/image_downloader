@@ -14,9 +14,7 @@ def warn_diagnostic_failure() -> None:
         pass
 
 
-async def best_effort_diagnostic(
-    writer: Callable[..., Awaitable[object]], *args: object, **kwargs: object
-) -> None:
+async def best_effort_diagnostic(writer: Callable[..., Awaitable[object]], *args: object, **kwargs: object) -> None:
     try:
         await writer(*args, **kwargs)
     except Exception:

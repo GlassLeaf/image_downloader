@@ -12,7 +12,7 @@ import image_downloader.commands.config as cli_config
 import image_downloader.commands.download as cli_download
 from image_downloader.cli import EXIT_SUCCESS, build_parser, run
 from image_downloader.config import AppConfig, resolve_application_config
-from image_downloader.configuration import layers
+from image_downloader.configuration import layers, normalization
 from image_downloader.exceptions import ConfigurationError
 
 
@@ -110,7 +110,7 @@ def test_removed_setting_names_are_ignored_read_only_and_removed_when_rewriting(
     assert "Retain this comment." in rewritten
 
 
-@pytest.mark.parametrize("path", tuple(sorted(layers._REMOVED_KEYS)))
+@pytest.mark.parametrize("path", tuple(sorted(normalization._REMOVED_KEYS)))
 def test_every_known_removed_key_is_deleted_without_conversion(tmp_path: Path, path: tuple[str, ...]) -> None:
     document: dict[str, object] = {}
     current = document
@@ -176,7 +176,7 @@ def test_layer_constraints_and_cleanup_write_failures_still_stop_resolution(
     assert "unknown" in main.read_text(encoding="utf-8")
 
     profile.unlink()
-    monkeypatch.setattr(layers, "_atomic_replace", lambda *_args: (_ for _ in ()).throw(OSError("denied")))
+    monkeypatch.setattr(normalization, "_atomic_replace", lambda *_args: (_ for _ in ()).throw(OSError("denied")))
     with pytest.raises(ConfigurationError, match=r"could not normalize configuration"):
         resolve_application_config(main, rewrite_user_layers=True)
 
@@ -188,7 +188,7 @@ def test_cleanup_atomic_replace_rejects_a_content_change_without_overwriting(tmp
     main.write_text("unknown: newer\n", encoding="utf-8")
 
     with pytest.raises(ConfigurationError, match=r"configuration changed while normalizing"):
-        layers._atomic_replace(main, expected, b"{}\n")
+        normalization._atomic_replace(main, expected, b"{}\n")
 
     assert main.read_text(encoding="utf-8") == "unknown: newer\n"
 
@@ -259,7 +259,7 @@ def test_state_changing_command_rewrites_user_layer_before_composing_service(
     composed = False
 
     class Service:
-        async def run(self, *_args: object, **_kwargs: object) -> object:
+        async def download(self, *_args: object, **_kwargs: object) -> object:
             return type("Result", (), {"saved_files": (), "skipped_files": (), "failures": ()})()
 
         async def close(self) -> None:
@@ -294,7 +294,7 @@ def test_cleanup_failure_stops_state_changing_command_before_service_composition
             nonlocal composed
             composed = True
 
-    monkeypatch.setattr(layers, "_atomic_replace", lambda *_args: (_ for _ in ()).throw(OSError("denied")))
+    monkeypatch.setattr(normalization, "_atomic_replace", lambda *_args: (_ for _ in ()).throw(OSError("denied")))
     monkeypatch.setattr(cli_download, "RuntimeComposer", Composer)
     args = build_parser().parse_args(["download", "https://example.test/item", "--config", str(main)])
 

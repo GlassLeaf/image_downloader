@@ -10,7 +10,9 @@ from hashlib import sha256
 from pathlib import Path
 
 import pytest
+from support.synchronization import managed_task, wait_until_started
 
+from image_downloader import UpdateCheckRequest
 from image_downloader.config import AppConfig
 from image_downloader.exceptions import InterProcessLockError, PluginError, UpdateStateError
 from image_downloader.models import UpdateCandidate, UpdateChangeKind, UpdateSnapshot
@@ -103,11 +105,11 @@ def test_update_history_is_isolated_by_plugin_and_requested_feed(tmp_path: Path)
         plugin = UpdatePlugin()
         service.registry.resolve = lambda *_args, **_kwargs: (record, plugin)  # type: ignore[method-assign]
         try:
-            first_a = await service.check_updates(FEED_A)
-            first_b = await service.check_updates(FEED_B)
-            second_a = await service.check_updates(FEED_A)
-            removed_a = await service.check_updates(FEED_A)
-            second_b = await service.check_updates(FEED_B)
+            first_a = await service.check_updates(UpdateCheckRequest(url=FEED_A))
+            first_b = await service.check_updates(UpdateCheckRequest(url=FEED_B))
+            second_a = await service.check_updates(UpdateCheckRequest(url=FEED_A))
+            removed_a = await service.check_updates(UpdateCheckRequest(url=FEED_A))
+            second_b = await service.check_updates(UpdateCheckRequest(url=FEED_B))
 
             assert [change.kind for change in first_a.changes] == [UpdateChangeKind.ADDED]
             assert [change.kind for change in first_b.changes] == [UpdateChangeKind.ADDED]
@@ -309,11 +311,11 @@ def test_update_lock_timeout_is_operation_error_and_crash_releases_lock(tmp_path
 
         async def check_loop() -> None:
             waiting = UpdateState(state.filesystem, lock_timeout_seconds=0.3)
-            task = asyncio.create_task(waiting.apply_snapshot_async(PLUGIN_ID, FEED_B, _snapshot(FEED_B)))
-            await asyncio.sleep(0.05)
-            assert not task.done()  # Lock wait must not block the event loop.
-            with pytest.raises(InterProcessLockError, match="timed out"):
-                await task
+            async with managed_task(waiting.apply_snapshot_async(PLUGIN_ID, FEED_B, _snapshot(FEED_B))) as task:
+                await asyncio.sleep(0.05)
+                assert not task.done()  # Lock wait must not block the event loop.
+                with pytest.raises(InterProcessLockError, match="timed out"):
+                    await task
 
         asyncio.run(check_loop())
         assert state.filesystem.read_text(state.relative) == before
@@ -323,34 +325,35 @@ def test_update_lock_timeout_is_operation_error_and_crash_releases_lock(tmp_path
         assert not holder.is_alive()
     state.apply_snapshot(PLUGIN_ID, FEED_B, _snapshot(FEED_B))
     assert set(json.loads(state.filesystem.read_text(state.relative))["sources"][PLUGIN_ID]) == {
-        _source_key(FEED_A), _source_key(FEED_B)
+        _source_key(FEED_A),
+        _source_key(FEED_B),
     }
 
 
 def test_cancelled_update_waits_for_started_save_to_finish(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     state = _state(tmp_path)
-    started = threading.Event()
-    release = threading.Event()
     original_write = state._write
 
-    def paused_write(document: object) -> None:
-        started.set()
-        assert release.wait(5)
-        original_write(document)  # type: ignore[arg-type]
-
-    monkeypatch.setattr(state, "_write", paused_write)
-
     async def scenario() -> None:
-        task = asyncio.create_task(state.apply_snapshot_async(PLUGIN_ID, FEED_A, _snapshot(FEED_A)))
-        try:
-            assert await asyncio.to_thread(started.wait, 2)
-            task.cancel()
-            await asyncio.sleep(0.05)
-            assert not task.done()
-        finally:
-            release.set()
-        with pytest.raises(asyncio.CancelledError):
-            await task
+        started, release = asyncio.Event(), threading.Event()
+        loop = asyncio.get_running_loop()
+
+        def paused_write(document: object) -> None:
+            loop.call_soon_threadsafe(started.set)
+            assert release.wait(30)
+            original_write(document)  # type: ignore[arg-type]
+
+        monkeypatch.setattr(state, "_write", paused_write)
+        async with managed_task(state.apply_snapshot_async(PLUGIN_ID, FEED_A, _snapshot(FEED_A))) as task:
+            try:
+                await wait_until_started(started, task)
+                task.cancel()
+                await asyncio.sleep(0.05)
+                assert not task.done()
+            finally:
+                release.set()
+            with pytest.raises(asyncio.CancelledError):
+                await task
 
     asyncio.run(scenario())
     document = json.loads(state.filesystem.read_text(state.relative))

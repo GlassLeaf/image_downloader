@@ -10,16 +10,26 @@ from email.message import EmailMessage
 import httpx
 import pytest
 from PIL import Image
+from support.synchronization import managed_task, wait_until_started
 
 import image_downloader.cli as cli
 import image_downloader.commands.download as cli_download
-from image_downloader import AppConfig, RuntimeComposer, UpdateCandidate, UpdateSnapshot
+import image_downloader.observability.notification_delivery as delivery
+from image_downloader import (
+    AppConfig,
+    DownloadRequest,
+    RuntimeComposer,
+    UpdateCandidate,
+    UpdateSnapshot,
+    WorkflowRequest,
+)
 from image_downloader.commands.workflow import _status
 from image_downloader.config import Notification
-from image_downloader.observability import notifications
 from image_downloader.observability.events import EventBus, EventName, EventPayload
-from image_downloader.observability.logging import ChapterFileSink, ConsoleSink, DebugFileSink, DownloadLogger
-from image_downloader.observability.notifications import EmailNotificationSender, NotificationService
+from image_downloader.observability.log_sinks import ChapterFileSink, ConsoleSink, DebugFileSink
+from image_downloader.observability.logging import DownloadLogger
+from image_downloader.observability.notification_delivery import EmailNotificationSender
+from image_downloader.observability.notifications import NotificationService
 from image_downloader.plugins.builtin import GenericHtmlPlugin
 
 REFUSED = {
@@ -75,8 +85,8 @@ def _fake_smtp(monkeypatch, mode, recipients=None, **kwargs):
         connections.append((args, options))
         return client
 
-    monkeypatch.setattr(notifications.smtplib, "SMTP", connect)
-    monkeypatch.setattr(notifications.smtplib, "SMTP_SSL", connect)
+    monkeypatch.setattr(delivery.smtplib, "SMTP", connect)
+    monkeypatch.setattr(delivery.smtplib, "SMTP_SSL", connect)
     return client, connections
 
 
@@ -106,7 +116,7 @@ def test_sender_result_and_cleanup_across_tls_modes(monkeypatch, mode, port, tls
     if mode == "success":
         assert asyncio.run(sender.send("日本語の件名", "日本語の本文")) is True
     else:
-        error_type = notifications._PartialRecipientRefusalError if mode == "partial" else smtplib.SMTPRecipientsRefused
+        error_type = delivery._PartialRecipientRefusalError if mode == "partial" else smtplib.SMTPRecipientsRefused
         with pytest.raises(error_type) as raised:
             asyncio.run(sender.send("日本語の件名", "日本語の本文"))
         if mode == "all":
@@ -143,7 +153,7 @@ def test_sender_result_and_cleanup_across_tls_modes(monkeypatch, mode, port, tls
     ],
 )
 def test_refusal_domains_are_parsed_and_never_fall_back_to_raw_text(recipient, domain):
-    assert notifications._refused_domains({recipient: (550, b"private")}) == (domain,)
+    assert delivery._refused_domains({recipient: (550, b"private")}) == (domain,)
 
 
 @pytest.mark.parametrize(
@@ -168,7 +178,7 @@ def test_refusal_domains_are_parsed_and_never_fall_back_to_raw_text(recipient, d
     ],
 )
 def test_smtp_host_diagnostics_are_normalized_without_network_lookup(host, expected):
-    assert notifications._smtp_diagnostic_host(host) == expected
+    assert delivery._smtp_diagnostic_host(host) == expected
 
 
 @pytest.mark.parametrize("mode", ["success", "partial", "all"])
@@ -246,30 +256,31 @@ def test_invalid_diagnostic_addresses_and_smtp_host_do_not_hide_refusal(tmp_path
 
 def test_refusal_logs_the_host_used_before_async_settings_replacement(tmp_path, monkeypatch):
     client, _ = _fake_smtp(monkeypatch, "partial")
-    started, proceed = threading.Event(), threading.Event()
     original = client.send_message
 
-    def delayed(message):
-        started.set()
-        assert proceed.wait(10)
-        return original(message)
-
-    monkeypatch.setattr(client, "send_message", delayed)
-
     async def scenario():
+        started, proceed = asyncio.Event(), threading.Event()
+        loop = asyncio.get_running_loop()
+
+        def delayed(message):
+            loop.call_soon_threadsafe(started.set)
+            assert proceed.wait(30)
+            return original(message)
+
+        monkeypatch.setattr(client, "send_message", delayed)
         logger = DownloadLogger([DebugFileSink(tmp_path / "debug.log")])
         config = _notification()
         sender = EmailNotificationSender(config.email)
         service = NotificationService(config, logger, None, {"email": sender})
-        task = asyncio.create_task(service._deliver("email", "title", "body"))
         try:
-            assert await asyncio.to_thread(started.wait, 10)
-            sender.config = _notification(smtp_host="different.example.test").email
-            proceed.set()
-            assert await task is False
+            async with managed_task(service._deliver("email", "title", "body")) as task:
+                try:
+                    await wait_until_started(started, task)
+                    sender.config = _notification(smtp_host="different.example.test").email
+                finally:
+                    proceed.set()
+                assert await task is False
         finally:
-            proceed.set()
-            await task
             await logger.close()
 
     asyncio.run(scenario())
@@ -284,10 +295,10 @@ def test_existing_smtp_stage_failures_keep_original_exception(monkeypatch, stage
     settings = _notification(use_tls=True, smtp_port=587, username="user").email.model_dump(by_alias=True)
     settings["password"] = "credential-secret"
     with pytest.raises(RuntimeError) as raised:
-        notifications._send_mail(settings, "title", "body")
+        delivery._send_mail(settings, "title", "body")
     assert raised.value is client.failure
     assert client.calls.count("close") == 1
-    assert notifications._smtp_refusal_diagnostic(raised.value) is None
+    assert delivery._smtp_refusal_diagnostic(raised.value) is None
 
 
 @pytest.mark.parametrize("mode", ["partial", "all"])
@@ -333,13 +344,13 @@ def test_smtp_refusal_preserves_saved_results_and_cli_status(tmp_path, monkeypat
         service.events.on(EventName.NOTIFICATION_FAILED, observed.append)
         try:
             if operation == "workflow":
-                result = await service.workflow("https://example.test/feed", workflow_retries=0)
+                result = await service.workflow(WorkflowRequest(url="https://example.test/feed", workflow_retries=0))
                 assert _status(result) == cli.EXIT_SUCCESS
                 assert result.items[0].status == "success"
                 download = result.items[0].download
                 assert download is not None and not download.failures and len(download.saved_files) == 1
             elif operation == "download":
-                result = await service.run("https://example.test/gallery")
+                result = await service.download(DownloadRequest(url="https://example.test/gallery"))
                 assert not result.failures and len(result.saved_files) == 1
             else:
 

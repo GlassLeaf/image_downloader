@@ -1,33 +1,21 @@
-# Metadata-aware site / processor plugin pair
+<a id="metadata-aware-site-processor-plugin-pair"></a>
 
-This example complements the signed sources in `plugin-sources/`.  It is an
-authoring example, so it deliberately does not include `manifest.json`: do not
-commit a private signing key just to make a sample installable.  After reviewing
-the source, sign each package with a user-controlled key as described below.
+# メタデータを受け渡すサイト・画像処理プラグインの組合せ
 
-It demonstrates two related v3 contracts:
+`plugin-sources/`の署名済みソースを補う、プラグイン作成用の例です。`manifest.json`は含めていません。サンプルをインストール可能にするために秘密署名鍵をコミットしないでください。ソースを確認したうえで、後述の手順に従い、利用者が管理する鍵で各パッケージに署名してください。
 
-1. `site-plugin/metadata_bridge_gallery.py` puts non-secret `variant` and
-   `orientation` values on each `ImageResource`.  It uses `variant` when it
-   creates the actual image request, and uses `orientation` in the site's
-   `transform_image()` hook to rotate the downloaded image.
-2. The same request hook returns an `ImageFetchRequest` with small,
-   non-secret `plugin_data`.  `processor-plugin/metadata_bridge_processor.py`
-   reads that data from `TransformContext.transport_metadata` only after the
-   user explicitly permits the site/processor pair.
+関連する次の2つのv3仕様を示します。
 
-The example API is intentionally fictitious.  `GET
-https://metadata-bridge.example.test/api/works/{work_id}` returns a JSON object
-with `id`, `title`, and an `images` array.  Each image has a non-secret `id`,
-`variant` (`full` or `preview`), and EXIF-style `orientation` (`1`, `3`, `6`,
-or `8`).  The actual image endpoint is
-`/api/images/{image_id}/download?variant={variant}`.
+1. `site-plugin/metadata_bridge_gallery.py`は、秘密情報ではない`variant`と`orientation`を各`ImageResource`に設定します。実際の画像要求の構築時に`variant`を使い、サイトの`transform_image()`フックでは`orientation`を使って取得した画像を回転します。
+2. 同じ要求フックが、少量の非秘密データを`plugin_data`に持つ`ImageFetchRequest`を返します。`processor-plugin/metadata_bridge_processor.py`は、利用者がサイトと画像処理プラグインの組合せを明示的に許可した場合にだけ、そのデータを`TransformContext.transport_metadata`から読み取ります。
 
-## Sign and install
+例に使うAPIは架空のものです。`GET https://metadata-bridge.example.test/api/works/{work_id}`は、`id`、`title`、`images`配列を持つJSONオブジェクトを返します。各画像は、秘密情報ではない`id`、`variant`（`full`または`preview`）、EXIF形式の`orientation`（`1`、`3`、`6`、`8`のいずれか）を持ちます。実際の画像エンドポイントは`/api/images/{image_id}/download?variant={variant}`です。
 
-Install the project first so the signing script can import the local package.
-Choose a protected location for your private Ed25519 key; it must not be placed
-in this repository.
+<a id="sign-and-install"></a>
+
+## 署名とインストール
+
+署名スクリプトがローカルパッケージをインポートできるよう、先にプロジェクトをインストールします。Ed25519の秘密鍵は、保護された場所へ保存し、このリポジトリ内には置かないでください。
 
 ```powershell
 python -m pip install -e ".[dev]"
@@ -42,13 +30,13 @@ image-downloader plugin install (Resolve-Path .\examples\plugin-v3-metadata-brid
 image-downloader plugin install (Resolve-Path .\examples\plugin-v3-metadata-bridge\processor-plugin)
 ```
 
-Use `--create-key` only once.  On later edits, omit it and re-sign both
-packages before installing updated versions.
+`--create-key`は最初の一度だけ指定します。以後の変更では省略し、更新版をインストールする前に両方のパッケージへ再署名してください。
 
-## Required application configuration
+<a id="required-application-configuration"></a>
 
-The bridge processor sees raw `plugin_data` only when both packages are enabled
-and this exact pair is on the persistent allow-list:
+## 必要なアプリケーション設定
+
+両方のパッケージを有効にし、次の組合せを永続設定の許可リストへ登録した場合にだけ、画像処理プラグインは秘匿化前の`plugin_data`を参照できます。
 
 ```yaml
 plugin_settings:
@@ -65,8 +53,4 @@ image_processors:
       - local.image-downloader.metadata-bridge-gallery
 ```
 
-Without the allow-list, the processor still runs but receives a redacted
-snapshot and records that it did not apply the profile.  The sample never
-copies `plugin_data` into an artifact, result, event, or log.  Treat both
-`ImageResource.metadata` and `plugin_data` as non-secret values: never put
-passwords, cookies, access tokens, signing URLs, or keys in either mapping.
+許可リストがなくても画像処理プラグインは動作しますが、秘匿化されたスナップショットを受け取り、プロファイルを適用しなかったことを記録します。このサンプルは、`plugin_data`を画像データ、結果、イベント、ログへコピーしません。`ImageResource.metadata`と`plugin_data`は、どちらも秘密情報を含まない値として扱ってください。パスワード、Cookie、アクセストークン、署名付きURL、鍵を入れないでください。

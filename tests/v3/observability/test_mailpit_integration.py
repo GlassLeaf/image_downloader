@@ -28,8 +28,10 @@ from PIL import Image
 
 from image_downloader.config import Notification
 from image_downloader.observability.events import EventBus, EventName, EventPayload
-from image_downloader.observability.logging import DebugFileSink, DownloadLogger
-from image_downloader.observability.notifications import EmailNotificationSender, NotificationService
+from image_downloader.observability.log_sinks import DebugFileSink
+from image_downloader.observability.logging import DownloadLogger
+from image_downloader.observability.notification_delivery import EmailNotificationSender
+from image_downloader.observability.notifications import NotificationService
 
 ROOT = Path(__file__).resolve().parents[3]
 API = "http://localhost:8025"

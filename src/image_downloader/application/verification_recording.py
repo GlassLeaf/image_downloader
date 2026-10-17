@@ -34,7 +34,7 @@ def verification_evidence(result: WorkflowResult, root: Path) -> dict[str, Any]:
                             raise ValueError
                         # Keep the original spelling; never follow a link while recording evidence.
                         relative = Path(image.path).relative_to(root)
-                        filesystem._parts(relative)
+                        filesystem.validate_relative(relative)
                         value = relative.as_posix()
                         if safe_relative_path(image.path, root) != value:
                             raise ValueError

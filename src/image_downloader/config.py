@@ -1,16 +1,17 @@
 """Public compatibility imports for configuration."""
 
-from .configuration.hosts import normalize_host, registrable_domain, site_file_name
-from .configuration.layers import (
+from image_downloader.configuration.layers import (
     ConfigurationLayer,
     ResolvedApplicationConfig,
     apply_overrides,
-    deep_merge,
     load_application_config,
     load_yaml,
     resolve_application_config,
     validate_config,
 )
+from image_downloader.configuration.merging import deep_merge
+
+from .configuration.hosts import normalize_host, registrable_domain, site_file_name
 from .configuration.models import (
     DEFAULT_CONFIG,
     AppConfig,

@@ -14,6 +14,7 @@ from ..exceptions import ConfigurationError
 from ..storage.path_safety import canonical_path, existing_directory, existing_regular_file
 from . import setup as cli_setup
 from .constants import EXIT_SUCCESS
+from .prepared import ConfigArguments, PreparedCommand
 from .reporting import _doctor_redact
 from .setup import (
     _app_override,
@@ -21,53 +22,12 @@ from .setup import (
     _resolved_config_for,
     _write_user_config,
 )
-from .validation import _reject_command_options, validate_arguments
-
-_EXPLAIN_ALLOWED = frozenset(("host", "no_console_log", "existing_file", "image_format"))
+from .validation import validate_arguments
 
 
 class ConfigCommandHandler:
-    async def handle(self, args: argparse.Namespace) -> int:
-        return config_command(args)
-
-
-def _reject_except(args: argparse.Namespace, allowed: frozenset[str]) -> None:
-    candidates = (
-        "selection_priority",
-        "plugin_config",
-        "plugin_config_file",
-        "plugin_id",
-        "force_plugin_id",
-        "plugin_download_policy",
-        "plugin_download_policy_file",
-        "fallback_generic",
-        "host",
-        "no_console_log",
-        "list_updated_urls",
-        "export_cookies",
-        "import_cookies",
-        "import_browser_cookies",
-        "existing_file",
-        "image_format",
-        "force_image_format",
-        "output_dir",
-        "directory_format",
-        "inspection_data",
-    )
-    _reject_command_options(args, tuple(name for name in candidates if name not in allowed), "config")
-
-
-def _reject_configuration_options(args: argparse.Namespace, allowed: frozenset[str]) -> None:
-    supplied = {
-        "config": args.config is not None,
-        "profile": args.profile is not None,
-        "data_root": args.data_root is not None,
-        "plugin_root": args.plugin_root is not None,
-        "yes": args.yes,
-    }
-    for name, is_supplied in supplied.items():
-        if is_supplied and name not in allowed:
-            raise ConfigurationError(f"--{name.replace('_', '-')} is not valid for this config command")
+    async def handle(self, command: PreparedCommand) -> int:
+        return _config_command(command)
 
 
 def _path_payload() -> dict[str, object]:
@@ -81,9 +41,7 @@ def _path_payload() -> dict[str, object]:
     }
 
 
-def _config_path(args: argparse.Namespace) -> int:
-    _reject_except(args, frozenset())
-    _reject_configuration_options(args, frozenset())
+def _config_path(args: ConfigArguments) -> int:
     payload = _path_payload()
     if args.json_output:
         print(json.dumps(payload, ensure_ascii=False))
@@ -107,12 +65,7 @@ def _explain_site(value: str | None) -> str | None:
     return normalize_host(value)[0]
 
 
-def _config_explain(args: argparse.Namespace) -> int:
-    _reject_except(args, _EXPLAIN_ALLOWED)
-    _reject_configuration_options(
-        args,
-        frozenset(("config", "profile", "data_root", "plugin_root")),
-    )
+def _config_explain(args: ConfigArguments) -> int:
     site = _explain_site(args.host)
     resolved = _resolved_config_for(args, site)
     runtime_overrides: dict[str, object] = {
@@ -168,9 +121,7 @@ def _init_destination(words: list[str]) -> Path:
     raise ConfigurationError("config init is 'config init [ABSOLUTE_PATH]'")
 
 
-def _config_init(args: argparse.Namespace, words: list[str]) -> int:
-    _reject_except(args, frozenset())
-    _reject_configuration_options(args, frozenset(("data_root", "plugin_root", "yes")))
+def _config_init(args: ConfigArguments, words: list[str]) -> int:
     destination = _init_destination(words)
     if existing_regular_file(destination, "configuration file", required=False) is not None:
         raise ConfigurationError(f"configuration file already exists: {destination}")
@@ -187,9 +138,7 @@ def _config_init(args: argparse.Namespace, words: list[str]) -> int:
     return EXIT_SUCCESS
 
 
-def _profile_init(args: argparse.Namespace, words: list[str]) -> int:
-    _reject_except(args, frozenset())
-    _reject_configuration_options(args, frozenset(("config", "yes")))
+def _profile_init(args: ConfigArguments, words: list[str]) -> int:
     if len(words) != 3 or words[:2] != ["profile", "init"]:
         raise ConfigurationError("config profile init is 'config profile init NAME'")
     name = words[2]
@@ -234,8 +183,12 @@ def _profile_init(args: argparse.Namespace, words: list[str]) -> int:
 
 
 def config_command(args: argparse.Namespace) -> int:
-    if not getattr(args, "_arguments_validated", False):
-        validate_arguments(args)
+    return _config_command(validate_arguments(args))
+
+
+def _config_command(command: PreparedCommand) -> int:
+    args = command.arguments
+    assert isinstance(args, ConfigArguments)
     words = list(args.command_args)
     if words == ["path"]:
         return _config_path(args)

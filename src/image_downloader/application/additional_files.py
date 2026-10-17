@@ -24,12 +24,12 @@ from ..models import (
     RequestSpec,
 )
 from ..observability.diagnostic_safety import best_effort_diagnostic
-from ..observability.logging import safe_relative_path, safe_url
+from ..observability.logging import DownloadLogger, safe_relative_path, safe_url
 from ..output.output_allocator import OutputAllocation, OutputAllocator, OutputFormatContext
+from ..output.output_lock import OutputDirectoryLocks
 from ..ports import AdditionalFileProvider, PluginExecutionContext, SitePlugin
 
 if TYPE_CHECKING:
-    from .service import DownloadService
     from .workflow_retry import ImageLedger
 
 _Phase = Literal["declaration", "hook", "receive", "save", "read", "received_callback", "saved_callback"]
@@ -45,16 +45,19 @@ class _FileTarget:
 class AdditionalFiles:
     def __init__(
         self,
-        service: DownloadService,
         plugin: SitePlugin,
         context: PluginExecutionContext,
         allocator: OutputAllocator,
         plugin_id: str,
         url: str,
         plugin_values: Mapping[str, Mapping[str, str]],
+        max_response_bytes: int,
+        logger: DownloadLogger,
+        output_locks: OutputDirectoryLocks,
         ledger: ImageLedger | None = None,
     ) -> None:
-        self.service, self.plugin, self.context = service, plugin, context
+        self.plugin, self.context = plugin, context
+        self.max_response_bytes, self.logger, self.output_locks = max_response_bytes, logger, output_locks
         self.allocator, self.plugin_id = allocator, plugin_id
         self.url, self.plugin_values, self.ledger = url, plugin_values, ledger
         self.operation_id = ledger.operation_id if ledger else uuid.uuid4().hex
@@ -123,7 +126,7 @@ class AdditionalFiles:
         if self.ledger is not None:
             self.ledger.record_additional(outcome, hook)
         await best_effort_diagnostic(
-            self.service.logger.core,
+            self.logger.core,
             "additional_file_" + status,
             module="plugin",
             plugin_id=self.plugin_id,
@@ -237,7 +240,7 @@ class AdditionalFiles:
             await self.save(hook, target, result.data)
 
     def check_size(self, data: bytes | None) -> bytes:
-        if not isinstance(data, bytes) or len(data) > self.service.config.network.max_response_bytes:
+        if not isinstance(data, bytes) or len(data) > self.max_response_bytes:
             raise StorageSafetyError("additional file exceeds the configured size limit")
         return data
 
@@ -270,7 +273,7 @@ class AdditionalFiles:
         relative = directory / Path(*spec.relative_path.replace("\\", "/").split("/"))
         # Confine to a chapter first, then apply managed-output locking/allocation.
         self.allocator.filesystem.ensure_directory(relative.parent)
-        async with self.service.output_locks.hold(self.allocator.filesystem.path(directory)):
+        async with self.output_locks.hold(self.allocator.filesystem.path(directory)):
             await self.allocator.refresh_directory(relative.parent)
             allocation = await self.allocator.allocate_relative(relative)
             if allocation.should_write:
@@ -303,9 +306,7 @@ class AdditionalFiles:
             stored = (
                 data
                 if allocation.should_write
-                else self.allocator.filesystem.read_bytes_bounded(
-                    allocation.relative_path, self.service.config.network.max_response_bytes
-                )
+                else self.allocator.filesystem.read_bytes_bounded(allocation.relative_path, self.max_response_bytes)
             )
             if not allocation.should_write:
                 await self.record(hook, spec.file_id, "read", "completed")

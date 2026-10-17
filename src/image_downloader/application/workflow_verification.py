@@ -5,12 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, cast
 
+from image_downloader.application.log_verification import issue
+from image_downloader.storage.reading import VerificationFileChangedError, has_missing_ancestor, stable_file
+
 from ..exceptions import ConfigurationError, StorageSafetyError
 from ..models import WorkflowRunRecord
 from ..privacy.log_safety import safe_url
 from ..storage.filesystem import FileSystem
 from ..storage.path_safety import canonical_path
-from .log_verification import VerificationFileChangedError, issue, stable_file
 
 
 def _files(root: Path, files: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -25,7 +27,7 @@ def _files(root: Path, files: list[dict[str, Any]]) -> tuple[list[dict[str, Any]
         relative = Path(file["path"])
         try:
             # Validate before probing, including paths through absent directories.
-            filesystem._parts(relative)
+            filesystem.validate_relative(relative)
             with stable_file(filesystem, relative) as stream:
                 if not stream.read(1):
                     missing.append(issue("empty_file", path=file["path"]))
@@ -35,19 +37,7 @@ def _files(root: Path, files: list[dict[str, Any]]) -> tuple[list[dict[str, Any]
             unknown.append(issue("file_changed_during_verification", path=file["path"]))
         except (OSError, StorageSafetyError):
             # Missing directories are missing artifacts; links and other unsafe nodes are unknown.
-            current = root
-            absent = False
-            try:
-                filesystem._parts(relative)
-                for component in relative.parts:
-                    current /= component
-                    state = current.lstat()
-                    if filesystem._is_unsafe(state):
-                        break
-            except FileNotFoundError:
-                absent = True
-            except (OSError, StorageSafetyError):
-                pass
+            absent = has_missing_ancestor(filesystem, relative)
             (missing if absent else unknown).append(
                 issue(
                     "missing_file" if absent else "unsafe_unreadable_or_changed_file",

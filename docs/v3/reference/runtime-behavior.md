@@ -1,13 +1,17 @@
-# Runtime behavior reference
+<a id="runtime-behavior-reference"></a>
+
+# 実行時動作リファレンス
 
 通常workflowは各周回の更新確認・対象選択・比較状態保存後、取得前に全予定を
 profileの`logs/workflow`へ非上書きで保存する。予定保存に失敗した周回は取得を開始しない。
 状態・履歴のschema、取得条件、画像照合は変わらない。既存RUN_IDで履歴と対応し、履歴の保持・pruneから独立する。
 詳細は[workflow専用記録](logging.md#workflow-execution-files)を参照する。
 
-この文書は public API の型ではなく、transport、persistence、output safety の実行契約を定義する。callable signature は [library API reference](library-api.md) を参照する。
+この文書は public API の型ではなく、transport、persistence、output safety の実行契約を定義する。callable signature は [ライブラリAPIリファレンス](library-api.md) を参照する。
 
-## Runtime組立て時の所有権
+<a id="runtime組立て時の所有権"></a>
+
+## 実行環境の構築時の所有権
 
 <a id="runtime-construction"></a>
 
@@ -29,7 +33,7 @@ serviceを返さないため、callerによる部分的なserviceのcloseは不�
 本体が構築した未使用資源だけが対象であり、利用済みclientや独自依存の汎用的なloop移動機能ではない。
 当該runtime以外のplugin moduleやfinder登録は保持する。作成済みディレクトリ・log・lockファイルは削除しない。
 
-## HTTP transport
+## HTTP通信
 
 <a id="runtime-transport"></a>
 <a id="http-transport"></a>
@@ -67,7 +71,9 @@ effective previewと実送信に同じ値を使う。HTMLの`Referrer-Policy`／
 明示値に含まれる秘密情報と、同一オリジンへ保持するクエリは、この自動値の制限では除去されない。
 認証・cookie・リダイレクトの既存方針、公開DTO・設定schema、詳細inspection出力の契約は維持する。
 
-## Cookies
+<a id="cookies"></a>
+
+## Cookie
 
 <a id="runtime-cookies"></a>
 
@@ -127,7 +133,9 @@ Windowsの公開処理は、調査で効果が見られた「書込み済みの�
 保護製品内部の動作は保証しない。更新時は関連プロセスを終了してから切り替える。
 移行コマンドやロックファイルの一括削除は不要である。
 
-## Output allocation and locks
+<a id="output-allocation-and-locks"></a>
+
+## 出力先の割当てとロック
 
 output path は trusted root の配下だけに作る。managed directory/file/lock に symlink または Windows reparse point があれば `StorageSafetyError` を送出する。`OutputAllocator.allocate()` が reservation を返した `should_write=True` allocation は `commit()` または `abort()` の一度だけで完了する。`existing_file=skip` による `should_write=False` allocation は reservation を持たず、`commit()`/`abort()` は何度呼んでも no-op である。`existing_file=error` は controlled `ExistingFileConflictError`、output lock timeout は operation failure であり image retry ではない。
 
@@ -141,7 +149,9 @@ output path は trusted root の配下だけに作る。managed directory/file/l
 
 通常downloadの成果物には短い絶対パスの`--output-dir`を指定できる。profileのCookie・state・logも深い場合は、既存データを退避して必要なprofileツリーを短い`storage.data_root`へ移し、`config explain`で解決先を確認する。`--output-dir`だけではprofileデータの場所は変わらない。Windowsでは実行PythonとOSの長いパス対応も確認する。実測結果と再実行コマンドは[R15検証記録](../../investigations/implementation-review-2026-10-04/r15-details.md)を参照する。
 
-## Empty download results
+<a id="empty-download-results"></a>
+
+## 空のダウンロード結果
 
 章一覧0件・各章の画像0件の許可判定は、各download試行で一度だけ共通検査を行う。
 章一覧0件には`download.allow_empty_chapter_manifest`の拒否を優先し、設定がtrueの場合も
@@ -162,7 +172,9 @@ inspectionは許可指定の型を検証するが、空という理由では拒�
 `allow_empty_chapter_manifest`は互換性のため当面維持する将来の整理対象であり、現在はfalseの拒否を
 優先する。今回は削除・無効化・自動移行を行わず、整理時期と移行方法は別途決定する。
 
-## Update state
+<a id="update-state"></a>
+
+## 更新状態
 
 <a id="runtime-update-state"></a>
 
@@ -173,25 +185,15 @@ v1（version field のない旧形を含む）は次の update check で `legacy
 
 同 profile の本 application process は `state/updates.lock` を共有し、read/compare/atomic write 全体を直列化する。default lock timeout は 30 秒で、timeout は update operation 全体を失敗させる。異なる feed の変更は両方保持する。lock file は残り、NAS と外部 application の変更は保証しない。
 
-## Workflow state
+<a id="workflow-state"></a>
 
-`workflow` also writes profile `state/workflow.json` (schema version 1), independently of `updates.json`.
-It retains the latest complete snapshot and per-candidate `completed` flag by plugin ID and hashed feed URL.
-There is no time-based expiration. Missing state means first run; invalid/future schemas fail without overwrite.
-Existing update-listing history is still updated at check time, but does not initialize workflow completion.
+## workflowの状態
 
-Before downloads, the selected candidates are durably marked unfinished. Each URL with no image failures
-and successful plugin cleanup is committed complete, including skips and permitted empty manifests.
-Failed, partial and unprocessed candidates remain unfinished. Disappeared candidates are removed from the
-workflow snapshot without deleting local artifacts, and are treated as added if they reappear.
-Both scopes share completion state; duplicate target URLs run once and update every matching identity.
+`workflow`は`updates.json`とは独立して、profileの`state/workflow.json`（スキーマバージョン1）にも書き込みます。プラグインIDとハッシュ化したfeed URLごとに、最新の完全なスナップショットと候補ごとの`completed`を保持します。時間経過による失効はありません。状態がなければ初回実行として扱い、不正なスキーマや将来のスキーマの場合は上書きせず失敗します。既存の更新一覧履歴も確認時に更新しますが、それをworkflowの完了状態の初期値には使いません。
 
-The service serializes the entire workflow. `state/workflow-locks/<hash>.lock` serializes one plugin/feed
-across processes from before its check through completion; `state/workflow.lock` serializes short
-read/merge/atomic-write transactions for all feeds. Default timeout is 30 seconds. Lock files remain.
-Started transactions finish before cancellation propagates. Completed URLs survive interrupted runs.
-Authentication/request/plugin/existing-file-conflict errors abort that URL and continue with other URLs;
-configuration, storage/lock/safety errors and unexpected failures abort the workflow.
+ダウンロード前に、選択した候補を未完了として永続保存します。画像の失敗がなく、プラグインの後始末も成功したURLを完了として確定します。スキップや、許可された空のmanifestも完了に含めます。失敗・部分完了・未処理の候補は未完了のままです。一覧から消えた候補は、ローカルの成果物を削除せずworkflowのスナップショットから取り除き、再登場すれば新規として扱います。両方のscopeで完了状態を共有します。同じ対象URLは一度だけ処理し、一致するすべての識別子の状態を更新します。
+
+サービスはworkflow全体を直列化します。`state/workflow-locks/<hash>.lock`は、同じプラグイン・feedの確認前から完了までをプロセス間で直列化します。`state/workflow.lock`は、全feedで共有する短い読込み・マージ・原子的書込みのトランザクションを直列化します。既定のタイムアウトは30秒で、ロックファイルは残ります。開始済みのトランザクションは、キャンセルを伝播する前に確定させます。完了したURLは中断後も保持します。認証・要求・プラグイン・既存ファイル衝突のエラーは当該URLを中止し、他のURLへ進みます。設定、保存・ロック・安全性のエラー、想定外の失敗はworkflow全体を中止します。
 
 <a id="workflow-error-boundaries"></a>
 
@@ -218,37 +220,23 @@ CLIはservice close後に結果を表示し、closeで結果が変われば履�
 
 全体停止・キャンセルでも開始済みの保存を確定し、終了記録を試みる。
 逐次ログの項目・欠落条件は[中断時の記録](logging.md#workflow-interruption-records)、
-コンソールとJSONは[CLI reference](cli.md#workflow)を参照する。
+コンソールとJSONは[CLIリファレンス](cli.md#workflow)を参照する。
 
-### Workflow dry-run
+<a id="workflow-dry-run"></a>
 
-CLI `workflow --dry-run` / library `plan_workflow()` use a shared pure initial-round selection calculation.
-The preview checks the feed once and reads workflow completion history under the existing shared-file lock;
-both update and workflow histories are validated, but neither is written or migrated. Missing workflow feed
-history selects all current candidates in either scope. The operation and same-feed locks cover the check,
-selection and cleanup; other feeds are not locked for the network check.
+### workflowの試行実行
 
-No target manifest, image request/processing/output allocation, wait or retry round is run. A cloned CookieJar
-and detached gateway keep authentication changes out of the normal service session. CLI planning additionally
-suppresses initial configuration persistence/rewrite, file logs, notifications and close-time cookie persistence.
-Only required lock files/directories are created. This is not a sandbox for plugin code or remote authentication.
-Preview results are observations, not a reservation; actual execution refreshes the feed again.
-See [CLI output](cli.md#workflow) and [library API](library-api.md) for the separate plan result contract.
+CLIの`workflow --dry-run`とライブラリの`plan_workflow()`は、副作用のない共通の初回周回の選択処理を使います。プレビューはfeedを一度確認し、既存の共有ファイルロック下でworkflowの完了履歴を読みます。更新履歴とworkflow履歴をともに検証しますが、書込み・移行はしません。workflowのfeed履歴がなければ、どちらのscopeでも現在の全候補を選択します。操作ロックと同一feedのロックは、確認・選択・後始末まで保持します。他のfeedについては、通信での確認中にロックしません。
 
-### Workflow retry rounds
+対象のmanifest、画像要求・加工・出力先の割当て、待機、再試行の追加周回は実行しません。複製したCookieJarと独立したgatewayを使い、認証の変更を通常のサービスセッションへ反映しません。CLIの計画ではさらに、初期設定の保存・書換え、ファイルログ、通知、終了時のCookie保存を抑止します。作成するのは必要なロックファイルとディレクトリだけです。ただし、プラグインコードや外部の認証処理を隔離する仕組みではありません。プレビューは観測結果であり予約ではなく、本実行ではfeedを再取得します。計画専用の結果の契約は[CLI出力](cli.md#workflow)と[ライブラリAPI](library-api.md)を参照してください。
 
-The default is one additional round, after a fixed 600-second wait, only while retryable unfinished work exists.
-Every round refreshes the complete feed, commits its latest snapshot, excludes deleted candidates, and includes
-new/changed candidates plus retryable unfinished URLs. `all` applies to initial selection only during this call.
-The feed lock and service operation lock remain held through waits. Short shared-file locks are not held while waiting.
+<a id="workflow-retry-rounds"></a>
 
-Within a call, an image ledger records outcomes as they settle, including concurrent successes before fail-fast
-or cancellation. Chapter identity prefers chapter_id, otherwise number; image identity within chapter prefers
-image_id, otherwise locator. Only unique identities with equal ImageResource fields can reuse outcomes.
-Ambiguous identity groups are fetched again. A changed plugin resets image reuse. Actual image-body changes
-without changed manifest image information cannot be detected; no artifact validation is added.
-Changed images use the configured file policy, so rename can add files and error can reject collisions.
-Cleanup failure keeps the URL unfinished even when images succeeded; retries reuse those images and repeat cleanup.
+### workflowの再試行周回
+
+再試行可能な未完了処理がある場合だけ、既定で600秒待って追加周回を1回行います。各周回では完全なfeedを再取得し、最新のスナップショットを確定します。削除された候補を除き、新規・変更候補と再試行可能な未完了URLを含めます。`all`はその呼出しの初回選択だけに適用します。待機中もfeedとサービス操作のロックは保持します。短い共有ファイルロックは待機中に保持しません。
+
+同じ呼出し内では、画像結果が確定するたびに台帳へ記録します。失敗時の即時停止やキャンセルより前に並行処理で成功した結果も含めます。章は`chapter_id`を優先し、なければ番号で識別します。章内の画像は`image_id`を優先し、なければlocatorで識別します。識別が一意で、`ImageResource`の全フィールドが等しい場合だけ結果を再利用します。曖昧な識別子のグループは再取得し、プラグインが変われば画像結果の再利用をリセットします。manifestの画像情報が変わらない画像本体の変更は検出できず、成果物の検証も追加しません。変更された画像には設定した既存ファイル方針を適用するため、renameではファイルが増え、errorでは衝突を拒否する場合があります。画像が成功しても後始末が失敗すればURLは未完了のままにし、再試行では画像を再利用して後始末を繰り返します。
 
 #### Workflowで取得対象URLを選ぶ条件
 
@@ -320,7 +308,7 @@ chapterは`chapter_id`、なければ章番号で識別し、そのchapter内の
 `images/image.jpeg?ver=yymmddhhmmss&key-pair-id=bbbb`へ変われば、内容が同じでも再取得する。
 URLの正規化や認証用クエリの除外は行わない。一方、manifestには安定した非秘密locatorを返し、
 短命の署名URLを`create_image_request()`で生成する場合、署名URLだけの更新では保持済み画像を再取得しない。
-pluginでの組立方法と秘密情報の扱いは[dynamic URL how-to](../how-to/dynamic-urls-and-auth.md)を参照する。
+pluginでの組立方法と秘密情報の扱いは[動的URLの実装手順](../how-to/dynamic-urls-and-auth.md)を参照する。
 
 画像結果の保持は同じ実行中・同じ取得対象URL内に限定する。候補の取得対象URLが変われば新しい台帳になり、
 画像情報が同じでも以前のURLの成功結果を流用しない。削除されたURLの台帳も破棄し、再登場時は流用しない。
@@ -334,11 +322,7 @@ pluginでの組立方法と秘密情報の扱いは[dynamic URL how-to](../how-t
 更新チェック失敗、不正一覧、状態保存失敗でも以降の取得を開始しない。HTTP要求単位の既存再試行・
 認証更新・画像URL再発行の後にworkflowの再試行判定を行う。
 
-Only URL completion is durable; schema remains 1. An optional retry deadline starts after the initial round,
-includes waiting/checking/downloading, cancels active work, and then waits for cleanup and started transactions.
-It raises WorkflowRetryTimeoutError, distinct from user cancellation. CLI returns 5 if any attempt saved/skipped
-files, otherwise 1; successful recovery or removal of all failed targets returns 0. Original fatal error codes
-and user-cancellation code 130 remain unchanged.
+永続化するのはURLの完了状態だけで、スキーマは1のままです。任意の再試行期限は初回周回の後から計測し、待機・更新確認・ダウンロードを含めます。期限に達すると実行中の処理をキャンセルし、後始末と開始済みのトランザクションを待ちます。ライブラリでは`WorkflowRetryTimeoutError`を原因に持つ`WorkflowExecutionError`となり、利用者によるキャンセルと区別できます。CLIは、いずれかの試行で保存・スキップしたファイルがあれば5、なければ1を返します。回復に成功した場合、または失敗した対象がすべて削除された場合は0です。重大なエラー本来の終了コードと、利用者キャンセルの終了コード130は維持します。
 
 <a id="workflow-timeout-boundaries"></a>
 
@@ -355,12 +339,14 @@ and user-cancellation code 130 remain unchanged.
 
 workflow期限を指定しても、キャンセルは協調的である。イベントループを塞ぐ同期処理や、キャンセルに応答しない処理を直ちに強制終了する保証はない。cleanupと開始済みの保存・状態確定は終了まで待ち、その処理自体が停止すれば期限到達後も待機し続ける可能性がある。現在、別プロセスからのwatchdogによる強制終了は実装していない。期限指定は追加周回の通常の待機・通信等を制限する手段であり、プロセスの終了時刻を厳密に保証するものではない。
 
-## Observability and notification
+<a id="observability-and-notification"></a>
+
+## ログ・イベント・通知
 
 
 chapter log は image URL、response URL、status、stage、transport、reason code、safe exception detail を記録する。`completed`、`response_received`、`response_limit_exceeded`、`redirect_rejected`、`failed` は取得段階を区別する。image-level fetch/process/save failure は対応する notification category を一度だけ送る。operation-level authentication/configuration/plugin/update/storage/unknown failure は対応する category に送る。
 
-observer、notification sender、sink、Python log capture の cleanup failure は safe diagnostic warning に留め、主 operation の result/exception を変更しない。互換性のため定義される event でも、core に明確な判定点がなければ自動発火しない。設計上の理由は [observability explanation](../explanation/observability.md) を参照する。
+observer、notification sender、sink、Python log capture の cleanup failure は safe diagnostic warning に留め、主 operation の result/exception を変更しない。互換性のため定義される event でも、core に明確な判定点がなければ自動発火しない。設計上の理由は [ログ・イベント・通知の解説](../explanation/observability.md) を参照する。
 
 SMTP 通知は全宛先がサーバーに受理された場合に成功とする。`send_message()` の拒否辞書が非空なら
 部分拒否、`SMTPRecipientsRefused` なら全拒否として扱い、`NOTIFICATION_FAILED` を1回発火する。

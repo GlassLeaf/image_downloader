@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import os
 import re
-import stat
-from collections.abc import Iterator
-from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, BinaryIO
+from typing import Any
+
+from image_downloader.storage.reading import classify_path, stable_file
 
 from ..exceptions import ConfigurationError, StorageSafetyError
 from ..privacy.log_safety import safe_log_text
@@ -29,10 +27,6 @@ _ERROR = re.compile(r"^error=[A-Za-z_][A-Za-z0-9_.]*(?:\s|$)")
 _GROUP = re.compile(r"^error: [a-z_]+ \(count=\d+\)$")
 
 
-class VerificationFileChangedError(StorageSafetyError):
-    """A file disappeared or changed after verification started."""
-
-
 def issue(code: str, *, path: str | None = None, line: int | None = None, detail: str = "") -> dict[str, Any]:
     return {
         "code": code,
@@ -40,34 +34,6 @@ def issue(code: str, *, path: str | None = None, line: int | None = None, detail
         "line": line,
         "message": safe_log_text(detail or code),
     }
-
-
-def _snapshot(value: os.stat_result) -> tuple[int, ...]:
-    return value.st_dev, value.st_ino, value.st_size, value.st_mtime_ns, value.st_ctime_ns
-
-
-@contextmanager
-def stable_file(filesystem: FileSystem, relative: Path) -> Iterator[BinaryIO]:
-    """Reject unsafe files and changes before, during, or after a streamed read."""
-    path = filesystem._prepare_file(relative, create_parent=False)
-    before = filesystem._require_regular_file(path)
-    descriptor = os.open(path, os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_NOFOLLOW", 0))
-    with os.fdopen(descriptor, "rb") as stream:
-        opened = os.fstat(stream.fileno())
-        # Windows can report creation time via lstat and change time via fstat
-        # in st_ctime_ns (CPython issue #157671). Compare the common fields here,
-        # then retain each API's full snapshot for the checks after reading.
-        if _snapshot(opened)[:-1] != _snapshot(before)[:-1]:
-            raise VerificationFileChangedError("file changed before verification")
-        filesystem._assert_regular(path, opened)
-        yield stream
-        filesystem._assert_safe_ancestors(path.parent)
-        try:
-            after = filesystem._require_regular_file(path)
-        except FileNotFoundError as exc:
-            raise VerificationFileChangedError("file disappeared during verification") from exc
-        if _snapshot(os.fstat(stream.fileno())) != _snapshot(opened) or _snapshot(after) != _snapshot(before):
-            raise VerificationFileChangedError("file changed during verification")
 
 
 class _LogParser:
@@ -188,10 +154,10 @@ def _discover(filesystem: FileSystem, unknown: list[dict[str, Any]]) -> list[Pat
         parent = pending.pop()
         try:
             for relative in filesystem.child_paths(parent):
-                state = filesystem.path(relative).lstat()
-                if filesystem._is_unsafe(state):
+                kind = classify_path(filesystem.path(relative))
+                if kind == "unsafe":
                     unknown.append(issue("unsafe_path", path=relative.as_posix()))
-                elif stat.S_ISDIR(state.st_mode):
+                elif kind == "directory":
                     pending.append(relative)
                 elif relative.name == "log.log":
                     files.append(relative)
@@ -206,10 +172,10 @@ def verify_logs(target: Path) -> dict[str, Any]:
     filesystem = FileSystem(target.parent)
     try:
         canonical_path(target, "verification target")
-        state = target.lstat()
-        if filesystem._is_unsafe(state):
+        kind = classify_path(target)
+        if kind == "unsafe":
             unknown.append(issue("unsafe_path", path=target.name))
-        elif stat.S_ISDIR(state.st_mode):
+        elif kind == "directory":
             filesystem = FileSystem(target)
             files = _discover(filesystem, unknown)
         elif target.name in {"log.log", "debug.log"}:
