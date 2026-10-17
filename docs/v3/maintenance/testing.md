@@ -20,6 +20,16 @@ v3のテストは、設定値の受理、CLIの振り分け・JSON・秘匿化�
 
 Pydanticから継承したAPIと非公開名は、独自の安定メソッド一覧から除外します。公開挙動を変更する場合は、実装、正本の参照資料、契約マーカー、挙動テストを同時に更新してください。
 
+## 多環境CIの確認と検証記録
+
+品質検査はUbuntu・Windows・macOSとPython 3.11〜3.14の12組合せです。各ジョブでpip check、Ruff、mypy、全体pytestとcoverage下限75%を確認します。配布smokeは3 OSのPython 3.11でbuildと通常モードのsmokeを実行し、依存解決も検証します。
+
+品質検査のJUnitとcoverage XMLは`.runtime/ci/`へ出力し、失敗時にもCI成果物へ保存します。成果物名はOS・Python版・run attemptを含み、保存期間は14日です。対象は2つのXMLだけで、作業ディレクトリや配布物全体を保存しません。インストール等でpytest開始前に失敗した場合は、レポート未生成の警告を出し、元のジョブ失敗を保持します。
+
+各ジョブの「Record checkout identity」にはhead SHA、checkout SHA、run ID・attemptをJSONで記録します。PR実行ではcheckoutがmerge commitになることがあるため、対象headと区別してください。最新変更に対応する品質検査12ジョブと配布smoke3ジョブのすべてがsuccessであることを確認し、ジョブ単位の未実行・キャンセル・スキップを成功として数えません。
+
+pytestの`-ra`とJUnitでスキップ理由を確認します。OS条件・任意Mailpitによる件数差を許容し、環境間で同じ件数を要求しません。結果は[リファクタリングの進捗](refactoring-progress.md)とDraft PRに記録し、後から新しい変更をpushした場合は最新headのCIを確認します。
+
 ## Mailpitによるメール通知の実機テスト
 
 `tests/v3/observability/test_mailpit_integration.py` は実SMTP送信と別プロセスのCLIを検証する。

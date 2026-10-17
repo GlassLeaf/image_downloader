@@ -4,6 +4,8 @@
 
 未リリースのCLI互換性の変更とJSONの移行例は、[CLI診断の移行](cli-diagnostics-migration.md)を参照してください。
 
+今回のリファクタリングの完了状況は[進捗と検証記録](refactoring-progress.md)、CIの対象と結果の確認方法は[多環境CI](testing.md#多環境ciの確認と検証記録)を参照してください。Draft PRとCI確認の完了は、マージや公開配布の実施を意味しません。
+
 リリース候補では次を実行し、失敗したら公開を止めます。
 
 ```powershell
