@@ -6,6 +6,9 @@ import asyncio
 from collections import defaultdict
 from pathlib import Path
 
+from image_downloader.observability.log_sinks import ChapterFailureRecord
+from image_downloader.observability.logging import DownloadLogger
+
 from ..models import (
     Chapter,
     DownloadManifest,
@@ -14,10 +17,6 @@ from ..models import (
     ImageOutcomeKind,
 )
 from ..observability.diagnostic_safety import best_effort_diagnostic, best_effort_diagnostic_sync
-from ..observability.logging import (
-    ChapterFailureRecord,
-    DownloadLogger,
-)
 from ..storage import FileSystem
 
 

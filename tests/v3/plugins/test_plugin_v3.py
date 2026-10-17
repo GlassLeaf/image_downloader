@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import base64
-import hashlib
 import json
 import shutil
 import sys
@@ -10,10 +9,11 @@ from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import pytest
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
-from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+from support.operations import build_site
+from support.plugins import make_minimal_plugin, make_plugin
 
 import image_downloader.plugins.management as plugin_management
+from image_downloader import DownloadRequest
 from image_downloader.cli import EXIT_SUCCESS, build_parser, doctor
 from image_downloader.config import AppConfig, load_application_config, site_file_name
 from image_downloader.exceptions import ConfigurationError, PluginError
@@ -28,103 +28,11 @@ from image_downloader.security import (
     PluginRegistry,
     PluginRuntime,
     PluginSelector,
-    canonical_jcs,
     install_plugin,
     read_manifest,
     trust_plugin,
     uninstall_plugin,
 )
-
-
-def _digest(value: bytes) -> str:
-    return hashlib.sha256(value).hexdigest()
-
-
-def make_plugin(
-    root: Path,
-    *,
-    plugin_id: str = "com.example.gallery",
-    kind: str = "site_plugin",
-    priority: int = 1,
-    configured_match: bool = False,
-    runnable: bool = False,
-) -> Path:
-    folder = "site_plugins" if kind == "site_plugin" else "image_processor_plugins"
-    directory = root / folder / plugin_id.rsplit(".", 1)[-1]
-    directory.mkdir(parents=True)
-    source_name = "entry.source"
-    source = ("import logging\nfrom image_downloader.models import DownloadManifest\n\n" if runnable else "") + (
-        "class Entry:\n"
-        "    def validate_config(self, config, app_settings):\n"
-        "        if 'author' not in config: raise ValueError('config')\n"
-        "        return None\n"
-    )
-    if kind == "site_plugin":
-        inspect_source = (
-            "    async def inspect(self, url, context):\n"
-            "        logging.getLogger(__name__).warning('plugin-operation-marker')\n"
-            "        return DownloadManifest('logged', ())\n"
-            if runnable
-            else "    async def inspect(self, url, context): raise AssertionError('not used')\n"
-        )
-        source += (
-            "    def matches(self, url): return 'example.test' in url\n"
-            + inspect_source
-            + "    async def create_image_request(self, image, context): raise AssertionError('not used')\n"
-            "    async def recover_image_request(self, image, failed, response, context): return None\n"
-            "    def auth_flow(self, context): return None\n"
-            "    async def transform_image(self, artifact, context): return artifact\n"
-        )
-        if configured_match:
-            source += (
-                "    def matches_with_config(self, url, config, app_settings):\n"
-                "        return str(config.get('alternate_host', '')) in url\n"
-            )
-    else:
-        source += "    async def transform(self, artifact, context): return artifact\n"
-    author_name = "entry.yaml"
-    files = {source_name: source.encode(), author_name: b"config:\n  author: true\n  nested:\n    one: 1\n"}
-    for name, content in files.items():
-        (directory / name).write_bytes(content)
-    private = Ed25519PrivateKey.generate()
-    public = private.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
-    tree = {name: _digest(content) for name, content in files.items()}
-    manifest = {
-        "schema_version": 1,
-        "id": plugin_id,
-        "publisher": "com.example",
-        "version": "1.0",
-        "api_version": "3",
-        "kind": kind,
-        "capabilities": ["reserved"],
-        "match_priority": priority,
-        "entry": {"file": source_name, "class": "Entry"},
-        "config_file": author_name,
-        "public_key": base64.b64encode(public).decode(),
-        "key_id": _digest(public),
-        "file_tree": tree,
-        "file_tree_sha256": _digest(canonical_jcs(tree)),
-    }
-    wrapper = {"manifest": manifest, "signature": base64.b64encode(private.sign(canonical_jcs(manifest))).decode()}
-    (directory / "manifest.json").write_text(json.dumps(wrapper), encoding="utf-8")
-    return directory
-
-
-def make_minimal_plugin(root: Path, *, plugin_id: str = "com.example.minimal") -> Path:
-    directory = make_plugin(root, plugin_id=plugin_id)
-    (directory / "manifest.json").write_text(
-        json.dumps(
-            {
-                "manifest": {
-                    "id": plugin_id,
-                    "kind": "site_plugin",
-                    "entry": {"file": "entry.source", "class": "Entry"},
-                }
-            }
-        ),
-        encoding="utf-8",
-    )
-    return directory
 
 
 def test_idr_025_discovery_and_verification_modes_are_independent(tmp_path: Path) -> None:
@@ -405,11 +313,13 @@ def test_signed_directory_plugin_is_pinned_and_merges_private_config(tmp_path: P
 
     service = RuntimeComposer(config, config_root=tmp_path.resolve(), plugin_root=root).compose()
     try:
-        selected, _, context, _, _ = service._operation(
+        operation = build_site(
+            service,
             "https://example.test/a",
             {"com.example.gallery": {"inline": 1}},
         )
-        assert service._python_log_namespaces(selected, include_processors=True) == (
+        selected, context = operation.record, operation.context
+        assert service._operations.python_log_namespaces(selected, include_processors=True) == (
             service.registry.module_namespace(selected),
         )
         assert context.config["author"] is True and context.config["inline"] == 1
@@ -532,11 +442,14 @@ def test_isolated_output_uses_canonical_host_then_plugin_id(tmp_path: Path) -> N
     ).compose()
     try:
         record = service.registry.records["com.example.gallery"]
-        assert service._output_filesystem(record, "https://Example.Test/item").root == (
+        assert service._downloads._output_filesystem(record, "https://Example.Test/item").root == (
             output_root / "example.test" / "com.example.gallery"
         )
-        assert service._output_filesystem(record, "https://[2001:db8::1]/item").root.name == "com.example.gallery"
-        assert service._output_filesystem(record, "https://[2001:db8::1]/item").root.parent.name == (
+        assert (
+            service._downloads._output_filesystem(record, "https://[2001:db8::1]/item").root.name
+            == "com.example.gallery"
+        )
+        assert service._downloads._output_filesystem(record, "https://[2001:db8::1]/item").root.parent.name == (
             "ipv6-20010db8000000000000000000000001"
         )
     finally:
@@ -859,7 +772,7 @@ def test_selected_dynamic_plugin_logging_is_captured_during_run(tmp_path: Path) 
         )
         service = RuntimeComposer(config, config_root=tmp_path.resolve(), plugin_root=root).compose()
         try:
-            await service.run("https://example.test/a")
+            await service.download(DownloadRequest(url="https://example.test/a"))
         finally:
             await service.close()
 
@@ -885,14 +798,14 @@ def test_download_log_capture_includes_enabled_processor_namespace(tmp_path: Pat
     )
     service = RuntimeComposer(config, config_root=tmp_path.resolve(), plugin_root=root).compose()
     try:
-        selected, _, _, _, _ = service._operation("https://example.test/a")
-        namespaces = service._python_log_namespaces(selected, include_processors=True)
+        selected = build_site(service, "https://example.test/a").record
+        namespaces = service._operations.python_log_namespaces(selected, include_processors=True)
         processor = service.registry.records["com.example.resize"]
         assert namespaces == (
             service.registry.module_namespace(selected),
             service.registry.module_namespace(processor),
         )
-        assert service._python_log_namespaces(selected, include_processors=False) == (
+        assert service._operations.python_log_namespaces(selected, include_processors=False) == (
             service.registry.module_namespace(selected),
         )
     finally:

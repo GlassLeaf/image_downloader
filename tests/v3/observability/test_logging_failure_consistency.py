@@ -12,6 +12,7 @@ from PIL import Image
 import image_downloader.cli as cli
 import image_downloader.commands.download as cli_download
 import image_downloader.observability.diagnostic_safety as diagnostic_safety
+from image_downloader import DownloadRequest
 from image_downloader.config import AppConfig
 from image_downloader.observability.events import EventName
 from image_downloader.runtime import DownloadService, RuntimeComposer
@@ -132,7 +133,7 @@ def test_diagnostic_failure_keeps_saved_result_and_events(
             service.events.on(event, lambda _payload, event=event: observed.append(event))
         _inject_logger_failure(service, monkeypatch, stage)
         try:
-            result = await service.run("https://example.test/gallery")
+            result = await service.download(DownloadRequest(url="https://example.test/gallery"))
             assert len(result.saved_files) == 1
             assert not result.failures
             assert Path(result.saved_files[0]).is_file()
@@ -159,7 +160,7 @@ def test_stderr_failure_cannot_change_saved_result(tmp_path: Path, monkeypatch: 
         _inject_logger_failure(service, monkeypatch, "file_saved")
         monkeypatch.setattr(diagnostic_safety, "sys", SimpleNamespace(stderr=BrokenStderr()))
         try:
-            result = await service.run("https://example.test/gallery")
+            result = await service.download(DownloadRequest(url="https://example.test/gallery"))
             assert len(result.saved_files) == 1
         finally:
             await service.close()
@@ -167,9 +168,7 @@ def test_stderr_failure_cannot_change_saved_result(tmp_path: Path, monkeypatch: 
     asyncio.run(scenario())
 
 
-def test_cli_success_exit_code_survives_post_save_log_failure(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_cli_success_exit_code_survives_post_save_log_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     async def scenario() -> None:
         service = _service(tmp_path)
         await _gallery(service)

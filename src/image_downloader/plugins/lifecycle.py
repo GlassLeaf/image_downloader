@@ -14,23 +14,21 @@ from threading import RLock
 from types import MappingProxyType
 from typing import Any
 
-from ..exceptions import ConfigurationError, PluginError
-from ..ports import ImageProcessor, SitePlugin, is_image_processor, is_site_plugin
-from ..storage.path_safety import existing_directory
-from .plugin_manifest import (
+from image_downloader.plugins.plugin_catalog import PluginCatalog, catalog_path
+from image_downloader.plugins.plugin_files import _is_link, _require_regular
+from image_downloader.plugins.plugin_manifest import (
     CatalogEntry,
-    PluginCatalog,
     PluginKind,
     PluginManifest,
     PluginVerificationMode,
-    _is_link,
-    _require_regular,
-    _verified_plugin_tree,
-    _verify_manifest_with_tree,
     author_config,
-    catalog_path,
     read_manifest,
 )
+from image_downloader.plugins.plugin_verification import _verified_plugin_tree, _verify_manifest_with_tree
+
+from ..exceptions import ConfigurationError, PluginError
+from ..ports import ImageProcessor, SitePlugin, is_image_processor, is_site_plugin
+from ..storage.path_safety import existing_directory
 from .source_loader import _NAMESPACE_FINDER, _SourceContext, _SourceLoader
 
 _PLUGIN_MODULE_ROOT = "_image_downloader_plugins"

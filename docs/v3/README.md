@@ -1,32 +1,38 @@
-# image-downloader API v3 documentation
+<a id="image-downloader-api-v3-documentation"></a>
+
+# image-downloader API v3 ドキュメント
 
 <a id="docs-entry"></a>
 
-この directory は API v3 の現行正本である。文書は目的別に分かれる。設定値、型、入出力、例外は **Reference**、hook の順序・回数・並行性は **Execution lifecycle explanation** だけを正本とする。tutorial/how-to は規則を再定義せず、その anchor を参照する。
+このディレクトリはAPI v3の現行仕様の正本です。文書を目的別に分けています。設定値、型、入出力、例外は**リファレンス**、フックの順序・回数・並行性は**実行ライフサイクルの解説**を正本とします。チュートリアルや操作手順では規則を再定義せず、対応する箇所を参照します。
 
 | 読者・目的 | 読み始める場所 |
 | --- | --- |
-| 初めて CLI を実行する | [CLI tutorial](tutorials/first-download.md) |
-| 初めて plugin を作る | [Plugin tutorial](tutorials/first-plugin.md) |
-| Python から組み込む | [Library tutorial](tutorials/embedded-download.md) |
-| よくある運用・実装判断を確認する | [CLI、library、plugin FAQ](how-to/faq.md) |
-| 設定・profile を運用する | [Configuration how-to](how-to/configure-profiles.md) |
-| cookie、secret、plugin を管理する | [Operations how-to](how-to/operate-securely.md) |
-| 認証、pagination、短命 URL を実装する | [Dynamic URL how-to](how-to/dynamic-urls-and-auth.md) |
-| CLI と JSON を自動化する | [CLI reference](reference/cli.md) |
-| YAML、HTTP、cookie、update state を確認する | [Configuration reference](reference/configuration.md) と [runtime behavior reference](reference/runtime-behavior.md) |
-| plugin package と hook を実装する | [Plugin package reference](reference/plugin-package.md) と [hook reference](reference/plugin-hooks.md) |
-| stable Python API を使う | [Library API reference](reference/library-api.md)、[signature index](reference/api-signatures.md)、[API inventory](reference/api-contract-inventory.md) |
-| logging を組み込む | [Logging reference](reference/logging.md) |
-| ライフサイクルと設計境界を理解する | [Execution lifecycle](explanation/execution-lifecycle.md) |
-| 移行、release、文書保全、未決の運用方針を担当する | [Maintenance index](maintenance/README.md) |
+| 初めてCLIを実行する | [CLIチュートリアル](tutorials/first-download.md) |
+| 初めてプラグインを作る | [プラグインチュートリアル](tutorials/first-plugin.md) |
+| Pythonから組み込む | [ライブラリのチュートリアル](tutorials/embedded-download.md) |
+| よくある運用・実装判断を確認する | [CLI・ライブラリ・プラグインのFAQ](how-to/faq.md) |
+| 設定・プロファイルを運用する | [設定の操作手順](how-to/configure-profiles.md) |
+| Cookie・秘密情報・プラグインを管理する | [安全な運用の手順](how-to/operate-securely.md) |
+| 認証・ページ分割・短命URLを実装する | [動的URLの実装手順](how-to/dynamic-urls-and-auth.md) |
+| CLIとJSONを自動処理する | [CLIリファレンス](reference/cli.md) |
+| YAML・HTTP・Cookie・更新状態を確認する | [設定リファレンス](reference/configuration.md)と[実行時動作リファレンス](reference/runtime-behavior.md) |
+| プラグインのパッケージとフックを実装する | [プラグインパッケージリファレンス](reference/plugin-package.md)と[フックリファレンス](reference/plugin-hooks.md) |
+| 安定したPython APIを使う | [ライブラリAPIリファレンス](reference/library-api.md)、[シグネチャ一覧](reference/api-signatures.md)、[API一覧](reference/api-contract-inventory.md) |
+| ログを組み込む | [ログリファレンス](reference/logging.md) |
+| ライフサイクルと設計上の境界を理解する | [実行ライフサイクル](explanation/execution-lifecycle.md) |
+| 移行・リリース・文書保全・未決の運用方針を担当する | [保守資料の索引](maintenance/README.md) |
 
-## Stability and implementation truth
+<a id="stability-and-implementation-truth"></a>
 
-`image_downloader`、`image_downloader.config`、`image_downloader.runtime`、`image_downloader.security`、`image_downloader.cli`、`image_downloader.observability.logging` の `__all__` は API v3 の stable contract である。その他の module は内部実装であり、直接 import は互換性対象ではない。
+## 安定性と実装との整合性
 
-Reference の signature、DTO field、default、async 性、例外は実装照合テストで検証する。挙動を reflection だけで判断できない claim は、対応する behavior test と [coverage ledger](maintenance/legacy-coverage.md) で追跡する。
+`image_downloader`、`image_downloader.config`、`image_downloader.runtime`、`image_downloader.security`、`image_downloader.cli`、`image_downloader.observability.logging`の`__all__`は、API v3の安定した公開契約です。それ以外のモジュールは内部実装であり、直接importする使い方は互換性の対象外です。
 
-## Historical material
+リファレンスのシグネチャ、DTOのフィールド、既定値、非同期かどうか、例外を、実装と照合するテストで検証します。実行時の型情報だけでは判断できない仕様は、対応する動作テストと[旧文書との対応台帳](maintenance/legacy-coverage.md)で追跡します。
 
-[v3 pre-reorg snapshot](../../archive/docs/legacy/v3-pre-reorg/README.md) と [v3 pre-taxonomy snapshot](../../archive/docs/legacy/v3-pre-taxonomy/README.md) は移管監査用の履歴資料である。現在の仕様や実装方法には引用せず、この index からリンクした正本を使用する。
+<a id="historical-material"></a>
+
+## 履歴資料
+
+[v3再編前のスナップショット](../../archive/docs/legacy/v3-pre-reorg/README.md)と[v3分類整理前のスナップショット](../../archive/docs/legacy/v3-pre-taxonomy/README.md)は、移管を監査するための履歴資料です。現行仕様や実装方法として引用せず、この索引からリンクした正本を使ってください。

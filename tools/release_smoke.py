@@ -58,22 +58,37 @@ def _check_archive_names(names: list[str], *, source_archive: bool) -> None:
         raise RuntimeError("distribution is missing bundled configuration")
     required_modules = (
         "application/service.py",
+        "application/requests.py",
+        "application/site_operation.py",
+        "application/download_executor.py",
+        "application/chapter_executor.py",
+        "application/image_executor.py",
+        "application/workflow_finalizer.py",
         "commands/dispatch.py",
+        "commands/prepared.py",
+        "commands/argument_rules.py",
         "commands/download.py",
         "commands/cookie.py",
         "commands/doctor.py",
         "commands/config.py",
         "commands/plugin.py",
         "configuration/layers.py",
+        "configuration/normalization.py",
         "credentials/plugin_secrets.py",
         "media/artifact_pipeline.py",
         "observability/chapter_reporter.py",
         "plugins/management.py",
         "plugins/plugin_manifest.py",
+        "plugins/plugin_catalog.py",
+        "plugins/plugin_verification.py",
         "plugins/runtime.py",
         "privacy/log_safety.py",
         "storage/path_safety.py",
+        "storage/reading.py",
+        "storage/transactions.py",
         "transport/gateway.py",
+        "transport/operation.py",
+        "transport/image_requests.py",
     )
     for module in required_modules:
         if not any(name.endswith(f"image_downloader/{module}") for name in names):
@@ -119,7 +134,14 @@ def verify(*, offline: bool) -> None:
         plugin_root = base / "plugins"
         data_root.mkdir()
         plugin_root.mkdir()
-        common = ("--data-root", str(data_root), "--plugin-root", str(plugin_root), "--json")
+        config = base / "app.yaml"
+        config.write_text(
+            json.dumps({"storage": {"data_root": str(data_root)}, "plugins": {"root": str(plugin_root)}}),
+            encoding="utf-8",
+        )
+        # Every invocation uses explicit temporary configuration; user settings
+        # must never be created, normalized or consulted by a package smoke test.
+        common = ("--config", str(config), "--data-root", str(data_root), "--plugin-root", str(plugin_root), "--json")
         doctor = json.loads(_run(str(python), "-m", "image_downloader", "doctor", *common))
         if doctor["application"]["version"] != version or not doctor["healthy"]:
             raise RuntimeError("installed package doctor did not pass")
@@ -132,6 +154,8 @@ def verify(*, offline: bool) -> None:
             "plugin",
             "install",
             str(source),
+            "--config",
+            str(config),
             "--plugin-root",
             str(plugin_root),
             "--yes",

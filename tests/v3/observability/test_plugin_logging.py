@@ -14,7 +14,8 @@ from image_downloader.models import (
     ImageOutcomeKind,
     ImageResource,
 )
-from image_downloader.observability.logging import ConsoleSink, DebugFileSink, DownloadLogger
+from image_downloader.observability.log_sinks import ConsoleSink, DebugFileSink
+from image_downloader.observability.logging import DownloadLogger
 from image_downloader.runtime import ChapterReporter
 from image_downloader.storage import FileSystem
 

@@ -22,6 +22,14 @@ from .._numeric import _is_finite
 from ..exceptions import InterProcessLockError
 
 
+class _LockOpenError(Exception):
+    """A confirmed sharing violation and its optional identity-checked retry."""
+
+    def __init__(self, cause: OSError, retry: Callable[[], BinaryIO] | None = None) -> None:
+        super().__init__("verified lock sharing violation")
+        self.cause, self.retry = cause, retry
+
+
 def _warn_cleanup_failure(resource: str) -> None:
     try:
         sys.stderr.write(f"warning: inter-process lock cleanup failed ({resource})\n")
@@ -103,7 +111,7 @@ def _open_existing_append(path: str, flags: int) -> int:
         return os.open(path, flags)
     except OSError as error:
         if error.errno == errno.EACCES and library is not None and _windows_open_error(library) == 32:
-            error.__dict__["_lock_sharing_violation"] = True
+            raise _LockOpenError(error) from error
         raise
 
 
@@ -317,15 +325,15 @@ class InterProcessFileLock:
         # A native open that never returns cannot reach this recovery.
         try:
             return self._open_stream()
-        except OSError as error:
-            retry = cast(Callable[[], BinaryIO] | None, getattr(error, "_lock_open_retry", None))
-            if retry is None:
-                raise
-            primary = error
+        except _LockOpenError as failure:
+            retry = failure.retry
+            primary = failure.cause
+        if retry is None:
+            raise primary
         time.sleep(self.POLL_INTERVAL_SECONDS)
         try:
             return retry()
-        except OSError:
+        except (OSError, _LockOpenError):
             pass
         raise primary
 
@@ -333,15 +341,15 @@ class InterProcessFileLock:
         # Apply the same bounded sharing recovery as the synchronous path.
         try:
             return self._open_stream()
-        except OSError as error:
-            retry = cast(Callable[[], BinaryIO] | None, getattr(error, "_lock_open_retry", None))
-            if retry is None:
-                raise
-            primary = error
+        except _LockOpenError as failure:
+            retry = failure.retry
+            primary = failure.cause
+        if retry is None:
+            raise primary
         await asyncio.sleep(self.POLL_INTERVAL_SECONDS)
         try:
             return retry()
-        except OSError:
+        except (OSError, _LockOpenError):
             pass
         raise primary
 
@@ -367,12 +375,9 @@ class InterProcessFileLock:
             raise OSError(errno.EIO, "inter-process lock file changed before open")
         try:
             stream = builtins.open(path, "a+b", buffering=0, opener=_open_existing_append)
-        except OSError as error:
-            if getattr(error, "_lock_sharing_violation", False):
-                error.__dict__["_lock_open_retry"] = partial(
-                    self._open_verified_windows_stream, path, parent_state, expected
-                )
-            raise
+        except _LockOpenError as failure:
+            retry = partial(self._open_verified_windows_stream, path, parent_state, expected)
+            raise _LockOpenError(failure.cause, retry) from failure.cause
         try:
             opened = os.fstat(stream.fileno())
             _check_regular(opened)

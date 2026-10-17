@@ -12,7 +12,7 @@ from pathlib import Path
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from image_downloader.plugins.plugin_manifest import collect_plugin_file_tree
+from image_downloader.plugins.plugin_verification import collect_plugin_file_tree
 
 
 def canonical_json(value: object) -> bytes:

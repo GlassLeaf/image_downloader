@@ -11,9 +11,11 @@ from pathlib import Path
 import httpx
 import pytest
 from PIL import Image
+from support.operations import build_site
 
-from image_downloader import OriginScopedAuthFlow
-from image_downloader.application.service import _effective_download_policy
+from image_downloader import DownloadRequest, OriginScopedAuthFlow, UpdateCheckRequest
+from image_downloader.application.concurrency import bounded
+from image_downloader.application.site_operation import _effective_download_policy
 from image_downloader.config import AppConfig, PluginDownloadPolicy
 from image_downloader.exceptions import (
     AuthenticationError,
@@ -37,7 +39,6 @@ from image_downloader.models import (
 from image_downloader.observability.events import EventName
 from image_downloader.observability.logging import safe_log_text
 from image_downloader.runtime import (
-    DownloadService,
     OutputAllocator,
     OutputFormatContext,
     RequestGateway,
@@ -320,7 +321,7 @@ def test_bounded_scheduler_does_not_create_all_queued_jobs_after_failure() -> No
 
         factories = [lambda index=index: job(index) for index in range(20)]
         with pytest.raises(RuntimeError, match="stop"):
-            await DownloadService._bounded(None, factories, 2)  # type: ignore[arg-type]
+            await bounded(factories, 2)  # type: ignore[arg-type]
         assert len(started) <= 2
 
     asyncio.run(scenario())
@@ -363,8 +364,8 @@ def test_complete_builtin_download_exercises_streaming_pipeline_and_skip(tmp_pat
 
         service.gateway.client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
         try:
-            first = await service.run("https://example.test/gallery")
-            second = await service.run("https://example.test/gallery")
+            first = await service.download(DownloadRequest(url="https://example.test/gallery"))
+            second = await service.download(DownloadRequest(url="https://example.test/gallery"))
             assert len(first.saved_files) == 1
             assert len(second.skipped_files) == 1
             saved = data_root / "profiles" / "default" / "downloads" / "0001_Gallery_Gallery" / "0001.png"
@@ -424,8 +425,8 @@ def test_update_snapshots_report_added_changed_and_removed_entries(tmp_path: Pat
         for event in (EventName.UPDATE_CHECK_STARTED, EventName.UPDATED_URL_FOUND, EventName.UPDATE_CHECK_FINISHED):
             service.events.on(event, lambda _payload, event=event: observed.append(event))
         try:
-            first = await service.check_updates("https://example.test/gallery")
-            second = await service.check_updates("https://example.test/gallery")
+            first = await service.check_updates(UpdateCheckRequest(url="https://example.test/gallery"))
+            second = await service.check_updates(UpdateCheckRequest(url="https://example.test/gallery"))
             assert [change.kind for change in first.changes] == [UpdateChangeKind.ADDED, UpdateChangeKind.ADDED]
             assert {change.kind for change in second.changes} == {
                 UpdateChangeKind.CHANGED,
@@ -579,12 +580,12 @@ def test_download_service_creates_a_distinct_request_session_for_each_operation(
         )
         service = RuntimeComposer(config, config_root=tmp_path.resolve(), plugin_root=plugin_root).compose()
         try:
-            first = service._operation("https://example.test/first")
-            second = service._operation("https://example.test/second")
-            assert first[3] is not second[3]
-            assert first[2].requests is not second[2].requests
-            assert first[3]._shared is service.gateway
-            assert second[3]._shared is service.gateway
+            first = build_site(service, "https://example.test/first")
+            second = build_site(service, "https://example.test/second")
+            assert first.gateway is not second.gateway
+            assert first.context.requests is not second.context.requests
+            assert first.gateway._shared is service.gateway
+            assert second.gateway._shared is service.gateway
         finally:
             await service.close()
 

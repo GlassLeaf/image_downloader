@@ -1,8 +1,10 @@
-# How to operate cookies, secrets, and plugins safely
+<a id="how-to-operate-cookies-secrets-and-plugins-safely"></a>
 
-- browser session は `image-downloader cookie browser-import DOMAIN` で profile cookie store に import する。browser support は optional dependency である。
-- export/import は passphrase を対話で扱う。cookie body、passphrase、browser record、secret reference を JSON や log に出力してはならない。
-- plugin install/trust/revoke/uninstall の前に plugin root を backup し、manifest ID、publisher、kind、version、fingerprint、tree digest を確認する。
-- automation で mutation を確認する場合だけ `--yes` を使う。
+# Cookie・秘密情報・プラグインを安全に運用する
 
-暗号化・merge・lock・保証範囲は [runtime behavior reference](../reference/runtime-behavior.md#runtime-cookies)、catalog policy は [plugin package reference](../reference/plugin-package.md#plugin-catalog)、CLI output は [CLI reference](../reference/cli.md#cli-json) が正本である。
+- ブラウザーのセッションは`image-downloader cookie browser-import DOMAIN`で、プロファイルのCookie保存先へ取り込みます。ブラウザー対応は任意の依存パッケージです。
+- エクスポート・インポートでは、パスフレーズを対話的に扱います。Cookieの本文、パスフレーズ、ブラウザーの記録、秘密情報の参照を、JSONやログへ出力しないでください。
+- pluginのinstall・trust・revoke・uninstallの前に、プラグインルートをバックアップし、manifestのID、発行者、種別、バージョン、フィンガープリント、ツリーのダイジェストを確認します。
+- 自動処理で変更操作を確認する場合だけ、`--yes`を使います。
+
+暗号化・マージ・ロック・保証範囲は[実行時動作リファレンス](../reference/runtime-behavior.md#runtime-cookies)、カタログのポリシーは[プラグインパッケージリファレンス](../reference/plugin-package.md#plugin-catalog)、CLIの出力は[CLIリファレンス](../reference/cli.md#cli-json)を正本とします。

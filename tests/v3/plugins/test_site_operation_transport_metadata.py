@@ -10,8 +10,9 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 from PIL import Image
-from test_plugin_v3 import make_plugin
+from support.plugins import make_plugin
 
+from image_downloader import DownloadRequest, UpdateCheckRequest
 from image_downloader.config import AppConfig
 from image_downloader.exceptions import AuthenticationError, ConfigurationError, PluginError
 from image_downloader.models import (
@@ -174,7 +175,7 @@ def test_transport_metadata_reaches_site_and_only_authorized_processors(tmp_path
 
         service.gateway.client = httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=False)
         try:
-            result = await service.run("https://example.test/gallery")
+            result = await service.download(DownloadRequest(url="https://example.test/gallery"))
             assert len(result.saved_files) == 1
             site = observed["site"]
             allowed = observed["allowed"]
@@ -236,7 +237,7 @@ def test_site_cleanup_after_use_is_optional_and_preserves_primary_failure(tmp_pa
 
         service.registry.loader.register_class(service.registry.records[SITE_ID], Site)
         try:
-            await service.run("https://example.test/gallery")
+            await service.download(DownloadRequest(url="https://example.test/gallery"))
             assert calls == ["inspect", "cleanup"]
         finally:
             await service.close()
@@ -255,11 +256,9 @@ def test_site_cleanup_after_use_is_optional_and_preserves_primary_failure(tmp_pa
         failing.registry.loader.register_class(failing.registry.records[SITE_ID], FailingSite)
         try:
             with pytest.raises(PluginError, match="primary failure"):
-                await failing.run("https://example.test/gallery")
+                await failing.download(DownloadRequest(url="https://example.test/gallery"))
             assert failed_calls == ["closed"]
-            assert "event=site_operation_close_failed" in (
-                failing.logs.root / "debug.log"
-            ).read_text(encoding="utf-8")
+            assert "event=site_operation_close_failed" in (failing.logs.root / "debug.log").read_text(encoding="utf-8")
         finally:
             await failing.close()
 
@@ -298,7 +297,7 @@ def test_site_cleanup_failure_is_plugin_error_on_normal_completion(tmp_path: Pat
         service.registry.loader.register_class(service.registry.records[SITE_ID], Site)
         try:
             with pytest.raises(PluginError, match="hook=cleanup_after_use"):
-                await service.run("https://example.test/gallery")
+                await service.download(DownloadRequest(url="https://example.test/gallery"))
         finally:
             await service.close()
 
@@ -340,7 +339,7 @@ def test_site_cleanup_runs_after_update_check(tmp_path: Path) -> None:
 
         service.registry.loader.register_class(service.registry.records[SITE_ID], Site)
         try:
-            assert (await service.check_updates("https://example.test/gallery")).changes == ()
+            assert (await service.check_updates(UpdateCheckRequest(url="https://example.test/gallery"))).changes == ()
             assert calls == ["closed"]
         finally:
             await service.close()
@@ -392,7 +391,7 @@ def test_site_cleanup_after_use_runs_after_auth_failure(tmp_path: Path) -> None:
         service.registry.loader.register_class(service.registry.records[SITE_ID], Site)
         try:
             with pytest.raises(AuthenticationError, match="authentication failed"):
-                await service.run("https://example.test/gallery")
+                await service.download(DownloadRequest(url="https://example.test/gallery"))
             assert calls == ["cleanup"]
         finally:
             await service.close()
@@ -444,7 +443,7 @@ def test_site_cleanup_after_use_runs_after_image_transform_failure(tmp_path: Pat
         )
         try:
             with pytest.raises(PluginError, match="hook=transform_image"):
-                await service.run("https://example.test/gallery")
+                await service.download(DownloadRequest(url="https://example.test/gallery"))
             assert calls == ["cleanup"]
         finally:
             await service.close()
@@ -487,7 +486,7 @@ def test_site_cleanup_after_use_runs_on_cancellation(tmp_path: Path) -> None:
 
         service.registry.loader.register_class(service.registry.records[SITE_ID], Site)
         try:
-            task = asyncio.create_task(service.run("https://example.test/gallery"))
+            task = asyncio.create_task(service.download(DownloadRequest(url="https://example.test/gallery")))
             await asyncio.wait_for(inspected.wait(), timeout=5)
             task.cancel()
             with pytest.raises(asyncio.CancelledError):
@@ -543,7 +542,7 @@ def test_site_cleanup_after_use_skips_unselected_matcher_instances(tmp_path: Pat
         service.registry.loader.register_class(service.registry.records[SITE_ID], SelectedSite)
         service.registry.loader.register_class(service.registry.records[unmatched_id], UnmatchedSite)
         try:
-            await service.run("https://example.test/gallery")
+            await service.download(DownloadRequest(url="https://example.test/gallery"))
             assert calls == ["selected"]
         finally:
             await service.close()
@@ -622,7 +621,7 @@ def test_transport_metadata_tracks_auth_retry_redirect_and_duplicate_response_he
 
         service.gateway.client = httpx.AsyncClient(transport=httpx.MockTransport(handler), follow_redirects=True)
         try:
-            await service.run("https://example.test/gallery")
+            await service.download(DownloadRequest(url="https://example.test/gallery"))
             assert starts == 2
             metadata = observed["metadata"]
             assert metadata.initial_request.url.endswith("initial=one")  # type: ignore[union-attr]
@@ -695,7 +694,7 @@ def test_recovery_bare_request_keeps_plugin_data_and_dto_replaces_it(tmp_path: P
 
         service.gateway.client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
         try:
-            await service.run("https://example.test/gallery")
+            await service.download(DownloadRequest(url="https://example.test/gallery"))
             assert observed["image:inherit"].plugin_data == {"phase": "initial"}  # type: ignore[union-attr]
             assert observed["image:replace"].plugin_data == {"phase": "replacement"}  # type: ignore[union-attr]
             assert observed["image:inherit"].initial_request.url.endswith("/recovered/inherit")  # type: ignore[union-attr]
@@ -748,7 +747,7 @@ def test_manifest_original_filename_survives_an_artifact_replacement(tmp_path: P
             )
         )
         try:
-            result = await service.run("https://example.test/gallery")
+            result = await service.download(DownloadRequest(url="https://example.test/gallery"))
             assert [Path(path).name for path in result.saved_files] == ["logical.png"]
         finally:
             await service.close()
@@ -784,7 +783,7 @@ def test_generic_html_uses_its_img_source_url_when_no_higher_priority_name_exist
 
         service.gateway.client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
         try:
-            result = await service.run("https://example.test/gallery")
+            result = await service.download(DownloadRequest(url="https://example.test/gallery"))
             assert [Path(path).name for path in result.saved_files] == ["original_file.png"]
         finally:
             await service.close()

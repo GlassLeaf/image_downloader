@@ -7,10 +7,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from image_downloader.application.log_verification import stable_file, verify_logs
+from image_downloader.application.log_verification import verify_logs
 from image_downloader.exceptions import StorageSafetyError
-from image_downloader.observability.logging import ChapterFailureRecord, DebugFileSink, DownloadLogger
+from image_downloader.observability.log_sinks import ChapterFailureRecord, DebugFileSink
+from image_downloader.observability.logging import DownloadLogger
 from image_downloader.storage.filesystem import FileSystem
+from image_downloader.storage.reading import stable_file
 
 HEADER = "---\nurl: https://example.test/gallery\ntitle: error in a title\n---\n"
 

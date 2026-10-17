@@ -7,9 +7,19 @@ from pathlib import Path
 
 import httpx
 import pytest
-from test_workflow import FEED, A, B, Gallery, attach_transport, compose, snapshot
+from support.errors import expect_workflow_error
+from support.synchronization import managed_task, wait_until_started
+from support.workflow import FEED, A, B, Gallery, attach_transport, compose, snapshot
 
-from image_downloader import PluginError, RequestSpec, RuntimeComposer, UpdateCandidate, UpdateStateError
+from image_downloader import (
+    PluginError,
+    RequestSpec,
+    RuntimeComposer,
+    UpdateCandidate,
+    UpdateStateError,
+    WorkflowPlanRequest,
+    WorkflowRequest,
+)
 from image_downloader.application import workflow_plan
 from image_downloader.storage import FileSystem
 from image_downloader.storage.workflow import WorkflowState
@@ -46,8 +56,8 @@ def test_preview_matches_preparation_without_mutating_history(tmp_path, scope, p
             # Listing history must not initialize or alter workflow selection.
             service.state.apply_snapshot("core.generic-html", FEED, snapshot(*current))
             before = persistent_files(tmp_path)
-            first = await service.plan_workflow(FEED, download_scope=scope)
-            second = await service.plan_workflow(FEED, download_scope=scope)
+            first = await service.plan_workflow(WorkflowPlanRequest(url=FEED, download_scope=scope))
+            second = await service.plan_workflow(WorkflowPlanRequest(url=FEED, download_scope=scope))
             assert first.selected_urls == second.selected_urls
             assert first.first_run is (previous is None)
             assert persistent_files(tmp_path) == before
@@ -66,9 +76,9 @@ def test_plans_do_not_consume_first_normal_workflow(tmp_path):
     async def scenario():
         gallery = Gallery()
         async with compose(tmp_path, gallery) as service:
-            plan = await service.plan_workflow(FEED)
+            plan = await service.plan_workflow(WorkflowPlanRequest(url=FEED))
             await attach_transport(service)
-            result = await service.workflow(FEED, workflow_retries=0)
+            result = await service.workflow(WorkflowRequest(url=FEED, workflow_retries=0))
             assert result.selected_urls == plan.selected_urls == (A.url, B.url)
             assert all(item.status == "success" for item in result.items)
 
@@ -114,16 +124,16 @@ def test_plan_session_is_detached_and_never_records_or_notifies(tmp_path, monkey
             service.gateway.client.cookies.set("original", "value", domain="example.test")
             if failure:
                 error_type = asyncio.CancelledError if failure == "cancel" else PluginError
-                with pytest.raises(error_type) as caught:
-                    await service.plan_workflow(FEED)
-                result = caught.value.workflow_plan_result
+                with expect_workflow_error(error_type) as caught:
+                    await service.plan_workflow(WorkflowPlanRequest(url=FEED))
+                result = caught.value.result
                 assert result.cancelled is (failure == "cancel")
                 if failure in {"cleanup", "duplicate"}:
                     assert result.snapshot is not None
                 if failure == "cleanup":
                     assert result.selected_urls == (A.url, B.url)
             else:
-                result = await service.plan_workflow(FEED)
+                result = await service.plan_workflow(WorkflowPlanRequest(url=FEED))
                 assert result.selected_urls == (A.url, B.url)
             assert gallery.cleanups == 1 and not gallery.seen
             assert [c.name for c in service.gateway.client.cookies.jar] == ["original"]
@@ -143,8 +153,8 @@ def test_plan_rejects_bad_history_before_check_without_overwrite(tmp_path, filen
         async with compose(tmp_path, gallery) as service:
             service.state.filesystem.write_bytes_atomic(filename, payload)
             before = persistent_files(tmp_path)
-            with pytest.raises(UpdateStateError):
-                await service.plan_workflow(FEED)
+            with expect_workflow_error(UpdateStateError):
+                await service.plan_workflow(WorkflowPlanRequest(url=FEED))
             assert persistent_files(tmp_path) == before
             assert gallery.checks == 0 and gallery.cleanups == 1
 
@@ -163,16 +173,16 @@ def test_plan_same_feed_lock_blocks_check_and_cancellation_releases_it(tmp_path)
 
         first.check_updates = check
         async with compose(tmp_path, first) as service1, compose(tmp_path, second) as service2:
-            task1 = asyncio.create_task(service1.plan_workflow(FEED))
-            await asyncio.wait_for(started.wait(), 5)
-            task2 = asyncio.create_task(service2.plan_workflow(FEED))
-            await asyncio.sleep(0.1)
-            assert second.checks == 0
-            task1.cancel()
-            with pytest.raises(asyncio.CancelledError):
-                await task1
-            result = await asyncio.wait_for(task2, 5)
-            assert result.first_run and second.checks == 1
+            async with managed_task(service1.plan_workflow(WorkflowPlanRequest(url=FEED))) as task1:
+                await wait_until_started(started, task1)
+                async with managed_task(service2.plan_workflow(WorkflowPlanRequest(url=FEED))) as task2:
+                    await asyncio.sleep(0.1)
+                    assert second.checks == 0
+                    task1.cancel()
+                    with pytest.raises(asyncio.CancelledError):
+                        await task1
+                    result = await asyncio.wait_for(task2, 5)
+                    assert result.first_run and second.checks == 1
 
     asyncio.run(scenario())
 
@@ -244,7 +254,7 @@ def test_plan_auth_refresh_uses_detached_cookie_session(tmp_path, monkeypatch):
             service.gateway.client.cookies.set("session", "original", domain="example.test", path="/")
             service._cookie_baseline = service.cookie_store.snapshot(service.gateway.client.cookies.jar)
             before = persistent_files(tmp_path)
-            result = await service.plan_workflow(FEED)
+            result = await service.plan_workflow(WorkflowPlanRequest(url=FEED))
             assert result.selected_urls == (A.url,)
             assert [r.headers["Authorization"] for r in seen] == ["old", "new"]
             assert "session=original" in seen[0].headers["cookie"]
@@ -269,17 +279,20 @@ def test_plan_waits_for_other_process_feed_lock_but_not_other_feed(tmp_path):
     process = context.Process(target=_hold_preview_feed_lock, args=(str(service.state.filesystem.root), ready, release))
 
     async def scenario():
-        task = asyncio.create_task(service.plan_workflow(FEED))
-        await asyncio.sleep(0.1)
-        assert gallery.checks == 0
-        # The planning service is locked, but another service/feed can proceed.
-        other = Gallery()
-        async with compose(tmp_path, other) as other_service:
-            await asyncio.wait_for(other_service.plan_workflow(FEED + "-other"), 5)
-            assert other.checks == 1
-        release.set()
-        assert (await asyncio.wait_for(task, 5)).selected_urls == (A.url, B.url)
-        await service.close()
+        async with service:
+            async with managed_task(service.plan_workflow(WorkflowPlanRequest(url=FEED))) as task:
+                try:
+                    await asyncio.sleep(0.1)
+                    assert gallery.checks == 0
+                    # Only this feed is locked; another feed can proceed.
+                    other = Gallery()
+                    async with compose(tmp_path, other) as other_service:
+                        await asyncio.wait_for(other_service.plan_workflow(WorkflowPlanRequest(url=FEED + "-other")), 5)
+                        assert other.checks == 1
+                    release.set()
+                    assert (await asyncio.wait_for(task, 5)).selected_urls == (A.url, B.url)
+                finally:
+                    release.set()
 
     try:
         process.start()
@@ -299,7 +312,7 @@ def test_preview_does_not_migrate_legacy_update_history(tmp_path):
         async with compose(tmp_path, Gallery()) as service:
             payload = b'{"records": {}}'
             service.state.filesystem.write_bytes_atomic("updates.json", payload)
-            result = await service.plan_workflow(FEED)
+            result = await service.plan_workflow(WorkflowPlanRequest(url=FEED))
             assert result.first_run and result.selected_urls == (A.url, B.url)
             assert service.state.filesystem.read_text("updates.json") == payload.decode()
 

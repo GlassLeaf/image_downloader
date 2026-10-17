@@ -2,26 +2,30 @@
 
 from __future__ import annotations
 
-import argparse
 import asyncio
 import json
 import sys
 from contextlib import nullcontext, redirect_stdout
 from dataclasses import asdict, replace
-from functools import partial
 from pathlib import Path
-from typing import Literal, cast
+from typing import cast
 from urllib.parse import urlparse
 
-from .._numeric import _is_finite
 from ..application.additional_files import additional_file_payload
 from ..application.composer import RuntimeComposer
-from ..application.workflow_recording import _settle, revise_result
+from ..application.requests import WorkflowPlanRequest, WorkflowRequest
+from ..application.workflow_finalizer import revise_after_close
 from ..application.workflow_reporting import stopped_status, workflow_outcome, workflow_status
 from ..application.workflow_selection import FIRST_RUN_NOTE, workflow_selection
-from ..configuration.models import AppConfig
 from ..configuration.paths import resolve_paths
-from ..exceptions import ConfigurationError, error_info_for, error_reason_for_code
+from ..exceptions import (
+    WorkflowCancelledError,
+    WorkflowExecutionError,
+    WorkflowPlanCancelledError,
+    WorkflowPlanError,
+    error_info_for,
+    error_reason_for_code,
+)
 from ..models import (
     DownloadResult,
     ImageFailure,
@@ -31,20 +35,17 @@ from ..models import (
     WorkflowRoundResult,
 )
 from ..privacy.log_safety import safe_exception_name, safe_locator, safe_relative_path, safe_url
-from ..storage.workflow_logging import WorkflowLogWriter
 from .constants import (
     EXIT_SUCCESS,
 )
+from .prepared import PreparedCommand, WorkflowArguments
 from .setup import (
     _config_for,
-    _download_policy_overrides,
     _fallback,
     _output_root,
     _persist_initial_user_config,
     _plugin_root,
-    _runtime_overrides,
 )
-from .validation import _reject_command_options
 
 
 def _safe_error(payload: dict[str, object], root: Path) -> dict[str, object]:
@@ -184,14 +185,18 @@ def _stopped_status(error: BaseException) -> int:
 
 
 class WorkflowCommandHandler:
-    async def handle(self, args: argparse.Namespace) -> int:
+    async def handle(self, command: PreparedCommand) -> int:
+        args = command.arguments
+        assert isinstance(args, WorkflowArguments)
         try:
-            return await self._handle(args)
+            return await self._handle(command)
         except (Exception, asyncio.CancelledError) as exc:
-            if not getattr(args, "dry_run", False):
+            if not args.dry_run:
                 raise
-            result = getattr(
-                exc, "workflow_plan_result", WorkflowPlanResult(args.url, args.download_scope or "updated")
+            result = (
+                exc.result
+                if isinstance(exc, (WorkflowPlanError, WorkflowPlanCancelledError))
+                else WorkflowPlanResult(args.url, args.download_scope or "updated")
             )
             result = replace(
                 result,
@@ -201,36 +206,15 @@ class WorkflowCommandHandler:
             _print_plan(result, args, Path.cwd())
             return _stopped_status(exc)
 
-    async def _handle(self, args: argparse.Namespace) -> int:
+    async def _handle(self, command: PreparedCommand) -> int:
+        args = command.arguments
+        assert isinstance(args, WorkflowArguments)
         retries = args.workflow_retries if args.workflow_retries is not None else 1
         delay = args.workflow_retry_delay if args.workflow_retry_delay is not None else 600.0
         timeout = args.workflow_retry_timeout
-        if retries < 0 or not _is_finite(delay) or delay < 0:
-            raise ConfigurationError("workflow retries and delay must be non-negative and finite")
-        if timeout is not None and (not _is_finite(timeout) or timeout <= 0):
-            raise ConfigurationError("workflow retry timeout must be positive and finite")
-        if args.image_format is not None and args.force_image_format is not None:
-            raise ConfigurationError("--image-format cannot be combined with --force-image-format")
-        if args.plugin_id is not None and args.force_plugin_id is not None:
-            raise ConfigurationError("--plugin cannot be combined with --force-plugin")
-        _reject_command_options(
-            args,
-            (
-                "list_updated_urls",
-                "inspect_only",
-                "manifest_only",
-                "inspection_data",
-                "host",
-                "selection_priority",
-                "export_cookies",
-                "import_cookies",
-                "import_browser_cookies",
-            ),
-            "workflow",
-        )
-        overrides = _runtime_overrides(args)
-        policies = _download_policy_overrides(args)
-        if getattr(args, "dry_run", False):
+        overrides = command.plugin_config
+        policies = command.download_policy
+        if args.dry_run:
             return await _plan_command(args, overrides, policies)
         config, config_root, _, source = _config_for(
             args,
@@ -252,24 +236,28 @@ class WorkflowCommandHandler:
             with diagnostics:
                 try:
                     result = await service.workflow(
-                        args.url,
-                        download_scope=cast(Literal["all", "updated"], args.download_scope or "updated"),
-                        workflow_retries=retries,
-                        workflow_retry_delay=delay,
-                        workflow_retry_timeout=timeout,
-                        workflow_progress_log=None
-                        if args.workflow_progress_log is None
-                        else args.workflow_progress_log == "enabled",
-                        plugin_overrides=overrides,
-                        fallback_override=_fallback(args),
-                        plugin_id=args.plugin_id or args.force_plugin_id,
-                        force_plugin=args.force_plugin_id is not None,
-                        plugin_download_policy_overrides=policies,
-                        force_image_format=args.force_image_format,
+                        WorkflowRequest(
+                            url=args.url,
+                            download_scope=args.download_scope or "updated",
+                            workflow_retries=retries,
+                            workflow_retry_delay=delay,
+                            workflow_retry_timeout=timeout,
+                            workflow_progress_log=None
+                            if args.workflow_progress_log is None
+                            else args.workflow_progress_log == "enabled",
+                            plugin_overrides=overrides,
+                            fallback_override=_fallback(args),
+                            plugin_id=args.plugin_id or args.force_plugin_id,
+                            force_plugin=args.force_plugin_id is not None,
+                            plugin_download_policy_overrides=policies,
+                            force_image_format=args.force_image_format,
+                        )
                     )
                     status = _status(result)
                 except (Exception, asyncio.CancelledError) as exc:
-                    stopped_result = getattr(exc, "workflow_result", None)
+                    stopped_result = (
+                        exc.result if isinstance(exc, (WorkflowExecutionError, WorkflowCancelledError)) else None
+                    )
                     if not isinstance(stopped_result, WorkflowResult):
                         raise
                     result = stopped_result
@@ -288,7 +276,7 @@ class WorkflowCommandHandler:
                             cancelled=isinstance(exc, asyncio.CancelledError),
                         )
                         status = _stopped_status(exc)
-                        result, status = await _revise_after_close(
+                        result, status = await revise_after_close(
                             config, result, status, output_root or resolve_paths(config)["downloads"]
                         )
         assert result is not None
@@ -336,7 +324,7 @@ def workflow_plan_payload(result: WorkflowPlanResult, root: Path) -> dict[str, o
     }
 
 
-def _print_plan(result: WorkflowPlanResult, args: argparse.Namespace, root: Path) -> None:
+def _print_plan(result: WorkflowPlanResult, args: WorkflowArguments, root: Path) -> None:
     payload = workflow_plan_payload(result, root)
     if args.json_output:
         print(json.dumps(payload, ensure_ascii=False))
@@ -354,7 +342,7 @@ def _print_plan(result: WorkflowPlanResult, args: argparse.Namespace, root: Path
         print("workflow dry-run cancelled", file=sys.stderr)
 
 
-async def _plan_command(args: argparse.Namespace, overrides, policies) -> int:
+async def _plan_command(args: WorkflowArguments, overrides, policies) -> int:
     service = None
     result = WorkflowPlanResult(args.url, args.download_scope or "updated")
     root = _output_root(args) or Path.cwd()
@@ -371,16 +359,18 @@ async def _plan_command(args: argparse.Namespace, overrides, policies) -> int:
                 plugin_verification_override=args.plugin_verification_override,
             )._compose_for_workflow_plan()
             result = await service.plan_workflow(
-                args.url,
-                download_scope=cast(Literal["all", "updated"], args.download_scope or "updated"),
-                plugin_overrides=overrides,
-                fallback_override=_fallback(args),
-                plugin_id=args.plugin_id or args.force_plugin_id,
-                force_plugin=args.force_plugin_id is not None,
-                plugin_download_policy_overrides=policies,
+                WorkflowPlanRequest(
+                    url=args.url,
+                    download_scope=args.download_scope or "updated",
+                    plugin_overrides=overrides,
+                    fallback_override=_fallback(args),
+                    plugin_id=args.plugin_id or args.force_plugin_id,
+                    force_plugin=args.force_plugin_id is not None,
+                    plugin_download_policy_overrides=policies,
+                )
             )
         except (Exception, asyncio.CancelledError) as exc:
-            result = getattr(exc, "workflow_plan_result", result)
+            result = exc.result if isinstance(exc, (WorkflowPlanError, WorkflowPlanCancelledError)) else result
             result = replace(
                 result,
                 stop_error=None if isinstance(exc, asyncio.CancelledError) else error_info_for(exc),
@@ -401,27 +391,6 @@ async def _plan_command(args: argparse.Namespace, overrides, policies) -> int:
                         status = _stopped_status(exc)
     _print_plan(result, args, root)
     return status
-
-
-async def _revise_after_close(
-    config: AppConfig, result: WorkflowResult, status: int, root: Path
-) -> tuple[WorkflowResult, int]:
-    try:
-        result = await revise_result(config, result, status, root)
-    except asyncio.CancelledError as exc:
-        result, status = getattr(exc, "workflow_result", replace(result, cancelled=True)), 130
-    writer = WorkflowLogWriter.resume(result)
-    if writer is not None:
-        cancellation = await _settle(partial(writer.finish, result, status, workflow_outcome(result), correction=True))
-        if cancellation is not None:
-            result, status = replace(result, cancelled=True, stop_error=None), 130
-            try:
-                result = await revise_result(config, result, status, root)
-            except asyncio.CancelledError as exc:
-                result = getattr(exc, "workflow_result", result)
-            await _settle(partial(writer.finish, result, status, workflow_outcome(result), correction=True))
-        result = replace(result, workflow_log=writer.result)
-    return result, status
 
 
 def _print_workflow(result: WorkflowResult, payload: dict[str, object]) -> None:

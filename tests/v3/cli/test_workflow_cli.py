@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import json
+from dataclasses import fields
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
+from image_downloader import WorkflowCancelledError, WorkflowExecutionError
 from image_downloader.cli import build_parser, main
 from image_downloader.commands import workflow as command
 from image_downloader.exceptions import ConfigurationError, StorageSafetyError, error_info_for
@@ -236,8 +238,8 @@ def test_workflow_json_is_single_safe_document_and_keeps_partial_results(tmp_pat
     captured = {}
     closed = []
 
-    async def execute(url, **kwargs):
-        captured.update(kwargs)
+    async def execute(request):
+        captured.update({field.name: getattr(request, field.name) for field in fields(request) if field.name != "url"})
         print("plugin diagnostic")
         outcome = result(tmp_path)
         if stop and stop != "close":
@@ -246,8 +248,9 @@ def test_workflow_json_is_single_safe_document_and_keeps_partial_results(tmp_pat
                 "configuration": ConfigurationError(),
                 "cancel": asyncio.CancelledError(),
             }[stop]
-            error.workflow_result = outcome
-            raise error
+            if isinstance(error, asyncio.CancelledError):
+                raise WorkflowCancelledError(outcome) from error
+            raise WorkflowExecutionError(outcome, error) from error
         return outcome
 
     async def close():

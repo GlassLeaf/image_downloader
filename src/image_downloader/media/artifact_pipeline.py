@@ -148,7 +148,11 @@ class ArtifactPipeline:
             if isinstance(binding, str):
                 await best_effort_diagnostic(
                     self.logger.core,
-                    "processor_disabled", module="processor", chapter_id=chapter_id, plugin_id=binding, debug=True
+                    "processor_disabled",
+                    module="processor",
+                    chapter_id=chapter_id,
+                    plugin_id=binding,
+                    debug=True,
                 )
                 continue
             processor_context = TransformContext(
@@ -216,16 +220,20 @@ class ArtifactPipeline:
 
     @staticmethod
     def _validate_original_options(options: ImageSaveOptions) -> None:
-        if options.extension is not None or any(
-            value is not None
-            for value in (
-                options.quality,
-                options.optimize,
-                options.progressive,
-                options.lossless,
-                options.compress_level,
+        if (
+            options.extension is not None
+            or any(
+                value is not None
+                for value in (
+                    options.quality,
+                    options.optimize,
+                    options.progressive,
+                    options.lossless,
+                    options.compress_level,
+                )
             )
-        ) or options.exif:
+            or options.exif
+        ):
             raise ConfigurationError("ORIGINAL image format cannot use an extension or encoder options")
 
     @staticmethod

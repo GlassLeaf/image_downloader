@@ -12,13 +12,15 @@ import pytest
 from PIL import Image
 from pydantic import ValidationError
 
+from image_downloader import DownloadRequest
+from image_downloader.application.image_executor import ImageExecutor
 from image_downloader.config import AppConfig
 from image_downloader.exceptions import ExistingFileConflictError, InterProcessLockError
 from image_downloader.models import Chapter, DownloadManifest, ImageResource
 from image_downloader.observability.logging import DownloadLogger
 from image_downloader.output.output_allocator import OutputAllocator, OutputFormatContext
 from image_downloader.output.output_lock import OutputDirectoryLocks
-from image_downloader.runtime import DownloadService, RuntimeComposer
+from image_downloader.runtime import RuntimeComposer
 from image_downloader.storage import FileSystem
 from image_downloader.storage.interprocess_lock import InterProcessFileLock
 
@@ -289,7 +291,7 @@ def test_cancellation_waits_for_reservation_cleanup_before_unlock(tmp_path: Path
             allocation = await _allocate(
                 allocator, directory, ImageResource("https://example.test/1"), Chapter(1, "x"), ".jpeg"
             )
-            cleanup = asyncio.create_task(DownloadService._settle_allocation(allocation, success=False))
+            cleanup = asyncio.create_task(ImageExecutor._settle_allocation(allocation, success=False))
             await entered.wait()
             cleanup.cancel()
             await asyncio.sleep(0)
@@ -364,7 +366,7 @@ def test_lock_timeout_fails_entire_download_operation(tmp_path: Path) -> None:
         held.acquire()
         try:
             with pytest.raises(InterProcessLockError, match="timed out"):
-                await service.run("https://example.test/gallery")
+                await service.download(DownloadRequest(url="https://example.test/gallery"))
         finally:
             held.release()
             await service.close()

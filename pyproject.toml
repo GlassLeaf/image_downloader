@@ -51,7 +51,7 @@ where = ["src"]
 image_downloader = ["app.yaml", "config-template.yaml"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath = ["src", "tests/v3"]
 testpaths = ["tests/v3"]
 norecursedirs = ["tests/legacy"]
 markers = ["mailpit: opt-in integration tests requiring local Mailpit SMTP and HTTP API"]
@@ -97,5 +97,3 @@ ignore_missing_imports = true
 
 [tool.pydantic-mypy]
 init_typed = true
-
-

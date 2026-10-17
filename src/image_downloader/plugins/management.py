@@ -7,25 +7,25 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from image_downloader.plugins.plugin_catalog import PluginCatalog, _catalog_lock, _write_catalog_unlocked, catalog_path
+from image_downloader.plugins.plugin_files import _is_link
+from image_downloader.plugins.plugin_manifest import (
+    CatalogEntry,
+    PluginManifest,
+    PluginVerificationMode,
+    author_config,
+    read_manifest,
+)
+from image_downloader.plugins.plugin_verification import (
+    collect_plugin_file_tree,
+    plugin_content_digest,
+    verify_signed_plugin_source,
+)
+
 from ..configuration.models import AppConfig
 from ..exceptions import ConfigurationError, PluginError
 from ..storage.path_safety import existing_directory
 from .lifecycle import PluginRecord, _bind_record_sources
-from .plugin_manifest import (
-    CatalogEntry,
-    PluginCatalog,
-    PluginManifest,
-    PluginVerificationMode,
-    _catalog_lock,
-    _is_link,
-    _write_catalog_unlocked,
-    author_config,
-    catalog_path,
-    collect_plugin_file_tree,
-    plugin_content_digest,
-    read_manifest,
-    verify_signed_plugin_source,
-)
 from .runtime import PluginRuntime
 
 

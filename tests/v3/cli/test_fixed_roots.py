@@ -103,7 +103,7 @@ def test_successful_url_creates_roots_and_plugin_list_reuses_the_new_configurati
         return result
 
     class FakeService:
-        async def run(self, url: str, **_: object) -> object:
+        async def download(self, url: str, **_: object) -> object:
             return type("Result", (), {"saved_files": (), "skipped_files": (), "failures": ()})()
 
         async def close(self) -> None:
@@ -146,9 +146,7 @@ def test_missing_user_config_uses_automatic_roots_without_prompting(
     assert not user_config.exists()
 
 
-def test_invalid_user_root_is_rejected_without_repairing_file(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_invalid_user_root_is_rejected_without_repairing_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     user_config = tmp_path / "user" / "conf" / "app.yaml"
     user_config.parent.mkdir(parents=True)
     user_config.write_text(
@@ -172,9 +170,7 @@ def test_missing_user_config_never_reads_interactive_input(
     assert not user_config.exists()
 
 
-def test_profile_init_preserves_automatic_root_configuration(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_profile_init_preserves_automatic_root_configuration(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     config = tmp_path / "user" / "conf" / "app.yaml"
     config.parent.mkdir(parents=True)
     config.write_text("storage: {data_root: null}\nplugins: {root: null}\n", encoding="utf-8")
@@ -200,9 +196,7 @@ def test_profile_init_uses_explicit_configuration_without_rewriting_roots(
     assert (config.parent / "profiles" / "work" / "app.yaml").is_file()
 
 
-def test_default_and_explicit_null_roots_work_noninteractively(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_default_and_explicit_null_roots_work_noninteractively(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     user_config = tmp_path / "user" / "conf" / "app.yaml"
     monkeypatch.setattr(cli_setup, "_user_config_path", lambda: user_config)
 
@@ -404,9 +398,7 @@ def test_config_init_creates_sparse_explicit_configuration(tmp_path: Path) -> No
     assert set(yaml.safe_load(config.read_text(encoding="utf-8"))) == {"storage", "plugins"}
 
 
-def test_config_init_without_roots_creates_sparse_template(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
+def test_config_init_without_roots_creates_sparse_template(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     config = (tmp_path / "conf" / "app.yaml").resolve()
 
     assert asyncio.run(cli.run(build_parser().parse_args(["config", "init", str(config)]))) == EXIT_SUCCESS
@@ -423,9 +415,7 @@ def test_config_init_without_path_uses_fixed_user_location(tmp_path: Path, monke
     assert yaml.safe_load(user_config.read_text(encoding="utf-8")) == {}
 
 
-def test_config_init_with_complete_options_persists_values_without_yes(
-    tmp_path: Path
-) -> None:
+def test_config_init_with_complete_options_persists_values_without_yes(tmp_path: Path) -> None:
     config = (tmp_path / "conf" / "app.yaml").resolve()
     data_root = (tmp_path / "chosen-data").resolve()
     plugins_root = (tmp_path / "chosen-plugins").resolve()

@@ -6,8 +6,9 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
-from test_workflow import FEED, Gallery, attach_transport, compose
+from support.workflow import FEED, Gallery, attach_transport, compose
 
+from image_downloader import WorkflowRequest
 from image_downloader.application.workflow_reporting import history_details
 from image_downloader.application.workflow_state import WorkflowStateService
 from image_downloader.application.workflow_verification import verify_workflow
@@ -162,7 +163,7 @@ def test_actual_workflow_roundtrip_and_query_collision(tmp_path):
         gallery.inspect = inspect
         async with compose(tmp_path, gallery) as service:
             await attach_transport(service)
-            result = await service.workflow(FEED, workflow_retries=0)
+            result = await service.workflow(WorkflowRequest(url=FEED, workflow_retries=0))
             assert result.history_saved
             run = WorkflowStateService(service.config).get_run(result.run_id)
             evidence = run.details["verification"]
@@ -253,7 +254,7 @@ def test_retry_retains_successful_files_and_finishes_failed_image(tmp_path):
                 return await success_transport.handle_async_request(request)
 
             service.gateway.client._transport = httpx.MockTransport(response)
-            result = await service.workflow(FEED, workflow_retries=1, workflow_retry_delay=0)
+            result = await service.workflow(WorkflowRequest(url=FEED, workflow_retries=1, workflow_retry_delay=0))
             run = WorkflowStateService(service.config).get_run(result.run_id)
             verified = verify_workflow(run, service.outputs.root)
             assert verified["status"] == "passed"

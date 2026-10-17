@@ -1,8 +1,8 @@
-# v3 plugin template
+<a id="v3-plugin-template"></a>
 
-この directory は一つの **site plugin unit** の最小骨格です。directory 名は任意で、
-install する source directory は生成済みの `manifest.json`、entry source、author YAML を直接
-含む必要がある。
+# v3プラグインのテンプレート
+
+このディレクトリは、1つの**サイトプラグイン**の最小限の雛形です。ディレクトリ名は任意です。インストールするソースディレクトリには、生成済みの`manifest.json`、入口のソース、作者既定値のYAMLを直接配置してください。
 
 ```text
 sample-plugin/
@@ -12,44 +12,22 @@ sample-plugin/
   sample_plugin.yaml
 ```
 
-manifest を完成させる経路は二つある。
+manifestを完成させる方法は2つあります。
 
-1. **手作業で署名する場合**: `manifest.json.example` を `manifest.json` に copy して完全な
-   manifest と signature を作る。この経路に `plugin-metadata.json` は不要で、`file_tree` にも
-   含めない。
-2. **付属 signer を使う場合**: `plugin-metadata.json.example` を
-   `plugin-metadata.json` に copy して共有 metadata を完成させ、
-   `tools/sign_local_site_plugin.py` で `manifest.json` を生成する。この file は signer 入力であり、
-   runtime は読まない。
+1. **手作業で署名する場合**：`manifest.json.example`を`manifest.json`へコピーし、完全なmanifestと署名を作ります。この方法では`plugin-metadata.json`は不要であり、`file_tree`にも含めません。
+2. **付属の署名ツールを使う場合**：`plugin-metadata.json.example`を`plugin-metadata.json`へコピーして共通メタデータを完成させ、`tools/sign_local_site_plugin.py`で`manifest.json`を生成します。メタデータファイルは署名ツールへの入力であり、実行時には読みません。
 
-手作業の経路では、`manifest.json.example` を copy しただけでは有効ではない。次をすべて実値に
-してから trust/install する。
+手作業で署名する場合は、`manifest.json.example`をコピーするだけでは有効になりません。次をすべて実際の値に置き換えてから、trust・installを行ってください。
 
-1. `id` と `publisher` を reverse-DNS identity にする。ID は publisher + `.` で始める。
-2. `version`、`kind`、`match_priority`、entry filename/class、author YAML path を実装と
-   一致させる。
-3. `sample_plugin.py` と `sample_plugin.yaml` を SHA-256 し、`file_tree` を完成する。helper
-   file を追加した時もすべて含める。signer 経路で `plugin-metadata.json` を置く場合は、その file
-   も含める。
-4. canonical `file_tree` JSON の SHA-256 を `file_tree_sha256` に書く。
-5. raw Ed25519 public key の Base64 と、その raw bytes の SHA-256 hex を
-   `public_key`/`key_id` に書く。
-6. canonical inner manifest を Ed25519 private key で署名し、raw signature の Base64 を
-   wrapper `signature` に書く。
+1. `id`と`publisher`を逆DNS形式の識別子にします。IDはpublisherと`.`を連結した文字列で始めます。
+2. `version`、`kind`、`match_priority`、入口のファイル名・クラス、作者既定値のYAMLのパスを、実装と一致させます。
+3. `sample_plugin.py`と`sample_plugin.yaml`のSHA-256を求め、`file_tree`を完成させます。補助ファイルを追加した場合もすべて含めます。署名ツール用に`plugin-metadata.json`を置く場合は、そのファイルも含めます。
+4. 正規化した`file_tree`のJSONのSHA-256を、`file_tree_sha256`へ設定します。
+5. Ed25519公開鍵の生バイト列をBase64化した値と、そのバイト列のSHA-256の16進表記を、`public_key`・`key_id`へ設定します。
+6. 正規化した内側のmanifestをEd25519秘密鍵で署名し、署名の生バイト列をBase64化して、外側の`signature`へ設定します。
 
-author YAML は必ず `config` だけを root key に持つ。利用者ごとの設定と secret は plugin
-unit に書かず、app config の `plugin_settings.<id>` に置く。`validate_config` は merged
-config を同期的・副作用なしで検証し、成功時は `None` を返す。
+作者既定値のYAMLは、必ず`config`だけをルートキーにします。利用者ごとの設定と秘密情報はプラグイン内に書かず、アプリ設定の`plugin_settings.<id>`へ置きます。`validate_config`はマージ済みの設定を同期的かつ副作用なしで検証し、成功時は`None`を返します。
 
-signer 経路では生成済み `manifest.json` を直接編集しない。metadata、source、author YAML、helper
-を更新して signer を再実行する。`plugin-metadata.json` の schema と再署名規則の詳細は
-[plugin package reference](../../docs/v3/reference/plugin-package.md#plugin-signer-metadata)を参照する。hook 実装は
-[plugin hook reference](../../docs/v3/reference/plugin-hooks.md)を参照する。`sample_plugin.py` の型注釈は
-各 hook の input/output を実装開始時に確認するための即時参照であり、hook の意味、検証、例外は同 reference
-を正本とする。bundled signer は
-`site_plugin` と `image_processor_plugin` の両方を metadata の `kind` に従って署名できる。
+署名ツールを使う場合は、生成済みの`manifest.json`を直接編集しないでください。メタデータ、ソース、作者既定値のYAML、補助ファイルを更新してから、署名ツールを再実行します。`plugin-metadata.json`のスキーマと再署名の規則は[プラグインパッケージリファレンス](../../docs/v3/reference/plugin-package.md#plugin-signer-metadata)、フックの実装は[プラグインフックリファレンス](../../docs/v3/reference/plugin-hooks.md)を参照してください。`sample_plugin.py`の型注釈は、実装開始時に各フックの入出力を確認するためのものです。フックの意味・検証・例外はリファレンスを正本とします。付属の署名ツールは、メタデータの`kind`に応じて`site_plugin`と`image_processor_plugin`の両方を署名できます。
 
-この template は package layout と最低限の protocol を示す skeleton であり、完全な
-<code>DownloadManifest</code>、API cursor pagination、短命 URL の直前解決・再発行は実装していない。
-実装判断は [実行ライフサイクル](../../docs/v3/explanation/execution-lifecycle.md) と
-[plugin 開発参照](../../docs/v3/reference/plugin-hooks.md) を正本とする。
+このテンプレートは、パッケージ構成と最低限のプロトコルを示す雛形です。完全な<code>DownloadManifest</code>、APIのカーソルによるページ分割、短命URLの直前解決・再発行は実装していません。実装上の判断には[実行ライフサイクル](../../docs/v3/explanation/execution-lifecycle.md)と[プラグイン開発リファレンス](../../docs/v3/reference/plugin-hooks.md)を正本として使ってください。

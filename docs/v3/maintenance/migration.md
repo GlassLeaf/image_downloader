@@ -1,15 +1,17 @@
-# Migration
+<a id="migration"></a>
 
-v3 は v1/v2 entry point、descriptor、wheel sidecar、legacy configuration tree を discovery/compatibility read しない。adapter も提供しない。
+# 移行手順
 
-1. site/processor ごとに v3 directory unit を作り、kind を混在させない。
-2. descriptor ID/priority を manifest、author default を `plugin.yaml` の `config:`、user setting を `plugin_settings.<id>.config` へ移す。raw secret は external reference にする。
-3. app/global/site/profile YAML を v3 layer に手動配置し、profile/site layer から bootstrap fields を除く。
-4. new data root の profile directory へ必要な旧 data を確認して copy する。旧 path fallback はない。
-5. tree digest、manifest digest、Ed25519 signature を作り直し、strict install と `doctor --json` で検証する。
-6. plugin root/catalog を backup し、secret reference を再解決し、update-state migration を確認する。
+v3は、v1・v2のエントリーポイント、記述子、wheelの補助ファイル、旧設定ツリーを検出・互換読込みしません。アダプターも提供しません。
 
-v2/v3 を同じ root で同時 discovery できない。新 root で strict validation を完了してから runtime の plugin root を切り替える。update state の schema/migration semantics は [runtime behavior reference](../reference/runtime-behavior.md#runtime-update-state) が正本である。
+1. サイト・プロセッサーごとにv3のプラグイン用ディレクトリを作り、種別を混在させません。
+2. 記述子のID・優先順位をmanifest、作者既定値を`plugin.yaml`の`config:`、利用者設定を`plugin_settings.<id>.config`へ移します。秘密情報そのものは外部参照に置き換えます。
+3. アプリ・全体・サイト・プロファイルのYAMLをv3のレイヤーへ手動で配置し、プロファイル・サイトのレイヤーから起動設定用のフィールドを除きます。
+4. 必要な旧データを確認し、新しいデータルートのプロファイル用ディレクトリへコピーします。旧パスへのフォールバックはありません。
+5. ツリーのダイジェスト、manifestのダイジェスト、Ed25519署名を作り直し、strictモードのインストールと`doctor --json`で検証します。
+6. プラグインルート・カタログをバックアップし、秘密情報の参照を再解決して、更新状態の移行を確認します。
+
+v2とv3を同じルートで同時に検出することはできません。新しいルートで厳密な検証を完了してから、実行時のプラグインルートを切り替えます。更新状態のスキーマと移行の扱いは[実行時動作リファレンス](../reference/runtime-behavior.md#runtime-update-state)を正本とします。
 
 <a id="plugin-secret-environment-migration"></a>
 
@@ -31,7 +33,7 @@ plugin_id = "com.example.a-b"
 reference = "TOKEN"
 prefix = "IMAGE_DOWNLOADER_PLUGIN_"
 
-# Former rule: identify the migration source without reading its value.
+# 旧規則：値を読まずに移行元の名前だけを特定する
 legacy_id = "".join(char if char.isalnum() else "_" for char in plugin_id).upper()
 legacy_reference = "".join(char if char.isalnum() else "_" for char in reference).upper()
 old_name = f"{prefix}{legacy_id}_{legacy_reference}"

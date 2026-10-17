@@ -3,25 +3,19 @@
 from __future__ import annotations
 
 import base64
-import hashlib
-import json
-import os
 import re
-import stat
-import tempfile
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Literal, cast
 
 import yaml
-from cryptography.exceptions import InvalidSignature
-from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 from packaging.version import InvalidVersion, Version
 
+from image_downloader.plugins.plugin_files import _read_json, _require_regular, _sha256, canonical_jcs
+
 from ..exceptions import ConfigurationError, PluginError
-from ..immutable import freeze_json, thaw_json
-from ..storage.interprocess_lock import InterProcessFileLock
+from ..immutable import freeze_json
 from ..storage.path_safety import existing_directory
 
 PluginKind = Literal["site_plugin", "image_processor_plugin"]
@@ -55,31 +49,6 @@ _MANIFEST_FIELDS = frozenset(
         "file_tree_sha256",
     )
 )
-_CATALOG_FIELDS = frozenset(("schema_version", "plugins"))
-_CATALOG_ENTRY_FIELDS = frozenset(
-    (
-        "id",
-        "kind",
-        "publisher",
-        "version",
-        "public_key",
-        "key_id",
-        "manifest_digest",
-        "file_tree_sha256",
-        "selection_priority",
-        "revoked",
-    )
-)
-_CONTENT_PINNED_CATALOG_ENTRY_FIELDS = frozenset(
-    (
-        "id",
-        "kind",
-        "manifest_digest",
-        "content_digest",
-        "selection_priority",
-        "revoked",
-    )
-)
 _ID = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$")
 _SHA256 = re.compile(r"[0-9a-f]{64}$")
 
@@ -95,32 +64,6 @@ def effective_verification_mode(
     return "bypass-all" if configured == "off" else configured
 
 
-def canonical_jcs(value: object) -> bytes:
-    """Canonical JSON bytes for the restricted JSON manifest schema."""
-    return json.dumps(
-        thaw_json(value), ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False
-    ).encode("utf-8")
-
-
-def _sha256(value: bytes) -> str:
-    return hashlib.sha256(value).hexdigest()
-
-
-def _is_link(path: Path) -> bool:
-    try:
-        state = path.lstat()
-    except OSError as exc:
-        raise PluginError(f"cannot inspect plugin path: {path}") from exc
-    return stat.S_ISLNK(state.st_mode) or bool(
-        getattr(state, "st_file_attributes", 0) & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0)
-    )
-
-
-def _require_regular(path: Path, message: str) -> None:
-    if _is_link(path) or not stat.S_ISREG(path.lstat().st_mode):
-        raise PluginError(message)
-
-
 def _relative_path(value: object, *, suffix: str | None = None) -> str:
     if not isinstance(value, str) or not value or "\\" in value:
         raise PluginError("manifest path is invalid")
@@ -130,14 +73,6 @@ def _relative_path(value: object, *, suffix: str | None = None) -> str:
     if suffix and not value.endswith(suffix):
         raise PluginError(f"manifest path must end in {suffix}")
     return value
-
-
-def _read_json(path: Path) -> object:
-    _require_regular(path, "plugin metadata must be a regular non-link file")
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise PluginError("plugin JSON is invalid") from exc
 
 
 @dataclass(frozen=True, slots=True)
@@ -196,145 +131,6 @@ class CatalogEntry:
             "selection_priority": self.selection_priority,
             "revoked": self.revoked,
         }
-
-
-class PluginCatalog:
-    def __init__(self, entries: tuple[CatalogEntry, ...]) -> None:
-        if len({entry.id for entry in entries}) != len(entries):
-            raise ConfigurationError("plugin catalog contains duplicate IDs")
-        self.entries = entries
-
-    @classmethod
-    def load(cls, path: Path) -> PluginCatalog:
-        try:
-            _require_regular(path, "plugin catalog must be a regular non-link file")
-            value = json.loads(path.read_text(encoding="utf-8"))
-            if (
-                not isinstance(value, dict)
-                or set(value) != _CATALOG_FIELDS
-                or value["schema_version"] != 1
-                or not isinstance(value["plugins"], list)
-            ):
-                raise ValueError("schema")
-            entries: list[CatalogEntry] = []
-            for raw in value["plugins"]:
-                if not isinstance(raw, dict):
-                    raise ValueError("entry schema")
-                if set(raw) == _CONTENT_PINNED_CATALOG_ENTRY_FIELDS:
-                    kind = raw["kind"]
-                    if (
-                        kind not in _KINDS
-                        or not _ID.fullmatch(str(raw["id"]))
-                        or not all(_SHA256.fullmatch(str(raw[name])) for name in ("manifest_digest", "content_digest"))
-                        or type(raw["selection_priority"]) is not int
-                        or not isinstance(raw["revoked"], bool)
-                    ):
-                        raise ValueError("content-pinned entry values")
-                    entries.append(
-                        CatalogEntry(
-                            str(raw["id"]),
-                            kind,
-                            str(raw["manifest_digest"]),
-                            raw["selection_priority"],
-                            raw["revoked"],
-                            content_digest=str(raw["content_digest"]),
-                        )
-                    )
-                    continue
-                if set(raw) != _CATALOG_ENTRY_FIELDS:
-                    raise ValueError("entry schema")
-                kind = raw["kind"]
-                if (
-                    kind not in _KINDS
-                    or not _ID.fullmatch(str(raw["id"]))
-                    or not _ID.fullmatch(str(raw["publisher"]))
-                    or not str(raw["id"]).startswith(str(raw["publisher"]) + ".")
-                ):
-                    raise ValueError("identity")
-                Version(str(raw["version"]))
-                if not all(
-                    _SHA256.fullmatch(str(raw[name])) for name in ("key_id", "manifest_digest", "file_tree_sha256")
-                ):
-                    raise ValueError("hash")
-                public = base64.b64decode(str(raw["public_key"]), validate=True)
-                if (
-                    len(public) != 32
-                    or _sha256(public) != raw["key_id"]
-                    or type(raw["selection_priority"]) is not int
-                    or not isinstance(raw["revoked"], bool)
-                ):
-                    raise ValueError("entry values")
-                entries.append(
-                    CatalogEntry(
-                        str(raw["id"]),
-                        kind,
-                        str(raw["manifest_digest"]),
-                        raw["selection_priority"],
-                        raw["revoked"],
-                        str(raw["publisher"]),
-                        str(raw["version"]),
-                        str(raw["public_key"]),
-                        str(raw["key_id"]),
-                        str(raw["file_tree_sha256"]),
-                    )
-                )
-        except (
-            OSError,
-            UnicodeDecodeError,
-            TypeError,
-            ValueError,
-            KeyError,
-            json.JSONDecodeError,
-            InvalidVersion,
-        ) as exc:
-            raise ConfigurationError("plugin catalog is invalid") from exc
-        return cls(tuple(entries))
-
-    def find(self, plugin_id: str) -> CatalogEntry | None:
-        return next((entry for entry in self.entries if entry.id == plugin_id), None)
-
-    def replace(self, entry: CatalogEntry) -> PluginCatalog:
-        return PluginCatalog(tuple(item for item in self.entries if item.id != entry.id) + (entry,))
-
-    def remove(self, plugin_id: str) -> PluginCatalog:
-        return PluginCatalog(tuple(item for item in self.entries if item.id != plugin_id))
-
-
-def catalog_path(plugin_root: Path) -> Path:
-    return plugin_root / "catalog.json"
-
-
-def _catalog_lock(plugin_root: Path) -> InterProcessFileLock:
-    plugin_root = existing_directory(plugin_root, "plugin root")
-    plugin_root.mkdir(parents=True, exist_ok=True)
-    plugin_root = existing_directory(plugin_root, "plugin root", required=True)
-    return InterProcessFileLock(plugin_root / ".catalog.lock")
-
-
-def _write_catalog_unlocked(plugin_root: Path, catalog: PluginCatalog) -> None:
-    plugin_root = existing_directory(plugin_root, "plugin root")
-    plugin_root.mkdir(parents=True, exist_ok=True)
-    plugin_root = existing_directory(plugin_root, "plugin root", required=True)
-    payload = canonical_jcs(
-        {
-            "schema_version": 1,
-            "plugins": [entry.as_json() for entry in sorted(catalog.entries, key=lambda item: item.id)],
-        }
-    )
-    descriptor, temporary = tempfile.mkstemp(prefix=".catalog-", suffix=".json", dir=plugin_root)
-    try:
-        with os.fdopen(descriptor, "wb") as stream:
-            stream.write(payload)
-            stream.flush()
-            os.fsync(stream.fileno())
-        Path(temporary).replace(catalog_path(plugin_root))
-    finally:
-        Path(temporary).unlink(missing_ok=True)
-
-
-def write_catalog(plugin_root: Path, catalog: PluginCatalog) -> None:
-    with _catalog_lock(plugin_root):
-        _write_catalog_unlocked(plugin_root, catalog)
 
 
 def _manifest_file_tree(manifest: dict[str, Any], entry: dict[str, Any]) -> dict[str, str]:
@@ -473,142 +269,6 @@ def read_manifest(directory: Path, *, mode: PluginVerificationMode = "strict") -
         if _relaxed_manifest_mode(mode)
         else _validate_manifest(value, directory)
     )
-
-
-def collect_plugin_file_tree(directory: Path) -> dict[str, str]:
-    """Collect exactly the files covered by a signed plugin manifest."""
-    tree: dict[str, str] = {}
-    for current, dirs, files in os.walk(directory, topdown=True, followlinks=False):
-        current_path = Path(current)
-        if _is_link(current_path):
-            raise PluginError("plugin tree contains a link or reparse point")
-        for name in dirs:
-            candidate = current_path / name
-            if _is_link(candidate):
-                raise PluginError("plugin tree contains a link or reparse point")
-        for name in files:
-            candidate = current_path / name
-            if _is_link(candidate):
-                raise PluginError("plugin tree contains a link or reparse point")
-            _require_regular(candidate, "plugin tree contains a non-regular file")
-            relative = candidate.relative_to(directory).as_posix()
-            if relative == "manifest.json" or (
-                "__pycache__" in PurePosixPath(relative).parts and relative.endswith(".pyc")
-            ):
-                continue
-            tree[relative] = _sha256(candidate.read_bytes())
-    return dict(sorted(tree.items()))
-
-
-def verify_plugin_tree(manifest: PluginManifest) -> None:
-    """Verify the declared tree and its aggregate digest against local files."""
-    _verified_plugin_tree(manifest)
-
-
-def _verified_plugin_tree(manifest: PluginManifest) -> dict[str, str]:
-    """Return the exact tree accepted by the declared content hashes."""
-    actual = collect_plugin_file_tree(manifest.directory)
-    declared_tree = manifest.value.get("file_tree")
-    declared_digest = manifest.value.get("file_tree_sha256")
-    if not isinstance(declared_tree, Mapping) or not isinstance(declared_digest, str):
-        raise PluginError("manifest file tree is invalid")
-    expected = {str(key): str(value) for key, value in declared_tree.items()}
-    if actual != expected or _sha256(canonical_jcs(actual)) != declared_digest:
-        raise PluginError("plugin file tree hash does not match")
-    return actual
-
-
-def plugin_content_digest(directory: Path) -> str:
-    """Return the canonical digest of every regular plugin file."""
-    return _sha256(canonical_jcs(collect_plugin_file_tree(directory)))
-
-
-def verify_plugin_signature(manifest: PluginManifest, *, public_key: str | None = None) -> None:
-    """Verify a manifest signature with an explicitly pinned or declared key."""
-    try:
-        if manifest.signature is None:
-            raise ValueError("signature missing")
-        key = public_key or manifest.value.get("public_key")
-        if not isinstance(key, str):
-            raise ValueError("public key missing")
-        public = base64.b64decode(key, validate=True)
-        Ed25519PublicKey.from_public_bytes(public).verify(
-            base64.b64decode(manifest.signature, validate=True), canonical_jcs(manifest.value)
-        )
-    except (TypeError, ValueError, InvalidSignature) as exc:
-        raise PluginError("plugin signature is invalid") from exc
-
-
-def verify_signed_plugin_source(manifest: PluginManifest) -> None:
-    """Apply the complete source validation shared by trust and install."""
-    verify_plugin_tree(manifest)
-    verify_plugin_signature(manifest)
-
-
-def _legacy_catalog_pin_matches(manifest: PluginManifest, entry: CatalogEntry) -> bool:
-    return (
-        not entry.content_pinned
-        and entry.kind == manifest.kind
-        and entry.publisher == manifest.value.get("publisher")
-        and entry.version == manifest.value.get("version")
-        and entry.public_key == manifest.value.get("public_key")
-        and entry.key_id == manifest.value.get("key_id")
-        and entry.manifest_digest == manifest.digest
-        and entry.file_tree_sha256 == manifest.value.get("file_tree_sha256")
-    )
-
-
-def verify_manifest(
-    manifest: PluginManifest,
-    catalog: PluginCatalog | None,
-    *,
-    mode: PluginVerificationMode,
-) -> CatalogEntry | None:
-    """Validate one manifest under the selected CLI/runtime policy."""
-    entry, _ = _verify_manifest_with_tree(manifest, catalog, mode=mode)
-    return entry
-
-
-def _verify_manifest_with_tree(
-    manifest: PluginManifest,
-    catalog: PluginCatalog | None,
-    *,
-    mode: PluginVerificationMode,
-) -> tuple[CatalogEntry | None, dict[str, str] | None]:
-    """Keep the very same tree used to accept a signature or content pin."""
-    if mode in {"off", "bypass-all"}:
-        return None, None
-    actual: dict[str, str] | None = None
-    if mode == "bypass-catalog":
-        actual = _verified_plugin_tree(manifest)
-        verify_plugin_signature(manifest)
-        return None, actual
-    if mode in {"strict", "warn"}:
-        actual = _verified_plugin_tree(manifest)
-    if catalog is None:
-        raise PluginError("plugin catalog is unavailable")
-    entry = catalog.find(manifest.id)
-    if entry is None or entry.revoked:
-        raise PluginError("plugin is not trusted")
-    if mode == "bypass-signature":
-        if entry.content_pinned:
-            actual = collect_plugin_file_tree(manifest.directory)
-            matches = (
-                entry.kind == manifest.kind
-                and entry.manifest_digest == manifest.digest
-                and entry.content_digest == _sha256(canonical_jcs(actual))
-            )
-        else:
-            matches = _legacy_catalog_pin_matches(manifest, entry)
-            if matches:
-                actual = _verified_plugin_tree(manifest)
-        if not matches:
-            raise PluginError("plugin catalog pin does not match manifest")
-        return entry, actual
-    if not _legacy_catalog_pin_matches(manifest, entry):
-        raise PluginError("plugin catalog pin does not match manifest")
-    verify_plugin_signature(manifest, public_key=entry.public_key)
-    return entry, actual
 
 
 def author_config(manifest: PluginManifest) -> Mapping[str, Any]:

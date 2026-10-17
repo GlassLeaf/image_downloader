@@ -2,6 +2,13 @@
 
 from .application.composer import RuntimeComposer
 from .application.dependencies import _RuntimeDependencies as _RuntimeDependencies
+from .application.requests import (
+    DownloadRequest,
+    InspectRequest,
+    UpdateCheckRequest,
+    WorkflowPlanRequest,
+    WorkflowRequest,
+)
 from .application.service import DownloadService
 from .credentials.plugin_secrets import RuntimeSecrets
 from .media.artifact_pipeline import ArtifactPipeline
@@ -11,6 +18,11 @@ from .storage.state import UpdateState
 from .transport.gateway import RequestGateway
 
 __all__ = [
+    "DownloadRequest",
+    "InspectRequest",
+    "UpdateCheckRequest",
+    "WorkflowPlanRequest",
+    "WorkflowRequest",
     "ArtifactPipeline",
     "ChapterReporter",
     "DownloadService",

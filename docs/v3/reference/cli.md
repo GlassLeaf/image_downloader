@@ -1,4 +1,6 @@
-# CLI reference
+<a id="cli-reference"></a>
+
+# CLI参照
 
 <a id="cli-forms"></a>
 
@@ -16,7 +18,7 @@ image-downloader --workflow-progress-log enabled workflow URL --json
 通常JSONの`workflow_log`に保存状況・警告を返す。
 原文URLの記録と制限は[専用ログ](logging.md#workflow-execution-files)を参照する。
 
-Canonical command forms are:
+正規のコマンド形式は次のとおりです。
 
 ```text
 image-downloader download URL [--force-image-format FORMAT] [options]
@@ -35,48 +37,34 @@ image-downloader cookie export|import|browser-import VALUE [options]
 image-downloader help [COMMAND [SUBCOMMAND ...]]
 ```
 
-legacy `--export-cookies`、`--import-cookies`、`--import-browser-cookies` select one cookie action and cannot be combined. `URL` bare form is rewritten to `download`.
+従来の`--export-cookies`、`--import-cookies`、`--import-browser-cookies`は、Cookie操作を一つ選ぶ指定であり、併用できません。`URL`を単独で指定する形式は`download`へ読み替えます。
 
 <a id="cli-state-effects"></a>
 
-config 作成・rewrite の command ごとの副作用は [configuration reference](configuration.md#config-layers) が正本である。`config path` と `config explain` は観測専用である。
+config 作成・rewrite の command ごとの副作用は [設定リファレンス](configuration.md#config-layers) が正本である。`config path` と `config explain` は観測専用である。
 
-## Option acceptance and effect
+<a id="option-acceptance-and-effect"></a>
 
-### Workflow
+## オプションの受理と効果
 
-`workflow URL --dry-run` performs one live feed check and previews initial-round URL selection.
-It accepts `--download-scope all|updated` and existing workflow options, including options before the command.
-`--dry-run` is also accepted by `state workflow prune`; all other commands and the bare-URL download form reject it. Existing option validation and
-exclusions remain; retry options are validated but no waits or additional rounds run.
+<a id="workflow"></a>
 
-The preview displays selected/excluded candidates and reasons (`all`, `added`, `changed`, `unfinished`,
-or excluded `completed`), removed candidates, and candidate/selected-URL counts. URLs are deduplicated for
-selection in feed order; candidates sharing a URL share its selection and reasons.
-It does not inspect target manifests, fetch/process/save images, predict image counts/output filenames/file
-conflicts, or prove that downloads will succeed. Output/format/existing-file options are accepted but not simulated.
+### ワークフロー
 
-The command does not update `updates.json` or `workflow.json`, initialize/rewrite configuration, save cookies
-or file logs, or send notifications. Existing cookies are read into a detached session; authentication refresh
-and ordinary HTTP retries can occur, but session changes are discarded. Lock files and their parent directories
-may be created. Feed/plugin authentication, check and cleanup code actually runs; plugin-defined external
-side effects are not sandboxed. The next real workflow checks the feed again; a preview does not reserve its list.
+`workflow URL --dry-run`は、実際にフィードを一度確認し、初回周回のURL選択を事前表示します。`--download-scope all|updated`と、コマンド前の指定を含む既存のワークフローオプションを受理します。`--dry-run`は`state workflow prune`でも使えますが、他のコマンドとURL単独のダウンロード形式では拒否します。既存の値検証と排他条件は維持し、再試行オプションは検証するものの、待機や追加周回は実行しません。
 
-With `--json`, one safe document contains `operation="workflow"`, `dry_run=true`, `source_url`,
-`download_scope`, `plugin_id`, `first_run`, `checked_at`, `candidates`, `changes`, `selected_urls`, `items`,
-`summary`, `stop_error`, and `cancelled`. Items contain `candidate`, `selected`, and `reasons`; summary counts
-`candidates`, `selected_urls`, `selected_candidates`, `excluded_candidates`, and `removed_candidates`.
-`first_run` is null until history comparison finishes, otherwise indicates that this plugin/feed has no workflow history.
-Failures retain confirmed preview information where available. Plugin stdout goes to stderr in preview mode.
-Successful previews, including empty selection, return 0; errors retain existing exception-specific codes and
-user cancellation returns 130. A preview never returns download partial-success code 5.
+事前表示には、選択・除外された候補と理由（`all`、`added`、`changed`、`unfinished`、完了済みで除外する`completed`）、削除候補、候補数・選択URL数を示します。選択時はフィード順を維持してURLを重複排除し、同じURLを持つ候補は選択結果と理由を共有します。対象manifestの検査、画像の取得・加工・保存、画像件数・出力名・ファイル競合の予測、取得成功の保証は行いません。出力・形式・既存ファイルのオプションは受理しますが、その動作はシミュレーションしません。
+
+このコマンドは、`updates.json`・`workflow.json`の更新、設定の初期化・書き換え、Cookie・ファイルログの保存、通知送信を行いません。既存Cookieを独立したセッションへ読み込み、認証更新や通常のHTTP再試行は起こり得ますが、セッションの変更は破棄します。lockファイルと親ディレクトリは作成する場合があります。フィード・プラグインの認証、確認、後始末のコードは実行し、プラグインが起こす外部への副作用はサンドボックスで隔離しません。次の本実行ではフィードを再確認し、事前表示した一覧を予約するものではありません。
+
+`--json`では、安全な一つの文書に`operation="workflow"`、`dry_run=true`、`source_url`、`download_scope`、`plugin_id`、`first_run`、`checked_at`、`candidates`、`changes`、`selected_urls`、`items`、`summary`、`stop_error`、`cancelled`を含めます。各項目は`candidate`・`selected`・`reasons`を持ち、集計は`candidates`・`selected_urls`・`selected_candidates`・`excluded_candidates`・`removed_candidates`を数えます。`first_run`は履歴比較が完了するまではnullで、その後は当該プラグイン・フィードの履歴がないことを示します。失敗時も確定済みの事前確認情報を保持します。このモードではプラグインの標準出力を標準エラー出力へ送ります。空の選択を含め、成功時は0、エラーは既存の例外別終了コード、利用者キャンセルは130です。ダウンロードの部分成功を表す5は返しません。
 
 ```sh
 image-downloader workflow https://example.test/feed --dry-run
 image-downloader --dry-run workflow https://example.test/feed --download-scope all --json
 ```
 
-`workflow URL` checks the selected update provider, then downloads selected URLs sequentially.
+`workflow URL`は、選択した更新確認プラグインを呼び、その後で選択URLを順にダウンロードします。
 
 画像・付属ファイルの保存先は通常downloadと同じ`<profile>/downloads`で、`--output-dir`で変更する。
 workflow専用の画像ディレクトリは作らず、`output.directory_format`も通常どおり適用する。
@@ -85,93 +73,46 @@ workflow専用の画像ディレクトリは作らず、`output.directory_format
 実行履歴は`<profile>/state/workflow-history.json`に残る。
 対象ページURLと実際の画像要求URLの記録先・伏字の違いは[ログの保存先とURL](logging.md#workflow-output-locations)を参照する。
 
-`core.generic-html` also supports workflow: the only candidate is the requested page itself, not linked
-pages. Its revision compares the ordered extracted image URL/index/image_id list (duplicates included),
-ignoring title/body/save settings. URL query or ordering changes count as updates; changed image bytes
-at unchanged URLs cannot be detected. HTML is fetched once for the check and again for each selected
-page manifest; retry image retention uses the existing rules. A page with zero images is still a candidate
-and succeeds, matching normal download's one empty chapter. The empty-manifest setting controls zero
-chapters. An update-incompatible plugin reports `update_check_unsupported`, with exit code 4.
+`core.generic-html`もワークフローに対応します。候補は要求ページ自体だけで、リンク先ページは含めません。revisionは、重複を含む抽出画像のURL・index・image_idの順序付き一覧を比較し、タイトル・本文・保存設定は無視します。URLクエリや順序の変化は更新になりますが、URLが同じまま画像本体が変化しても検知できません。HTMLは確認時と、選択したページのmanifest取得時にそれぞれ取り直します。再試行で画像結果を保持する規則は従来どおりです。画像0件のページも候補となり、通常ダウンロードと同じく空の章一つで成功します。空manifestの設定が制御するのは章0件の場合です。更新非対応のプラグインは`update_check_unsupported`を報告し、終了コードは4です。
 
 ```text
 image-downloader workflow https://example.test/gallery --fallback-generic enabled
 image-downloader workflow https://example.test/gallery --fallback-generic enabled --dry-run --json
 ```
-`--download-scope updated` is the default: select added/changed candidates and unfinished candidates still present.
-`--download-scope all` selects the entire current snapshot. The first workflow run selects all candidates.
-Removed candidates are never downloaded; a removed candidate that reappears is added again.
-Comparison uses workflow history, independently of `--list-updated-urls` history.
+既定の`--download-scope updated`は、追加・変更された候補と、現在も存在する未完了候補を選びます。`--download-scope all`は現在のスナップショット全体を選びます。初回実行は全候補を選びます。削除候補は取得せず、再出現した候補は再度追加として扱います。比較には専用のワークフロー履歴を使い、`--list-updated-urls`の履歴から独立しています。
 
-Configuration/profile/root/security, plugin configuration/selection/fallback/download-policy, output-directory,
-directory-format, existing-file, image-format/force-image-format, JSON and console options apply to workflow.
-Existing precedence and exclusions remain: image-format versus force-image-format; plugin versus force-plugin;
-explicit plugin selection versus explicit fallback. Explicit plugin selection applies to the feed and every target.
-Site configuration is resolved for the feed and shared across targets, including cookies and connections.
-`--yes` is accepted without introducing another confirmation.
-`--download-scope` is accepted before/after `workflow`, and rejected by other commands.
-Update-listing, inspection, cookie actions, `--host` and `--selection-priority` are rejected by workflow,
-including when supplied before the command.
+設定・プロファイル・ルート・セキュリティ、プラグイン設定・選択・フォールバック・取得方針、出力先、ディレクトリ形式、既存ファイル、画像形式・強制画像形式、JSON、コンソールの指定はワークフローにも適用します。既存の優先順位と排他条件、つまりimage-formatとforce-image-format、pluginとforce-plugin、明示的なプラグイン選択と明示的なフォールバックの排他を維持します。明示的なプラグイン選択はフィードと全対象へ適用します。サイト設定はフィードに対して解決し、Cookie・接続を含めて対象間で共有します。`--yes`は受理しますが、新たな確認は追加しません。`--download-scope`は`workflow`の前後で受理し、他のコマンドでは拒否します。更新一覧、検査、Cookie操作、`--host`、`--selection-priority`は、コマンド前に指定した場合も拒否します。
 
-Output/configuration changes do not themselves make a completed candidate updated: use `all` to download again
-with new output settings. Existing-file policy is unchanged, including fetching/processing before `skip`.
-An unfinished URL with a retryable failure is retried after the initial round. Each retry round refreshes
-the feed and target manifests, removes disappeared URLs, and processes remaining failures plus new/changed URLs.
-Unchanged successful/skip image outcomes are retained within this invocation, including with scope `all`.
-Next invocation still uses URL-level unfinished state and ordinary existing-file policy.
+出力や設定を変えただけでは、完了済み候補を更新扱いにしません。新しい出力設定で再取得する場合は`all`を使ってください。`skip`でも取得・加工を先に行う点を含め、既存ファイル方針は維持します。再試行可能な失敗がある未完了URLは、初回周回後に再試行します。各再試行でフィードと対象manifestを取り直し、消えたURLを除外して、残った失敗と追加・変更URLを処理します。同じ呼び出し内では、`all`であっても変更のない成功・skip画像結果を保持します。次の呼び出しではURL単位の未完了状態と通常の既存ファイル方針を使います。
 
 URL候補の更新判定と、対象URL内の画像の変更判定は別である。画像は`ImageResource`の全フィールドを
 比較し、同じ`image_id`でも画像URLのクエリ、`referer`／`headers`、`save_options`、`original_filename`
 などが変われば再取得する。画像本体や実際の要求URLは比較しない。
-条件表と既知の制限は[runtime behavior](runtime-behavior.md#workflow-retry-rounds)、
-具体例は[workflow FAQ](../how-to/faq.md#workflow-retry-faq)を参照する。
+条件表と既知の制限は[実行時動作](runtime-behavior.md#workflow-retry-rounds)、
+具体例は[workflowのFAQ](../how-to/faq.md#workflow-retry-faq)を参照する。
 
-| workflow-only option | default | behavior |
+| ワークフロー専用オプション | 既定値 | 動作 |
 | --- | --- | --- |
-| `--workflow-retries` N | 1 | Additional rounds; non-negative integer. 0 disables retries. |
-| `--workflow-retry-delay` SECONDS | 600 | Fixed wait before each retry round; finite, non-negative number. |
-| `--workflow-retry-timeout` SECONDS | unlimited | Positive finite retry duration after the initial round, including waits/checks/downloads. |
+| `--workflow-retries` N | 1 | 追加の周回数。0以上の整数。0で再試行を無効化する。 |
+| `--workflow-retry-delay` SECONDS | 600 | 各再試行前の固定待機時間。有限かつ0以上の数値。 |
+| `--workflow-retry-timeout` SECONDS | 制限なし | 初回周回後の、待機・確認・取得を含む再試行期間。有限かつ正の数値。 |
 
-These options work before/after `workflow` and are rejected by other commands. No configuration-file keys are added.
-All-success runs finish immediately without waiting or watching for further updates. Timeout cancels active work,
-then finishes cleanup and started writes; shutdown may exceed the requested duration. The same-feed process lock
-remains held during the 10-minute default wait. Changed images still use the existing-file policy:
-`rename` can create additional files and `error` can fail on an existing output.
+これらのオプションは`workflow`の前後で指定でき、他のコマンドでは拒否します。設定ファイルのキーは追加しません。全件成功時は、その後の更新を待機・監視せず終了します。時間切れでは実行中の処理をキャンセルし、後始末と開始済み書き込みを確定するため、終了が指定時間を超える場合があります。同一フィードのプロセス間lockは、既定10分の待機中も保持します。変更画像にも既存ファイル方針を適用するため、`rename`では追加ファイルができ、`error`では既存出力との競合により失敗する場合があります。
 
-Without `--workflow-retry-timeout`, retry rounds have no overall time limit, although their count is bounded
-and HTTP/lock acquisition has separate timeouts. Plugin hooks and cleanup have no dedicated forced-stop
-deadline; a stalled plugin or OS I/O can leave execution waiting indefinitely. Even with a retry deadline,
-synchronous blocking code cannot be forcibly interrupted and cleanup/started writes may wait past the deadline
-without a guaranteed upper bound. The initial round has no overall deadline in either case. See
-[timeout boundaries](runtime-behavior.md#workflow-timeout-boundaries) for slow streaming, locks and cancellation limits.
+`--workflow-retry-timeout`を省略した場合、周回数は有限ですが再試行全体の時間制限はありません。HTTPとlock取得には別の時間制限があります。プラグインフックと後始末には強制停止用の専用期限がなく、プラグインやOSのI/Oが停止すると無期限に待つ場合があります。再試行期限を指定しても、同期のブロッキング処理は強制中断できず、後始末や開始済み書き込みが期限を超えて待ち続ける場合の上限は保証しません。どちらの場合も初回周回には全体期限がありません。低速ストリーミング、lock、キャンセルの制限は[時間制限の境界](runtime-behavior.md#workflow-timeout-boundaries)を参照してください。
 
 ```sh
 image-downloader workflow https://example.test/feed --workflow-retries 2 --workflow-retry-delay 30 --workflow-retry-timeout 300 --json
 image-downloader workflow https://example.test/feed --workflow-retries 0
 ```
 
-Retryable failures include transport errors, authentication, plugin failures and image processing errors.
-Missing secrets, unsupported features/formats, redirect/size/dimension limits, closed processors, permanent HTTP
-4xx responses (except 401/403/408/429), storage failures and file conflicts are excluded. 5xx is retryable.
-Configuration/state/lock errors and unexpected internal exceptions stop the workflow. HTTP-level retries remain active.
+再試行の対象には、通信・認証・プラグイン・画像処理の失敗を含めます。秘密情報の未設定、非対応機能・形式、リダイレクト・サイズ・画素数の制限、終了済み画像処理、恒久的なHTTP 4xx（401・403・408・429を除く）、保存失敗、ファイル競合は対象外です。5xxは再試行できます。設定・状態・lockのエラーと予期しない内部例外はワークフローを停止します。HTTP単位の再試行も引き続き有効です。
 
-JSON emits one document containing `operation`, `source_url`, `download_scope`, `checked_at`, `candidates`,
-`changes`, `selected_urls`, `items`, `summary`, `stop_error`, and `cancelled`.
-Each item contains safe `url`, `reasons`, `status`, `download` and `error`;
-download reuses `saved`, `skipped`, `failures`. Reasons are `all`, `added`, `changed`, `unfinished`.
-Statuses are `success`, `partial`, `failed`, `unprocessed`, `removed`; summary counts these statuses.
-JSON additionally includes retry settings, `rounds`, per-item `attempts`, and `timed_out`.
-`outcome` distinguishes `success`, `incomplete`, `stopped`, `timed_out`, and `cancelled`
-(cancellation takes precedence over timeout, then stop, then incomplete URL results).
-Normal output labels counts as `URL results` separately from the overall outcome. A stop before
-the snapshot is established says `update check result: not established`; zero failed URLs does not imply success.
+JSONは`operation`、`source_url`、`download_scope`、`checked_at`、`candidates`、`changes`、`selected_urls`、`items`、`summary`、`stop_error`、`cancelled`を持つ一文書です。各項目は安全な`url`、`reasons`、`status`、`download`、`error`を持ち、downloadは`saved`・`skipped`・`failures`を再利用します。理由は`all`・`added`・`changed`・`unfinished`、状態は`success`・`partial`・`failed`・`unprocessed`・`removed`で、集計はこれらの状態を数えます。再試行設定、`rounds`、項目ごとの`attempts`、`timed_out`も含めます。全体の`outcome`は`success`・`incomplete`・`stopped`・`timed_out`・`cancelled`を区別し、キャンセル、時間切れ、停止、URL単位の未完了の順に優先します。通常表示では`URL results`の件数と全体結果を分けます。スナップショット確定前の停止は`update check result: not established`と表示し、失敗URLが0件でも成功とは限りません。
 
-Normal workflow output also explains round 0's target selection before the URL counters.
-`Initial selection: candidates=N selected_urls=M` counts plugin candidates and distinct selected URLs
-separately (multiple candidates can share one URL). `Selection` explains all scope, added/changed candidates,
-or previously unfinished candidates. Candidate removals are reported separately. Later retry rounds do not
-replace this initial selection explanation; their details remain in the round output.
+通常表示では、URL集計より前に周回0の対象選択も説明します。`Initial selection: candidates=N selected_urls=M`は、プラグインの候補数と重複を除いた選択URL数を分けて数えます。同じURLを複数候補が共有する場合があるためです。`Selection`は全件指定、追加・変更候補、以前の未完了候補のどれが理由かを説明し、候補の削除は別に報告します。後の再試行で初回選択の説明を上書きせず、再試行の詳細は周回別の出力に残します。
 
-With `updated`, completed candidates whose comparison fields are unchanged can produce:
+`updated`では、完了済み候補の比較対象フィールドが変わっていない場合、次のように表示することがあります。
 
 ```text
 workflow (updated): success
@@ -181,19 +122,9 @@ First-run status is not recorded; added candidates do not necessarily indicate a
 URL results: success=0 partial=0 failed=0 unprocessed=0 removed=0
 ```
 
-This is one normally completed workflow execution with zero download targets, and it creates one saved run
-when history recording succeeds. URL counters count target results, not workflow executions. Empty snapshots
-instead say `plugin returned no candidates`; stops before selection say it was not established. Missing
-round-0 information says selection details were not recorded. First-run status is not recorded and is not
-inferred from added candidates. “Unchanged” concerns the plugin snapshot comparison, not image-byte verification.
+これは取得対象0件で正常終了したワークフロー実行であり、履歴記録が成功すれば実行履歴を一つ保存します。URL集計は対象の結果数であり、ワークフローの実行回数ではありません。空のスナップショットなら`plugin returned no candidates`、選択前の停止なら選択未確定を表示します。周回0の情報がなければ、選択詳細が記録されていないことを示します。初回実行かどうかは記録せず、追加候補から推測もしません。「変更なし」はプラグインのスナップショット比較を指し、画像のバイト列の検証ではありません。
 
-Rounds expose snapshots/differences/selected/removed URLs and stop information; the top-level snapshot and changes
-refer to the latest successfully prepared round. Attempts expose merged download results and image positions,
-safe locators/paths, status, `attempted`, and `retained`. Round 0 is the initial round.
-Intermediate failures remain in logs/events/JSON; download notifications contain only final results.
-Stopped workflows retain completed results and unprocessed targets. Diagnostics go to stderr in JSON mode.
-Success or no selected targets returns 0; image/URL failures with saved/skipped files return 5;
-failures without saved/skipped files return 1. Fatal stops use existing exception codes, cancellation uses 130.
+周回別の結果は、スナップショット・差分・選択URL・削除URL・停止情報を公開します。最上位のスナップショットと差分は、準備が成功した最新周回のものです。試行結果は、統合したダウンロード結果、画像位置、安全なlocator・パス、状態、`attempted`、`retained`を持ち、周回0が初回です。途中の失敗はログ・イベント・JSONへ残し、ダウンロード通知は最終結果だけを含めます。停止時も完了済み結果と未処理対象を保持し、JSONモードの診断は標準エラー出力へ送ります。成功・選択対象なしは0、保存・skipを伴う画像・URL失敗は5、保存・skipのない失敗は1です。重大な停止は既存の例外別コード、キャンセルは130です。
 
 更新一覧取得中の`PluginError`は全体停止（通常4）だが、個別URLの`PluginError`は失敗として記録し、
 次のURLへ進む。通常の`plugin_error`は追加周回の対象となる。発生箇所ごとの規則は
@@ -207,163 +138,152 @@ failures without saved/skipped files return 1. Fatal stops use existing exceptio
 
 <a id="cli-options"></a>
 
-`--json` is accepted by every command. **Accepted** does not imply an effect. Incompatible options raise `ArgumentError` before configuration resolution. Options can appear before the command, between subcommands, or after operands; acceptance and diagnostic precedence are the same at each position. Only complete option names and documented aliases are accepted; abbreviations such as `--j` and `--list` are rejected.
+`--json`は全コマンドで受理します。**受理される指定でも効果があるとは限りません**。適用できないオプションは、設定解決前に`ArgumentError`となります。オプションはコマンド前、サブコマンド間、位置引数の後に置くことができ、受理条件と診断の優先順位は同じです。完全なオプション名と文書化した別名だけを受理し、`--j`や`--list`のような省略形は拒否します。
 
-Scalar options use the last supplied value. Repeated JSON/file options retain their order, with all file overrides merged before inline overrides. Explicit defaults still count as supplied options: `plugin list --selection-priority 0` is invalid. `--` ends option recognition; following strings are positional operands.
+単一値のオプションは最後の指定を使います。繰り返し可能なJSON・ファイル指定は順序を保ち、すべてのファイル上書きを先に、その後でインライン指定を合成します。既定値と同じ値の明示指定も指定済みとして扱うため、`plugin list --selection-priority 0`は不正です。`--`でオプション認識を終了し、それ以降の文字列を位置引数として扱います。
 
-Bare operands select download only when they are absolute HTTP(S) URLs with a host. The same URL requirement applies to explicit download, inspect, and workflow commands. Other words are unknown commands.
+位置引数だけでdownloadを選ぶのは、ホストを持つ絶対HTTP(S) URLの場合だけです。明示的なdownload・inspect・workflowにも同じURL条件を適用します。その他の単語は未知のコマンドです。
 
-`help`, `help plugin`, and `help config profile` show the corresponding help and exit 0. Unknown or excess help targets are argument errors. `--help` and `-h` stop parsing early; a missing option value before help remains an error. Help is always text on stdout, including with `--json`, and does not initialize configuration, plugins, or Cookie stores.
+`help`、`help plugin`、`help config profile`は対応するヘルプを表示し、0で終了します。未知の対象や過剰な引数は引数エラーです。`--help`と`-h`は解析を早期終了しますが、それより前にオプション値が欠けていればエラーです。`--json`でもヘルプは常に標準出力のテキストで、設定・プラグイン・Cookie保存先は初期化しません。
 
-| option | accepted and effective commands | accepted/no effect or rejected behavior |
+| オプション | 受理され効果があるコマンド | 受理しても効果がない場合・拒否する場合 |
 | --- | --- | --- |
-| `--config PATH` | download, inspect, doctor, config explain/profile init, plugin, cookie | rejected by config path/init |
-| `--profile NAME` | download, inspect, doctor, config explain, plugin, cookie | rejected by config path/init/profile init |
-| `--data-root PATH`, `--plugin-root PATH` | download, inspect, doctor, config explain/init, plugin, cookie | rejected by config path and profile init |
-| `--yes` | plugin install/trust/revoke/uninstall confirmation | config init/profile init accept it but do not require or use confirmation; other parsed uses do not approve a mutation |
-| `--plugin-verification-override MODE` | download, inspect, doctor, plugin | config commands may report the parsed value but do not perform verification; cookie has no verification effect |
-| `--plugin-config ID=JSON`, `--plugin-config-file PATH`, `--fallback-generic` | download, inspect, doctor | rejected by config, plugin, cookie |
-| `--plugin ID`, `--force-plugin ID` | download（`--list-updated-urls` を含む）, inspect | rejected by doctor, config, plugin, cookie |
-| `--plugin-download-policy ID=JSON`, `--plugin-download-policy-file PATH` | download（`--list-updated-urls` を含む） | inspection を含む他 command では rejected |
-| `--no-console-log`, `--existing-file`, `--image-format` | download, doctor, config explain where handler permits them | inspection、cookie、other config/plugin operations では rejected |
-| `--force-image-format FORMAT` | normal download and bare-URL download | `--image-format` と排他的。inspect、doctor、config、plugin、cookie、update listing では rejected |
-| `--output-dir ABSOLUTE_PATH`, `--directory-format FORMAT` | normal download and bare-URL download | `download --inspect-only` と `--list-updated-urls` では accepted/no effect。inspect、doctor、config、plugin、cookie では rejected |
-| `--list-updated-urls` | download | rejected elsewhere |
-| `--inspect-only` | `download URL` の inspection alias | `--list-updated-urls` と排他的 |
-| `--manifest-only` | inspect, `download URL --inspect-only` | normal download では rejected。`create_image_request()` を呼ばない |
-| `--inspection-data url\|http\|all` | inspect, `download URL --inspect-only` | stdout の inspection data level。既定は `url`。normal download では rejected |
-| `--host` | doctor, config explain | rejected elsewhere |
-| `--selection-priority INT` | plugin install/trust | rejected elsewhere |
+| `--config PATH` | download、inspect、doctor、config explain/profile init、plugin、cookie | config path/initでは拒否 |
+| `--profile NAME` | download、inspect、doctor、config explain、plugin、cookie | config path/init/profile initでは拒否 |
+| `--data-root PATH`、`--plugin-root PATH` | download、inspect、doctor、config explain/init、plugin、cookie | config pathとprofile initでは拒否 |
+| `--yes` | plugin install/trust/revoke/uninstallの確認 | config init/profile initは受理するが確認には使わない。他の解析済み指定も状態変更の承認にはならない |
+| `--plugin-verification-override MODE` | download、inspect、doctor、plugin | configは解析値を表示できるが検証を行わない。cookieでも検証への効果はない |
+| `--plugin-config ID=JSON`、`--plugin-config-file PATH`、`--fallback-generic` | download、inspect、doctor | config、plugin、cookieでは拒否 |
+| `--plugin ID`、`--force-plugin ID` | download（`--list-updated-urls`を含む）、inspect | doctor、config、plugin、cookieでは拒否 |
+| `--plugin-download-policy ID=JSON`、`--plugin-download-policy-file PATH` | download（`--list-updated-urls`を含む） | 検査を含む他のコマンドでは拒否 |
+| `--no-console-log`、`--existing-file`、`--image-format` | download、doctor、config explainの許可範囲 | 検査、cookie、その他のconfig・plugin操作では拒否 |
+| `--force-image-format FORMAT` | 通常のdownloadとURL単独形式 | `--image-format`と排他的。inspect、doctor、config、plugin、cookie、更新一覧では拒否 |
+| `--output-dir ABSOLUTE_PATH`、`--directory-format FORMAT` | 通常のdownloadとURL単独形式 | `download --inspect-only`と`--list-updated-urls`では受理するが効果なし。inspect、doctor、config、plugin、cookieでは拒否 |
+| `--list-updated-urls` | download | その他では拒否 |
+| `--inspect-only` | `download URL`の検査用の別形式 | `--list-updated-urls`と排他的 |
+| `--manifest-only` | inspect、`download URL --inspect-only` | 通常downloadでは拒否。`create_image_request()`を呼ばない |
+| `--inspection-data url\|http\|all` | inspect、`download URL --inspect-only` | 標準出力に含める検査情報の段階。既定値`url`。通常downloadでは拒否 |
+| `--host` | doctor、config explain | その他では拒否 |
+| `--selection-priority INT` | plugin install/trust | その他では拒否 |
 
-`--plugin-config` is repeatable `ID=<JSON-object>`. `--plugin-config-file` is repeatable, absolute, existing regular non-link JSON file whose exact object is `{"plugin_id": "…", "config": {…}}`. File mappings are deep-merged in command-line file order; inline `--plugin-config` mappings are then deep-merged in their appearance order. YAML is not accepted for this option.
+`--plugin-config`は繰り返し指定できる`ID=<JSON-object>`です。`--plugin-config-file`は、絶対パスの既存の通常JSONファイルを繰り返し指定する形式で、リンクは不可です。オブジェクトは正確に`{"plugin_id": "…", "config": {…}}`の形にします。ファイルのマッピングをコマンドラインのファイル順に再帰的に合成し、その後でインラインの`--plugin-config`を出現順に再帰的に合成します。このオプションはYAMLを受け付けません。
 
-`--plugin-download-policy` is repeatable `ID=<JSON-object>`. `--plugin-download-policy-file` is repeatable, absolute, existing regular non-link JSON file whose exact object is `{"plugin_id": "…", "download_policy": {…}}`. These mappings are field-wise merged for the selected site plugin only, are validated against the core-owned `download_policy` schema, and are never persisted. `request_concurrency`, `chapter_concurrency`, `image_concurrency_per_chapter`, and `preserve_image_start_order` are defined in [configuration](configuration.md#config-plugin-settings).
+`--plugin-download-policy`は繰り返し指定できる`ID=<JSON-object>`です。`--plugin-download-policy-file`は、絶対パスの既存の通常JSONファイルを繰り返し指定する形式で、リンクは不可です。オブジェクトは正確に`{"plugin_id": "…", "download_policy": {…}}`の形にします。選択したサイトプラグインだけを対象にフィールドごとに合成し、コアが所有する`download_policy`スキーマで検証します。永続化はしません。`request_concurrency`、`chapter_concurrency`、`image_concurrency_per_chapter`、`preserve_image_start_order`は[設定](configuration.md#config-plugin-settings)を参照してください。
 
-`--plugin-verification-override` accepts `bypass-all`, `bypass-catalog`, or `bypass-signature`. It is an ephemeral override, not a persisted `security.plugin_verification` value; the persisted choices are `strict`, `warn`, and `off`. `plugin list` **does apply** the override while it discovers and verifies source units for `diagnostics`; it does not alter the catalog-entry `plugins` list or write persistent configuration/catalog state.
+`--plugin-verification-override`の値は`bypass-all`、`bypass-catalog`、`bypass-signature`です。一時的な上書きであり、永続設定`security.plugin_verification`の値ではありません。永続設定の選択肢は`strict`・`warn`・`off`です。`plugin list`でも、`diagnostics`のためのソース発見・検証には上書きを**適用します**。カタログの登録内容である`plugins`一覧は変更せず、永続設定・カタログも書き込みません。
 
-`--plugin ID` requires that enabled non-builtin site plugin's normal matcher to accept the URL. `--force-plugin ID` bypasses that matcher only after the plugin is confirmed to be an enabled non-builtin site plugin; the two options are exclusive. Neither can be combined with an explicit `--fallback-generic=enabled|disabled`. `--fallback-generic` accepts `auto` (the parser default), `enabled`, or `disabled`; `auto` preserves the resolved configuration. `--existing-file` accepts `overwrite`, `skip`, `rename`, or `error`.
+`--plugin ID`では、有効かつ非組み込みのサイトプラグインが、通常のmatcherでURLを受理する必要があります。`--force-plugin ID`は、有効な非組み込みサイトプラグインであることを確認した後でだけmatcherを省略します。両者は排他的で、明示的な`--fallback-generic=enabled|disabled`とも併用できません。`--fallback-generic`は、パーサーの既定値`auto`、`enabled`、`disabled`を受理し、`auto`は解決済み設定を維持します。`--existing-file`の値は`overwrite`・`skip`・`rename`・`error`です。
 
-`--image-format` accepts `ORIGINAL`, `JPEG`, `PNG`, or `WEBP` and is a one-operation override of resolved `output.image_format`; an image whose plugin specifies `ImageResource.save_options.format` keeps the plugin format. `--force-image-format` has the same values but is mutually exclusive with `--image-format` and wins over the plugin. `--force-image-format ORIGINAL` preserves the final plugin-produced artifact bytes without core re-encoding; it is not an HTTP-response raw-download mode. A forced encoded format clears a plugin-provided filename extension so the output suffix matches the forced bytes. Output format tokens use explicit `%CONTENT_TITLE%`, `%CHAPTER_TITLE%`, `%CHAPTER_SUBTITLE%`, `%CHAPTER_NUMBER%`, and `%IMAGE_INDEX%`; `%NUM%`, `%TITLE%`, and `%SUBTITLE%` are rejected. See [configuration](configuration.md#config-storage-layout).
+`--image-format`は`ORIGINAL`・`JPEG`・`PNG`・`WEBP`を受理し、その操作だけ`output.image_format`を上書きします。プラグインが`ImageResource.save_options.format`を指定した画像は、プラグインの形式を保ちます。`--force-image-format`も同じ値を受理しますが、`--image-format`と排他的で、プラグイン指定より優先します。`--force-image-format ORIGINAL`は、プラグインが生成した最終バイト列をコアで再エンコードせず保存します。HTTP応答をそのまま保存するモードではありません。強制的なエンコード形式を指定すると、プラグインの拡張子指定を解除し、出力拡張子を形式に合わせます。出力トークンは明示的な`%CONTENT_TITLE%`・`%CHAPTER_TITLE%`・`%CHAPTER_SUBTITLE%`・`%CHAPTER_NUMBER%`・`%IMAGE_INDEX%`を使い、`%NUM%`・`%TITLE%`・`%SUBTITLE%`は拒否します。[設定](configuration.md#config-storage-layout)を参照してください。
 
-`--output-dir` replaces only the image-output root for one normal download; it must be an absolute safe directory path and does not relocate profile logs, cookies, or update state. `--directory-format` is the corresponding one-operation override of `output.directory_format`, with the same token validation. They can be combined: `--output-dir C:\Base --directory-format destination_%CHAPTER_NUMBER%` saves beneath `C:\Base\destination_0001`. If `output.isolate_by_plugin=true`, core instead inserts `<normalized-host>/<selected-site-plugin-id>/` between the selected output root and the formatted chapter directory. Neither option writes YAML.
+`--output-dir`は、通常のダウンロード一回の画像出力ルートだけを置き換えます。安全な絶対ディレクトリパスが必要で、プロファイルのログ・Cookie・更新状態は移動しません。`--directory-format`は、同じトークン検証を使って`output.directory_format`をその操作だけ上書きします。併用もでき、`--output-dir C:\Base --directory-format destination_%CHAPTER_NUMBER%`なら`C:\Base\destination_0001`以下へ保存します。`output.isolate_by_plugin=true`なら、選択した出力ルートと章ディレクトリの間に`<normalized-host>/<selected-site-plugin-id>/`を挿入します。どちらもYAMLは書き換えません。
 
 <a id="cli-exit-status"></a>
 
-| code | meaning |
+| 終了コード | 意味 |
 | --- | --- |
-| 0 | success |
-| 1 | general failure or all images failed |
-| 2 | argument/configuration validation failure |
-| 3 | authentication or secret failure |
-| 4 | plugin discovery, verification, or execution failure |
-| 5 | partial image result、または inspect の一部 image request 解決失敗 |
-| 130 | `KeyboardInterrupt`; no JSON payload |
+| 0 | 成功 |
+| 1 | 一般的な失敗、または全画像の失敗 |
+| 2 | 引数・設定の検証失敗 |
+| 3 | 認証・秘密情報の取得失敗 |
+| 4 | プラグインの発見・検証・実行の失敗 |
+| 5 | 画像の部分成功、またはinspectでの一部画像要求の解決失敗 |
+| 130 | `KeyboardInterrupt`。JSONは出力しない |
 
 <a id="cli-io"></a>
 
-## Command I/O and side effects
+<a id="command-io-and-side-effects"></a>
 
-This table is intentionally about the command handler, rather than merely what
-`argparse` can parse.  “Read” means an input that can affect the result;
-“write” means a persistent filesystem effect.  `--json` changes only the
-successful stdout representation, never the inputs or the write set.
+## コマンドの入出力と副作用
 
-| command | positional input | read | write / operation | stdout and stderr | exit |
+この表は、argparseが解析できる形式だけでなく、コマンド処理の挙動を示します。「読み取り」は結果に影響する入力、「書き込み」は永続的なファイルシステムへの影響です。`--json`は成功時の標準出力の表現だけを変え、入力や書き込み対象は変えません。
+
+| コマンド | 位置引数 | 読み取り | 書き込み・操作 | 標準出力と標準エラー出力 | 終了コード |
 | --- | --- | --- | --- | --- | --- |
-| `download URL` | one absolute HTTP(S) URL | resolved config/layers, selected plugin source/catalog, cookie jar, update state (only for listing) | initial user config may be created/re-written; normal mode writes downloads, reports, logs, cookie delta; listing writes update state and normal runtime state but **does not download images** | normal: chapter/result output; JSON: one result object; diagnostics and JSON-mode plugin `print()` go to stderr | 0, 1, 3, 4, or 5 |
-| `download URL --list-updated-urls` | same URL | selected site plugin and its `UpdateProvider`, update state | same bootstrap/rewrite behavior; update-state snapshot/lock; no image/output allocation | URL per added/changed candidate on stdout, summary on stderr; JSON has `updated_urls` and `removed` | 0 or operation failure |
-| `inspect URL` / `download URL --inspect-only` | one absolute HTTP(S) URL | resolved config/layers, selected plugin source/catalog, profile cookie snapshot | neither creates/re-writes config nor persists cookie changes, debug logs, update state, output, reports, events, or notifications; it runs site `inspect()` and, unless `--manifest-only`, serially runs every `create_image_request()` and `AuthFlow.apply()` to build a no-send effective request. It never fetches an image body, recovers, transforms, saves, or allocates output. Plugin helper HTTP may still have server-side effects. | exactly one inspection JSON object on stdout (pretty JSON without `--json`); plugin `print()` goes to stderr. `--inspection-data url` is the default safe-minimum projection; `http` / `all` can contain URL query, headers, cookies, bodies, tokens, and `plugin_data`. Never forward either stream to logs, CI artifacts, telemetry, tickets, or third parties. | 0, 5 if one or more resolutions fail, or 2/3/4/1 operation failure |
-| `doctor [--host HOST_OR_URL]` | no positional input; host is a bare host or absolute HTTP(S) URL | resolved config/layers, plugin source/catalog, optional selection candidates | none: it uses registry-only composition and does not create/rewrite config, catalog, cookie, or download files | human report or exactly one JSON object | 0 when healthy; 4 for unhealthy plugin diagnostics; 2/4 for handled error |
-| `verify logs ABSOLUTE_PATH` | folder or log.log/debug.log file | saved logs only | none | recorded errors and indeterminate findings / one JSON document | 0 / 1 / 2 / 5 |
-| `verify workflow RUN_ID --output-dir ABSOLUTE_PATH` | canonical run UUID and output root | config, profile workflow history, saved image files and chapter logs | history read locks/parent directories only | URL acquisition and separate log findings / one JSON document | 0 / 1 / 2 / 5 |
-| `config path` | none | platform paths and package baseline locations | none | paths object or human paths | 0 / 2 |
-| `config explain [--host HOST_OR_URL]` | none | selected configuration layers and runtime options | none | effective/origin report | 0 / 2 |
-| `config init [ABSOLUTE_PATH]` | zero or one absolute main-config path | template and destination safety metadata | creates exactly that missing main YAML; never overwrites | created path object / message | 0 / 2 |
-| `config profile init NAME` | one profile name | main config presence and path safety | creates missing main config, then one missing profile YAML | main/profile paths object / message | 0 / 2 |
-| `plugin list` | none | resolved config, catalog and discovered source units | none; verification override affects only discovery diagnostics | catalog entries and diagnostics | 0 / 2 / 4 |
-| `plugin install SOURCE`, `trust SOURCE`, `revoke ID`, `uninstall ID` | source directory or manifest ID as appropriate | resolved config, source/catalog and confirmation input | may bootstrap/rewrite config; transactional plugin directory/catalog mutation | catalog entry or uninstall object | 0 / 2 / 4 |
-| `cookie export PATH` | destination path | resolved config and profile cookie store | encrypted export file | action/target object or message | 0 / 2 / 3 |
-| `cookie import PATH` | existing encrypted export path | resolved config, import file, profile cookie store | merges/saves encrypted profile cookie store | action/target object or message | 0 / 2 / 3 |
-| `cookie browser-import DOMAIN` | browser cookie domain | resolved config, browser cookie database, profile cookie store | merges/saves encrypted profile cookie store | action/target object or message | 0 / 2 / 3 |
+| `download URL` | 絶対HTTP(S) URL一つ | 解決済み設定・レイヤー、選択プラグインのソース・カタログ、Cookie jar、一覧表示時だけ更新状態 | 利用者設定の初回作成・書き換えを行う場合がある。通常は画像・レポート・ログ・Cookie差分を書き込み、一覧表示は更新状態などを保存するが画像は取得しない | 通常は章・結果、JSONは一つの結果オブジェクト。診断とJSONモードのプラグインの`print()`は標準エラー出力 | 0、1、3、4、5 |
+| `download URL --list-updated-urls` | 同じURL | 選択サイトの`UpdateProvider`と更新状態 | 同じ初期作成・書き換え。更新スナップショットとlockを保存し、画像出力は割り当てない | 追加・変更候補のURLを標準出力、集計を標準エラー出力。JSONは`updated_urls`と`removed` | 0、または操作の失敗 |
+| `inspect URL` / `download URL --inspect-only` | 絶対HTTP(S) URL一つ | 解決済み設定・レイヤー、選択プラグインのソース・カタログ、プロファイルのCookieスナップショット | 設定作成・書き換え、Cookie変更・debugログ・更新状態・出力・レポートの保存、イベント、通知は行わない。サイトの`inspect()`と、`--manifest-only`以外では各`create_image_request()`・`AuthFlow.apply()`を順に実行し、送信しない実効要求を構築する。画像本文の取得・回復・加工・保存・出力割当は行わない。補助HTTPによるサーバー側の副作用は起こり得る | 標準出力は一つの検査JSON（`--json`なしでは整形JSON）。プラグインの`print()`は標準エラー出力へ転送する。既定の`--inspection-data url`は最小限の投影で、`http`・`all`にはクエリ・ヘッダー・Cookie・本文・トークン・`plugin_data`が含まれ得る。どちらの出力もログ・CI成果物・遠隔計測・問い合わせ・第三者へ転送しない | 0、一つ以上の解決失敗は5、操作失敗は2・3・4・1 |
+| `doctor [--host HOST_OR_URL]` | 位置引数なし。hostはホスト名または絶対HTTP(S) URL | 解決済み設定・レイヤー、プラグインソース・カタログ、必要なら選択候補 | なし。レジストリだけを構築し、設定・カタログ・Cookie・画像ファイルを作成・書き換えしない | 人向けのレポート、または一つのJSONオブジェクト | 正常0、不健全なプラグイン診断4、処理済みエラー2・4 |
+| `verify logs ABSOLUTE_PATH` | フォルダーまたはlog.log/debug.logファイル | 保存済みログだけ | なし | 記録済みエラーと判定不能項目、または一つのJSON文書 | 0・1・2・5 |
+| `verify workflow RUN_ID --output-dir ABSOLUTE_PATH` | 正規UUIDの実行IDと出力ルート | 設定、プロファイルの履歴、保存済み画像と章ログ | 履歴の読み取りlockと親ディレクトリだけ | URL別の取得確認と独立したログ判定、または一つのJSON文書 | 0・1・2・5 |
+| `config path` | なし | OS標準パスと同梱の基準設定の場所 | なし | パスのオブジェクト、または人向けのパス表示 | 0・2 |
+| `config explain [--host HOST_OR_URL]` | なし | 選択した設定レイヤーと実行時オプション | なし | 有効値と由来のレポート | 0・2 |
+| `config init [ABSOLUTE_PATH]` | メイン設定の絶対パスを省略または一つ指定 | テンプレートと保存先の安全性情報 | 未作成のメインYAMLを指定位置へ一つ作成。上書きしない | 作成パスのオブジェクト、またはメッセージ | 0・2 |
+| `config profile init NAME` | プロファイル名一つ | メイン設定の存在とパスの安全性 | メイン設定がなければ作成し、その後で未作成のプロファイルYAMLを一つ作成 | メイン・プロファイルのパスのオブジェクト、またはメッセージ | 0・2 |
+| `plugin list` | なし | 解決済み設定、カタログ、発見したソース単位 | なし。検証の上書きは発見時の診断だけに作用 | カタログの登録内容と診断 | 0・2・4 |
+| `plugin install SOURCE`、`trust SOURCE`、`revoke ID`、`uninstall ID` | 操作に応じたソースディレクトリまたはmanifest ID | 解決済み設定、ソース・カタログ、確認入力 | 設定の初期作成・書き換え、トランザクションによるプラグインディレクトリ・カタログ変更 | カタログの登録内容、または削除結果のオブジェクト | 0・2・4 |
+| `cookie export PATH` | 出力パス | 解決済み設定とプロファイルのCookie保存先 | 暗号化した書き出しファイル | 操作・対象のオブジェクト、またはメッセージ | 0・2・3 |
+| `cookie import PATH` | 既存の暗号化書き出しファイルのパス | 解決済み設定、取り込みファイル、プロファイルのCookie保存先 | プロファイルの暗号化Cookieを合成・保存 | 操作・対象のオブジェクト、またはメッセージ | 0・2・3 |
+| `cookie browser-import DOMAIN` | ブラウザーCookieのドメイン | 解決済み設定、ブラウザーのCookieデータベース、プロファイルのCookie保存先 | プロファイルの暗号化Cookieを合成・保存 | 操作・対象のオブジェクト、またはメッセージ | 0・2・3 |
 
-`config init` does not accept `--config` or `--profile`; its optional path is
-the positional argument.  `config profile init` accepts `--config` as the main
-config location and rejects `--profile`, `--data-root`, and `--plugin-root`.
-Options which a handler rejects are not “last option wins”: the command exits
-with an argument error before doing its main operation.  The command/option
-table above and [option table](#cli-options) together distinguish accepted,
-effective, no-op, and rejected options.
+`config init`は`--config`・`--profile`を受理せず、任意のパスは位置引数で指定します。`config profile init`はメイン設定の場所として`--config`を受理し、`--profile`・`--data-root`・`--plugin-root`を拒否します。処理側が拒否する指定では、最後の指定を採用するのではなく、主操作の前に引数エラーで終了します。上のコマンド表と[オプション表](#cli-options)で、受理・効果あり・効果なし・拒否を区別してください。
 
 <a id="cli-cookie-actions"></a>
 
-### Cookie actions and browser support
+<a id="cookie-actions-and-browser-support"></a>
 
-`cookie export PATH` and `cookie import PATH` prompt on the controlling terminal
-with `Passphrase:`; the passphrase is not accepted as an option or environment
-value.  Use `cookie browser-import DOMAIN` only after installing the optional
-browser reader: `pip install 'image-downloader[browser-cookies]'`.  Browser
-import reads matching browser cookies and merges them into the active profile
-store.  None of the three success JSON forms includes cookie values, passphrases,
-browser records, or encryption keys.  Encryption/merge/lock behavior is defined
-in [runtime behavior](runtime-behavior.md#runtime-cookies).
+### Cookie操作とブラウザー対応
+
+`cookie export PATH`と`cookie import PATH`は、制御端末で`Passphrase:`と表示して入力を求めます。パスフレーズはオプションや環境変数で受け付けません。`cookie browser-import DOMAIN`は、任意のブラウザー読み取り依存を`pip install 'image-downloader[browser-cookies]'`で追加してから使ってください。一致するブラウザーCookieを読み取り、現在のプロファイルへ合成します。3操作とも、成功JSONにはCookie値・パスフレーズ・ブラウザーの記録・暗号鍵を含めません。暗号化・合成・lockの挙動は[実行時の挙動](runtime-behavior.md#runtime-cookies)を参照してください。
 
 <a id="cli-examples"></a>
 
-### Common invocations
+<a id="common-invocations"></a>
+
+### よく使う呼び出し方
 
 ```powershell
-# Download with a named profile and do not overwrite a pre-existing output.
+# 名前付きプロファイルで取得し、既存の出力を上書きしない。
 image-downloader download https://example.test/gallery --profile comics --existing-file skip
 
-# Ask an automation consumer for only the changed/new URLs; no images are fetched.
+# 自動処理向けに変更・新規URLだけを出力する。画像は取得しない。
 image-downloader download https://example.test/gallery --list-updated-urls --json
 
-# Inspect a site overlay and the selected site plugin without mutation.
+# 設定を変更せず、サイトの上書き設定と選択したプラグインを検査する。
 image-downloader doctor --host https://example.test/gallery --json
 
-# Create a profile layer, then show exactly which YAML layer won each value.
+# プロファイルのレイヤーを作り、各値を決めたYAMLレイヤーを確認する。
 image-downloader config profile init comics
 image-downloader config explain --profile comics --host example.test --json
 
-# Supply an ephemeral plugin config object.  It is not persisted to YAML.
+# その操作だけのプラグイン設定を渡す。YAMLには保存しない。
 image-downloader download https://example.test/gallery --plugin-config com.example.site='{"page_size": 50}'
 
-# Resolve each image request without fetching an image body. The default emits
-# only each effective URL; keep even this signed-URL output local.
+# 画像本文を取得せず、各画像の要求を解決する。既定では
+# 各実効URLだけを出力する。この署名付きURLの出力もローカルに保管する。
 image-downloader inspect https://example.test/gallery --plugin com.example.site --json
 
-# Include raw HTTP request material when diagnosing authentication or encoding.
+# 認証やエンコーディングの診断では、生のHTTP要求情報を含める。
 image-downloader inspect https://example.test/gallery --inspection-data http --json
 
-# Include all raw manifest/image metadata and plugin data. Do not archive or share it.
+# manifest・画像メタデータ・プラグインデータの生の値をすべて含める。保管・共有しない。
 image-downloader inspect https://example.test/gallery --inspection-data all --json
 
-# Show only the manifest; do not call create_image_request().
+# manifestだけを表示し、create_image_request()は呼ばない。
 image-downloader inspect https://example.test/gallery --manifest-only --json
 
-# Select one matching plugin and serialise its image request starts for this operation only.
+# 一致するプラグインを1つ選び、この操作だけ画像要求の開始を直列化する。
 image-downloader download https://example.test/gallery --plugin com.example.site \
   --plugin-download-policy com.example.site='{"preserve_image_start_order": true}'
 
-# Override a plugin's requested conversion format for this download only.
+# このダウンロードだけ、プラグインが要求する変換形式を上書きする。
 image-downloader download https://example.test/gallery --force-image-format ORIGINAL
 ```
 
-For a non-interactive plugin mutation add `--yes`; it does not make `config
-init` safer, and it has no confirmation effect there.  An automation client
-should treat only stdout as the success JSON channel and retain stderr as
-diagnostic output.
+プラグインを対話なしで変更する場合は`--yes`を追加します。`config init`では確認への効果はなく、この指定によって安全性が増すわけではありません。自動化する側では、成功JSONの入力先を標準出力だけとし、標準エラー出力は診断用として保持してください。
 
-## JSON and stream contract
+<a id="json-and-stream-contract"></a>
+
+## JSONと出力ストリームの契約
 
 <a id="cli-json"></a>
 <a id="cli-success-json"></a>
 
 download と workflow の download 結果に `additional_files` を追加する。要素はファイル ID、hook 段階、operation／invocation／試行 ID、章番号・画像 index、phase、status、安全な相対パスと error のみを持ち、raw bytes、HTTP response、request header、plugin 内部状態を含めない。取得・保存・読み込み・callback の結果は別々の項目である。追加ファイルだけの失敗は画像の件数、終了コード、workflow 再試行判断を変更しない。
 
-Every successful `--json` command prints exactly one JSON object to stdout. download chapter logs are suppressed from stdout; diagnostic human errors use stderr. Plugin Python `print()` is redirected to stderr for JSON download. Native code that writes directly to an OS stdout descriptor is outside this control.
+成功した`--json`コマンドは、標準出力にJSONオブジェクトを1つだけ出力します。downloadの章ログは標準出力に出さず、人間向けのエラー診断は標準エラー出力へ送ります。JSON形式のdownloadでは、プラグインのPythonの`print()`も標準エラー出力へ転送します。OSの標準出力ファイル記述子へ直接書き込むネイティブコードは、この制御の対象外です。
 
-| command | success object |
+| コマンド | 成功時のオブジェクト |
 | --- | --- |
 | download | `{"saved": string[], "skipped": string[], "failures": ImageFailureJson[], "additional_files": AdditionalFileOutcomeJson[]}` |
 | download `--list-updated-urls` | `{"updated_urls": string[], "removed": integer}` |
@@ -372,51 +292,29 @@ Every successful `--json` command prints exactly one JSON object to stdout. down
 | config explain | `source`, `main_config_kind`, `main_config`, `config_root`, `selected_profile`, `target_host`, `layers`, `effective`, `origins`, `runtime_overrides` |
 | config init | `{"created_config": string}` |
 | config profile init | `{"main_config": string, "created_main_config": boolean, "profile_config": string}` |
-| cookie action | `{"operation":"cookie", "action":"export"|"import"|"browser-import", "target":string}` |
+| cookieの各操作 | `{"operation":"cookie", "action":"export"|"import"|"browser-import", "target":string}` |
 | plugin list | `plugin_root`, `plugins`, `diagnostics`, `catalog_warning` |
-| plugin install/trust/revoke | normal or content-pin `CatalogEntryJson` |
+| plugin install/trust/revoke | 通常のpinまたはcontent pinの `CatalogEntryJson` |
 | plugin uninstall | `plugin_id`, `removed_installation`, `removed_catalog` |
 | doctor | `healthy`, `application`, `library`, `plugin_root`, `verification`, `configuration`, `paths`, `loaded_plugins`, `plugins` |
 
-`ImageFailureJson` has `kind` (`fetch|process|save`), `exception`, `message`, `code`, `reason`, `output_path`, `response_url`, `http_status`, `transport`; a non-applicable per-image field is `null`. saved/skipped paths are absolute strings. A failure `output_path`, when it originated below the configured download root, is rendered as a safe relative string rather than an absolute host path; it may also be `null`.
+`ImageFailureJson`は、`kind`（`fetch|process|save`）、`exception`、`message`、`code`、`reason`、`output_path`、`response_url`、`http_status`、`transport`を持ちます。画像単位で該当しないフィールドは`null`です。saved・skippedのパスは絶対パス文字列です。失敗の`output_path`が設定済みのダウンロードルート内に由来する場合は、安全な相対パスとして表示し、ホストの絶対パスは出しません。`null`の場合もあります。
 
-`CatalogEntryJson` normal pin fields are `id, kind, publisher, version, public_key, key_id, manifest_digest, file_tree_sha256, selection_priority, revoked`. Content pin has `id, kind, manifest_digest, content_digest, selection_priority, revoked` only. `diagnostics[]` entries are `{name, source, loaded, detail, warning}`; `warning=true` is not a failed load.
+通常の固定情報を持つ`CatalogEntryJson`のフィールドは`id, kind, publisher, version, public_key, key_id, manifest_digest, file_tree_sha256, selection_priority, revoked`です。内容固定の場合は`id, kind, manifest_digest, content_digest, selection_priority, revoked`だけです。`diagnostics[]`の各項目は`{name, source, loaded, detail, warning}`であり、`warning=true`はロード失敗を意味しません。
 
 <a id="cli-doctor-json"></a>
 
-`doctor` has a fixed top-level envelope: `healthy: bool`, `application: {version: string, root_directory: string}`, `library: {version: string, root_directory: string}`, `plugin_root: string`, `verification: string`, `configuration: object`, `paths: {name: string}`, `loaded_plugins: object[]`, and `plugins: PluginDiagnosticJson[]`.
+`doctor`の最上位構造は固定で、`healthy: bool`、`application: {version: string, root_directory: string}`、`library: {version: string, root_directory: string}`、`plugin_root: string`、`verification: string`、`configuration: object`、`paths: {name: string}`、`loaded_plugins: object[]`、`plugins: PluginDiagnosticJson[]`を持ちます。
 
-`configuration` has exactly `config_file: string|null`, `source: string`,
-`main_config_kind: string`, `config_root: string`, `selected_profile: string`,
-`target_host: string|null`, `target_has_url_path: bool`, `effective: object`,
-`runtime: object`, `selection: object[]`, `layers: object[]`, and `origins:
-{dotted_key: source_label}`. `effective` follows the dynamic mapping in the
-[configuration schema](configuration.md#config-schema), not a static doctor
-sub-schema. `runtime` has `application_overrides: object`, `plugin_overrides:
-object`, `fallback_generic: "auto"|"enabled"|"disabled"`, and
-`plugin_verification_override: string|null`. Every `layers[]` element is
-`{role: string, path: string|null, status: string}`. Each `selection[]` element
-is a runtime selection diagnostic (including `id`, `matcher`, and `matched`),
-not a catalog entry.
+`configuration`は、`config_file: string|null`、`source: string`、`main_config_kind: string`、`config_root: string`、`selected_profile: string`、`target_host: string|null`、`target_has_url_path: bool`、`effective: object`、`runtime: object`、`selection: object[]`、`layers: object[]`、`origins: {dotted_key: source_label}`を正確に持ちます。`effective`は専用の固定doctorスキーマではなく、[設定スキーマ](configuration.md#config-schema)の動的なマッピングに従います。`runtime`は`application_overrides: object`、`plugin_overrides: object`、`fallback_generic: "auto"|"enabled"|"disabled"`、`plugin_verification_override: string|null`です。`layers[]`の各要素は`{role: string, path: string|null, status: string}`です。`selection[]`は`id`・`matcher`・`matched`などを含む実行時の選択診断であり、カタログ項目ではありません。
 
-Every `loaded_plugins[]` element has `id`, `kind`, `publisher`, `version`,
-`api_version`, `source`, `enabled`, `status`, `match_priority`, `capabilities`,
-`entry`, `config_file`, `key_id`, `manifest_digest`, `file_tree_sha256`,
-`verification`, `catalog`, `author_defaults`, and `effective_config`. `entry`
-is `{file: string, class: string}`; `catalog` is `null` or `{selection_priority,
-revoked, key_id, manifest_digest, file_tree_sha256}`. `author_defaults` and
-`effective_config` are redacted dynamic mappings. Each `plugins[]` element is
-`{name: string, source: string, loaded: bool, detail: string, warning: bool}`;
-it includes units that failed before acceptance. Redaction replaces sensitive
-values but does not promise a fixed replacement literal. `null` is used only
-for the explicitly nullable fields above; handled error fields are omitted when
-unknown as described below.
+`loaded_plugins[]`の各要素は、`id`、`kind`、`publisher`、`version`、`api_version`、`source`、`enabled`、`status`、`match_priority`、`capabilities`、`entry`、`config_file`、`key_id`、`manifest_digest`、`file_tree_sha256`、`verification`、`catalog`、`author_defaults`、`effective_config`を持ちます。`entry`は`{file: string, class: string}`、`catalog`は`null`または`{selection_priority, revoked, key_id, manifest_digest, file_tree_sha256}`です。`author_defaults`と`effective_config`は秘匿化された動的なマッピングです。`plugins[]`は`{name: string, source: string, loaded: bool, detail: string, warning: bool}`で、受理前に失敗したソース単位も含みます。機密値は置換しますが、置換後の固定文字列は保証しません。`null`は明示的にnull許容としたフィールドだけに使い、処理済みエラーの未知フィールドは後述のとおり省略します。
 
-Inspection JSON has `inspection_data` equal to `url`, `http`, or `all`. The default `url` projection has only a manifest count summary plus each request's one-based `chapter_position`, `image_position`, `status`, and AuthFlow/query/cookie-jar 合成後の `effective_url`; an effective-request failure has no guessed URL. `http` adds the complete returned `RequestSpec` (`url`, `method`, `headers`, `cookies`, `referer`, `query`, `form`, `json`, `auth_required`, `retry_non_idempotent`) and `effective_request` (`method`, complete URL, ordered/duplicate-preserving header entries, actual sent cookies, Base64 body and byte count). `all` adds the complete manifest/image projection—including locator, referer, image headers, save options, `original_filename`, and metadata—and raw `plugin_data`. `failed` and `partially_resolved` entries carry stable `failure.code`, `failure.reason`, `failure.exception`, and `failure.phase`; the latter keeps source request data only at `http`/`all`.
+検査JSONの`inspection_data`は`url`・`http`・`all`のいずれかです。既定の`url`はmanifestの件数概要と、各要求の1始まりの`chapter_position`・`image_position`・`status`・AuthFlowとクエリとCookie jarの合成後の`effective_url`だけを含めます。実効要求の構築に失敗した場合はURLを推測しません。`http`は、返された完全な`RequestSpec`（`url`、`method`、`headers`、`cookies`、`referer`、`query`、`form`、`json`、`auth_required`、`retry_non_idempotent`）と`effective_request`（method、完全URL、順序・重複を保つヘッダー、実送信Cookie、Base64本文とバイト数）を追加します。`all`は、locator、referer、画像ヘッダー、保存設定、`original_filename`、メタデータを含む完全なmanifest・画像情報と、秘匿化前の`plugin_data`を追加します。`failed`と`partially_resolved`は、安定した`failure.code`・`failure.reason`・`failure.exception`・`failure.phase`を持ちます。後者の元の要求データは`http`・`all`だけで表示します。
 
-`url` can still contain a signed URL query. `http` and `all` are intentionally exceptions to the normal output-safety contract: the material is raw and can contain credentials, cookies, request bodies, signed URLs, or other secrets. Base64 does not protect a body. Do not send inspection stdout or stderr to logs, CI artifacts, telemetry, shared terminals, tickets, or third parties. Normal download/update output and Handled JSON failure use sanitization: an `error` wrapper has required `operation`, `exception`, `code`, `reason`, `message`; `response_url`, `http_status`, `output_path`, `stage`, `transport` are present only when known. An image failure may additionally carry `image_url`; it is a safely rendered manifest locator, not necessarily an HTTP URL. URL query/fragment secrets, cookie contents, passphrases, browser records, and raw credential references never appear in those normal success or failure outputs.
+`url`にも署名付きURLのクエリが含まれる場合があります。`http`と`all`は通常の出力安全性の例外であり、秘匿化前の認証情報、Cookie、本文、署名付きURLなどの秘密情報を含み得ます。Base64は本文を保護しません。検査の標準出力・標準エラー出力を、ログ、CI成果物、遠隔計測、共有端末、問い合わせ、第三者へ送らないでください。通常のダウンロード・更新出力と処理済みのJSONエラーは無害化します。`error`には`operation`・`exception`・`code`・`reason`・`message`が必須で、`response_url`・`http_status`・`output_path`・`stage`・`transport`は判明している場合だけ含めます。画像失敗には`image_url`も含める場合がありますが、これは安全に表示したmanifestのlocatorで、必ずしもHTTP URLではありません。通常の成功・失敗出力には、URLクエリ・フラグメントの秘密値、Cookie内容、パスフレーズ、ブラウザー記録、認証情報の参照元の生の値を出しません。
 
-`--inspection-data` changes **only stdout projection**. Except for `--manifest-only`, `url`、`http`、`all` は同じ manifest、`create_image_request()`、`AuthFlow.apply()`、effective request build を実行し、library result には effective request を組み立てられた各画像の raw preview（encoded body を含む）を保持する。したがって `url` は表示の露出を減らすが、request 解決の時間、plugin hook の補助 HTTP、サーバー側副作用、process 内の一時メモリを減らさない。現在は request 解決する画像数、chapter/image 範囲、preview body サイズの CLI 上限を提供しない。大きな manifest または大きな form/JSON body では `--manifest-only` を使うか、site plugin が manifest を有限の operation に分割する。`http`／`all` の Base64 body は元の byte 列より約 33% 大きい stdout を生成し得る。
+`--inspection-data`が変更するのは**標準出力に表示する項目だけ**です。`--manifest-only`を除き、 `url`、`http`、`all` は同じ manifest、`create_image_request()`、`AuthFlow.apply()`、effective request build を実行し、library result には effective request を組み立てられた各画像の raw preview（encoded body を含む）を保持する。したがって `url` は表示の露出を減らすが、request 解決の時間、plugin hook の補助 HTTP、サーバー側副作用、process 内の一時メモリを減らさない。現在は request 解決する画像数、chapter/image 範囲、preview body サイズの CLI 上限を提供しない。大きな manifest または大きな form/JSON body では `--manifest-only` を使うか、site plugin が manifest を有限の operation に分割する。`http`／`all` の Base64 body は元の byte 列より約 33% 大きい stdout を生成し得る。
 
 inspection は registry-only の `doctor` とは異なり、sinkless な runtime を構築して profile cookie snapshot と HTTP gateway を初期化する。通常の output/state/log/notification は実行しないが、設定・plugin verification・filesystem path・cookie store の読取り／lock といったローカル初期化には依存する。matcher 候補だけを副作用最小で確認したいときは `doctor --host URL --json` を使う。
 

@@ -7,8 +7,9 @@ from pathlib import Path
 import httpx
 import pytest
 from PIL import Image
-from test_plugin_v3 import make_plugin
+from support.plugins import make_plugin
 
+from image_downloader import DownloadRequest
 from image_downloader.config import AppConfig
 from image_downloader.exceptions import PluginError
 from image_downloader.models import Chapter, DownloadManifest, ImageArtifact, ImageResource, RequestSpec
@@ -125,7 +126,7 @@ def test_site_and_processor_values_are_collected_once_before_inspection_and_reus
             )
         )
         try:
-            result = await service.run("https://example.test/gallery")
+            result = await service.download(DownloadRequest(url="https://example.test/gallery"))
         finally:
             await service.close()
 
@@ -181,7 +182,7 @@ def test_output_format_value_exception_fails_before_inspection(tmp_path: Path) -
         service.registry.loader.register_class(service.registry.records[SITE_ID], Site)
         try:
             with pytest.raises(PluginError, match="output_format_values"):
-                await service.run("https://example.test/gallery")
+                await service.download(DownloadRequest(url="https://example.test/gallery"))
         finally:
             await service.close()
         assert not inspected
@@ -229,7 +230,7 @@ def test_missing_plugin_hook_or_key_keeps_the_safe_literal_token(tmp_path: Path)
             )
         )
         try:
-            result = await service.run("https://example.test/gallery")
+            result = await service.download(DownloadRequest(url="https://example.test/gallery"))
         finally:
             await service.close()
 
@@ -276,7 +277,7 @@ def test_invalid_output_format_values_fail_before_inspection(tmp_path: Path, val
         service.registry.loader.register_class(service.registry.records[SITE_ID], Site)
         try:
             with pytest.raises(PluginError, match="output_format_values"):
-                await service.run("https://example.test/gallery")
+                await service.download(DownloadRequest(url="https://example.test/gallery"))
         finally:
             await service.close()
         assert not inspected

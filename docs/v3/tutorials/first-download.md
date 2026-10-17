@@ -1,6 +1,8 @@
-# Tutorial: first download
+<a id="tutorial-first-download"></a>
 
-この tutorial は、固定 user configuration と一回の download を成功させる最短手順である。option の完全な適用規則は [CLI reference](../reference/cli.md)、設定値は [configuration reference](../reference/configuration.md) を使用する。
+# チュートリアル：初めてのダウンロード
+
+固定のユーザー設定を作り、ダウンロードを1回成功させるための最短手順です。オプションの完全な適用規則は[CLIリファレンス](../reference/cli.md)、設定値は[設定リファレンス](../reference/configuration.md)を参照してください。
 
 ```powershell
 python -m pip install .
@@ -12,9 +14,9 @@ image-downloader download "https://example.test/gallery"
 image-downloader doctor --json
 ```
 
-`config init` は明示した absolute path を含む fixed user config を作る。`download`、update listing、cookie operation、plugin mutation も config がなければ初期 config を作成し得る。`doctor`、`config path`、`config explain`、plugin list は read-only である。
+`config init`は、明示した絶対パスを含む固定のユーザー設定を作成します。`download`、更新一覧の取得、Cookie操作、プラグインの変更操作も、設定がなければ初期設定を作成する場合があります。`doctor`、`config path`、`config explain`、plugin listは読取り専用です。
 
-失敗を自動処理する場合は、次に [JSON CLI output](../reference/cli.md#cli-json) と [exit status](../reference/cli.md#cli-exit-status) を読む。
+失敗を自動処理する場合は、次に[CLIのJSON出力](../reference/cli.md#cli-json)と[終了コード](../reference/cli.md#cli-exit-status)を参照してください。
 
 更新チェックに対応したプラグインでは、チェックと取得を一度に実行できる。
 
@@ -33,4 +35,4 @@ image-downloader workflow "https://example.test/feed" --download-scope updated -
 予定URLと実際に処理を始めたURLの区別、画像のHTTP要求ログは
 [ログの保存先とURL](../reference/logging.md#workflow-output-locations)を参照する。
 pluginエラーによる継続／停止、再試行、キャンセル時の結果は
-[workflow FAQ](../how-to/faq.md)から確認できる。
+[workflowのFAQ](../how-to/faq.md)から確認できる。

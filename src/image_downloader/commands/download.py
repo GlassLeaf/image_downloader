@@ -2,54 +2,43 @@
 
 from __future__ import annotations
 
-import argparse
 import json
 import sys
 from contextlib import nullcontext, redirect_stdout
-from pathlib import Path
 from urllib.parse import urlparse
 
-from ..application.additional_files import additional_file_payload
 from ..application.composer import RuntimeComposer
+from ..application.requests import DownloadRequest, UpdateCheckRequest
+from ..application.shutdown import close_service
 from ..configuration.paths import resolve_paths
-from ..exceptions import ConfigurationError, error_reason_for_code
 from ..models import UpdateChangeKind
-from ..privacy.log_safety import safe_exception_name, safe_relative_path, safe_url
 from .constants import EXIT_FAILURE, EXIT_PARTIAL, EXIT_SUCCESS
+from .download_payload import download_payload
 from .inspect import inspect_command
+from .prepared import DownloadArguments, PreparedCommand
 from .setup import (
     _config_for,
-    _download_policy_overrides,
     _fallback,
     _output_root,
     _persist_initial_user_config,
     _plugin_root,
-    _runtime_overrides,
 )
-from .validation import _reject_command_options
 
 
 class DownloadCommandHandler:
-    async def handle(self, args: argparse.Namespace) -> int:
+    async def handle(self, command: PreparedCommand) -> int:
+        args = command.arguments
+        assert isinstance(args, DownloadArguments)
         if args.inspect_only:
-            return await inspect_command(args)
-        _reject_command_options(args, ("selection_priority", "host", "manifest_only", "inspection_data"), "download")
-        if any(
-            getattr(args, name, None) is not None
-            for name in ("export_cookies", "import_cookies", "import_browser_cookies")
-        ):
-            raise ValueError("cookie import or export cannot be combined with URL")
-        if args.list_updated_urls and args.force_image_format is not None:
-            raise ConfigurationError("--force-image-format cannot be combined with --list-updated-urls")
+            return await inspect_command(command)
         hostname = urlparse(args.url).hostname
-        overrides = _runtime_overrides(args)
-        download_policy_overrides = _download_policy_overrides(args)
+        overrides = command.plugin_config
+        download_policy_overrides = command.download_policy
         plugin_id = args.plugin_id or args.force_plugin_id
         force_plugin = args.force_plugin_id is not None
         config, config_root, _, source = _config_for(
             args,
             hostname,
-            allow_root_setup=True,
             rewrite_user_layers=True,
         )
         _persist_initial_user_config(source)
@@ -64,16 +53,19 @@ class DownloadCommandHandler:
         ).compose()
         diagnostics_output = redirect_stdout(sys.stderr) if args.json_output else nullcontext()
         status = EXIT_FAILURE
+        primary: BaseException | None = None
         try:
             if args.list_updated_urls:
                 with diagnostics_output:
                     update_result = await service.check_updates(
-                        args.url,
-                        plugin_overrides=overrides,
-                        fallback_override=_fallback(args),
-                        plugin_id=plugin_id,
-                        force_plugin=force_plugin,
-                        plugin_download_policy_overrides=download_policy_overrides,
+                        UpdateCheckRequest(
+                            url=args.url,
+                            plugin_overrides=overrides,
+                            fallback_override=_fallback(args),
+                            plugin_id=plugin_id,
+                            force_plugin=force_plugin,
+                            plugin_download_policy_overrides=download_policy_overrides,
+                        )
                     )
                 visible = [change for change in update_result.changes if change.kind is not UpdateChangeKind.REMOVED]
                 removed = sum(change.kind is UpdateChangeKind.REMOVED for change in update_result.changes)
@@ -87,43 +79,21 @@ class DownloadCommandHandler:
                 status = EXIT_SUCCESS
             else:
                 with diagnostics_output:
-                    download_result = await service.run(
-                        args.url,
-                        plugin_overrides=overrides,
-                        fallback_override=_fallback(args),
-                        plugin_id=plugin_id,
-                        force_plugin=force_plugin,
-                        plugin_download_policy_overrides=download_policy_overrides,
-                        force_image_format=args.force_image_format,
+                    download_result = await service.download(
+                        DownloadRequest(
+                            url=args.url,
+                            plugin_overrides=overrides,
+                            fallback_override=_fallback(args),
+                            plugin_id=plugin_id,
+                            force_plugin=force_plugin,
+                            plugin_download_policy_overrides=download_policy_overrides,
+                            force_image_format=args.force_image_format,
+                        )
                     )
                 if args.json_output:
                     print(
                         json.dumps(
-                            {
-                                "saved": download_result.saved_files,
-                                "additional_files": additional_file_payload(download_result, output_root),
-                                "skipped": download_result.skipped_files,
-                                "failures": [
-                                    {
-                                        "kind": item.kind,
-                                        "exception": safe_exception_name(item.exception_type),
-                                        "message": error_reason_for_code(item.code) or "image failure",
-                                        "code": item.code,
-                                        "reason": error_reason_for_code(item.code) or "image failure",
-                                        "output_path": (
-                                            safe_relative_path(item.output_path, output_root)
-                                            if item.output_path is not None and Path(item.output_path).is_absolute()
-                                            else item.output_path
-                                        ),
-                                        "response_url": safe_url(item.response_url)
-                                        if item.response_url is not None
-                                        else None,
-                                        "http_status": item.http_status,
-                                        "transport": item.transport,
-                                    }
-                                    for item in download_result.failures
-                                ],
-                            },
+                            download_payload(download_result, output_root),
                             ensure_ascii=False,
                         )
                     )
@@ -134,7 +104,10 @@ class DownloadCommandHandler:
                     if download_result.saved_files or download_result.skipped_files
                     else EXIT_FAILURE
                 )
+        except BaseException as exc:
+            primary = exc
+            raise
         finally:
             with diagnostics_output:
-                await service.close()
+                await close_service(service, primary=primary)
         return status

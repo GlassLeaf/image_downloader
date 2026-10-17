@@ -15,9 +15,7 @@ from .logging import DownloadLogger, safe_exception_name, safe_locator, safe_rel
 _SAFE_FAILURE_STAGE = re.compile(r"image_(?:fetch|processing|save)")
 _SAFE_FAILURE_CODE = re.compile(r"[a-z][a-z0-9_]{0,63}")
 _SAFE_OPERATION = re.compile(r"(?:download|workflow|update|doctor|plugin|config|cookie)")
-_SAFE_TRANSPORT = re.compile(
-    r"(?:completed|response_received|response_limit_exceeded|redirect_rejected|failed)"
-)
+_SAFE_TRANSPORT = re.compile(r"(?:completed|response_received|response_limit_exceeded|redirect_rejected|failed)")
 
 
 class EventName(StrEnum):
@@ -83,6 +81,7 @@ _IMAGE_LOCATOR_EVENTS = frozenset(
 @dataclass(frozen=True, slots=True)
 class EventPayload:
     """Sanitized event data; image lifecycle ``url`` may be an opaque locator."""
+
     url: str | None = None
     response_url: str | None = None
     path: str | None = None

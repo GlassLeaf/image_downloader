@@ -1,5 +1,12 @@
 """Public local plugin API v3 for image-downloader."""
 
+from .application.requests import (
+    DownloadRequest,
+    InspectRequest,
+    UpdateCheckRequest,
+    WorkflowPlanRequest,
+    WorkflowRequest,
+)
 from .application.workflow_state import WorkflowStateService
 from .config import (
     AppConfig,
@@ -36,6 +43,10 @@ from .exceptions import (
     UnsupportedSiteFeatureError,
     UpdateCheckUnsupportedError,
     UpdateStateError,
+    WorkflowCancelledError,
+    WorkflowExecutionError,
+    WorkflowPlanCancelledError,
+    WorkflowPlanError,
     WorkflowPlanLogError,
     WorkflowRetryTimeoutError,
 )
@@ -107,6 +118,15 @@ from .ports import (
 from .runtime import DownloadService, RuntimeComposer
 
 __all__ = [
+    "DownloadRequest",
+    "InspectRequest",
+    "UpdateCheckRequest",
+    "WorkflowPlanRequest",
+    "WorkflowRequest",
+    "WorkflowExecutionError",
+    "WorkflowPlanError",
+    "WorkflowCancelledError",
+    "WorkflowPlanCancelledError",
     "AdditionalFileProvider",
     "AdditionalFileReceiver",
     "AdditionalFileSaveObserver",

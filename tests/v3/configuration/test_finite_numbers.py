@@ -9,12 +9,11 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from image_downloader import ArgumentError, ConfigurationError, DownloadService
+from image_downloader import ArgumentError, ConfigurationError, DownloadService, WorkflowRequest
 from image_downloader._numeric import _is_finite
 from image_downloader.commands import dispatch
 from image_downloader.commands.parser import build_parser
 from image_downloader.commands.validation import validate_arguments
-from image_downloader.commands.workflow import WorkflowCommandHandler
 from image_downloader.config import AppConfig, resolve_application_config, validate_config
 from image_downloader.diagnostics import diagnostic_for
 from image_downloader.storage.interprocess_lock import InterProcessFileLock
@@ -109,7 +108,9 @@ def test_workflow_direct_api_rejects_before_operation_lock(name, value):
             pytest.fail("invalid workflow arguments must not start an operation")
 
     with pytest.raises(ValueError, match=name) as caught:
-        asyncio.run(DownloadService.workflow(Unstarted(), "https://example.test/feed", **{name: value}))
+        asyncio.run(
+            DownloadService.workflow(Unstarted(), WorkflowRequest(url="https://example.test/feed", **{name: value}))
+        )
     assert type(caught.value) is ValueError
 
 
@@ -145,12 +146,12 @@ def test_cli_rejects_huge_values_before_dispatch(option, monkeypatch, capsys):
 
 
 @pytest.mark.parametrize("name", ["workflow_retry_delay", "workflow_retry_timeout"])
-def test_workflow_command_internal_guard_keeps_configuration_error(name):
+def test_workflow_validation_rejects_huge_values_before_command_preparation(name):
     args = build_parser().parse_args(["workflow", "https://example.test/feed"])
     setattr(args, name, 10**400)
-    with pytest.raises(ConfigurationError) as caught:
-        asyncio.run(WorkflowCommandHandler()._handle(args))
-    assert type(caught.value) is ConfigurationError
+    with pytest.raises(ArgumentError) as caught:
+        validate_arguments(args)
+    assert diagnostic_for(caught.value).details["option"] == "--" + name.replace("_", "-")
 
 
 def test_defaults_are_unchanged():

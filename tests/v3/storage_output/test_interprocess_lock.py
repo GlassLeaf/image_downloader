@@ -500,12 +500,12 @@ def test_existing_append_opener_marks_only_confirmed_sharing(tmp_path: Path, mon
     monkeypatch.setattr(lock_module, "_windows_open_error", lambda library: 32)
     monkeypatch.setattr(lock_module.os, "open", open_once_more)
     flags = os.O_RDWR | os.O_APPEND | os.O_CREAT
-    with pytest.raises(PermissionError) as caught:
+    with pytest.raises(lock_module._LockOpenError) as caught:
         lock_module._open_existing_append(str(tmp_path / "shared.lock"), flags)
-    assert caught.value is primary
+    assert caught.value.cause is primary
+    assert caught.value.retry is None
     assert primary.__cause__ is cause
     assert primary.__context__ is None
-    assert primary._lock_sharing_violation is True
     assert attempts == [flags & ~os.O_CREAT]
 
 
@@ -541,11 +541,9 @@ def test_acquisition_open_waits_once_and_preserves_primary(tmp_path, monkeypatch
             return stream
         raise OSError(errno.EIO, "secret secondary")
 
-    primary._lock_open_retry = retry
-
     def first():
         attempts.append("first")
-        raise primary
+        raise lock_module._LockOpenError(primary, retry)
 
     async def wait(delay):
         waits.append(delay)
@@ -577,10 +575,9 @@ def test_sharing_wait_can_be_interrupted_before_retry(tmp_path, monkeypatch, asy
     lock = InterProcessFileLock(tmp_path / "interrupted-sharing.lock")
     primary = PermissionError(errno.EACCES, "sharing")
     retries = []
-    primary._lock_open_retry = lambda: retries.append(True)
 
     def first():
-        raise primary
+        raise lock_module._LockOpenError(primary, lambda: retries.append(True))
 
     monkeypatch.setattr(lock, "_open_stream", first)
     if asynchronous:
@@ -615,14 +612,13 @@ def test_sharing_retry_keeps_original_path_identities(tmp_path, monkeypatch, asy
     path = parent / "identity.lock"
     path.write_bytes(b"\0")
     primary = PermissionError(errno.EACCES, "sharing")
-    primary._lock_sharing_violation = True
     opens = []
     original_open = lock_module.builtins.open
 
     def first(value, *args, **kwargs):
         if Path(value) == path:
             opens.append(value)
-            raise primary
+            raise lock_module._LockOpenError(primary)
         return original_open(value, *args, **kwargs)
 
     def replace(delay):

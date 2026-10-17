@@ -19,10 +19,10 @@ from pathlib import Path
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
-from test_plugin_v3 import make_minimal_plugin, make_plugin
+from support.plugins import make_minimal_plugin, make_plugin
 
 from image_downloader import AppConfig, PluginError
-from image_downloader.plugins import plugin_manifest, source_loader
+from image_downloader.plugins import plugin_verification, source_loader
 from image_downloader.security import (
     PluginClassLoader,
     PluginDiscovery,
@@ -43,7 +43,7 @@ def _resign(directory: Path) -> None:
     public = private.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
     manifest["public_key"] = base64.b64encode(public).decode("ascii")
     manifest["key_id"] = hashlib.sha256(public).hexdigest()
-    tree = plugin_manifest.collect_plugin_file_tree(directory)
+    tree = plugin_verification.collect_plugin_file_tree(directory)
     manifest["file_tree"] = tree
     manifest["file_tree_sha256"] = hashlib.sha256(canonical_jcs(tree)).hexdigest()
     wrapper["signature"] = base64.b64encode(private.sign(canonical_jcs(manifest))).decode("ascii")
@@ -158,7 +158,7 @@ def test_content_pin_binds_the_tree_used_for_verification_not_a_later_collection
     root = tmp_path / "plugins"
     directory = make_minimal_plugin(root)
     trust_plugin(root, directory, mode="bypass-signature")
-    collect = plugin_manifest.collect_plugin_file_tree
+    collect = plugin_verification.collect_plugin_file_tree
     calls = []
 
     def collect_then_change(path):
@@ -168,7 +168,7 @@ def test_content_pin_binds_the_tree_used_for_verification_not_a_later_collection
         entry.write_bytes(entry.read_bytes() + b"\nEntry.unsigned = True\n")
         return tree
 
-    monkeypatch.setattr(plugin_manifest, "collect_plugin_file_tree", collect_then_change)
+    monkeypatch.setattr(plugin_verification, "collect_plugin_file_tree", collect_then_change)
     runtime = PluginRuntime(AppConfig(), root, mode="bypass-signature")
     try:
         record = runtime.records["com.example.minimal"]

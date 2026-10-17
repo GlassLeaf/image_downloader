@@ -6,7 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from image_downloader.plugins.plugin_manifest import read_manifest, verify_signed_plugin_source
+from image_downloader.plugins.plugin_manifest import read_manifest
+from image_downloader.plugins.plugin_verification import verify_signed_plugin_source
 
 
 def test_signed_plugins_survive_windows_line_ending_conversion(repository_root: Path, tmp_path: Path) -> None:
@@ -16,8 +17,15 @@ def test_signed_plugins_survive_windows_line_ending_conversion(repository_root: 
     checkout = tmp_path / "checkout"
     subprocess.run(
         [
-            git, "clone", "--quiet", "--no-checkout", "--no-hardlinks", "-c", "core.autocrlf=true",
-            str(repository_root), str(checkout),
+            git,
+            "clone",
+            "--quiet",
+            "--no-checkout",
+            "--no-hardlinks",
+            "-c",
+            "core.autocrlf=true",
+            str(repository_root),
+            str(checkout),
         ],
         check=True,
         capture_output=True,

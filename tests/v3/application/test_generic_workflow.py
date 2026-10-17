@@ -9,18 +9,24 @@ from types import SimpleNamespace
 import httpx
 import pytest
 from PIL import Image
+from support.errors import expect_workflow_error
 
 from image_downloader import (
     AppConfig,
     AuthenticationError,
     DownloadManifest,
+    DownloadRequest,
     ImageResource,
+    InspectRequest,
     PluginError,
     RuntimeComposer,
+    UpdateCheckRequest,
     UpdateCheckUnsupportedError,
+    WorkflowPlanRequest,
+    WorkflowRequest,
     WorkflowStateService,
 )
-from image_downloader.observability.logging import DebugFileSink
+from image_downloader.observability.log_sinks import DebugFileSink
 from image_downloader.plugins.builtin import GenericHtmlPlugin, _automatic_referer, _ImageParser
 from image_downloader.transport.gateway import RequestGateway
 
@@ -129,7 +135,7 @@ def test_generic_download_follows_redirect_and_fetches_base_relative_image(tmp_p
 
     async def scenario():
         async with compose(tmp_path) as service:
-            result = await service.run(URL)
+            result = await service.download(DownloadRequest(url=URL))
             assert len(result.saved_files) == 1
             assert not result.failures
 
@@ -167,22 +173,22 @@ def test_real_builtin_regular_workflow_updated_and_all_match(tmp_path, monkeypat
 
     async def scenario():
         async with compose(tmp_path) as service:
-            regular = await service.run(URL)
+            regular = await service.download(DownloadRequest(url=URL))
             page.requests.clear()
-            first = await service.workflow(URL, workflow_retries=0)
+            first = await service.workflow(WorkflowRequest(url=URL, workflow_retries=0))
             assert first.selected_urls == (URL,)
             assert first.items[0].download.saved_files == regular.saved_files
             assert page.requests.count(URL) == 2  # Check and fresh target manifest.
             assert len(page.requests) == 4
             page.requests.clear()
             page.html = HTML.replace("gallery", "new title") + "<p>changed body</p>"
-            assert (await service.workflow(URL, workflow_retries=0)).selected_urls == ()
+            assert (await service.workflow(WorkflowRequest(url=URL, workflow_retries=0))).selected_urls == ()
             assert page.requests == [URL]
             page.requests.clear()
-            all_result = await service.workflow(URL, download_scope="all", workflow_retries=0)
+            all_result = await service.workflow(WorkflowRequest(url=URL, download_scope="all", workflow_retries=0))
             assert all_result.selected_urls == (URL,) and len(page.requests) == 4
             page.html += '<img src="/c.png">'
-            changed = await service.workflow(URL, workflow_retries=0)
+            changed = await service.workflow(WorkflowRequest(url=URL, workflow_retries=0))
             assert changed.items[0].reasons == ("changed",)
             assert len(changed.items[0].download.saved_files) == 3
             assert all(i.completed for i in WorkflowStateService(service.config).get_workflow(URL)[0].items)
@@ -199,9 +205,9 @@ def test_native_shortened_title_preserves_inspect_revision_original_bytes_and_wo
 
     async def scenario():
         async with compose(tmp_path) as service:
-            inspection = await service.inspect(URL)
+            inspection = await service.inspect(InspectRequest(url=URL))
             assert inspection.manifest.title == title
-            regular = await service.run(URL)
+            regular = await service.download(DownloadRequest(url=URL))
             assert len(regular.saved_files) == 2
             paths = tuple(Path(value) for value in regular.saved_files)
             contents = {path.name: path.read_bytes() for path in paths}
@@ -209,11 +215,11 @@ def test_native_shortened_title_preserves_inspect_revision_original_bytes_and_wo
             Image.new("RGB", (2, 2), "red").save(data, "PNG")
             assert set(contents.values()) == {data.getvalue()}
             assert all(path.parent.name != "0001_" + title + "_" + title for path in paths)
-            first = await service.workflow(URL, workflow_retries=0)
+            first = await service.workflow(WorkflowRequest(url=URL, workflow_retries=0))
             assert first.items[0].status == "success"
             assert first.items[0].download.saved_files == regular.saved_files
-            assert (await service.workflow(URL, workflow_retries=0)).selected_urls == ()
-            all_result = await service.workflow(URL, download_scope="all", workflow_retries=0)
+            assert (await service.workflow(WorkflowRequest(url=URL, workflow_retries=0))).selected_urls == ()
+            all_result = await service.workflow(WorkflowRequest(url=URL, download_scope="all", workflow_retries=0))
             assert all_result.items[0].status == "success"
             assert {path.name: path.read_bytes() for path in paths} == contents
             assert all(item.completed for item in WorkflowStateService(service.config).get_workflow(URL)[0].items)
@@ -228,11 +234,11 @@ def test_empty_page_uses_regular_manifest_policy(tmp_path, monkeypatch, allow_em
 
     async def scenario():
         async with compose(tmp_path, allow_empty=allow_empty) as service:
-            result = await service.workflow(URL, workflow_retries=0)
+            result = await service.workflow(WorkflowRequest(url=URL, workflow_retries=0))
             assert result.selected_urls == (URL,)
             assert result.items[0].status == "success"
             assert not result.items[0].download.saved_files
-            regular = await service.run(URL)
+            regular = await service.download(DownloadRequest(url=URL))
             assert not regular.saved_files
 
     asyncio.run(scenario())
@@ -244,15 +250,15 @@ def test_partial_retry_retains_success_and_next_invocation_retries_unfinished(tm
 
     async def scenario():
         async with compose(tmp_path) as service:
-            result = await service.workflow(URL, workflow_retry_delay=0)
+            result = await service.workflow(WorkflowRequest(url=URL, workflow_retry_delay=0))
             assert [a.status for a in result.items[0].attempts] == ["partial", "success"]
             assert Counter(page.requests)[URL + "a.png"] == 1
             assert Counter(page.requests)[URL + "b.png"] == 2
             page.failed = {"/b.png"}
-            unfinished = await service.workflow(URL, download_scope="all", workflow_retries=0)
+            unfinished = await service.workflow(WorkflowRequest(url=URL, download_scope="all", workflow_retries=0))
             assert unfinished.items[0].status == "partial"
             page.failed.clear()
-            retried = await service.workflow(URL, workflow_retries=0)
+            retried = await service.workflow(WorkflowRequest(url=URL, workflow_retries=0))
             assert retried.items[0].reasons == ("unfinished",)
             assert retried.items[0].status == "success"
 
@@ -270,8 +276,8 @@ def test_generic_dry_run_checks_only_feed_and_leaves_history_unchanged(tmp_path,
     async def scenario():
         async with compose(tmp_path) as service:
             before = {p: p.read_bytes() for p in tmp_path.rglob("*") if p.is_file() and p.suffix != ".lock"}
-            first = await service.plan_workflow(URL)
-            second = await service.plan_workflow(URL)
+            first = await service.plan_workflow(WorkflowPlanRequest(url=URL))
+            second = await service.plan_workflow(WorkflowPlanRequest(url=URL))
             assert first.selected_urls == second.selected_urls == (URL,)
             assert page.requests == [URL, URL]
             after = {p: p.read_bytes() for p in tmp_path.rglob("*") if p.is_file() and p.suffix != ".lock"}
@@ -291,11 +297,18 @@ def test_non_update_plugin_returns_specific_safe_error(tmp_path, operation):
         async with compose(tmp_path) as service:
             record = service.registry.records["core.generic-html"]
             service.registry.resolve = lambda *args, **kwargs: (record, DownloadOnly())
-            with pytest.raises(UpdateCheckUnsupportedError) as error:
-                await getattr(service, operation)(URL)
-            assert error.value.code == "update_check_unsupported"
+            request_type = {
+                "check_updates": UpdateCheckRequest,
+                "workflow": WorkflowRequest,
+                "plan_workflow": WorkflowPlanRequest,
+            }[operation]
+            expected_error = pytest.raises if operation == "check_updates" else expect_workflow_error
+            with expected_error(UpdateCheckUnsupportedError) as error:
+                await getattr(service, operation)(request_type(url=URL))
+            cause = error.value if operation == "check_updates" else error.value.cause
+            assert cause.code == "update_check_unsupported"
             if operation == "workflow":
-                result = error.value.workflow_result
+                result = error.value.result
                 assert result.stop_error.reason == "selected plugin does not support update checks"
                 assert WorkflowStateService(service.config).get_run(result.run_id).exit_code == 4
 
@@ -313,13 +326,13 @@ def test_zero_chapter_manifest_obeys_allow_empty_setting(tmp_path, monkeypatch, 
 
     async def scenario():
         async with compose(tmp_path, allow_empty=allow_empty) as service:
-            result = await service.workflow(URL, workflow_retries=0)
+            result = await service.workflow(WorkflowRequest(url=URL, workflow_retries=0))
             assert result.items[0].status == ("success" if allow_empty else "failed")
             if allow_empty:
-                assert not (await service.run(URL)).saved_files
+                assert not (await service.download(DownloadRequest(url=URL))).saved_files
             else:
                 with pytest.raises(PluginError):
-                    await service.run(URL)
+                    await service.download(DownloadRequest(url=URL))
 
     asyncio.run(scenario())
 
@@ -428,7 +441,7 @@ def test_generic_inspection_preview_and_sent_headers_follow_automatic_policy(
         async with compose(tmp_path, network=network) as service:
             debug_path = tmp_path / "debug.log"
             service.logger.sinks.append(DebugFileSink(debug_path))
-            inspection = await service.inspect(SECRET_PAGE)
+            inspection = await service.inspect(InspectRequest(url=SECRET_PAGE))
             image = inspection.manifest.chapters[0].images[0]
             resolution = inspection.image_requests[0]
             assert image.url == target and image.referer == automatic
@@ -436,7 +449,7 @@ def test_generic_inspection_preview_and_sent_headers_follow_automatic_policy(
             preview_headers = {h.name.lower(): h.value for h in resolution.effective_request.headers}
             assert preview_headers.get("referer") == sent
             assert fetched == []  # Resolving the image request only previews it.
-            result = await service.run(SECRET_PAGE)
+            result = await service.download(DownloadRequest(url=SECRET_PAGE))
             assert len(result.saved_files) == 1 and not result.failures
             assert Path(result.saved_files[0]).read_bytes() == tiny_png
         logs = "\n".join(p.read_text(encoding="utf-8") for p in tmp_path.rglob("*.log"))
@@ -521,7 +534,7 @@ def test_page_redirect_and_cross_origin_base_keep_the_final_page_as_referrer(
 
     async def scenario():
         async with compose(tmp_path) as service:
-            result = await service.run(URL)
+            result = await service.download(DownloadRequest(url=URL))
             assert len(result.saved_files) == 1 and not result.failures
 
     asyncio.run(scenario())
@@ -544,7 +557,7 @@ def test_cdn_requiring_full_referer_fails_without_an_unsafe_fallback(tmp_path, m
     async def scenario():
         async with compose(tmp_path) as service:
             with pytest.raises(AuthenticationError, match="authentication is required"):
-                await service.run(SECRET_PAGE)
+                await service.download(DownloadRequest(url=SECRET_PAGE))
 
     asyncio.run(scenario())
     assert seen == ["https://gallery.test/"]
@@ -574,7 +587,7 @@ def test_retry_compares_effective_referers_when_page_query_changes(
 
     async def scenario():
         async with compose(tmp_path) as service:
-            result = await service.workflow(URL, workflow_retry_delay=0)
+            result = await service.workflow(WorkflowRequest(url=URL, workflow_retry_delay=0))
             assert [a.status for a in result.items[0].attempts] == ["partial", "success"]
             assert fetched == {"/a.png": retained_a_requests, "/b.png": 2}
 

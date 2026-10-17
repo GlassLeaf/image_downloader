@@ -10,7 +10,8 @@ from PIL import Image
 
 from image_downloader import Chapter, DownloadManifest, ImageArtifact, ImageResource, TransformContext
 from image_downloader.config import AppConfig
-from image_downloader.plugins.plugin_manifest import read_manifest, verify_signed_plugin_source
+from image_downloader.plugins.plugin_manifest import read_manifest
+from image_downloader.plugins.plugin_verification import verify_signed_plugin_source
 from image_downloader.security import PluginRuntime, install_plugin, safe_app_settings
 
 HISTORY_ID = "local.image-downloader.artifact-history-processor"

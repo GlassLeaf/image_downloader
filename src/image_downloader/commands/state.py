@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 import asyncio
 import json
 import sys
@@ -13,9 +12,9 @@ from ..application.workflow_state import WorkflowStateService
 from ..exceptions import ConfigurationError
 from ..models import WorkflowStateView
 from ..storage.workflow_history import run_payload
+from .prepared import PreparedCommand, StateArguments
 from .setup import _config_for
 from .state_formatting import print_state
-from .validation import _reject_command_options
 
 
 def state_payload(view: WorkflowStateView) -> dict[str, object]:
@@ -36,38 +35,9 @@ def state_payload(view: WorkflowStateView) -> dict[str, object]:
 
 
 class StateCommandHandler:
-    async def handle(self, args: argparse.Namespace) -> int:
-        _reject_explicit_state_options(args)
-        _reject_command_options(
-            args,
-            (
-                "force_plugin_id",
-                "plugin_config",
-                "plugin_config_file",
-                "plugin_download_policy",
-                "plugin_download_policy_file",
-                "fallback_generic",
-                "host",
-                "no_console_log",
-                "list_updated_urls",
-                "inspect_only",
-                "manifest_only",
-                "export_cookies",
-                "import_cookies",
-                "import_browser_cookies",
-                "existing_file",
-                "image_format",
-                "force_image_format",
-                "output_dir",
-                "directory_format",
-                "inspection_data",
-                "selection_priority",
-                "plugin_root",
-                "plugin_verification_override",
-                "yes",
-            ),
-            "state",
-        )
+    async def handle(self, command: PreparedCommand) -> int:
+        args = command.arguments
+        assert isinstance(args, StateArguments)
         tokens = args.command_args
         if not tokens or tokens[0] != "workflow":
             raise ConfigurationError("state requires workflow list|show|history|run|prune")
@@ -83,7 +53,7 @@ class StateCommandHandler:
             raise ConfigurationError("invalid workflow state arguments")
         if args.dry_run and action != "prune":
             raise ConfigurationError("--dry-run is only valid for workflow or state workflow prune")
-        limit = getattr(args, "limit", None)
+        limit = args.limit
         if limit is not None and (action != "history" or limit < 1):
             raise ConfigurationError("--limit requires history and a positive integer")
         if action in {"run", "prune"} and args.plugin_id is not None:
@@ -126,11 +96,3 @@ class StateCommandHandler:
         else:
             print_state(payload)
         return status
-
-
-def _reject_explicit_state_options(args: argparse.Namespace) -> None:
-    # Explicit default values (e.g. --selection-priority 0) still represent forbidden operations.
-    allowed = {"--config", "--profile", "--data-root", "--json", "--plugin", "--limit", "--dry-run"}
-    for option in sorted(getattr(args, "_explicit_options", ())):
-        if option not in allowed:
-            raise ConfigurationError(f"{option} is not valid for the state command")

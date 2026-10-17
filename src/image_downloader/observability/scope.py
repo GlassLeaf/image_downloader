@@ -41,15 +41,18 @@ class OperationDiagnosticsScope:
         _traceback: TracebackType | None,
     ) -> Literal[False]:
         try:
-            await self._finalize_observers()
-        except Exception:
-            warn_diagnostic_failure()
-        try:
-            if self._capture_started:
-                await self._logger.flush_python_log_capture()
-        except Exception:
-            warn_diagnostic_failure()
+            try:
+                await self._finalize_observers()
+            except Exception:
+                warn_diagnostic_failure()
+            try:
+                if self._capture_started:
+                    await self._logger.flush_python_log_capture()
+            except Exception:
+                warn_diagnostic_failure()
         finally:
+            # Detach even when either flush is cancelled. Keep the caller's
+            # context so the capture's ContextVar token can be reset safely.
             if self._capture_started:
                 try:
                     self._logger.end_python_log_capture()

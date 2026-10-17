@@ -101,7 +101,7 @@ def test_download_persists_before_main_operation_regardless_of_result(
     closed = False
 
     class Service:
-        async def run(self, *_: object, **__: object) -> object:
+        async def download(self, *_: object, **__: object) -> object:
             return SimpleNamespace(saved_files=saved, skipped_files=(), failures=failures)
 
         async def close(self) -> None:
@@ -139,7 +139,7 @@ def test_download_keeps_success_and_json_when_initial_config_write_fails(
     config = _config(tmp_path)
 
     class Service:
-        async def run(self, *_: object, **__: object) -> object:
+        async def download(self, *_: object, **__: object) -> object:
             return SimpleNamespace(saved_files=("saved.jpg",), skipped_files=(), failures=(), additional_files=())
 
         async def close(self) -> None:
@@ -178,7 +178,7 @@ def test_download_exception_keeps_initial_user_configuration(tmp_path: Path, mon
     config = _config(tmp_path)
 
     class Service:
-        async def run(self, *_: object, **__: object) -> object:
+        async def download(self, *_: object, **__: object) -> object:
             raise RuntimeError("request failed")
 
         async def close(self) -> None:

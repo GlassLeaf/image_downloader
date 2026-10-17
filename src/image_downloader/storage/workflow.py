@@ -2,34 +2,31 @@
 
 from __future__ import annotations
 
-import asyncio
 import json
-from collections.abc import Callable
+from collections.abc import Iterator
+from contextlib import contextmanager
+from dataclasses import dataclass
+from datetime import datetime
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any
 
 from ..exceptions import PluginError, UpdateStateError
-from ..models import UpdateChange, UpdateChangeKind, UpdateSnapshot
+from ..models import UpdateCandidate, UpdateChange, UpdateChangeKind, UpdateSnapshot, WorkflowStateItem
 from .filesystem import FileSystem
 from .interprocess_lock import InterProcessFileLock
+from .source_identity import source_key
 from .state import UpdateState
+from .transactions import finish_transaction as finish_transaction
+from .workflow_history import parse_time
 
-_T = TypeVar("_T")
 
-
-async def finish_transaction(function: Callable[[], _T]) -> _T:
-    task = asyncio.create_task(asyncio.to_thread(function))
-    try:
-        return await asyncio.shield(task)
-    except asyncio.CancelledError:
-        while not task.done():
-            try:
-                await asyncio.shield(task)
-            except asyncio.CancelledError:
-                continue
-        task.result()
-        raise
+@dataclass(frozen=True, slots=True)
+class WorkflowFeedSnapshot:
+    plugin_id: str
+    feed_key: str
+    checked_at: datetime
+    items: tuple[WorkflowStateItem, ...]
 
 
 class WorkflowState:
@@ -46,6 +43,37 @@ class WorkflowState:
     def feed_lock(self, plugin_id: str, url: str) -> InterProcessFileLock:
         key = sha256(json.dumps([plugin_id, url]).encode()).hexdigest()
         return self.lock(Path("workflow-locks") / f"{key}.lock")
+
+    @contextmanager
+    def read_feeds(self, *, plugin_id: str | None = None) -> Iterator[tuple[WorkflowFeedSnapshot, ...]]:
+        """Keep the workflow lock while callers read the matching history.
+
+        Readers acquire only the short workflow lock, then the history lock;
+        the long-lived feed lock is deliberately excluded from this path.
+        """
+        with self.lock(Path("workflow.lock")):
+            document = self._read()
+            try:
+                feeds = tuple(
+                    WorkflowFeedSnapshot(
+                        stored_plugin_id,
+                        key,
+                        parse_time(feed["checked_at"]),
+                        tuple(
+                            WorkflowStateItem(
+                                UpdateCandidate(record["url"], record["content_id"], record["revision"]),
+                                record["completed"],
+                            )
+                            for record in feed["records"].values()
+                        ),
+                    )
+                    for stored_plugin_id, sources in document["sources"].items()
+                    if plugin_id is None or stored_plugin_id == plugin_id
+                    for key, feed in sources.items()
+                )
+            except (ValueError, OverflowError) as exc:
+                raise UpdateStateError("workflow state has an invalid timestamp") from exc
+            yield feeds
 
     def _read(self) -> dict[str, Any]:
         if not self.filesystem.exists(self.relative):
@@ -101,11 +129,11 @@ class WorkflowState:
         with self.lock(Path("workflow.lock")):
             document = self._read()
             feeds = document["sources"].setdefault(plugin_id, {})
-            source_key = UpdateState._source_key(url)
-            history_absent = source_key not in feeds
-            previous = feeds.get(source_key, {}).get("records", {})
+            key = source_key(url)
+            history_absent = key not in feeds
+            previous = feeds.get(key, {}).get("records", {})
             current, changes, selected = select_candidates(previous, snapshot, scope)
-            feeds[source_key] = {"checked_at": snapshot.checked_at.isoformat(), "records": current}
+            feeds[key] = {"checked_at": snapshot.checked_at.isoformat(), "records": current}
             self._write(document)
             return history_absent, tuple(changes), selected
 
@@ -115,7 +143,7 @@ class WorkflowState:
         with self.lock(Path("workflow.lock")):
             document = self._read()
             feeds = document["sources"].get(plugin_id, {})
-            key = UpdateState._source_key(url)
+            key = source_key(url)
             previous = feeds.get(key, {}).get("records", {})
             _, changes, selected = select_candidates(previous, snapshot, scope)
             return key not in feeds, changes, selected
@@ -127,7 +155,7 @@ class WorkflowState:
     def complete(self, plugin_id: str, source_url: str, target_url: str) -> None:
         with self.lock(Path("workflow.lock")):
             document = self._read()
-            records = document["sources"][plugin_id][UpdateState._source_key(source_url)]["records"]
+            records = document["sources"][plugin_id][source_key(source_url)]["records"]
             for record in records.values():
                 if record["url"] == target_url:
                     record["completed"] = True

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import argparse
 import asyncio
 import json
 from pathlib import Path
@@ -12,13 +11,17 @@ from ..application.log_verification import issue, verify_logs
 from ..application.workflow_state import WorkflowStateService
 from ..application.workflow_verification import verify_workflow
 from ..exceptions import UpdateStateError
+from .prepared import PreparedCommand, VerifyArguments
 from .setup import _config_for
 
 
 class VerifyCommandHandler:
-    async def handle(self, args: argparse.Namespace) -> int:
+    async def handle(self, command: PreparedCommand) -> int:
+        args = command.arguments
+        assert isinstance(args, VerifyArguments)
         resource = args.verify_resource
         target = Path(args.target) if resource == "logs" else args.output_dir
+        assert target is not None
         logs = await asyncio.to_thread(verify_logs, target)
         payload: dict[str, Any] = {"operation": "verify", "resource": resource, "logs": logs}
         states = [logs["status"]]

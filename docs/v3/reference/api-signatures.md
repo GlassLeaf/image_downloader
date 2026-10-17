@@ -1,21 +1,27 @@
-# Public signature index
+<a id="public-signature-index"></a>
 
-This is the signature-level reference for the stable facades in the [API inventory](api-contract-inventory.md). Each ordinary callable has one visible signature and one `api-contract` marker. `async` methods must be awaited. For meaning, side effects, and handling, use [library API](library-api.md).
+# 公開APIシグネチャ一覧
 
-## Contract categories
+[API一覧](api-contract-inventory.md)に掲載した安定ファサードのシグネチャを示します。通常の呼び出し可能なAPIには、シグネチャと`api-contract`マーカーを一つずつ記載します。`async`メソッドは`await`してください。意味、副作用、利用上の扱いは[ライブラリAPI](library-api.md)を参照してください。
 
-| public kind | complete contract source |
+<a id="contract-categories"></a>
+
+## 契約の分類
+
+| 公開APIの種類 | 完全な仕様の参照先 |
 | --- | --- |
-| ordinary function/concrete class | the individually marked constructor, own public method, and own property on this page |
-| frozen dataclass DTO | constructor and fields in the DTO tables below |
-| Pydantic model | declared fields/defaults/Literal constraints in [configuration](configuration.md#config-schema); inherited Pydantic methods are excluded |
-| Protocol | exact hook signature in [plugin hooks](plugin-hooks.md) |
-| enum/type alias | member `.value` / Literal alternatives in [library API](library-api.md#api-download-result) and [plugin package](plugin-package.md#plugin-catalog) |
-| exception | [error catalog](library-api.md#api-errors), including its own constructor and attributes; inherited `Exception` members are excluded |
+| 通常の関数・具象クラス | このページで個別にマークしたコンストラクター、そのクラスで定義した公開メソッド・プロパティ |
+| 不変のdataclass DTO | 後述のDTO表にあるコンストラクターとフィールド |
+| Pydanticモデル | [設定](configuration.md#config-schema)にある宣言済みフィールド・既定値・Literal制約。Pydanticから継承するメソッドは除外 |
+| Protocol | [プラグインフック](plugin-hooks.md)にある正確なフックシグネチャ |
+| 列挙型・型エイリアス | [ライブラリAPI](library-api.md#api-download-result)と[プラグインパッケージ](plugin-package.md#plugin-catalog)にあるメンバーの`.value`とLiteralの選択肢 |
+| 例外 | [エラー一覧](library-api.md#api-errors)にある独自のコンストラクターと属性。`Exception`からの継承メンバーは除外 |
 
-## Configuration and CLI functions
+<a id="configuration-and-cli-functions"></a>
 
-| callable | visible signature |
+## 設定とCLIの関数
+
+| 呼び出し可能なAPI | シグネチャ |
 | --- | --- |
 | `validate_config` <!-- api-contract: image_downloader.config.validate_config --> | `validate_config(value: Mapping[str, Any] | AppConfig) -> AppConfig` |
 | `deep_merge` <!-- api-contract: image_downloader.config.deep_merge --> | `deep_merge(base: Mapping[str, Any], override: Mapping[str, Any]) -> dict[str, Any]` |
@@ -38,16 +44,18 @@ This is the signature-level reference for the stable facades in the [API invento
 | `plugin_command` <!-- api-contract: image_downloader.cli.plugin_command --> | `plugin_command(args: argparse.Namespace) -> int` |
 | `main` <!-- api-contract: image_downloader.cli.main --> | `main(argv: Sequence[str] | None = None) -> int` |
 
-`AppConfig`, `Profile`, `Storage`, `Plugins`, `Output`, `Media`, `ConsoleLogging`, `Download`, `Logging`, `Network`, `Email`, `Notification`, `PluginSettings`, `Security`, `ImageProcessors`, `GenericHtmlFallback`, `Fallback`, `WorkflowHistory`, and `WorkflowLogging` are keyword-only Pydantic models. Their complete declared field/default/Literal contracts are the [configuration schema](configuration.md#config-schema); Pydantic-inherited methods are intentionally outside the stable API contract.
+`AppConfig`、`Profile`、`Storage`、`Plugins`、`Output`、`Media`、`ConsoleLogging`、`Download`、`Logging`、`Network`、`Email`、`Notification`、`PluginSettings`、`Security`、`ImageProcessors`、`GenericHtmlFallback`、`Fallback`、`WorkflowHistory`、`WorkflowLogging`は、キーワード引数専用のPydanticモデルです。宣言済みフィールド・既定値・Literal制約の全体は[設定スキーマ](configuration.md#config-schema)を参照してください。Pydanticから継承するメソッドは、安定APIの対象外です。
 
-| configuration DTO | declared constructor / fields |
+| 設定DTO | 宣言されたコンストラクター・フィールド |
 | --- | --- |
 | `ConfigurationLayer` | `ConfigurationLayer(role: str, path: Path | None, status: LayerStatus)` |
 | `ResolvedApplicationConfig` | `ResolvedApplicationConfig(config: AppConfig, main_config_path: Path | None, config_root: Path, source: str, selected_profile: str, layers: tuple[ConfigurationLayer, ...], origins: Mapping[str, str])` |
 
-## Frozen root DTOs and protocols
+<a id="frozen-root-dtos-and-protocols"></a>
 
-| DTO | declared constructor / fields |
+## パッケージ直下の不変DTOとプロトコル
+
+| DTO | 宣言されたコンストラクター・フィールド |
 | --- | --- |
 | `Chapter` | `Chapter(number: int, title: str, subtitle: str = "", images: tuple[ImageResource, ...] = (), chapter_id: str | None = None, *, allow_empty_images: bool | None = None)` |
 | `ChapterResult` | `ChapterResult(chapter: Chapter, outcomes: tuple[ImageOutcome, ...])` |
@@ -63,7 +71,7 @@ This is the signature-level reference for the stable facades in the [API invento
 | `ImageFetchRequest` | `ImageFetchRequest(request: RequestSpec, plugin_data: Mapping[str, str] = <factory: freeze_mapping>)` |
 | `ImageRequestResolutionFailure` | `ImageRequestResolutionFailure(code: str, reason: str, exception: str, phase: str = "create_image_request")` |
 | `ImageRequestResolution` | `ImageRequestResolution(chapter_position: int, image_position: int, status: ImageRequestResolutionStatus, request: RequestSpec | None = None, plugin_data: Mapping[str, str] = <factory: freeze_mapping>, uses_image_fetch_request: bool | None = None, failure: ImageRequestResolutionFailure | None = None, effective_request: EffectiveRequestPreview | None = None)` |
-| `ManifestInspectionResult` | `ManifestInspectionResult(source_url: str, plugin_id: str, manifest: DownloadManifest, request_resolution_performed: bool, image_requests: tuple[ImageRequestResolution, ...] = ())`; `failures -> tuple[ImageRequestResolution, ...]` property |
+| `ManifestInspectionResult` | `ManifestInspectionResult(source_url: str, plugin_id: str, manifest: DownloadManifest, request_resolution_performed: bool, image_requests: tuple[ImageRequestResolution, ...] = ())`; `failures -> tuple[ImageRequestResolution, ...]` プロパティ |
 | `ImageFailure` | `ImageFailure(kind: FailureKind, exception_type: str, message: str, code: str = "unexpected_image_failure", reason: str = "unexpected image failure", response_url: str | None = None, http_status: int | None = None, output_path: str | None = None, transport: str | None = None)` |
 | `ImageOutcome` | `ImageOutcome(image: ImageResource, kind: ImageOutcomeKind, path: str | None = None, failure: ImageFailure | None = None)` |
 | `ImageResource` | `ImageResource(url: str, index: int = 1, referer: str | None = None, headers: Mapping[str, str] = <factory: freeze_mapping>, save_options: ImageSaveOptions = <factory: ImageSaveOptions>, image_id: str | None = None, metadata: Mapping[str, str] = <factory: freeze_mapping>, original_filename: str | None = None)` |
@@ -83,15 +91,17 @@ This is the signature-level reference for the stable facades in the [API invento
 | `WorkflowRoundResult` | `WorkflowRoundResult(round_number: int, snapshot: UpdateSnapshot | None, changes: tuple[UpdateChange, ...] = (), selected_urls: tuple[str, ...] = (), removed_urls: tuple[str, ...] = (), status: Literal['complete', 'stopped'] = 'complete', error: ErrorInfo | None = None)` |
 | `WorkflowItemResult` | `WorkflowItemResult(url: str, reasons: tuple[str, ...], status: Literal['success', 'partial', 'failed', 'unprocessed', 'removed'], download: DownloadResult | None = None, error: ErrorInfo | None = None, attempts: tuple[WorkflowAttemptResult, ...] = ())` |
 | `WorkflowPlanItem` | `WorkflowPlanItem(candidate: UpdateCandidate, selected: bool, reasons: tuple[str, ...])` |
-| `WorkflowPlanResult` | `WorkflowPlanResult(source_url: str, download_scope: Literal['all', 'updated'], plugin_id: str | None = None, snapshot: UpdateSnapshot | None = None, changes: tuple[UpdateChange, ...] = (), first_run: bool | None = None, items: tuple[WorkflowPlanItem, ...] = (), stop_error: ErrorInfo | None = None, cancelled: bool = False)` `selected_urls -> tuple[str, ...]` property |
-| `WorkflowResult` | `WorkflowResult(source_url: str, download_scope: Literal['all', 'updated'], snapshot: UpdateSnapshot | None, changes: tuple[UpdateChange, ...], items: tuple[WorkflowItemResult, ...], stop_error: ErrorInfo | None = None, cancelled: bool = False, workflow_retries: int = 1, workflow_retry_delay: float = 600.0, workflow_retry_timeout: float | None = None, rounds: tuple[WorkflowRoundResult, ...] = (), timed_out: bool = False, run_id: str | None = None, history_saved: bool | None = None, history_warning: str | None = None, workflow_log: WorkflowLogResult | None = None)`  `selected_urls -> tuple[str, ...]` property |
+| `WorkflowPlanResult` | `WorkflowPlanResult(source_url: str, download_scope: Literal['all', 'updated'], plugin_id: str | None = None, snapshot: UpdateSnapshot | None = None, changes: tuple[UpdateChange, ...] = (), first_run: bool | None = None, items: tuple[WorkflowPlanItem, ...] = (), stop_error: ErrorInfo | None = None, cancelled: bool = False)` `selected_urls -> tuple[str, ...]` プロパティ |
+| `WorkflowResult` | `WorkflowResult(source_url: str, download_scope: Literal['all', 'updated'], snapshot: UpdateSnapshot | None, changes: tuple[UpdateChange, ...], items: tuple[WorkflowItemResult, ...], stop_error: ErrorInfo | None = None, cancelled: bool = False, workflow_retries: int = 1, workflow_retry_delay: float = 600.0, workflow_retry_timeout: float | None = None, rounds: tuple[WorkflowRoundResult, ...] = (), timed_out: bool = False, run_id: str | None = None, history_saved: bool | None = None, history_warning: str | None = None, workflow_log: WorkflowLogResult | None = None)`  `selected_urls -> tuple[str, ...]` プロパティ |
 | `WorkflowLogResult` | `WorkflowLogResult(plan_files: tuple[str, ...] = (), progress_enabled: bool = True, jsonl_path: str | None = None, text_path: str | None = None, jsonl_saved: bool | None = None, text_saved: bool | None = None, warnings: tuple[str, ...] = (), event_sequence: int = 0)` |
 
-`<factory: name>` is the dataclass default-factory spelling: a new value is built for every construction, not a shared mutable default. `RequestPort`, `SecretProvider`, `AuthFlow`, `OriginScopedAuthFlow`, `SitePlugin`, `ConfigurableSitePlugin`, `ImageProcessor`, `OutputFormatValueProvider`, and `UpdateProvider` are Protocols; their exact signatures and capability boundaries are in [plugin hooks](plugin-hooks.md). Site/processor の任意 lifecycle extension は `output_format_values(context) -> Mapping[str, str]` と `cleanup_after_use() -> Awaitable[None] | None` である。runtime は cleanup 完了後に同じ instance の plugin hook を呼ばない。`FailureKind`, `ImageOutcomeKind`, and `UpdateChangeKind` are enum contracts in [library API](library-api.md#api-download-result).
+`<factory: name>`はdataclassの既定値生成関数を表します。構築ごとに新しい値を生成し、変更可能な既定値を共有しません。`RequestPort`、`SecretProvider`、`AuthFlow`、`OriginScopedAuthFlow`、`SitePlugin`、`ConfigurableSitePlugin`、`ImageProcessor`、`OutputFormatValueProvider`、`UpdateProvider`はProtocolです。正確なシグネチャと利用可能な機能の境界は[プラグインフック](plugin-hooks.md)を参照してください。サイト・画像処理プラグインの任意のライフサイクル拡張は、`output_format_values(context) -> Mapping[str, str]`と`cleanup_after_use() -> Awaitable[None] | None`です。実行環境は、後始末の完了後に同じインスタンスのフックを呼びません。`FailureKind`、`ImageOutcomeKind`、`UpdateChangeKind`の列挙値は[ライブラリAPI](library-api.md#api-download-result)で定義します。
 
-## Runtime concrete classes
+<a id="runtime-concrete-classes"></a>
 
-| constructor, method, or property | visible signature |
+## 実行環境の具象クラス
+
+| コンストラクター・メソッド・プロパティ | シグネチャ |
 | --- | --- |
 | `ArtifactPipeline` <!-- api-contract: image_downloader.runtime.ArtifactPipeline --> | `ArtifactPipeline(config: AppConfig, registry: PluginRuntime, site_record: PluginRecord, overrides: PluginConfigOverrides | None, image_processor: ImageProcessor, logger: DownloadLogger, invoker: PluginInvoker, processors: tuple[PreparedProcessor | str, ...], *, force_image_format: ImageFormat | None = None)` |
 | `ArtifactPipeline.process` <!-- api-contract: image_downloader.runtime.ArtifactPipeline.process --> | `async process(self, plugin: SitePlugin, artifact: ImageArtifact, image: ImageResource, manifest: DownloadManifest, chapter: Chapter, *, transport_metadata: ImageTransportMetadata | None = None) -> ImageArtifact` |
@@ -100,15 +110,15 @@ This is the signature-level reference for the stable facades in the [API invento
 | `ChapterReporter.record` <!-- api-contract: image_downloader.runtime.ChapterReporter.record --> | `async record(self, position: int, outcome: ImageOutcome) -> None` |
 | `ChapterReporter.finish` <!-- api-contract: image_downloader.runtime.ChapterReporter.finish --> | `async finish(self, outcomes: tuple[ImageOutcome, ...] | None = None) -> None` |
 | `DownloadService` <!-- api-contract: image_downloader.runtime.DownloadService --> | `DownloadService(config: AppConfig, registry: PluginRuntime, dependencies: _RuntimeDependencies)` |
-| `DownloadService.run` <!-- api-contract: image_downloader.runtime.DownloadService.run --> | `async run(self, url: str, *, plugin_overrides: PluginConfigOverrides | None = None, fallback_override: bool | None = None, plugin_id: str | None = None, force_plugin: bool = False, plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None, force_image_format: ImageFormat | None = None) -> DownloadResult` |
-| `DownloadService.inspect` <!-- api-contract: image_downloader.runtime.DownloadService.inspect --> | `async inspect(self, url: str, *, plugin_overrides: PluginConfigOverrides | None = None, fallback_override: bool | None = None, plugin_id: str | None = None, force_plugin: bool = False, resolve_image_requests: bool = True) -> ManifestInspectionResult` |
-| `DownloadService.check_updates` <!-- api-contract: image_downloader.runtime.DownloadService.check_updates --> | `async check_updates(self, url: str, *, plugin_overrides: PluginConfigOverrides | None = None, fallback_override: bool | None = None, plugin_id: str | None = None, force_plugin: bool = False, plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None) -> UpdateResult` |
+| `DownloadService.download` <!-- api-contract: image_downloader.runtime.DownloadService.download --> | `async download(self, request: DownloadRequest) -> DownloadResult` |
+| `DownloadService.inspect` <!-- api-contract: image_downloader.runtime.DownloadService.inspect --> | `async inspect(self, request: InspectRequest) -> ManifestInspectionResult` |
+| `DownloadService.check_updates` <!-- api-contract: image_downloader.runtime.DownloadService.check_updates --> | `async check_updates(self, request: UpdateCheckRequest) -> UpdateResult` |
 | `DownloadService.close` <!-- api-contract: image_downloader.runtime.DownloadService.close --> | `async close(self) -> None` |
-| `DownloadService.plan_workflow` <!-- api-contract: image_downloader.runtime.DownloadService.plan_workflow --> | `async plan_workflow(self, url: str, *, download_scope: Literal["all", "updated"] = "updated", plugin_overrides: PluginConfigOverrides | None = None, fallback_override: bool | None = None, plugin_id: str | None = None, force_plugin: bool = False, plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None) -> WorkflowPlanResult` |
-| `DownloadService.workflow` <!-- api-contract: image_downloader.runtime.DownloadService.workflow --> | `async workflow(self, url: str, *, download_scope: Literal["all", "updated"] = "updated", workflow_retries: int = 1, workflow_retry_delay: float = 600.0, workflow_retry_timeout: float | None = None, workflow_progress_log: bool | None = None, plugin_overrides: PluginConfigOverrides | None = None, fallback_override: bool | None = None, plugin_id: str | None = None, force_plugin: bool = False, plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None, force_image_format: ImageFormat | None = None) -> WorkflowResult` |
+| `DownloadService.plan_workflow` <!-- api-contract: image_downloader.runtime.DownloadService.plan_workflow --> | `async plan_workflow(self, request: WorkflowPlanRequest) -> WorkflowPlanResult` |
+| `DownloadService.workflow` <!-- api-contract: image_downloader.runtime.DownloadService.workflow --> | `async workflow(self, request: WorkflowRequest) -> WorkflowResult` |
 | `OutputAllocation` <!-- api-contract: image_downloader.runtime.OutputAllocation --> | `OutputAllocation(relative_path: Path, _allocator: OutputAllocator | None = None, _key: str | None = None, _completion: asyncio.Future[bool] | None = None, _finished: bool = False)` |
 | `OutputFormatContext` <!-- api-contract: image_downloader.runtime.OutputFormatContext --> | `OutputFormatContext(manifest: DownloadManifest, chapter: Chapter, operation_url: str, plugin_id: str, image: ImageResource | None = None, extension: str | None = None, original_filename: str | None = None, plugin_values: Mapping[str, Mapping[str, str]] = <factory>)` (`<factory: dict>`) |
-| `OutputAllocation.should_write` <!-- api-contract: image_downloader.runtime.OutputAllocation.should_write --> | `should_write(self) -> bool` property |
+| `OutputAllocation.should_write` <!-- api-contract: image_downloader.runtime.OutputAllocation.should_write --> | `should_write(self) -> bool` プロパティ |
 | `OutputAllocation.commit` <!-- api-contract: image_downloader.runtime.OutputAllocation.commit --> | `async commit(self) -> None` |
 | `OutputAllocation.abort` <!-- api-contract: image_downloader.runtime.OutputAllocation.abort --> | `async abort(self) -> None` |
 | `OutputAllocator` <!-- api-contract: image_downloader.runtime.OutputAllocator --> | `OutputAllocator(filesystem: FileSystem, config: AppConfig)` |
@@ -127,17 +137,20 @@ This is the signature-level reference for the stable facades in the [API invento
 | `RuntimeSecrets.get` <!-- api-contract: image_downloader.runtime.RuntimeSecrets.get --> | `get(self, name: str) -> str` |
 | `UpdateState` <!-- api-contract: image_downloader.runtime.UpdateState --> | `UpdateState(filesystem: FileSystem, *, lock_timeout_seconds: float = 30.0)` |
 | `UpdateState.records` <!-- api-contract: image_downloader.runtime.UpdateState.records --> | `records(self) -> dict[str, _Record]` |
+| `UpdateState.validate` <!-- api-contract: image_downloader.runtime.UpdateState.validate --> | `validate(self) -> None` |
 | `UpdateState.save` <!-- api-contract: image_downloader.runtime.UpdateState.save --> | `save(self, records: Mapping[str, Mapping[str, str | None]]) -> None` |
 | `UpdateState.apply_snapshot` <!-- api-contract: image_downloader.runtime.UpdateState.apply_snapshot --> | `apply_snapshot(self, plugin_id: str, source_url: str, snapshot: UpdateSnapshot) -> tuple[UpdateChange, ...]` |
 | `UpdateState.apply_snapshot_async` <!-- api-contract: image_downloader.runtime.UpdateState.apply_snapshot_async --> | `async apply_snapshot_async(self, plugin_id: str, source_url: str, snapshot: UpdateSnapshot) -> tuple[UpdateChange, ...]` |
 
-`_RuntimeDependencies` is a classified dataclass DTO with no own public methods/properties: `_RuntimeDependencies(outputs, logs, state, events, logger, notifications, cookie_store, cookie_baseline, gateway, image_processor, output_locks, persist_cookies_on_close=True)`.
+`_RuntimeDependencies`は独自の公開メソッド・プロパティを持たないdataclass DTOです。コンストラクターは`_RuntimeDependencies(outputs, logs, state, events, logger, notifications, cookie_store, cookie_baseline, gateway, image_processor, output_locks, persist_cookies_on_close=True)`です。
 
-## Plugin security API
+<a id="plugin-security-api"></a>
 
-`PluginConfigOverrides` と `PluginDownloadPolicyOverrides` は `Mapping[str, Mapping[str, Any]]`; `PluginKind`, `PluginVerificationMode`, and `PluginVerificationOverride` have the exact Literal alternatives defined in [plugin package](plugin-package.md#plugin-catalog).
+## プラグインのセキュリティAPI
 
-| DTO | declared constructor / fields |
+`PluginConfigOverrides`と`PluginDownloadPolicyOverrides`は`Mapping[str, Mapping[str, Any]]`です。`PluginKind`、`PluginVerificationMode`、`PluginVerificationOverride`の正確なLiteralの選択肢は[プラグインパッケージ](plugin-package.md#plugin-catalog)を参照してください。
+
+| DTO | 宣言されたコンストラクター・フィールド |
 | --- | --- |
 | `CatalogEntry` | `CatalogEntry(id: str, kind: PluginKind, manifest_digest: str, selection_priority: int, revoked: bool, publisher: str | None = None, version: str | None = None, public_key: str | None = None, key_id: str | None = None, file_tree_sha256: str | None = None, content_digest: str | None = None)` |
 | `PluginManifest` | `PluginManifest(value: Mapping[str, Any], signature: str | None, digest: str, directory: Path)` |
@@ -147,17 +160,17 @@ This is the signature-level reference for the stable facades in the [API invento
 | `PluginVerificationResult` | `PluginVerificationResult(records: tuple[PluginRecord, ...], catalog: PluginCatalog | None, diagnostics: tuple[PluginDiagnostic, ...])` |
 | `PluginUninstallResult` | `PluginUninstallResult(id: str, removed_directory: bool, removed_catalog_entry: bool)` |
 
-| constructor, method, or property | visible signature |
+| コンストラクター・メソッド・プロパティ | シグネチャ |
 | --- | --- |
-| `CatalogEntry.content_pinned` <!-- api-contract: image_downloader.security.CatalogEntry.content_pinned --> | `content_pinned(self) -> bool` property |
+| `CatalogEntry.content_pinned` <!-- api-contract: image_downloader.security.CatalogEntry.content_pinned --> | `content_pinned(self) -> bool` プロパティ |
 | `CatalogEntry.as_json` <!-- api-contract: image_downloader.security.CatalogEntry.as_json --> | `as_json(self) -> dict[str, object]` |
 | `PluginCatalog` <!-- api-contract: image_downloader.security.PluginCatalog --> | `PluginCatalog(entries: tuple[CatalogEntry, ...])` |
 | `PluginCatalog.load` <!-- api-contract: image_downloader.security.PluginCatalog.load --> | `load(path: Path) -> PluginCatalog` class method |
 | `PluginCatalog.find` <!-- api-contract: image_downloader.security.PluginCatalog.find --> | `find(self, plugin_id: str) -> CatalogEntry | None` |
 | `PluginCatalog.replace` <!-- api-contract: image_downloader.security.PluginCatalog.replace --> | `replace(self, entry: CatalogEntry) -> PluginCatalog` |
 | `PluginCatalog.remove` <!-- api-contract: image_downloader.security.PluginCatalog.remove --> | `remove(self, plugin_id: str) -> PluginCatalog` |
-| `PluginManifest.id` <!-- api-contract: image_downloader.security.PluginManifest.id --> | `id(self) -> str` property |
-| `PluginManifest.kind` <!-- api-contract: image_downloader.security.PluginManifest.kind --> | `kind(self) -> PluginKind` property |
+| `PluginManifest.id` <!-- api-contract: image_downloader.security.PluginManifest.id --> | `id(self) -> str` プロパティ |
+| `PluginManifest.kind` <!-- api-contract: image_downloader.security.PluginManifest.kind --> | `kind(self) -> PluginKind` プロパティ |
 | `PluginClassLoader` <!-- api-contract: image_downloader.security.PluginClassLoader --> | `PluginClassLoader()` |
 | `PluginClassLoader.register_class` <!-- api-contract: image_downloader.security.PluginClassLoader.register_class --> | `register_class(self, record: PluginRecord, plugin_class: type[object]) -> None` |
 | `PluginClassLoader.load_class` <!-- api-contract: image_downloader.security.PluginClassLoader.load_class --> | `load_class(self, record: PluginRecord) -> type[object]` |
@@ -172,14 +185,14 @@ This is the signature-level reference for the stable facades in the [API invento
 | `PluginDiscovery.discover` <!-- api-contract: image_downloader.security.PluginDiscovery.discover --> | `discover(self) -> PluginDiscoveryResult` |
 | `PluginManifestVerifier` <!-- api-contract: image_downloader.security.PluginManifestVerifier --> | `PluginManifestVerifier(plugin_root: Path, *, mode: PluginVerificationMode)` |
 | `PluginManifestVerifier.verify` <!-- api-contract: image_downloader.security.PluginManifestVerifier.verify --> | `verify(self, discovery: PluginDiscoveryResult) -> PluginVerificationResult` |
-| `PluginRecord.id` <!-- api-contract: image_downloader.security.PluginRecord.id --> | `id(self) -> str` property |
-| `PluginRecord.kind` <!-- api-contract: image_downloader.security.PluginRecord.kind --> | `kind(self) -> PluginKind` property |
+| `PluginRecord.id` <!-- api-contract: image_downloader.security.PluginRecord.id --> | `id(self) -> str` プロパティ |
+| `PluginRecord.kind` <!-- api-contract: image_downloader.security.PluginRecord.kind --> | `kind(self) -> PluginKind` プロパティ |
 | `PluginRegistry` <!-- api-contract: image_downloader.security.PluginRegistry --> | `PluginRegistry(records: Mapping[str, PluginRecord] | tuple[PluginRecord, ...] = (), *, catalog: PluginCatalog | None = None)` |
-| `PluginRegistry.records` <!-- api-contract: image_downloader.security.PluginRegistry.records --> | `records(self) -> Mapping[str, PluginRecord]` property |
+| `PluginRegistry.records` <!-- api-contract: image_downloader.security.PluginRegistry.records --> | `records(self) -> Mapping[str, PluginRecord]` プロパティ |
 | `PluginRegistry.get` <!-- api-contract: image_downloader.security.PluginRegistry.get --> | `get(self, plugin_id: str) -> PluginRecord | None` |
 | `PluginRuntime` <!-- api-contract: image_downloader.security.PluginRuntime --> | `PluginRuntime(config: AppConfig, plugin_root: Path, *, mode: PluginVerificationMode)` |
-| `PluginRuntime.records` <!-- api-contract: image_downloader.security.PluginRuntime.records --> | `records(self) -> Mapping[str, PluginRecord]` property |
-| `PluginRuntime.catalog` <!-- api-contract: image_downloader.security.PluginRuntime.catalog --> | `catalog(self) -> PluginCatalog | None` property |
+| `PluginRuntime.records` <!-- api-contract: image_downloader.security.PluginRuntime.records --> | `records(self) -> Mapping[str, PluginRecord]` プロパティ |
+| `PluginRuntime.catalog` <!-- api-contract: image_downloader.security.PluginRuntime.catalog --> | `catalog(self) -> PluginCatalog | None` プロパティ |
 | `PluginRuntime.register_builtin` <!-- api-contract: image_downloader.security.PluginRuntime.register_builtin --> | `register_builtin(self, plugin_class: type[object]) -> None` |
 | `PluginRuntime.validate_settings` <!-- api-contract: image_downloader.security.PluginRuntime.validate_settings --> | `validate_settings(self) -> None` |
 | `PluginRuntime.enabled` <!-- api-contract: image_downloader.security.PluginRuntime.enabled --> | `enabled(self, record: PluginRecord) -> bool` |
@@ -216,11 +229,13 @@ This is the signature-level reference for the stable facades in the [API invento
 | `verify_signed_plugin_source` <!-- api-contract: image_downloader.security.verify_signed_plugin_source --> | `verify_signed_plugin_source(manifest: PluginManifest) -> None` |
 | `write_catalog` <!-- api-contract: image_downloader.security.write_catalog --> | `write_catalog(plugin_root: Path, catalog: PluginCatalog) -> None` |
 
-## Logging API
+<a id="logging-api"></a>
 
-`LogRecord` and `ChapterFailureRecord` are DTOs. `LogSink` is the async sink contract; concrete sinks own their output destination.
+## ログAPI
 
-| constructor, method, or property | visible signature |
+`LogRecord`と`ChapterFailureRecord`はDTOです。`LogSink`は非同期のログ出力先の契約であり、各具体的な出力先が自分の出力先リソースを所有します。
+
+| コンストラクター・メソッド・プロパティ | シグネチャ |
 | --- | --- |
 | `LogRecord` | `LogRecord(message: str, chapter_id: str | None = None, metadata: dict[str, str] = <factory: dict>, trusted: bool = False)` |
 | `LogRecord.formatted` <!-- api-contract: image_downloader.observability.logging.LogRecord.formatted --> | `formatted(self) -> str` |
@@ -262,11 +277,13 @@ This is the signature-level reference for the stable facades in the [API invento
 | `safe_relative_path` <!-- api-contract: image_downloader.observability.logging.safe_relative_path --> | `safe_relative_path(value: str | Path, output_root: Path | None) -> str` |
 | `safe_url` <!-- api-contract: image_downloader.observability.logging.safe_url --> | `safe_url(value: str, *, safe_query_parameters: set[str] | None = None, safe_fragment_parameters: set[str] | None = None) -> str` |
 
-## Offline workflow state and history API
+<a id="offline-workflow-state-and-history-api"></a>
 
-These methods are synchronous and require no runtime or plugin registry. Results are immutable.
+## オフラインのワークフロー状態・履歴API
 
-| Constructor or method | Visible signature |
+これらのメソッドは同期処理で、実行環境やプラグインレジストリを必要としません。結果は不変です。
+
+| コンストラクター・メソッド | シグネチャ |
 | --- | --- |
 | `WorkflowRunRecord` | `WorkflowRunRecord(run_id: str, plugin_id: str | None, feed_key: str, source_url: str, started_at: datetime, ended_at: datetime, exit_code: int, details: Mapping[str, object]) -> None` |
 | `WorkflowStateItem` | `WorkflowStateItem(candidate: UpdateCandidate, completed: bool) -> None` |
@@ -278,3 +295,37 @@ These methods are synchronous and require no runtime or plugin registry. Results
 | `WorkflowStateService.list_runs` | `list_runs(self, url: str | None = None, *, plugin_id: str | None = None, limit: int = 20) -> tuple[WorkflowRunRecord, ...]` |
 | `WorkflowStateService.get_run` | `get_run(self, run_id: str) -> WorkflowRunRecord | None` |
 | `WorkflowStateService.prune_history` | `prune_history(self, *, dry_run: bool = False) -> WorkflowPruneResult` |
+
+<a id="operation-request-inputs-and-workflow-failures"></a>
+
+## 操作リクエストとワークフロー例外
+
+リクエストの全フィールドはキーワード引数専用です。リクエストは不変で、入れ子の上書きマッピングも呼び出し側の値から分離して不変にします。
+
+| 型 | コンストラクター |
+| --- | --- |
+| `DownloadRequest` | `DownloadRequest(*, url: str, plugin_overrides: PluginConfigOverrides | None = None, fallback_override: bool | None = None, plugin_id: str | None = None, force_plugin: bool = False, plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None, force_image_format: ImageFormat | None = None) -> None` |
+| `InspectRequest` | `InspectRequest(*, url: str, plugin_overrides: PluginConfigOverrides | None = None, fallback_override: bool | None = None, plugin_id: str | None = None, force_plugin: bool = False, resolve_image_requests: bool = True) -> None` |
+| `UpdateCheckRequest` | `UpdateCheckRequest(*, url: str, plugin_overrides: PluginConfigOverrides | None = None, fallback_override: bool | None = None, plugin_id: str | None = None, force_plugin: bool = False, plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None) -> None` |
+| `WorkflowPlanRequest` | `WorkflowPlanRequest(*, url: str, download_scope: Literal['all', 'updated'] = 'updated', plugin_overrides: PluginConfigOverrides | None = None, fallback_override: bool | None = None, plugin_id: str | None = None, force_plugin: bool = False, plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None) -> None` |
+| `WorkflowRequest` | `WorkflowRequest(*, url: str, download_scope: Literal['all', 'updated'] = 'updated', workflow_retries: int = 1, workflow_retry_delay: float = 600.0, workflow_retry_timeout: float | None = None, workflow_progress_log: bool | None = None, plugin_overrides: PluginConfigOverrides | None = None, fallback_override: bool | None = None, plugin_id: str | None = None, force_plugin: bool = False, plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None, force_image_format: ImageFormat | None = None) -> None` |
+
+| 例外 | シグネチャ |
+| --- | --- |
+| `WorkflowExecutionError` <!-- api-contract: image_downloader.WorkflowExecutionError --> | `WorkflowExecutionError(result: WorkflowResult, cause: Exception) -> None` |
+| `WorkflowPlanError` <!-- api-contract: image_downloader.WorkflowPlanError --> | `WorkflowPlanError(result: WorkflowPlanResult, cause: Exception) -> None` |
+| `WorkflowCancelledError` <!-- api-contract: image_downloader.WorkflowCancelledError --> | `WorkflowCancelledError(result: WorkflowResult) -> None` |
+| `WorkflowPlanCancelledError` <!-- api-contract: image_downloader.WorkflowPlanCancelledError --> | `WorkflowPlanCancelledError(result: WorkflowPlanResult) -> None` |
+
+
+## storageの操作境界
+
+以下はstorage層内の公開操作です。パッケージのルートや互換ファサードへの再公開は追加しません。
+
+| 操作 | シグネチャ |
+| --- | --- |
+| `FileSystem.shorten_component` <!-- api-contract: image_downloader.storage.filesystem.FileSystem.shorten_component --> | `shorten_component(self, value: str, *, parent: str | Path = ".") -> str` |
+| `WorkflowState.read_feeds` <!-- api-contract: image_downloader.storage.workflow.WorkflowState.read_feeds --> | `read_feeds(self, *, plugin_id: str | None = None) -> Iterator[tuple[WorkflowFeedSnapshot, ...]]` |
+| `source_key` <!-- api-contract: image_downloader.storage.source_identity.source_key --> | `source_key(url: str) -> str` |
+
+`read_feeds()`は同期context managerです。`WorkflowFeedSnapshot`は`frozen=True, slots=True`で、`plugin_id: str`、`feed_key: str`、`checked_at: datetime`、`items: tuple[WorkflowStateItem, ...]`を保持します。コンテキストを抜けた後も値は不変ですが、状態の再読込は行いません。

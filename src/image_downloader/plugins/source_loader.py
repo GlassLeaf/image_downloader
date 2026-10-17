@@ -13,9 +13,10 @@ from pathlib import Path
 from threading import RLock
 from types import CodeType, ModuleType
 
+from image_downloader.plugins.plugin_files import _is_link, _require_regular, _sha256
+
 from ..exceptions import ConfigurationError, PluginError
 from ..storage.path_safety import existing_directory
-from .plugin_manifest import _is_link, _require_regular, _sha256
 
 
 @dataclass(frozen=True, slots=True)

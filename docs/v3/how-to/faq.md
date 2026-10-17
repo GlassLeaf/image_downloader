@@ -35,7 +35,7 @@ workflow専用の画像ディレクトリは作らない。専用記録は`<prof
 開始前の失敗・ログ無効化・書込み失敗・強制終了では記録がない場合がある。
 具体的な項目とJSON例は[中断時の記録](../reference/logging.md#workflow-interruption-records)を参照する。
 
-この FAQ は API v3 の利用時によくある判断を、CLI 利用者、Python ライブラリ利用者、plugin 開発者の観点から要約するものである。設定値、API signature、例外、hook の順序・回数・並行性はここで再定義しない。各回答からリンクする [Reference](../reference/configuration.md) と [execution lifecycle](../explanation/execution-lifecycle.md) が正本である。
+この FAQ は API v3 の利用時によくある判断を、CLI 利用者、Python ライブラリ利用者、plugin 開発者の観点から要約するものである。設定値、API signature、例外、hook の順序・回数・並行性はここで再定義しない。各回答からリンクする [Reference](../reference/configuration.md) と [実行ライフサイクル](../explanation/execution-lifecycle.md) が正本である。
 
 提示された質問には Q6 が含まれていないため、本書にも Q6 の項目はない。
 
@@ -76,7 +76,7 @@ author default、永続設定、operation override の順に deep merge され�
 
 ### Q5. URL を `create_image_request()` で作るなら、`inspect()` で URL を決めなくてよいか？
 
-短命の署名 URL や画像ごとの header は、画像 fetch の直前に `create_image_request()` で決めてよい。`inspect()` は完全な画像集合と順序を決め、各 `ImageResource.url` には request を組み立てるために十分な non-empty string locator を入れる。canonical URL、`image:42` のような ID、`/placeholder/42` のような placeholder を使える。locator、`image_id`、manifest metadata に token、cookie、署名 URL、鍵などの秘密値を置いてはならない。core は locator を送信せず、`create_image_request()` が返す absolute HTTP(S) `RequestSpec.url` だけを送る。失効した署名 URL を HTTP `status >=400` 後に一度だけ再発行する場所は `recover_image_request()` である。[dynamic URL how-to](dynamic-urls-and-auth.md) を参照する。
+短命の署名 URL や画像ごとの header は、画像 fetch の直前に `create_image_request()` で決めてよい。`inspect()` は完全な画像集合と順序を決め、各 `ImageResource.url` には request を組み立てるために十分な non-empty string locator を入れる。canonical URL、`image:42` のような ID、`/placeholder/42` のような placeholder を使える。locator、`image_id`、manifest metadata に token、cookie、署名 URL、鍵などの秘密値を置いてはならない。core は locator を送信せず、`create_image_request()` が返す absolute HTTP(S) `RequestSpec.url` だけを送る。失効した署名 URL を HTTP `status >=400` 後に一度だけ再発行する場所は `recover_image_request()` である。[動的URLの実装手順](dynamic-urls-and-auth.md) を参照する。
 
 ### Q7. `Chapter.images` の並び順どおりに URL へアクセスするには？
 
@@ -95,7 +95,7 @@ plugin_settings:
 
 選択 plugin の image job を直列にするには Q7 の `preserve_image_start_order` を使う。画像 URL 解決、認証、鍵取得、`inspect()` を含むその operation の全 HTTP transport も一件ずつにしたい場合は、同じ `download_policy` に `request_concurrency: 1` を置く。これは global `network.request_concurrency` を緩めず、selected operation だけをさらに制限する。
 
-ただし `request_concurrency: 1` は HTTP transport の上限だけであり、`create_image_request()` の実行中には取得されない。複数 image job が並列なら、複数の署名 URL が発行された後に最終画像 request が待機し、短い TTL の URL が失効し得る。署名 URL の発行から画像取得までを画像ごとに直列化する保証が必要なら、`preserve_image_start_order: true`（または chapter/image concurrency をともに `1`）を使う。現行 API に、発行と最終取得を原子的に予約する機構はない。[configuration schema](../reference/configuration.md#config-schema) を参照する。
+ただし `request_concurrency: 1` は HTTP transport の上限だけであり、`create_image_request()` の実行中には取得されない。複数 image job が並列なら、複数の署名 URL が発行された後に最終画像 request が待機し、短い TTL の URL が失効し得る。署名 URL の発行から画像取得までを画像ごとに直列化する保証が必要なら、`preserve_image_start_order: true`（または chapter/image concurrency をともに `1`）を使う。現行 API に、発行と最終取得を原子的に予約する機構はない。[設定スキーマ](../reference/configuration.md#config-schema) を参照する。
 
 ### Q9. 画像 URL の決定に鍵取得など別 URL へのアクセスが必要な場合は？
 
@@ -109,7 +109,7 @@ plugin_settings:
 
 ### Q11. `transform_image()` は並列安全か？　他画像の結果に依存してよいか？
 
-並列安全でなければならない。選択済み site plugin の同じ instance に対し、複数画像の request hook と site transform が並列に呼ばれ得る。他画像の完了順、変換結果、共有可変 state に依存してはならない。processor transform には instance ごとの runtime lock があるが、site `transform_image()` にはない。[execution lifecycle](../explanation/execution-lifecycle.md#lifecycle-concurrency) を参照する。
+並列安全でなければならない。選択済み site plugin の同じ instance に対し、複数画像の request hook と site transform が並列に呼ばれ得る。他画像の完了順、変換結果、共有可変 state に依存してはならない。processor transform には instance ごとの runtime lock があるが、site `transform_image()` にはない。[実行ライフサイクル](../explanation/execution-lifecycle.md#lifecycle-concurrency) を参照する。
 
 ### Q12. 変換時に、鍵ファイルなど画像取得時の別情報が必要なら？
 
@@ -156,15 +156,15 @@ processor へ raw transport data を渡す組は、`image_processors.transport_m
 
 ### 3. profile や host ごとに設定を分けるには？
 
-`config profile init NAME` で profile layer を作り、`sites/<host>.yaml` で host overlay を置く。適用順と最終値は `config explain --profile NAME --host HOST --json` で確認する。`storage`、`plugins`、`security` など site layer に置けない key もあるため、層の制限は [configuration layers](../reference/configuration.md#config-layers) を確認する。
+`config profile init NAME` で profile layer を作り、`sites/<host>.yaml` で host overlay を置く。適用順と最終値は `config explain --profile NAME --host HOST --json` で確認する。`storage`、`plugins`、`security` など site layer に置けない key もあるため、層の制限は [設定レイヤー](../reference/configuration.md#config-layers) を確認する。
 
 ### 4. サイトへ負荷をかけず順番に取得するには？
 
-site overlay または main config の `plugin_settings.<id>.download_policy.preserve_image_start_order: true` を使う。鍵取得を含むその operation の HTTP transport も一件ずつにするなら `request_concurrency: 1` を追加する。全 plugin に適用したいときだけ global `download`／`network` concurrency を下げる。[configuration schema](../reference/configuration.md#config-schema) を参照する。
+site overlay または main config の `plugin_settings.<id>.download_policy.preserve_image_start_order: true` を使う。鍵取得を含むその operation の HTTP transport も一件ずつにするなら `request_concurrency: 1` を追加する。全 plugin に適用したいときだけ global `download`／`network` concurrency を下げる。[設定スキーマ](../reference/configuration.md#config-schema) を参照する。
 
 ### 5. automation は成功・部分失敗をどう判定するか？
 
-`--json` の stdout にある一つの JSON object と exit status を使う。通常の画像失敗は `failures` に入り、部分成功は exit code `5`、authentication/secret failure は `3`、plugin failure は `4` である。stderr は診断用として保存する。[JSON contract](../reference/cli.md#cli-json) と [exit status](../reference/cli.md#cli-exit-status) を参照する。
+`--json` の stdout にある一つの JSON object と exit status を使う。通常の画像失敗は `failures` に入り、部分成功は exit code `5`、authentication/secret failure は `3`、plugin failure は `4` である。stderr は診断用として保存する。[JSON contract](../reference/cli.md#cli-json) と [終了コード](../reference/cli.md#cli-exit-status) を参照する。
 
 ### 6. login が必要なサイトの cookie や credential はどう扱うか？
 
@@ -180,7 +180,7 @@ keyring のみの利用者、YAML の reference、公開 API は従来どおり�
 
 ### 8. `request_concurrency: 1` だけで短命の署名 URL を安全に扱えるか？
 
-十分ではない。これは実 transport の同時数だけを制限し、`create_image_request()` の実行中には slot を保持しない。複数の image job が並列なら、複数の署名 URL が発行された後、最終画像 request が順番待ちになり TTL 切れになり得る。URL の発行から取得までを画像単位で順に進める必要がある場合は、`preserve_image_start_order: true`（または chapter/image concurrency をともに `1`）を使う。現行 API にこの二段階を原子的に予約する機構はない。[dynamic URL how-to](dynamic-urls-and-auth.md) を参照する。
+十分ではない。これは実 transport の同時数だけを制限し、`create_image_request()` の実行中には slot を保持しない。複数の image job が並列なら、複数の署名 URL が発行された後、最終画像 request が順番待ちになり TTL 切れになり得る。URL の発行から取得までを画像単位で順に進める必要がある場合は、`preserve_image_start_order: true`（または chapter/image concurrency をともに `1`）を使う。現行 API にこの二段階を原子的に予約する機構はない。[動的URLの実装手順](dynamic-urls-and-auth.md) を参照する。
 
 ### 9. 複数の CLI process を実行しても、サイトへの総並列数は抑えられるか？
 
@@ -213,7 +213,7 @@ keyring のみの利用者、YAML の reference、公開 API は従来どおり�
 対象URLでも成功・skip済みで画像情報に変更がない画像は保持し、失敗・未処理・追加・変更画像だけを取得する。
 cleanupのみ失敗した場合も、変更のない成功画像を保持したまま再処理する。
 全成功後は終了し、更新監視のための周回は行わない。再試行対象外の失敗しか残っていない場合も終了する。
-詳細な条件表は[runtime behavior](../reference/runtime-behavior.md#workflow-retry-rounds)を参照する。
+詳細な条件表は[実行時動作](../reference/runtime-behavior.md#workflow-retry-rounds)を参照する。
 
 ### workflowの取得対象をダウンロード前に確認できるか？
 
@@ -224,7 +224,7 @@ cleanupのみ失敗した場合も、変更のない成功画像を保持した�
 認証・更新確認の通信とplugin cleanupは実行し、ロックファイルと親ディレクトリは作成し得る。
 plugin独自の外部操作まで無副作用と保証するものではない。
 本実行では再確認するため、対象一覧が変わる場合がある。再試行オプションは検証するが周回は行わない。
-詳細は[CLI reference](../reference/cli.md#workflow)を参照する。
+詳細は[CLIリファレンス](../reference/cli.md#workflow)を参照する。
 
 ### 14. 同じimage_idで画像内容が同じでも、署名URLだけ変わると再取得するか？
 
@@ -250,7 +250,7 @@ manifestの`revision`だけの変更では成功画像を取り直さない。
 
 一方、manifestのlocatorが安定し、`create_image_request()`でだけ署名URLを作る場合、要求URLだけの
 変化は比較しない。保持された成功画像では同hookも呼ばない。pluginはlocatorに秘密値を入れず、
-短命URLの組立をrequest hookで行う。[dynamic URL how-to](dynamic-urls-and-auth.md)と
+短命URLの組立をrequest hookで行う。[動的URLの実装手順](dynamic-urls-and-auth.md)と
 [比較対象・対象外の情報](../reference/runtime-behavior.md#workflow-retry-rounds)を参照する。
 
 ### 15. workflowの再試行にはどのような制限があるか？
@@ -278,8 +278,8 @@ OSのI/O自体の停止はロック競合とは別で、ファイル操作の終
 
 設定・ロック・状態異常、予期しない内部例外、更新チェック失敗では停止する。画像単位の継続は
 `continue_on_image_error`に従う。オプション、終了コード、JSONの周回・試行履歴は
-[CLI reference](../reference/cli.md#workflow)、状態と判定の詳細は
-[runtime behavior](../reference/runtime-behavior.md#workflow-retry-rounds)を参照する。
+[CLIリファレンス](../reference/cli.md#workflow)、状態と判定の詳細は
+[実行時動作](../reference/runtime-behavior.md#workflow-retry-rounds)を参照する。
 
 ## ライブラリ利用者向け Q&A
 
@@ -288,12 +288,14 @@ OSのI/O自体の停止はロック競合とは別で、ファイル操作の終
 `RuntimeComposer.compose()` が作った service は caller が所有し、必ず `async with` または `await service.close()` で閉じる。HTTP client、worker resource、log、state の cleanup を service に任せる。
 
 ```python
+
+from image_downloader import DownloadRequest
 async with RuntimeComposer(
     config,
     config_root=config_root,
     plugin_root=plugin_root(config),
 ).compose() as service:
-    result = await service.run("https://example.test/gallery")
+    result = await service.download(DownloadRequest(url="https://example.test/gallery"))
 ```
 
 import と設定ロードを含む完全な例は [embedded download tutorial](../tutorials/embedded-download.md) を参照する。
@@ -310,36 +312,35 @@ import と設定ロードを含む完全な例は [embedded download tutorial](.
 
 ### 3. 一回だけ plugin 設定を上書きするには？
 
-`service.run()` の `plugin_overrides` に plugin ID から object への mapping を渡す。設定は selected candidate に対して検証され、YAML には保存されない。
+`DownloadRequest` の `plugin_overrides` に plugin ID から object への mapping を渡す。設定は selected candidate に対して検証され、YAML には保存されない。
 
 ```python
-await service.run(
-    "https://example.test/gallery",
-    plugin_overrides={"com.example.gallery": {"page_size": 50}},
-)
+
+from image_downloader import DownloadRequest
+await service.download(DownloadRequest(url="https://example.test/gallery", plugin_overrides={"com.example.gallery": {"page_size": 50}}))
 ```
 
 [one-operation override](../tutorials/embedded-download.md#use-a-one-operation-plugin-override) を参照する。
 
 ### 4. 更新だけを確認して画像を保存しないには？
 
-`await service.check_updates(url)` を使う。選ばれた plugin が `UpdateProvider` を実装している必要があり、結果は完全な `UpdateResult` または例外である。CLI の対応操作は `download URL --list-updated-urls` である。[update tutorial](../tutorials/embedded-download.md#check-a-complete-update-snapshot) を参照する。
+`await service.check_updates(UpdateCheckRequest(url=url))` を使う。選ばれた plugin が `UpdateProvider` を実装している必要があり、結果は完全な `UpdateResult` または例外である。CLI の対応操作は `download URL --list-updated-urls` である。[update tutorial](../tutorials/embedded-download.md#check-a-complete-update-snapshot) を参照する。
 
 ### 5. 一つの service で複数 download を並列実行できるか？
 
-できない。一つの `DownloadService` 内では `run()` と `check_updates()` は直列化される。独立した operation を並列化する必要があるなら、service を別に compose し、それぞれの resource lifetime を閉じる。画像と章の内部並列度は config で制御する。[execution lifecycle](../explanation/execution-lifecycle.md#lifecycle-concurrency) を参照する。
+できない。一つの `DownloadService` 内では `download()` と `check_updates()` は直列化される。独立した operation を並列化する必要があるなら、service を別に compose し、それぞれの resource lifetime を閉じる。画像と章の内部並列度は config で制御する。[実行ライフサイクル](../explanation/execution-lifecycle.md#lifecycle-concurrency) を参照する。
 
 ### 6. library API から plugin を強制選択できるか？
 
-できる。`await service.run(url, plugin_id="com.example.gallery")` は通常 matcher が URL を受理するときだけ選択する。テストや復旧で matcher を bypass する必要があるときだけ `force_plugin=True` を併用する。`plugin_download_policy_overrides={"com.example.gallery": {"request_concurrency": 1}}` は一 operation の core policy をさらに制限する。[runtime facade](../reference/library-api.md#api-configuration) と [plugin selection](../reference/plugin-hooks.md#plugin-selection) を参照する。
+できる。`await service.download(DownloadRequest(url=url, plugin_id="com.example.gallery"))` は通常 matcher が URL を受理するときだけ選択する。テストや復旧で matcher を bypass する必要があるときだけ `force_plugin=True` を併用する。`plugin_download_policy_overrides={"com.example.gallery": {"request_concurrency": 1}}` は一 operation の core policy をさらに制限する。[runtime facade](../reference/library-api.md#api-configuration) と [plugin selection](../reference/plugin-hooks.md#plugin-selection) を参照する。
 
 ### 7. event や log を成功判定に使ってよいか？
 
-使わない。成功・失敗の主な判定は `DownloadResult`、`ImageOutcome.failure`、公開例外で行う。event、notification、log は観測用であり、cleanup failure も主 operation の結果を置き換えない。[observability explanation](../explanation/observability.md) を参照する。
+使わない。成功・失敗の主な判定は `DownloadResult`、`ImageOutcome.failure`、公開例外で行う。event、notification、log は観測用であり、cleanup failure も主 operation の結果を置き換えない。[ログ・イベント・通知の解説](../explanation/observability.md) を参照する。
 
 ### 8. 複数の `DownloadService` で HTTP 上限・rate limit は共有されるか？
 
-共有されない。HTTP pool、cookie jar、origin/domain limiter、rate limiter は service 単位で所有される。同じ service の `run()`／`check_updates()` は直列化されるため、並列 operation のために複数 service を compose すると、その service 間で request 上限は合算されない。アプリケーション全体の上限が必要なら、呼出側で semaphore／queue を置くか、一つの process に operation coordinator を設ける。[runtime facade](../reference/library-api.md#runtime-facade) を参照する。
+共有されない。HTTP pool、cookie jar、origin/domain limiter、rate limiter は service 単位で所有される。同じ service の `download()`／`check_updates()` は直列化されるため、並列 operation のために複数 service を compose すると、その service 間で request 上限は合算されない。アプリケーション全体の上限が必要なら、呼出側で semaphore／queue を置くか、一つの process に operation coordinator を設ける。[runtime facade](../reference/library-api.md#runtime-facade) を参照する。
 
 ### 9. cancellation 時に partial `DownloadResult` を受け取れるか？
 
@@ -359,7 +360,7 @@ await service.run(
 
 ### 13. 保存せずに manifest と request 組立結果を取得するには？
 
-`await service.inspect(url)` は `ManifestInspectionResult` を返す。既定では manifest 順に `create_image_request()` を一回ずつ呼び、各成功は raw `RequestSpec`、`plugin_data`、bare `RequestSpec` か `ImageFetchRequest` かを持つ。ある画像の解決失敗は `ImageRequestResolution.failure` に入り、後続画像を続ける。一方、selection、manifest `inspect()`、AuthFlow 構築、cleanup、cancellation の失敗は result を返さず例外となる。`resolve_image_requests=False` なら image request hook を呼ばず空の resolution 一覧を返す。画像 body、recovery、transform、processor、save、event、notification、update state は実行しないが、plugin hook の補助 HTTP は起こり得る。結果の request material は credential を含み得るため、保存・log・外部公開をしない。CLI の `--inspection-data` と異なり library result は常に raw preview を持つ。画像数・request body size の上限や streaming result はないので、大規模な場合は source URL を page/chapter 単位に分けるか `resolve_image_requests=False` を使う。[caller outcomes](../reference/library-api.md#api-call-outcomes) を参照する。
+`await service.inspect(InspectRequest(url=url))` は `ManifestInspectionResult` を返す。既定では manifest 順に `create_image_request()` を一回ずつ呼び、各成功は raw `RequestSpec`、`plugin_data`、bare `RequestSpec` か `ImageFetchRequest` かを持つ。ある画像の解決失敗は `ImageRequestResolution.failure` に入り、後続画像を続ける。一方、selection、manifest `inspect()`、AuthFlow 構築、cleanup、cancellation の失敗は result を返さず例外となる。`resolve_image_requests=False` なら image request hook を呼ばず空の resolution 一覧を返す。画像 body、recovery、transform、processor、save、event、notification、update state は実行しないが、plugin hook の補助 HTTP は起こり得る。結果の request material は credential を含み得るため、保存・log・外部公開をしない。CLI の `--inspection-data` と異なり library result は常に raw preview を持つ。画像数・request body size の上限や streaming result はないので、大規模な場合は source URL を page/chapter 単位に分けるか `resolve_image_requests=False` を使う。[caller outcomes](../reference/library-api.md#api-call-outcomes) を参照する。
 
 ## plugin 開発者向け Q&A
 
@@ -373,11 +374,11 @@ URL を検査して一つの完全・有限・deterministic な `DownloadManifes
 
 ### 3. 署名 URL と失効後の再発行はどの hook に置くか？
 
-manifest には解決可能な locator と必要なら識別子を置く。canonical URL、stable ID、placeholder を使えるが、秘密値を置いてはならない。画像 fetch 直前の短命 URL 発行は `create_image_request()` が locator を解釈して actual absolute HTTP(S) `RequestSpec.url` を返す。auth refresh 後も HTTP `status >=400` が残る場合の一回限りの再発行は `recover_image_request()` で行う。transport failure に recovery hook は呼ばれない。[dynamic URL how-to](dynamic-urls-and-auth.md) を参照する。
+manifest には解決可能な locator と必要なら識別子を置く。canonical URL、stable ID、placeholder を使えるが、秘密値を置いてはならない。画像 fetch 直前の短命 URL 発行は `create_image_request()` が locator を解釈して actual absolute HTTP(S) `RequestSpec.url` を返す。auth refresh 後も HTTP `status >=400` が残る場合の一回限りの再発行は `recover_image_request()` で行う。transport failure に recovery hook は呼ばれない。[動的URLの実装手順](dynamic-urls-and-auth.md) を参照する。
 
 ### 4. 認証はどのように実装するか？
 
-`auth_flow()` は `AuthFlow` を構築する。`apply()` で request に認証を適用し、401/403 または独自失敗応答で `refresh()` が呼ばれて更新・再試行を行う。missing secret は `SecretNotFoundError`、ログイン・refresh の拒否は `AuthenticationError` にする。認証 endpoint を呼ぶ場合も `context.requests` を使い、再帰認証を避ける必要がある request は `auth_required=False` にする。[hook contract](../reference/plugin-hooks.md#plugin-hooks) を参照する。
+`auth_flow()` は `AuthFlow` を構築する。`apply()` で request に認証を適用し、401/403 または独自失敗応答で `refresh()` が呼ばれて更新・再試行を行う。missing secret は `SecretNotFoundError`、ログイン・refresh の拒否は `AuthenticationError` にする。認証 endpoint を呼ぶ場合も `context.requests` を使い、再帰認証を避ける必要がある request は `auth_required=False` にする。[フックの契約](../reference/plugin-hooks.md#plugin-hooks) を参照する。
 
 ### 5. plugin が利用できる network と secret の境界は？
 
@@ -405,15 +406,15 @@ site `transform_image()` は `context.transport_metadata` から成功した最�
 
 ### 11. plugin の runtime 利用ごとの cache／resource はいつ破棄されるか？
 
-selected site plugin instance は一回の `run()` または `check_updates()` の hook 群で共有され、configured image processor instance は一回の download で共有される。いずれも runtime が使い終えたとき、任意の `cleanup_after_use()` を一回だけ呼ぶ。通常の `def` と `async def` のどちらでも実装でき、async の戻り値は await される。完了後、runtime は同じ instance の plugin hook を再び呼ばないが、object の破棄や外部コードからの利用禁止を意味しない。success、inspect/auth/image failure、cancellation、update check のいずれでも対象で、processor cleanup が先、site cleanup が後である。temporary matcher instance には cleanup は呼ばれない。`aclose()`、`close()`、`aclose_operation()`、`close_operation()` は cleanup hook として呼ばれないため、既存 plugin は移行する。正常終了時の cleanup failure は `PluginError`、すでに失敗/cancellation があるなら主原因を維持して diagnostic に残る。[plugin hooks](../reference/plugin-hooks.md#cleanup-after-runtime-use) を参照する。
+selected site plugin instance は一回の `download()` または `check_updates()` の hook 群で共有され、configured image processor instance は一回の download で共有される。いずれも runtime が使い終えたとき、任意の `cleanup_after_use()` を一回だけ呼ぶ。通常の `def` と `async def` のどちらでも実装でき、async の戻り値は await される。完了後、runtime は同じ instance の plugin hook を再び呼ばないが、object の破棄や外部コードからの利用禁止を意味しない。success、inspect/auth/image failure、cancellation、update check のいずれでも対象で、processor cleanup が先、site cleanup が後である。temporary matcher instance には cleanup は呼ばれない。`aclose()`、`close()`、`aclose_operation()`、`close_operation()` は cleanup hook として呼ばれないため、既存 plugin は移行する。正常終了時の cleanup failure は `PluginError`、すでに失敗/cancellation があるなら主原因を維持して diagnostic に残る。[plugin hooks](../reference/plugin-hooks.md#cleanup-after-runtime-use) を参照する。
 
 ### 12. plugin 自身が scheduler や origin ごとの rate limit を指定できるか？
 
-できない。plugin private `config` は plugin の動作を設定するもので、core scheduler を変更しない。選択 site plugin の `download_policy` は request/chapter/image の上限を global/host 設定以下へ下げられるが、origin/domain concurrency、rate limit、retry、timeout は application の `network` policy が一元管理する。plugin が raw HTTP client や独自 limiter でこれを迂回してはならない。[configuration schema](../reference/configuration.md#config-schema) と [HTTP transport](../reference/runtime-behavior.md#http-transport) を参照する。
+できない。plugin private `config` は plugin の動作を設定するもので、core scheduler を変更しない。選択 site plugin の `download_policy` は request/chapter/image の上限を global/host 設定以下へ下げられるが、origin/domain concurrency、rate limit、retry、timeout は application の `network` policy が一元管理する。plugin が raw HTTP client や独自 limiter でこれを迂回してはならない。[設定スキーマ](../reference/configuration.md#config-schema) と [HTTP transport](../reference/runtime-behavior.md#http-transport) を参照する。
 
 ### 13. display-only inspection で `create_image_request()` はどう呼ばれるか？
 
-`DownloadService.inspect(resolve_image_requests=True)` と CLI `inspect` は、manifest の chapter/images 配列順に一画像ずつ `create_image_request()` を呼び、`auth_required=True` の request には `AuthFlow.apply()` も適用して送信直前 `EffectiveRequestPreview` を組み立てる。core は request を画像 transport に送らず、redirect、response 判定、refresh、recovery、transform、save を実行しない。source request は得られても auth／組立てが失敗した画像は `partially_resolved` となり、後続画像の inspection は続く。`create_image_request()` や `apply()` が `context.requests.execute()` を使えば token 発行などのサーバー側副作用は起こり得る。plugin は画像 URL を raw client で直接 fetch して inspection を迂回してはならない。CLI の公開範囲は `--inspection-data` で選び、library result 自体は完全な raw diagnostic data を保持する。[dynamic URL how-to](dynamic-urls-and-auth.md) を参照する。
+`service.inspect(InspectRequest(url=url, resolve_image_requests=True))` と CLI `inspect` は、manifest の chapter/images 配列順に一画像ずつ `create_image_request()` を呼び、`auth_required=True` の request には `AuthFlow.apply()` も適用して送信直前 `EffectiveRequestPreview` を組み立てる。core は request を画像 transport に送らず、redirect、response 判定、refresh、recovery、transform、save を実行しない。source request は得られても auth／組立てが失敗した画像は `partially_resolved` となり、後続画像の inspection は続く。`create_image_request()` や `apply()` が `context.requests.execute()` を使えば token 発行などのサーバー側副作用は起こり得る。plugin は画像 URL を raw client で直接 fetch して inspection を迂回してはならない。CLI の公開範囲は `--inspection-data` で選び、library result 自体は完全な raw diagnostic data を保持する。[動的URLの実装手順](dynamic-urls-and-auth.md) を参照する。
 ## workflowの結果や未完了状態をあとから確認したい
 
 ### 変更がない2回目の実行で`success=0`になるのはなぜか？

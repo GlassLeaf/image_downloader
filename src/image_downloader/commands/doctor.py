@@ -14,46 +14,37 @@ from ..exceptions import ConfigurationError, PluginError
 from ..plugins.plugin_manifest import effective_verification_mode
 from ..plugins.runtime import PluginRuntime
 from .constants import EXIT_PLUGIN, EXIT_SUCCESS
+from .errors import _render_error
+from .prepared import DoctorArguments, PreparedCommand
 from .reporting import _application_version, _doctor_plugin_details, _doctor_redact, _print_doctor_report
 from .setup import (
     _app_override,
     _fallback,
     _plugin_root,
     _resolved_config_for,
-    _runtime_overrides,
 )
-from .validation import _reject_command_options, validate_arguments
+from .validation import validate_arguments
 
 
 class DoctorCommandHandler:
-    async def handle(self, args: argparse.Namespace) -> int:
-        _reject_command_options(
-            args,
-            (
-                "selection_priority",
-                "plugin_id",
-                "force_plugin_id",
-                "plugin_download_policy",
-                "plugin_download_policy_file",
-                "list_updated_urls",
-                "export_cookies",
-                "import_cookies",
-                "import_browser_cookies",
-                "inspection_data",
-                "force_image_format",
-                "output_dir",
-                "directory_format",
-            ),
-            "doctor",
-        )
-        return await doctor(args, raise_errors=True)
+    async def handle(self, command: PreparedCommand) -> int:
+        return _doctor(command, raise_errors=True)
 
 
 async def doctor(args: argparse.Namespace, *, raise_errors: bool = False) -> int:
+    try:
+        return _doctor(validate_arguments(args), raise_errors=raise_errors)
+    except (ConfigurationError, PluginError) as exc:
+        if raise_errors:
+            raise
+        return _render_error(exc, json_output=args.json_output, operation="doctor")
+
+
+def _doctor(command: PreparedCommand, *, raise_errors: bool = False) -> int:
+    args = command.arguments
+    assert isinstance(args, DoctorArguments)
     registry: PluginRuntime | None = None
     try:
-        if not getattr(args, "_arguments_validated", False):
-            validate_arguments(args)
         target = args.host
         site: str | None = None
         selection_url: str | None = None
@@ -76,7 +67,7 @@ async def doctor(args: argparse.Namespace, *, raise_errors: bool = False) -> int
             plugin_root=_plugin_root(args, config),
             plugin_verification_override=args.plugin_verification_override,
         ).compose_registry()
-        overrides = _runtime_overrides(args)
+        overrides = command.plugin_config
         registry.doctor_validate(overrides)
         if selection_url:
             fallback_override = _fallback(args)
@@ -149,14 +140,10 @@ async def doctor(args: argparse.Namespace, *, raise_errors: bool = False) -> int
     except ConfigurationError as exc:
         if raise_errors:
             raise
-        from .dispatch import _render_error
-
         return _render_error(exc, json_output=args.json_output, operation="doctor")
     except PluginError as exc:
         if raise_errors:
             raise
-        from .dispatch import _render_error
-
         return _render_error(exc, json_output=args.json_output, operation="doctor")
     finally:
         if registry is not None:

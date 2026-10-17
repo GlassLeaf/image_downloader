@@ -6,43 +6,24 @@ import argparse
 import re
 from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Protocol
 
 from pydantic import ValidationError
 
-from .._numeric import _is_finite
+from .._numeric import numeric_value_error
 from ..configuration.hosts import normalize_host
 from ..configuration.models import Output, PluginDownloadPolicy
 from ..diagnostics import argument_error, diagnostic_for, validation_diagnostic
 from ..exceptions import ConfigurationError
+from ..plugins.plugin_manifest import PluginConfigOverrides, PluginDownloadPolicyOverrides
 from ..storage.path_safety import canonical_path, existing_directory
-from .options import CONFLICT_GROUPS, LEGACY_COOKIE_OPTIONS, OPTIONS
-from .parser import is_http_url
-
-
-class CommandHandler(Protocol):
-    async def handle(self, args: argparse.Namespace) -> int: ...
-
+from .argument_rules import _check_conflicts, is_http_url
+from .options import LEGACY_COOKIE_OPTIONS, OPTIONS
+from .prepared import PreparedCommand, command_arguments
 
 _OPTION_DEFAULTS: Mapping[str, object] = {
     option.attribute: [] if option.repeat else None if option.default == argparse.SUPPRESS else option.default
     for option in OPTIONS
 }
-
-
-def _reject_command_options(args: argparse.Namespace, names: Sequence[str], command: str) -> None:
-    for name in names:
-        if name not in _OPTION_DEFAULTS:
-            continue
-        default = _OPTION_DEFAULTS[name]
-        if getattr(args, name, default) != default:
-            option = name.replace("_", "-")
-            raise argument_error(
-                f"--{option} is not valid for the {command} command",
-                "option_scope",
-                option=f"--{option}",
-                command=command,
-            )
 
 
 _OPTION_NAMES = tuple(option.name for option in OPTIONS)
@@ -83,26 +64,6 @@ def _explicit_options(args: argparse.Namespace) -> set[str]:
         for option in OPTIONS
         if getattr(args, option.attribute, _OPTION_DEFAULTS[option.attribute]) != _OPTION_DEFAULTS[option.attribute]
     }
-
-
-def _check_conflicts(args: argparse.Namespace, explicit: set[str], *, syntax_only: bool = False) -> None:
-    groups = list(CONFLICT_GROUPS)
-    if getattr(args, "fallback_generic", "auto") != "auto":
-        groups.extend([("plugin", "fallback-generic"), ("force-plugin", "fallback-generic")])
-    if syntax_only:
-        groups = groups[:3]
-    for group in groups:
-        selected = ["--" + name for name in group if name in explicit]
-        if len(selected) > 1:
-            raise argument_error("cannot combine " + " and ".join(selected), "option_conflict", options=selected)
-    selected = ["--" + name for name in _OPTION_NAMES if name in explicit & _LEGACY_COOKIE]
-    if selected and getattr(args, "command_handler", None) is not None and not syntax_only:
-        raise argument_error(
-            "legacy Cookie options cannot be combined with a command",
-            "option_conflict",
-            options=selected,
-            command=str(args.command_handler),
-        )
 
 
 def _check_paths(args: argparse.Namespace, command: str) -> None:
@@ -180,7 +141,9 @@ def _check_verification_path(path: Path, argument: str) -> None:
         raise argument_error("verification requires an absolute path without ..", "invalid_value", argument=argument)
 
 
-def _check_values(args: argparse.Namespace, command: str) -> None:
+def _check_values(
+    args: argparse.Namespace, command: str
+) -> tuple[PluginConfigOverrides, PluginDownloadPolicyOverrides]:
     _check_verification_values(args, command)
     if hasattr(args, "url") and not is_http_url(args.url):
         raise argument_error("URL must be an absolute HTTP(S) URL with a host", "invalid_value", argument="url")
@@ -192,7 +155,9 @@ def _check_values(args: argparse.Namespace, command: str) -> None:
         ("workflow_retry_timeout", True),
     ):
         value = getattr(args, name, None)
-        if value is not None and (not _is_finite(value) or (value <= 0 if positive else value < 0)):
+        if value is not None and numeric_value_error(
+            value, positive=positive, integer=name in {"limit", "workflow_retries"}
+        ):
             option = "--" + name.replace("_", "-")
             condition = "positive" if positive else "non-negative"
             raise argument_error(f"{option} must be {condition} and finite", "invalid_value", option=option)
@@ -248,8 +213,7 @@ def _check_values(args: argparse.Namespace, command: str) -> None:
                 options=options,
                 field=diagnostic.details["field"],
             ) from exc
-    args._prepared_plugin_config = plugin_config
-    args._prepared_download_policy = policies
+    return plugin_config, policies
 
 
 def _option_has_effect(name: str, args: argparse.Namespace, command: str) -> bool:
@@ -265,10 +229,8 @@ def _option_has_effect(name: str, args: argparse.Namespace, command: str) -> boo
     return scope not in option.no_effect
 
 
-def validate_arguments(args: argparse.Namespace) -> str:
+def validate_arguments(args: argparse.Namespace) -> PreparedCommand:
     """Validate before configuration resolution or any execution side effect."""
-    for name in ("_prepared_plugin_config", "_prepared_download_policy"):
-        vars(args).pop(name, None)
     command = _command_path(args)
     if command == "cli":
         raise argument_error("a command or absolute HTTP(S) URL is required", "missing_command", argument="command")
@@ -298,5 +260,6 @@ def validate_arguments(args: argparse.Namespace) -> str:
             return _OPTION_NAMES.index(option.removeprefix("--"))
 
         raise min(value_errors, key=priority)
-    _check_values(args, command)
-    return command.split(" ", 1)[0]
+    plugin_config, policies = _check_values(args, command)
+    name = command.split(" ", 1)[0]
+    return PreparedCommand(name, command_arguments(name, args), plugin_config, policies)

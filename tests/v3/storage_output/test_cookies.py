@@ -114,9 +114,7 @@ def test_cookie_store_empty_jar_is_persisted_and_validated(tmp_path: Path, monke
         store.import_file(tmp_path / "out", "")
 
 
-def test_cookie_file_import_merges_unrelated_existing_cookies(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_cookie_file_import_merges_unrelated_existing_cookies(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _keyring(monkeypatch)
     source = _store(tmp_path, "source")
     imported = CookieJar()
@@ -142,9 +140,7 @@ def test_browser_cookie_import_reports_missing_optional_dependency(
         _store(tmp_path).import_browser("example.test")
 
 
-def test_browser_import_merges_and_preserves_corrupt_target(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_browser_import_merges_and_preserves_corrupt_target(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _keyring(monkeypatch)
     store = _store(tmp_path)
     original = CookieJar()
@@ -157,7 +153,9 @@ def test_browser_import_merges_and_preserves_corrupt_target(
     monkeypatch.setitem(sys.modules, "browser_cookie3", SimpleNamespace(load=lambda **_kwargs: browser))
     store.import_browser("example.test")
     assert {(item.name, item.value) for item in store.load()} == {
-        ("other", "keep"), ("session", "new"), ("new", "browser")
+        ("other", "keep"),
+        ("session", "new"),
+        ("new", "browser"),
     }
     assert store.filesystem.exists(store.lock_relative)
 

@@ -36,6 +36,8 @@ INVENTORY = re.compile(
 EXPECTED_EXPORTS = {
     "image_downloader": tuple(
         """
+        DownloadRequest InspectRequest UpdateCheckRequest WorkflowPlanRequest WorkflowRequest
+        WorkflowExecutionError WorkflowPlanError WorkflowCancelledError WorkflowPlanCancelledError
         AdditionalFileProvider AdditionalFileReceiver AdditionalFileSaveObserver
         AdditionalFileHookContext AdditionalFileHookPoint AdditionalFileOutcome
         AdditionalFileReceiveResult AdditionalFileSaveResult AdditionalFileSpec
@@ -75,6 +77,7 @@ EXPECTED_EXPORTS = {
     ),
     "image_downloader.runtime": tuple(
         """
+        DownloadRequest InspectRequest UpdateCheckRequest WorkflowPlanRequest WorkflowRequest
         ArtifactPipeline ChapterReporter DownloadService OutputAllocation OutputAllocator OutputFormatContext
         RequestGateway
         RuntimeComposer RuntimeSecrets UpdateState _RuntimeDependencies
@@ -218,34 +221,9 @@ def test_representative_signatures_and_result_dtos_are_stable() -> None:
         "output_root",
         "plugin_verification_override",
     )
-    assert tuple(signature(DownloadService.run).parameters) == (
-        "self",
-        "url",
-        "plugin_overrides",
-        "fallback_override",
-        "plugin_id",
-        "force_plugin",
-        "plugin_download_policy_overrides",
-        "force_image_format",
-    )
-    assert tuple(signature(DownloadService.inspect).parameters) == (
-        "self",
-        "url",
-        "plugin_overrides",
-        "fallback_override",
-        "plugin_id",
-        "force_plugin",
-        "resolve_image_requests",
-    )
-    assert tuple(signature(DownloadService.check_updates).parameters) == (
-        "self",
-        "url",
-        "plugin_overrides",
-        "fallback_override",
-        "plugin_id",
-        "force_plugin",
-        "plugin_download_policy_overrides",
-    )
+    assert tuple(signature(DownloadService.download).parameters) == ("self", "request")
+    assert tuple(signature(DownloadService.inspect).parameters) == ("self", "request")
+    assert tuple(signature(DownloadService.check_updates).parameters) == ("self", "request")
     assert tuple(signature(DownloadService.close).parameters) == ("self",)
     assert tuple(field.name for field in fields(ImageFailure)) == (
         "kind",

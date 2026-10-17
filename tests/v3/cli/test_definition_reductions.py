@@ -13,7 +13,7 @@ import pytest
 from pydantic import Field, StrictStr, ValidationError, create_model
 
 from image_downloader.commands import dispatch, options, parser, setup, validation
-from image_downloader.configuration import layers
+from image_downloader.configuration import layers, normalization
 from image_downloader.configuration.models import AppConfig, Media, Network, StrictModel
 from image_downloader.diagnostics import diagnostic_for
 from image_downloader.exceptions import ConfigurationError
@@ -61,13 +61,12 @@ def test_removing_any_option_does_not_break_unrelated_common_validation(change_d
 
     class Boundary:
         async def handle(self, args):
-            seen.append(args.command_handler)
+            seen.append(args.name)
             return 31
 
     monkeypatch.setitem(dispatch._COMMAND_HANDLERS, "doctor", Boundary())
     args = parser.build_parser().parse_args(["doctor"])
     assert not hasattr(args, removed_spec.attribute)
-    validation._reject_command_options(args, (removed_spec.attribute,), "doctor")
     assert asyncio.run(dispatch.run(args)) == 31
     assert seen == ["doctor"]
 
@@ -124,14 +123,14 @@ def test_remaining_choices_still_pass_validation(change_definitions):
     change_definitions(definitions)
     for level in ("url", "all"):
         args = parser.build_parser().parse_args(["inspect", URL, f"--inspection-data={level}"])
-        assert validation.validate_arguments(args) == "inspect"
+        assert validation.validate_arguments(args).name == "inspect"
         assert args.inspection_data == level
 
 
 def test_removed_conflict_peer_does_not_reject_surviving_option(change_definitions):
     change_definitions(tuple(spec for spec in options.OPTIONS if spec.name != "force-plugin"))
     args = parser.build_parser().parse_args(["download", URL, "--plugin=com.example.test"])
-    assert validation.validate_arguments(args) == "download"
+    assert validation.validate_arguments(args).name == "download"
 
 
 def test_renamed_option_uses_new_name_in_scope_errors(change_definitions, capsys):
@@ -193,7 +192,7 @@ def reduced_config(monkeypatch):
 
     monkeypatch.setattr(layers, "AppConfig", NarrowedConfig)
     monkeypatch.setattr(layers, "DEFAULT_CONFIG", NarrowedConfig())
-    monkeypatch.setattr(layers, "_APP_CONFIG_SHAPE", layers._model_shape(NarrowedConfig))
+    monkeypatch.setattr(normalization, "_APP_CONFIG_SHAPE", normalization._model_shape(NarrowedConfig))
 
 
 @pytest.mark.parametrize("json_mode", [False, True])
@@ -242,7 +241,7 @@ def test_removed_configuration_field_follows_existing_unknown_key_cleanup(tmp_pa
     )
     monkeypatch.setattr(layers, "AppConfig", reduced)
     monkeypatch.setattr(layers, "DEFAULT_CONFIG", reduced())
-    monkeypatch.setattr(layers, "_APP_CONFIG_SHAPE", layers._model_shape(reduced))
+    monkeypatch.setattr(normalization, "_APP_CONFIG_SHAPE", normalization._model_shape(reduced))
     with pytest.raises(ConfigurationError):
         layers.validate_config({"media": {"max_image_pixels": 12345}})
     path = tmp_path / "app.yaml"
@@ -253,7 +252,7 @@ def test_removed_configuration_field_follows_existing_unknown_key_cleanup(tmp_pa
     assert raw == {"media": {"input_validation": "decode"}}
     assert plans[0].removals == (("media", "max_image_pixels"),)
     assert path.read_text(encoding="utf-8") == content
-    layers._apply_cleanup(plans[0])
+    normalization._apply_cleanup(plans[0])
     assert "max_image_pixels" not in path.read_text(encoding="utf-8")
 
 
@@ -293,7 +292,7 @@ def test_choice_renaming_alone_can_change_consumer_semantics(change_definitions)
     )
     change_definitions(definitions)
     args = parser.build_parser().parse_args(["doctor", "--fallback-generic=on"])
-    assert validation.validate_arguments(args) == "doctor"
+    assert validation.validate_arguments(args).name == "doctor"
     # Acceptance is not a migration implementation: the old consumer treats
     # everything other than auto/enabled as disabled until it is updated.
     assert setup._fallback(args) is False
@@ -302,7 +301,7 @@ def test_choice_renaming_alone_can_change_consumer_semantics(change_definitions)
 def test_removing_option_requires_removing_consumer_references(change_definitions):
     change_definitions(tuple(spec for spec in options.OPTIONS if spec.name != "fallback-generic"))
     args = parser.build_parser().parse_args(["doctor"])
-    assert validation.validate_arguments(args) == "doctor"
+    assert validation.validate_arguments(args).name == "doctor"
     with pytest.raises(AttributeError, match="fallback_generic"):
         setup._fallback(args)
 

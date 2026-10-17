@@ -8,11 +8,20 @@ from inspect import Parameter, signature
 from types import SimpleNamespace
 
 import pytest
-from test_workflow import FEED, A, Gallery, attach_transport, compose
+from support.workflow import FEED, A, Gallery, attach_transport, compose
 
 import image_downloader.cli as cli
 import image_downloader.commands.download as download_command
-from image_downloader import Chapter, DownloadManifest, ImageResource, PluginError, WorkflowStateService
+from image_downloader import (
+    Chapter,
+    DownloadManifest,
+    DownloadRequest,
+    ImageResource,
+    InspectRequest,
+    PluginError,
+    WorkflowRequest,
+    WorkflowStateService,
+)
 from image_downloader.application.workflow_verification import verify_workflow
 from image_downloader.commands.inspect import _inspection_json
 from image_downloader.observability.events import EventName
@@ -61,11 +70,11 @@ def test_zero_chapters_setting_remains_authoritative(tmp_path, setting, permissi
         async with compose(tmp_path, gallery, download={"allow_empty_chapter_manifest": setting}) as service:
             events, messages = observe_success(service)
             if allowed:
-                assert not (await service.run(A.url)).saved_files
+                assert not (await service.download(DownloadRequest(url=A.url))).saved_files
             else:
                 with pytest.raises(PluginError, match="^plugin returned an empty manifest$"):
-                    await service.run(A.url)
-            result = await service.workflow(FEED, workflow_retries=0)
+                    await service.download(DownloadRequest(url=A.url))
+            result = await service.workflow(WorkflowRequest(url=FEED, workflow_retries=0))
             assert result.items[0].status == ("success" if allowed else "failed")
             state = WorkflowStateService(service.config)
             assert state.get_workflow(FEED)[0].items[0].completed is allowed
@@ -97,14 +106,14 @@ def test_empty_images_are_decided_per_chapter_before_any_image_job(tmp_path, per
             events, messages = observe_success(service)
             if permission is False:
                 with pytest.raises(PluginError, match="^plugin returned an empty image list$"):
-                    await service.run(A.url)
+                    await service.download(DownloadRequest(url=A.url))
                 assert gallery.image_requests == []
                 assert not tuple(service.outputs.root.rglob("*.png"))
             else:
-                regular = await service.run(A.url)
+                regular = await service.download(DownloadRequest(url=A.url))
                 assert len(regular.saved_files) == int(with_image)
                 assert not regular.failures
-            result = await service.workflow(FEED, workflow_retries=0)
+            result = await service.workflow(WorkflowRequest(url=FEED, workflow_retries=0))
             allowed = permission is not False
             assert result.items[0].status == ("success" if allowed else "failed")
             state = WorkflowStateService(service.config)
@@ -138,15 +147,15 @@ def test_retry_rechecks_policy_and_preserves_existing_final_notification(tmp_pat
     async def scenario():
         async with compose(tmp_path, gallery) as service:
             calls = []
-            validate = service._validate_empty_manifest_policy
+            validate = service._downloads._validate_empty_manifest_policy
 
             def record(manifest):
                 calls.append(manifest)
                 validate(manifest)
 
-            monkeypatch.setattr(service, "_validate_empty_manifest_policy", record)
+            monkeypatch.setattr(service._downloads, "_validate_empty_manifest_policy", record)
             events, messages = observe_success(service)
-            result = await service.workflow(FEED, workflow_retries=1, workflow_retry_delay=0)
+            result = await service.workflow(WorkflowRequest(url=FEED, workflow_retries=1, workflow_retry_delay=0))
             assert [attempt.status for attempt in result.items[0].attempts] == ["failed", "success"]
             assert result.items[0].attempts[0].error.code == "plugin_error"
             assert calls == [replace(value, metadata={"source_url": A.url}) for value in (refused, allowed)]
@@ -167,7 +176,7 @@ def test_inspect_accepts_empty_and_only_serializes_explicit_permissions(
 
     async def scenario():
         async with compose(tmp_path, ManifestGallery(manifest)) as service:
-            result = await service.inspect(A.url)
+            result = await service.inspect(InspectRequest(url=A.url))
             assert result.manifest.allow_empty_chapters is manifest_permission
             assert result.manifest.chapters[0].allow_empty_images is chapter_permission
             payload = _inspection_json(result, "all")["manifest"]
@@ -194,7 +203,13 @@ def test_new_permissions_preserve_positional_calls_repr_patterns_and_replace():
     manifest = DownloadManifest("book", (chapter,), "id", "author", "access", "revision", {"key": "value"})
     assert Chapter.__match_args__ == ("number", "title", "subtitle", "images", "chapter_id")
     assert DownloadManifest.__match_args__ == (
-        "title", "chapters", "content_id", "author", "access", "revision", "metadata"
+        "title",
+        "chapters",
+        "content_id",
+        "author",
+        "access",
+        "revision",
+        "metadata",
     )
     assert signature(Chapter).parameters["allow_empty_images"].kind is Parameter.KEYWORD_ONLY
     assert signature(DownloadManifest).parameters["allow_empty_chapters"].kind is Parameter.KEYWORD_ONLY
@@ -212,7 +227,7 @@ def test_inspect_zero_chapters_does_not_enforce_download_rejection(tmp_path):
 
     async def scenario():
         async with compose(tmp_path, ManifestGallery(manifest)) as service:
-            result = await service.inspect(A.url)
+            result = await service.inspect(InspectRequest(url=A.url))
             assert result.manifest.chapters == ()
             assert result.manifest.allow_empty_chapters is False
             assert not result.failures
@@ -223,7 +238,7 @@ def test_inspect_zero_chapters_does_not_enforce_download_rejection(tmp_path):
 
 @pytest.mark.parametrize("permission", [None, False])
 def test_additional_files_keep_existing_order_and_prior_saves_on_rejection(tmp_path, monkeypatch, permission):
-    from test_additional_files import URL, install, service
+    from support.additional_files import URL, install, service
 
     from image_downloader import AdditionalFileHookPoint as Point
     from image_downloader import AdditionalFileSpec as Spec
@@ -256,14 +271,15 @@ def test_additional_files_keep_existing_order_and_prior_saves_on_rejection(tmp_p
         async with await service(tmp_path) as runtime:
             if permission is False:
                 with pytest.raises(PluginError, match="^plugin returned an empty image list$"):
-                    await runtime.run(URL)
+                    await runtime.download(DownloadRequest(url=URL))
                 assert not tuple(runtime.outputs.root.rglob("*.png"))
                 assert len(tuple(runtime.outputs.root.rglob("*.txt"))) == 4
             else:
-                assert len((await runtime.run(URL)).saved_files) == 1
+                assert len((await runtime.download(DownloadRequest(url=URL))).saved_files) == 1
             assert seen[:3] == [(Point.BEFORE_MANIFEST, None), (Point.AFTER_MANIFEST, 1), (Point.AFTER_MANIFEST, 2)]
             assert seen[3:] == (
-                [] if permission is False
+                []
+                if permission is False
                 else [(Point.BEFORE_IMAGE_REQUEST, 1), (Point.AFTER_DOWNLOAD, 1), (Point.AFTER_DOWNLOAD, 2)]
             )
             assert all(path.read_bytes() == b"retained" for path in runtime.outputs.root.rglob("*.txt"))

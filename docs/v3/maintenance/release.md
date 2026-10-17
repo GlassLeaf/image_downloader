@@ -1,9 +1,10 @@
-# Release preflight
+<a id="release-preflight"></a>
 
-Unreleased CLI compatibility changes and JSON migration examples are in
-[CLI diagnostics migration](cli-diagnostics-migration.md).
+# リリース前の確認
 
-Release candidate では次を実行し、失敗したら公開を止める。
+未リリースのCLI互換性の変更とJSONの移行例は、[CLI診断の移行](cli-diagnostics-migration.md)を参照してください。
+
+リリース候補では次を実行し、失敗したら公開を止めます。
 
 ```powershell
 python -m pytest -q --cov=image_downloader
@@ -14,10 +15,10 @@ python -m build --sdist --wheel
 python tools/release_smoke.py
 ```
 
-offline environment で依存が既にある場合は `python tools/release_smoke.py --offline` を使えるが、依存解決は検証しない。smoke は wheel/sdist の content、non-editable wheel install、`doctor --json`、bundled signed plugin の strict load を検証する。
+依存がインストール済みのオフライン環境では`python tools/release_smoke.py --offline`を使用できますが、依存の解決は検証しません。smokeでは、wheel・sdistの内容、編集可能モードを使わないwheelのインストール、`doctor --json`、同梱の署名済みプラグインのstrictロードを確認します。
 
-- release artifact は検証した wheel/sdist と一致し、`.local`、`.runtime`、profile data、IDE file、history archive を含まない。
-- `pyproject.toml` の supported Python と Windows/Linux/macOS matrix の quality/package smoke を確認する。
-- project license、third-party/bundled source attribution、private vulnerability reporting の運用を公開前に決める。
-- release note に beta/stability、v1/v2 plugin incompatibility、migration、config rewrite/backup、必要なら旧 version より降格する install 手順を記載する。
-- strict install/trust/revoke/uninstall/doctor と documentation contract/link check を release candidate で再実行する。
+- 公開成果物を検証済みのwheel・sdistと一致させ、`.local`、`.runtime`、プロファイルデータ、IDEファイル、履歴アーカイブを含めない。
+- `pyproject.toml`の対応Python版と、Windows・Linux・macOSの組合せで品質検査・パッケージsmokeを確認する。
+- プロジェクトのライセンス、第三者・同梱ソースの帰属表示、脆弱性の非公開報告の運用を公開前に決定する。
+- リリースノートに、ベータ版と安定性、v1/v2プラグインとの非互換性、移行、設定の書き換えとバックアップ、必要なら旧版より小さな版番号へのインストール手順を記載する。
+- strictでのinstall・trust・revoke・uninstall・doctorと、文書の契約・リンク検査をリリース候補で再実行する。

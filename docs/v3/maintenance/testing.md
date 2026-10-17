@@ -1,4 +1,6 @@
-# Testing and documentation contracts
+<a id="testing-and-documentation-contracts"></a>
+
+# テストと文書の契約
 
 <a id="testing-config-cli"></a>
 <a id="testing-package-trust"></a>
@@ -6,17 +8,17 @@
 <a id="testing-runtime-library"></a>
 <a id="testing-release"></a>
 
-The v3 suite checks configuration acceptance, CLI dispatch/JSON/redaction, plugin package trust, lifecycle/auth/recovery, transport/persistence safety, result/exception behavior, and source processor examples.
+v3のテストは、設定値の受理、CLIの振り分け・JSON・秘匿化、プラグインパッケージの信頼、ライフサイクル・認証・回復、通信・永続化の安全性、結果・例外の挙動、ソース形式の画像処理プラグインの例を確認します。
 
-Documentation contract tests additionally check:
+文書の契約テストでは、さらに次を確認します。
 
-- facade `__all__` and inventory order;
-- [public signature index](../reference/api-signatures.md) の visible `api-contract` marker、parameter names/kinds/defaults、coroutine status、DTO/Pydantic field names、enum/literal values、and `ERROR_CATALOG`;
-- parser option acceptance/effect/no-op/rejection and JSON payload shapes;
-- legacy/current claim IDs, destination markers, source snapshot evidence, and `superseded` rationale;
-- recursive current-documentation links. Archive is not a current-link target.
+- ファサードの`__all__`と公開API一覧の順序。
+- [公開シグネチャ一覧](../reference/api-signatures.md)の`api-contract`マーカー、引数の名前・種類・既定値、コルーチンかどうか、DTO・Pydanticのフィールド名、列挙値・リテラル値、`ERROR_CATALOG`。
+- パーサーによるオプションの受理・効果・無効指定・拒否、およびJSONの構造。
+- 旧資料と現行資料の記述ID、移管先マーカー、元資料のスナップショットにある根拠、`superseded`とした理由。
+- 現行ドキュメント内のリンクを再帰的に検査。アーカイブは現行仕様の参照先に含めない。
 
-Pydantic inherited API and private names are excluded from the custom stable-method inventory. A change to public behavior must update the implementation, canonical reference, contract marker, and behavior test together.
+Pydanticから継承したAPIと非公開名は、独自の安定メソッド一覧から除外します。公開挙動を変更する場合は、実装、正本の参照資料、契約マーカー、挙動テストを同時に更新してください。
 
 ## Mailpitによるメール通知の実機テスト
 

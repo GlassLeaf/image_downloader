@@ -2,17 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import datetime
-
 from ..configuration.models import AppConfig
 from ..configuration.paths import resolve_paths
-from ..exceptions import UpdateStateError
 from ..models import UpdateCandidate, WorkflowPruneResult, WorkflowRunRecord, WorkflowStateItem, WorkflowStateView
 from ..privacy.log_safety import safe_url
 from ..storage.filesystem import FileSystem
-from ..storage.state import UpdateState
+from ..storage.source_identity import source_key
 from ..storage.workflow import WorkflowState
-from ..storage.workflow_history import WorkflowHistoryStore, parse_time
+from ..storage.workflow_history import WorkflowHistoryStore
 
 
 class WorkflowStateService:
@@ -24,38 +21,38 @@ class WorkflowStateService:
 
     def list_workflows(self, *, plugin_id: str | None = None) -> tuple[WorkflowStateView, ...]:
         # Fixed lock order. Readers do not acquire the long-lived feed lock.
-        with self._state.lock(self._history.relative.with_name("workflow.lock")):
-            state = self._state._read()
+        with self._state.read_feeds(plugin_id=plugin_id) as feeds:
             runs = self._history.visible()
         latest: dict[tuple[str | None, str], WorkflowRunRecord] = {}
         for run in runs:
             latest[run.plugin_id, run.feed_key] = run
         views: dict[tuple[str | None, str], WorkflowStateView] = {}
-        for plugin, feeds in state["sources"].items():
-            if plugin_id is not None and plugin != plugin_id:
-                continue
-            for key, feed in feeds.items():
-                latest_run = latest.get((plugin, key))
-                views[plugin, key] = WorkflowStateView(
-                    plugin,
-                    key,
-                    latest_run.source_url if latest_run else None,
-                    _checked_at(feed["checked_at"]),
-                    tuple(
-                        WorkflowStateItem(
-                            UpdateCandidate(safe_url(r["url"]), r["content_id"], r["revision"]), r["completed"]
-                        )
-                        for r in feed["records"].values()
-                    ),
-                    latest_run,
-                )
-        for (plugin, key), run in latest.items():
-            if (plugin, key) not in views and (plugin_id is None or plugin_id == plugin):
-                views[plugin, key] = WorkflowStateView(plugin, key, run.source_url, None, (), run)
+        for feed in feeds:
+            plugin, key = feed.plugin_id, feed.feed_key
+            latest_run = latest.get((plugin, key))
+            views[plugin, key] = WorkflowStateView(
+                plugin,
+                key,
+                latest_run.source_url if latest_run else None,
+                feed.checked_at,
+                tuple(
+                    WorkflowStateItem(
+                        UpdateCandidate(
+                            safe_url(item.candidate.url), item.candidate.content_id, item.candidate.revision
+                        ),
+                        item.completed,
+                    )
+                    for item in feed.items
+                ),
+                latest_run,
+            )
+        for (history_plugin, key), run in latest.items():
+            if (history_plugin, key) not in views and (plugin_id is None or plugin_id == history_plugin):
+                views[history_plugin, key] = WorkflowStateView(history_plugin, key, run.source_url, None, (), run)
         return tuple(sorted(views.values(), key=lambda v: (v.plugin_id or "", v.feed_key)))
 
     def get_workflow(self, url: str, *, plugin_id: str | None = None) -> tuple[WorkflowStateView, ...]:
-        key = UpdateState._source_key(url)
+        key = source_key(url)
         return tuple(v for v in self.list_workflows(plugin_id=plugin_id) if v.feed_key == key)
 
     def list_runs(
@@ -63,7 +60,7 @@ class WorkflowStateService:
     ) -> tuple[WorkflowRunRecord, ...]:
         if type(limit) is not int or limit < 1:
             raise ValueError("limit must be a positive integer")
-        key = UpdateState._source_key(url) if url is not None else None
+        key = source_key(url) if url is not None else None
         runs = self._history.visible()
         return tuple(
             r
@@ -78,10 +75,3 @@ class WorkflowStateService:
         if type(dry_run) is not bool:
             raise TypeError("dry_run must be bool")
         return self._history.prune(dry_run=dry_run)
-
-
-def _checked_at(value: str) -> datetime:
-    try:
-        return parse_time(value)
-    except (ValueError, OverflowError) as exc:
-        raise UpdateStateError("workflow state has an invalid timestamp") from exc

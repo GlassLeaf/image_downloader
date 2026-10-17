@@ -20,6 +20,7 @@ import pytest
 import image_downloader.application.composer as composer_module
 import image_downloader.application.construction as construction_module
 import image_downloader.media.image_processor as processor_module
+import image_downloader.observability.log_sinks as log_sinks_module
 import image_downloader.observability.logging as logging_module
 import image_downloader.transport.gateway as gateway_module
 from image_downloader import AppConfig, AuthenticationError, RuntimeComposer
@@ -403,7 +404,7 @@ def test_constructor_does_not_acquire_a_resource_before_its_local_lock(tmp_path,
 
     acquire = Mock()
     if resource == "sink":
-        monkeypatch.setattr(logging_module, "asyncio", SimpleNamespace(Lock=fail))
+        monkeypatch.setattr(log_sinks_module, "asyncio", SimpleNamespace(Lock=fail))
         monkeypatch.setattr(FileSystem, "open_text_append", acquire)
         construct = partial(
             logging_module.DebugFileSink, filesystem=FileSystem(tmp_path), relative_path=Path("debug.log")

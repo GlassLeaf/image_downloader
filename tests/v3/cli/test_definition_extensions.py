@@ -15,8 +15,8 @@ from typing import Literal
 import pytest
 from pydantic import Field, StrictInt, ValidationError
 
-from image_downloader.commands import dispatch, inspect, options, parser, setup, validation
-from image_downloader.configuration import layers
+from image_downloader.commands import argument_rules, dispatch, inspect, options, parser, setup, validation
+from image_downloader.configuration import layers, normalization
 from image_downloader.configuration.models import AppConfig, Media, Network
 from image_downloader.diagnostics import diagnostic_for
 from image_downloader.exceptions import ArgumentError, ConfigurationError
@@ -83,7 +83,7 @@ def extended_options(monkeypatch):
 def test_added_options_are_position_independent(extended_options, position, words, attribute, expected):
     command = ["plugin", "list"]
     args = parser.build_parser().parse_args([*command[:position], *words, *command[position:]])
-    assert validation.validate_arguments(args) == "plugin"
+    assert validation.validate_arguments(args).name == "plugin"
     assert args.command_args == ["list"]
     assert getattr(args, attribute) == expected
 
@@ -103,7 +103,7 @@ def test_added_repeat_options_keep_order_and_scalar_duplicates_use_last(extended
             "--future-named=",
         ]
     )
-    assert validation.validate_arguments(args) == "plugin"
+    assert validation.validate_arguments(args).name == "plugin"
     assert args.future_items == ["first", "plugin", "last"]
     assert args.future_file == [Path("first.json"), Path("second.json")]
     assert args.future_count == 5 and args.future_alias == ""
@@ -163,7 +163,7 @@ def test_added_option_scope_precedes_value_even_at_default(extended_options, pos
 @pytest.mark.parametrize("reverse", [False, True])
 def test_added_conflict_is_detected_across_hierarchy_before_values(extended_options, monkeypatch, reverse, capsys):
     group = ("future-count", "future-mode")
-    monkeypatch.setattr(validation, "CONFLICT_GROUPS", (*options.CONFLICT_GROUPS, group))
+    monkeypatch.setattr(argument_rules, "CONFLICT_GROUPS", (*options.CONFLICT_GROUPS, group))
     pair = ["--future-count=private-value", "--future-mode=private-value"]
     if reverse:
         pair.reverse()
@@ -185,7 +185,7 @@ def test_added_options_appear_in_help_without_initialization(extended_options, c
 
 def test_added_options_respect_terminator(extended_options):
     args = parser.build_parser().parse_args(["state", "workflow", "show", "--", "--future-flag"])
-    assert validation.validate_arguments(args) == "state"
+    assert validation.validate_arguments(args).name == "state"
     assert args.target == "--future-flag" and not args.future_flag
 
 
@@ -209,9 +209,9 @@ def test_new_registry_definition_works_on_fresh_import_without_other_edits():
             "future-fresh", frozenset({"plugin list"}),
             choices=("basic", "new-choice"), dest="future_destination",
         ),)
-        from image_downloader.commands import dispatch, parser, validation
+        from image_downloader.commands import argument_rules, dispatch, parser, validation
         args = parser.build_parser().parse_args(["plugin", "--future-fresh=new-choice", "list"])
-        accepted = validation.validate_arguments(args)
+        accepted = validation.validate_arguments(args).name
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
             status = dispatch.main(["config", "--future-fresh=basic", "path", "--json"])
@@ -254,7 +254,7 @@ def test_manual_namespace_does_not_treat_registered_defaults_as_explicit(extende
     args = parser.build_parser().parse_args(["config", "path"])
     del args._explicit_options
     assert args.future_count == 5
-    assert validation.validate_arguments(args) == "config"
+    assert validation.validate_arguments(args).name == "config"
 
 
 @pytest.fixture
@@ -274,7 +274,7 @@ def extended_config(monkeypatch):
     # Match the schema/defaults initialized by a fresh import of a changed model.
     monkeypatch.setattr(layers, "AppConfig", ExtendedAppConfig)
     monkeypatch.setattr(layers, "DEFAULT_CONFIG", ExtendedAppConfig())
-    monkeypatch.setattr(layers, "_APP_CONFIG_SHAPE", layers._model_shape(ExtendedAppConfig))
+    monkeypatch.setattr(normalization, "_APP_CONFIG_SHAPE", normalization._model_shape(ExtendedAppConfig))
 
 
 def test_added_config_fields_choices_and_aliases_survive_layer_sanitizing(extended_config, tmp_path):
@@ -348,7 +348,7 @@ def test_extending_parser_choices_alone_does_not_implement_runtime_semantics(mon
     )
     monkeypatch.setattr(parser, "OPTIONS", definitions)
     args = parser.build_parser().parse_args(["inspect", "https://example.test/feed", "--inspection-data=future-level"])
-    assert validation.validate_arguments(args) == "inspect"
+    assert validation.validate_arguments(args).name == "inspect"
     assert args.inspection_data == "future-level"
     # No request or plugin initialization is needed to establish the boundary:
     # the existing renderer still requires implementing each supported level.
@@ -363,6 +363,6 @@ def test_extending_parser_choices_alone_does_not_extend_configuration_schema(mon
     )
     monkeypatch.setattr(parser, "OPTIONS", definitions)
     args = parser.build_parser().parse_args(["doctor", "--image-format=FUTURE"])
-    assert validation.validate_arguments(args) == "doctor"
+    assert validation.validate_arguments(args).name == "doctor"
     with pytest.raises(ValidationError):
         AppConfig.model_validate({"output": {"image_format": args.image_format}})

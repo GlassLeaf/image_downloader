@@ -1,8 +1,10 @@
-# How to configure profiles and inspect effective values
+<a id="how-to-configure-profiles-and-inspect-effective-values"></a>
 
-1. `image-downloader config path` で fixed user config と default root を確認する。
-2. `config init` で main config を作り、`config profile init NAME` で profile layer を作る。
-3. `config explain --host HOST --json` で有効値、layer、origin を確認する。
-4. state-changing operation の前に、backup と `doctor --host HOST --json` を実行する。
+# プロファイルを設定し、有効な値を確認する
 
-profile/site layer に書けない bootstrap fields、merge 順、`rewrite_user_layers` の書換え副作用、link/reparse point の扱いは [configuration reference](../reference/configuration.md#config-layers) を参照する。
+1. `image-downloader config path`で、固定のユーザー設定と既定のルートを確認します。
+2. `config init`でメイン設定を作り、`config profile init NAME`でプロファイルの設定レイヤーを作ります。
+3. `config explain --host HOST --json`で、有効値、設定レイヤー、値の由来を確認します。
+4. 状態を変更する操作の前に、バックアップと`doctor --host HOST --json`を実行します。
+
+プロファイル・サイトのレイヤーに書けない起動設定用フィールド、マージ順、`rewrite_user_layers`の書換えによる副作用、リンク・再解析ポイントの扱いは[設定リファレンス](../reference/configuration.md#config-layers)を参照してください。

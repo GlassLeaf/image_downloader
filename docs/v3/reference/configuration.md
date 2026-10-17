@@ -1,4 +1,6 @@
-# Configuration reference
+<a id="configuration-reference"></a>
+
+# 設定リファレンス
 
 <a id="config-layers"></a>
 
@@ -21,31 +23,35 @@ APIの`workflow_progress_log`が上書きする。falseでも周回ごとの実�
 
 `DEFAULT_CONFIG` は全 field にこの文書の default を持つ immutable `AppConfig` である。`ConfigurationLayer(role: str, path: Path | None, status: LayerStatus)` は一つの採用/未採用 layer、`ResolvedApplicationConfig(config, main_config_path, config_root, source, selected_profile, layers, origins)` は解決結果である。`source` は `defaults|user|explicit`、`origins` は effective dotted key から source label への read-only mapping である。
 
-## Layers, origins, and mutation
+<a id="layers-origins-and-mutation"></a>
+
+## 設定レイヤー・由来・書き換え
 
 明示 `--config` がなければ CLI は CWD の `app.yaml` を読まない。platform user config がなければ bundled baseline と platform default root を使う。低い方から高い方への merge 順は次のとおりである。
 
-1. `AppConfig` defaults
-2. immutable bundled baseline
-3. main `app.yaml`
+1. `AppConfig`の既定値
+2. 同梱の不変な基準設定
+3. メインの`app.yaml`
 4. `profiles/<profile>/app.yaml`
 5. `sites/global.yaml`
-6. profile global site layer
-7. registrable-domain から full-host までの site layer
-8. 同 host の profile site layer
-9. CLI bootstrap/application runtime override
+6. プロファイル内のサイト共通レイヤー
+7. 登録可能ドメインから完全なホスト名までのサイトレイヤー
+8. 同じホストのプロファイル内サイトレイヤー
+9. CLIの初期設定・アプリケーション実行時の上書き
 
 mapping は再帰 merge、scalar/list/`null` は高い layer が置換する。IDNA、registrable domain、IPv4/IPv6 filename の正規化、検討した layer、値の origin は `config explain --json` で確認する。
 
-| layer role | `profile` | `storage` | `plugins` | `security` |
+| レイヤーの役割 | `profile` | `storage` | `plugins` | `security` |
 | --- | --- | --- | --- | --- |
-| bundled baseline / main `app.yaml` | allowed | allowed | allowed | allowed |
-| `profiles/<name>/app.yaml` | forbidden | forbidden | forbidden | allowed |
-| any `sites/*.yaml` (global and host, profile scoped を含む) | forbidden | forbidden | forbidden | forbidden |
+| 同梱の基準設定 / メインの`app.yaml` | 許可 | 許可 | 許可 | 許可 |
+| `profiles/<name>/app.yaml` | 禁止 | 禁止 | 禁止 | 許可 |
+| 全`sites/*.yaml`（共通・ホスト別、プロファイル内を含む） | 禁止 | 禁止 | 禁止 | 禁止 |
 
 違反は layer を黙って無視せず `ConfigurationError` にする。これは bootstrap root と verification policy を site ごとに切替えて security boundary を曖昧にしないためである。
 
-## Initialization commands
+<a id="initialization-commands"></a>
+
+## 初期化コマンド
 
 `config init [ABSOLUTE_PATH]` は引数なしなら platform user config、引数ありなら absolute path に main config を一回だけ作る。`--config` と `--profile` は拒否され、`--data-root` と `--plugin-root` は作成する main config の bootstrap values にだけ書き込む。既存 file は上書きしない。`--yes` は受理されるが confirmation を使わない。
 
@@ -58,59 +64,61 @@ mapping は再帰 merge、scalar/list/`null` は高い layer が置換する。I
 
 <a id="config-schema"></a>
 
-## Schema
+<a id="schema"></a>
 
-| key | type / default / constraint |
+## 設定スキーマ
+
+| キー | 型・既定値・制約 |
 | --- | --- |
-| `profile.default` | `[A-Za-z0-9_-]+` string; `default` |
-| `storage.data_root`, `plugins.root` | `null` または absolute path string; `null` は platform root |
-| `download.chapter_concurrency` | strict integer `>=1`; `3` |
-| `download.image_concurrency_per_chapter` | strict integer `>=1`; `8` |
-| `download.continue_on_image_error`, `download.allow_empty_chapter_manifest` | strict boolean; `true`, `false` |
-| `output.directory_format`, `output.filename_format` | string; `%CHAPTER_NUMBER%_%CONTENT_TITLE%_%CHAPTER_TITLE%`, `%IMAGE_INDEX%.%EXT%`。`%NUM%`、`%TITLE%`、`%SUBTITLE%` は configuration error |
+| `profile.default` | `[A-Za-z0-9_-]+` 文字列。 `default` |
+| `storage.data_root`, `plugins.root` | `null` または 絶対パス文字列; `null` は OS標準のルート |
+| `download.chapter_concurrency` | 厳密な整数 `>=1`; `3` |
+| `download.image_concurrency_per_chapter` | 厳密な整数 `>=1`; `8` |
+| `download.continue_on_image_error`, `download.allow_empty_chapter_manifest` | 厳密な真偽値; `true`, `false` |
+| `output.directory_format`, `output.filename_format` | 文字列。 `%CHAPTER_NUMBER%_%CONTENT_TITLE%_%CHAPTER_TITLE%`, `%IMAGE_INDEX%.%EXT%`。`%NUM%`、`%TITLE%`、`%SUBTITLE%` は 設定エラー |
 | `output.existing_file` | `overwrite|skip|rename|error`; `overwrite` |
-| `output.image_format` | `ORIGINAL|JPEG|PNG|WEBP`; `ORIGINAL`。`ORIGINAL` は plugin transform/processor 完了後の artifact bytes を core が再エンコードせず保存する |
-| `output.isolate_by_plugin` | strict boolean; `false` |
-| `output.max_component_length` | `null` or strict integer `>=16`; `null`。利用者指定のPython文字数による短縮。OSの要素上限対策は別途適用 |
-| `output.lock_timeout_seconds` | finite number `>=0`; `30`; zero は待機しない |
+| `output.image_format` | `ORIGINAL|JPEG|PNG|WEBP`; `ORIGINAL`。`ORIGINAL` は プラグインの変換・プロセッサーの完了後の成果物のバイト列を、本体が再エンコードせず保存する |
+| `output.isolate_by_plugin` | 厳密な真偽値; `false` |
+| `output.max_component_length` | `null`または 厳密な整数 `>=16`; `null`。利用者指定のPython文字数による短縮。OSの要素上限対策は別途適用 |
+| `output.lock_timeout_seconds` | 有限の数値 `>=0`; `30`; 0は待機しない |
 | `media.input_validation` | `content_type|decode|both`; `both` |
 | `media.content_type_mismatch` | `accept|error`; `accept` |
-| `media.max_image_pixels` | `null` or strict integer `>=1`; `null` |
-| `logging.console.enabled` | strict boolean; `true` |
-| `logging.safe_query_parameters`, `logging.safe_fragment_parameters` | unique non-sensitive identifier list; `[]` |
-| `network.request_concurrency` | strict integer `>=1`; `8` |
-| `network.origin_request_concurrency`, `network.registrable_domain_request_concurrency` | `null` or strict integer `1..network.request_concurrency`; `null` |
-| `network.request_timeout_seconds`, `network.connect_timeout_seconds`, `network.read_timeout_seconds`, `network.write_timeout_seconds`, `network.pool_timeout_seconds` | request `>0` finite, default `30`; others `null` or finite `>0` and inherit `network.request_timeout_seconds` |
-| `network.max_attempts` | strict integer `>=1`; `3` including initial request |
-| `network.retry_max_delay_seconds` | finite number `>=0`; `30` |
-| `network.auth_refresh_attempts` | strict integer `>=0`; `1` additional refresh |
-| `network.global_request_interval_seconds` | finite number `>=0`; `0` |
-| `network.pool_max_connections`, `network.pool_max_idle_connections` | strict integer `>=1` / `0..network.pool_max_connections`; `8` / `8` |
-| `network.max_response_bytes` | strict integer `>=1`; `67108864` |
-| `network.http2`, `network.follow_redirects` | strict boolean; both `true` |
-| `network.proxy` | `null` or string; `null` |
-| `network.headers` | string mapping; `{"User-Agent": "image-downloader/0.0.0.1b0"}` |
-| `notification.enabled` | strict boolean; `false` |
-| `notification.methods` | `desktop|email` list; `[desktop]` |
-| `notification.notify_on` | category list; default `fetch_error, process_error, save_error, auth_error, config_error, plugin_error, update_error, storage_error, runtime_error` |
-| `notification.routes` | category-to-method-list mapping; `{}` |
-| `notification.desktop` | mapping; `{}` |
-| `notification.email.smtp_host`, `notification.email.from`, `notification.email.username` | string; `''` |
-| `notification.email.smtp_port` | strict integer `1..65535`; `465` |
-| `notification.email.use_tls` | strict boolean; `true` |
-| `notification.email.to` | string list; `[]` |
-| `notification.email.credential_service` | string; `image-downloader.smtp` |
-| `security.plugin_verification` | `strict|warn|off`; `strict`; main/profile app layer only |
-| `image_processors.chain` | unique reverse-DNS processor IDs; `[]` |
-| `image_processors.transport_metadata_access` | processor ID -> non-empty, duplicate-free enabled non-builtin site plugin ID list mapping; `{}`。chain に含まれる processor と列挙された site の組だけが raw image transport metadata を受け取る |
-| `plugin_settings.<id>.enabled` | strict boolean; `true` |
-| `plugin_settings.<id>.config` | mapping; `{}` |
-| `plugin_settings.<id>.secrets` | `lower_snake_case -> UPPERCASE_REFERENCE` mapping; `{}` |
-| `plugin_settings.<id>.download_policy.request_concurrency` | `null` or strict integer `>=1`; selected operation の HTTP transport 上限。実効値は `network.request_concurrency` との最小値 |
-| `plugin_settings.<id>.download_policy.chapter_concurrency` | `null` or strict integer `>=1`; 実効値は `download.chapter_concurrency` との最小値 |
-| `plugin_settings.<id>.download_policy.image_concurrency_per_chapter` | `null` or strict integer `>=1`; 実効値は `download.image_concurrency_per_chapter` との最小値 |
-| `plugin_settings.<id>.download_policy.preserve_image_start_order` | strict boolean; `true` なら chapter/image job の開始を manifest 順に直列化する。default `false` |
-| `fallback.generic_html.enabled` | strict boolean; `true` |
+| `media.max_image_pixels` | `null`または 厳密な整数 `>=1`; `null` |
+| `logging.console.enabled` | 厳密な真偽値; `true` |
+| `logging.safe_query_parameters`, `logging.safe_fragment_parameters` | 重複のない非秘密の識別子一覧; `[]` |
+| `network.request_concurrency` | 厳密な整数 `>=1`; `8` |
+| `network.origin_request_concurrency`, `network.registrable_domain_request_concurrency` | `null`または 厳密な整数 `1..network.request_concurrency`; `null` |
+| `network.request_timeout_seconds`, `network.connect_timeout_seconds`, `network.read_timeout_seconds`, `network.write_timeout_seconds`, `network.pool_timeout_seconds` | requestは有限な`>0`で既定値`30`。他は`null`または有限な`>0`で、`null`なら`network.request_timeout_seconds`を継承 |
+| `network.max_attempts` | 厳密な整数 `>=1`; `3` 初回の要求を含む |
+| `network.retry_max_delay_seconds` | 有限の数値 `>=0`; `30` |
+| `network.auth_refresh_attempts` | 厳密な整数 `>=0`; `1` 追加の認証更新 |
+| `network.global_request_interval_seconds` | 有限の数値 `>=0`; `0` |
+| `network.pool_max_connections`, `network.pool_max_idle_connections` | 厳密な整数 `>=1` / `0..network.pool_max_connections`; `8` / `8` |
+| `network.max_response_bytes` | 厳密な整数 `>=1`; `67108864` |
+| `network.http2`, `network.follow_redirects` | 厳密な真偽値; どちらも`true` |
+| `network.proxy` | `null`または 文字列。 `null` |
+| `network.headers` | 文字列のマッピング; `{"User-Agent": "image-downloader/0.0.0.1b0"}` |
+| `notification.enabled` | 厳密な真偽値; `false` |
+| `notification.methods` | `desktop|email`の一覧; `[desktop]` |
+| `notification.notify_on` | 通知分類の一覧。既定値 `fetch_error, process_error, save_error, auth_error, config_error, plugin_error, update_error, storage_error, runtime_error` |
+| `notification.routes` | 通知分類から通知方法一覧へのマッピング; `{}` |
+| `notification.desktop` | マッピング。 `{}` |
+| `notification.email.smtp_host`, `notification.email.from`, `notification.email.username` | 文字列。 `''` |
+| `notification.email.smtp_port` | 厳密な整数 `1..65535`; `465` |
+| `notification.email.use_tls` | 厳密な真偽値; `true` |
+| `notification.email.to` | 文字列の一覧; `[]` |
+| `notification.email.credential_service` | 文字列。 `image-downloader.smtp` |
+| `security.plugin_verification` | `strict|warn|off`; `strict`; メイン・プロファイルのアプリ設定レイヤーだけで指定可能 |
+| `image_processors.chain` | 重複のない逆DNS形式の画像処理プラグインID; `[]` |
+| `image_processors.transport_metadata_access` | 画像処理プラグインIDから、有効な非組み込みサイトプラグインIDの空でなく重複しない一覧へのマッピング; `{}`。チェーンに含まれるプロセッサーと、列挙したサイトの組合せだけが生の画像通信メタデータを受け取る |
+| `plugin_settings.<id>.enabled` | 厳密な真偽値; `true` |
+| `plugin_settings.<id>.config` | マッピング。 `{}` |
+| `plugin_settings.<id>.secrets` | `lower_snake_case -> UPPERCASE_REFERENCE` マッピング。 `{}` |
+| `plugin_settings.<id>.download_policy.request_concurrency` | `null`または 厳密な整数 `>=1`; 選択した操作のHTTP通信上限。実効値は `network.request_concurrency` との最小値 |
+| `plugin_settings.<id>.download_policy.chapter_concurrency` | `null`または 厳密な整数 `>=1`; 実効値は `download.chapter_concurrency` との最小値 |
+| `plugin_settings.<id>.download_policy.image_concurrency_per_chapter` | `null`または 厳密な整数 `>=1`; 実効値は `download.image_concurrency_per_chapter` との最小値 |
+| `plugin_settings.<id>.download_policy.preserve_image_start_order` | 厳密な真偽値; `true` なら 章・画像の処理開始をmanifestの順に直列化する。既定値`false` |
+| `fallback.generic_html.enabled` | 厳密な真偽値; `true` |
 
 `download.allow_empty_chapter_manifest`は章一覧0件だけを制御し、各章の画像0件は制御しない。
 `false`はプラグインの`DownloadManifest.allow_empty_chapters=True`より優先して拒否する。
@@ -122,90 +130,42 @@ mapping は再帰 merge、scalar/list/`null` は高い layer が置換する。I
 `ConfigurationError`として拒否する。bool・文字列・NaN・無限値、正数／非負数の既存条件と
 既定値は維持し、実用的な数値上限や新しい設定項目は追加しない。入力値を診断へ出力しない。
 
-`NotificationCategory` の全 literal は `fetch_error`、`process_error`、`save_error`、`auth_error`、`parse_error`、`plugin_error`、`config_error`、`storage_error`、`runtime_error`、`update_error`、`auth_cookie_store_access`、`auth_credential_store_access`、`auth_login_success`、`auth_session_refresh_success`、`download_success`、`download_partial_success` である。category が設定可能であることと core が自動発火することは同義ではない。[observability explanation](../explanation/observability.md) を参照する。
+`NotificationCategory` の全 literal は `fetch_error`、`process_error`、`save_error`、`auth_error`、`parse_error`、`plugin_error`、`config_error`、`storage_error`、`runtime_error`、`update_error`、`auth_cookie_store_access`、`auth_credential_store_access`、`auth_login_success`、`auth_session_refresh_success`、`download_success`、`download_partial_success` である。category が設定可能であることと core が自動発火することは同義ではない。[ログ・イベント・通知の解説](../explanation/observability.md) を参照する。
 
 <a id="config-storage-layout"></a>
 
-## Inputs, storage layout, and output names
+<a id="inputs-storage-layout-and-output-names"></a>
 
-The configuration file itself is an input, not a storage root.  `storage.data_root`
-and `plugins.root` accept only an absolute path or `null`; `null` selects the
-platform default.  Relative paths, a path whose existing component is a
-symlink/reparse point, and a root that cannot be safely resolved are rejected.
-`resolve_paths(config)` derives the following paths from the selected profile:
+## 入力・保存先の構成・出力名
 
-| purpose | location | reader/writer |
+設定ファイル自体は入力であり、保存ルートではありません。`storage.data_root`と`plugins.root`は絶対パスまたは`null`だけを受理し、`null`ならOS標準の場所を使います。相対パス、既存の構成要素にシンボリックリンク・再解析ポイントを含むパス、安全に解決できないルートは拒否します。`resolve_paths(config)`は選択したプロファイルから、次のパスを導出します。
+
+| 用途 | 保存先 | 読み書きを行う処理 |
 | --- | --- | --- |
-| main configuration | explicit `--config`, otherwise platform user config `conf/app.yaml` | all commands that resolve configuration; state-changing commands can bootstrap it |
-| profile data root | `<storage.data_root or platform data root>/profiles/<profile>` | resolved by all runtime operations |
-| downloaded images and chapter reports | `<profile data root>/downloads` | normal `download` writes; `--list-updated-urls` does not allocate image output |
-| encrypted cookie jar and lock | `<profile data root>/cookie/cookies.enc`, `cookie/cookies.lock` | cookie actions and composed download service |
-| update snapshots and lock | `<profile data root>/state/updates.json`, `state/updates.lock` | update listing and `DownloadService.check_updates()` |
-| workflow completion state | `<profile data root>/state/workflow.json`, `state/workflow.lock` | normal workflow; offline state display reads it |
-| workflow execution history and lock | `<profile data root>/state/workflow-history.json`, `state/workflow-history.lock` | normal workflow auto-records; offline display reads; prune organizes history |
-| logs | `<profile data root>/logs` | composed download service/logger |
-| site and processor units/catalog | `<plugins.root or platform data root/plugins>` | plugin commands and runtime discovery; catalog is `catalog.json` below this root |
+| メイン設定 | 明示的な`--config`、省略時はOS標準の利用者設定`conf/app.yaml` | 設定解決を行う全コマンド。状態変更コマンドは初回に作成できる |
+| プロファイルのデータルート | `<storage.data_root or platform data root>/profiles/<profile>` | 全実行操作で解決 |
+| 取得画像と章レポート | `<profile data root>/downloads` | 通常の`download`が書き込み、`--list-updated-urls`は画像出力を割り当てない |
+| 暗号化Cookie jarとlock | `<profile data root>/cookie/cookies.enc`、`cookie/cookies.lock` | Cookie操作と構築済みダウンロードサービス |
+| 更新スナップショットとlock | `<profile data root>/state/updates.json`、`state/updates.lock` | 更新一覧と`DownloadService.check_updates()` |
+| ワークフローの完了状態 | `<profile data root>/state/workflow.json`、`state/workflow.lock` | 通常のワークフロー。オフラインの状態表示では読み取りのみ |
+| ワークフロー実行履歴とlock | `<profile data root>/state/workflow-history.json`、`state/workflow-history.lock` | 通常のワークフローが自動記録、オフライン表示が読み取り、pruneが整理 |
+| ログ | `<profile data root>/logs` | 構築済みダウンロードサービスとログ処理 |
+| サイト・画像処理のソース単位とカタログ | `<plugins.root or platform data root/plugins>` | プラグインコマンドと実行時の発見処理。カタログはこのルート直下の`catalog.json` |
 
-The output directory is the profile downloads root followed by
-`output.directory_format`; a chapter file name is `output.filename_format`.
-`directory_format` accepts `%CHAPTER_NUMBER%` (the four-digit
-`Chapter.number`), `%CONTENT_TITLE%` (`DownloadManifest.title`),
-`%CHAPTER_TITLE%`, `%CHAPTER_SUBTITLE%`, and the existing `%EXT%` expansion
-(`jpeg`). `filename_format` accepts those content/chapter tokens plus
-`%IMAGE_INDEX%` (the four-digit `ImageResource.index`) and `%EXT%` (the saved
-artifact extension without a leading dot). It alone also accepts
-`%ORIGINAL_STEM%`, `%ORIGINAL_FILENAME%`, and `%ORIGINAL_EXT%`: the selected
-source filename without its last extension, the complete selected source
-filename, and that last source extension without its leading dot.
+出力ディレクトリは、プロファイルのdownloadsルートに`output.directory_format`を適用したものです。章内のファイル名は`output.filename_format`で決まります。`directory_format`は`%CHAPTER_NUMBER%`（4桁の`Chapter.number`）、`%CONTENT_TITLE%`（`DownloadManifest.title`）、`%CHAPTER_TITLE%`、`%CHAPTER_SUBTITLE%`、既存の`%EXT%`展開（`jpeg`）を受け付けます。`filename_format`では、これらの作品・章トークンに加えて、`%IMAGE_INDEX%`（4桁の`ImageResource.index`）と`%EXT%`（保存画像の拡張子から先頭のドットを除いたもの）を使えます。また、ファイル名でだけ`%ORIGINAL_STEM%`、`%ORIGINAL_FILENAME%`、`%ORIGINAL_EXT%`を使えます。それぞれ、選択元ファイル名から最後の拡張子を除いた名前、選択元の完全なファイル名、最後の拡張子から先頭のドットを除いた値です。
 
-`%NUM%`, `%TITLE%`, and `%SUBTITLE%` are no longer accepted in either format.
-Migrate them to the explicit content, chapter, or image token matching the
-intended level. `%IMAGE_INDEX%` and the `%ORIGINAL_*%` image-specific tokens in
-`directory_format` are configuration errors. `%CHAPTER_NUMBER%` is available
-in a file name so that, for example, `%CHAPTER_NUMBER%_%IMAGE_INDEX%.%EXT%`
-can identify both levels.
+`%NUM%`、`%TITLE%`、`%SUBTITLE%`は、どちらの形式でも受理しません。意図した階層に合う作品・章・画像の明示的なトークンへ移行してください。`directory_format`に画像専用の`%IMAGE_INDEX%`や`%ORIGINAL_*%`を指定すると設定エラーです。`%CHAPTER_NUMBER%`はファイル名でも使えるため、たとえば`%CHAPTER_NUMBER%_%IMAGE_INDEX%.%EXT%`で両方の階層を識別できます。
 
-Any participating plugin can return operation-stable non-secret values through
-the optional `OutputFormatValueProvider.output_format_values()` hook. A value
-is referenced as `%PLUGIN[com.example.gallery:SERIES_ID]%`; the plugin returns
-only `{"SERIES_ID": "..."}` and core owns the reverse-DNS ID namespace. Plugin
-tokens are valid in both formats. The hook is collected once before inspection
-and its frozen values are shared by every chapter and image. A plugin that does
-not implement the hook, a disabled/unselected plugin ID, or an absent key is
-not an error: the token is retained literally before normal component safety
-conversion. This deliberately makes typos and removed plugin keys visible in
-the output name rather than failing a download. Plugin values are not expanded
-recursively and must not contain secrets. Invalid `%PLUGIN[...]%` syntax is a
-configuration error; other unrecognized percent-delimited text remains
-literal for compatibility.
+処理に参加するプラグインは、任意の`OutputFormatValueProvider.output_format_values()`フックで、操作内では変化しない非秘密の値を返せます。参照形式は`%PLUGIN[com.example.gallery:SERIES_ID]%`です。プラグインは`{"SERIES_ID": "..."}`だけを返し、逆DNS形式のID名前空間はコアが管理します。プラグイントークンは両方の形式で使用できます。フックは検査前に一度だけ呼び、その不変の値を全章・全画像で共有します。フック未実装、無効・未選択のプラグインID、存在しないキーはエラーにせず、トークンをそのまま残してから通常の名前の安全化を行います。そのため、誤記や削除済みキーはダウンロードを失敗させず、出力名に見える形で残ります。値は再帰的に展開せず、秘密情報を含めてはいけません。不正な`%PLUGIN[...]%`構文は設定エラーですが、その他の未知のパーセント区切りの文字列は互換性のためそのまま残します。
 
-The selected source filename is, in order: a site plugin's non-secret
-`ImageResource.original_filename`; successful response `Content-Disposition`
-(`filename*` before `filename`); final response URL path; absolute manifest
-locator URL path; then the four-digit image index. URL query/fragment values do
-not participate. `filename*` follows RFC 8187 decoding. The stem and original
-extension always come from that one selected name; if it has no extension,
-`%ORIGINAL_EXT%` is empty and core does not infer an extension from MIME data,
-Pillow, or a lower-priority name. Use `%ORIGINAL_STEM%.%EXT%` when the saved
-format may differ from the source; `%ORIGINAL_FILENAME%` intentionally keeps
-the source suffix and may therefore not match transformed bytes.
+元のファイル名は、サイトプラグインの非秘密な`ImageResource.original_filename`、成功応答の`Content-Disposition`（`filename*`を`filename`より優先）、最終応答URLのパス、manifestの絶対URL形式のlocatorのパス、4桁の画像番号の順で選びます。URLのクエリ・フラグメントは使用しません。`filename*`はRFC 8187に従って復号します。基底名と元の拡張子は、常に同じ一つの選択名から取ります。拡張子がなければ`%ORIGINAL_EXT%`は空で、MIME、Pillow、優先度の低い別名から拡張子を補いません。保存形式が元と異なり得る場合は`%ORIGINAL_STEM%.%EXT%`を使ってください。`%ORIGINAL_FILENAME%`は元の拡張子を保つため、加工後のバイト列と一致しないことがあります。
 
-The formatter then makes one safe path component, collapses double underscores,
-and removes a trailing underscore. It never treats a token value as a path
-separator. When `output.isolate_by_plugin=true`, the runtime inserts safe
-`<normalized-host>/<selected-plugin-id>/` components between the image-output
-root and the formatted chapter directory. The default root is `downloads`; a
-normal download's `--output-dir ABSOLUTE_PATH` replaces only that root, not the
-profile cookie/log/state roots. `existing_file` controls collisions as described in
-[runtime behavior](runtime-behavior.md#output-allocation-and-locks).
+その後、整形処理で安全な一つのパス要素に変換し、連続するアンダースコアをまとめ、末尾のアンダースコアを削除します。トークンの値をパス区切りとしては扱いません。`output.isolate_by_plugin=true`なら、画像出力ルートと整形済みの章ディレクトリの間に、安全な`<normalized-host>/<selected-plugin-id>/`を挿入します。既定のルートは`downloads`です。通常のダウンロードの`--output-dir ABSOLUTE_PATH`はこのルートだけを置き換え、プロファイルのCookie・ログ・状態のルートは変えません。競合時の`existing_file`の扱いは[実行時の挙動](runtime-behavior.md#output-allocation-and-locks)を参照してください。
 
-The following is a complete, valid *shape* for a main config plus a profile and
-site overlay. It intentionally shows only keys permitted in each layer; the
-commented [config template](../../../src/image_downloader/config-template.yaml)
-is the full default/value reference.
+次は、メイン設定とプロファイル・サイトの重ね合わせ設定について、妥当な全体構造を示す例です。各レイヤーで許可するキーだけを載せています。既定値と許可値の完全な参照は、コメント付きの[設定テンプレート](../../../src/image_downloader/config-template.yaml)を参照してください。
 
 ```yaml
-# app.yaml (main layer)
+# app.yaml（メインのレイヤー）
 profile: {default: comics}
 storage: {data_root: 'D:/image-data'}
 plugins: {root: 'D:/image-plugins'}
@@ -215,10 +175,10 @@ output:
   existing_file: skip
 security: {plugin_verification: strict}
 
-# profiles/comics/app.yaml (profile layer; no profile/storage/plugins)
+# profiles/comics/app.yaml（プロファイルのレイヤー。profile・storage・pluginsは指定不可）
 network: {max_attempts: 4}
 
-# sites/example.test.yaml (site layer; no profile/storage/plugins/security)
+# sites/example.test.yaml（サイトのレイヤー。profile・storage・plugins・securityは指定不可）
 plugin_settings:
   com.example.gallery:
     config: {page_size: 50}
@@ -226,19 +186,13 @@ plugin_settings:
       image_concurrency_per_chapter: 1
 ```
 
-YAML values may supply persistent configuration only. CLI runtime overrides
-(`--existing-file`, `--image-format`, `--directory-format`, plugin config/policy override JSON, and fallback mode)
-are applied after the layers for that operation and are not written back.
-`--output-dir` is a separate download-only composition override rather than an
-`AppConfig` field, so it also is not written back. Use
-`config explain --json` to see supported configuration overrides and their
-origins; it does not accept download-only `--directory-format` or `--output-dir`.
+YAMLは永続設定を指定します。CLIの実行時上書き（`--existing-file`、`--image-format`、`--directory-format`、プラグイン設定・方針の上書きJSON、フォールバックモード）は、その操作のレイヤー解決後に適用し、ファイルへ書き戻しません。`--output-dir`も`AppConfig`のフィールドではなく、ダウンロード専用の依存構築時の上書きであり、保存しません。対応する設定上書きとその由来は`config explain --json`で確認できます。このコマンドは、ダウンロード専用の`--directory-format`・`--output-dir`を受理しません。
 
 画像の保存形式は次の優先順位で決まる。
 
-| priority | source | effect |
+| 優先順位 | 参照元 | 効果 |
 | --- | --- | --- |
-| 1 | `DownloadService.run(force_image_format=...)` / CLI `--force-image-format` | plugin 指定も上書きする。`--image-format` とは排他的。 |
+| 1 | `DownloadRequest(force_image_format=...)` / CLI `--force-image-format` | plugin 指定も上書きする。`--image-format` とは排他的。 |
 | 2 | plugin の `ImageResource.save_options.format` | 画像単位の保存形式。 |
 | 3 | CLI `--image-format` または YAML の `output.image_format` | plugin 指定がないときの既定。CLI はその operation 限り。 |
 | 4 | bundled default `ORIGINAL` | 上位の指定がない新規設定の既定。 |
@@ -278,17 +232,19 @@ Pillow非対応形式をORIGINALで保存する必要がある利用者は、こ
 
 <a id="config-plugin-settings"></a>
 
-## Plugin settings and secrets
+<a id="plugin-settings-and-secrets"></a>
+
+## プラグインの設定と秘密情報
 
 <a id="config-secrets"></a>
 
-manifest `config_file` が指す author-default YAML（固定名ではない）、persistent `plugin_settings.<id>.config`、operation override はこの順に deep merge する。author-default file の root key は `config` のみである。disabled site plugin は selection candidate ではない。chain 上の disabled processor は error でなく skip される。processor に `secrets` を置くことは configuration error である。
+manifest `config_file` が指す author-default YAML（固定名ではない）、persistent `plugin_settings.<id>.config`、operation override はこの順に deep merge する。author-default file の root key は `config` のみである。disabled site plugin は selection candidate ではない。chain 上の disabled processor は error でなく skip される。processor に `secrets` を置くことは 設定エラー である。
 
-`core.generic-html` は通常の site plugin ではなく、外部 plugin が一致しないときだけ選ばれる組み込み fallback である。この ID を `plugin_settings`、`--plugin-config`、`--plugin-config-file`、`--plugin`、`--force-plugin` の対象にはできず、指定は configuration error になる。generic fallback が自動選択された download operation に限り、core 所有の一回限りの `--plugin-download-policy core.generic-html=<JSON>` または `--plugin-download-policy-file` は利用できる。これは persistent 設定ではなく、画像抽出や request/auth の振る舞いを変更しない。fallback の有効/無効は `fallback.generic_html.enabled` または `--fallback-generic` で制御する。
+`core.generic-html` は通常の site plugin ではなく、外部 plugin が一致しないときだけ選ばれる組み込み fallback である。この ID を `plugin_settings`、`--plugin-config`、`--plugin-config-file`、`--plugin`、`--force-plugin` の対象にはできず、指定は 設定エラー になる。generic fallback が自動選択された download operation に限り、core 所有の一回限りの `--plugin-download-policy core.generic-html=<JSON>` または `--plugin-download-policy-file` は利用できる。これは persistent 設定ではなく、画像抽出や request/auth の振る舞いを変更しない。fallback の有効/無効は `fallback.generic_html.enabled` または `--fallback-generic` で制御する。
 
 `plugin_settings.<id>.download_policy` は plugin private `config` と別の、core 所有の operation 制御である。`request_concurrency` は selected operation 内の transport/retry を、chapter/image concurrency は image job scheduler を制限する。いずれも resolved global/host setting と最小値を採用する。`preserve_image_start_order: true` は chapter と image concurrency をともに `1` にする。plugin は `config.network.request_concurrency` を読めるが、それだけでは core scheduler を変更できない。CLI の一回限りの policy override は [CLI options](cli.md#cli-options) を参照する。
 
-`image_processors.transport_metadata_access` は、selected site plugin の画像 fetch に関する raw request/response metadata を processor へ渡すための明示 allow-list である。key は enabled な `image_processors.chain` の processor ID、value は enabled かつ non-builtin な site plugin ID の重複なし配列にする。wildcard は使えない。未登録の processor/site、chain 外 processor、builtin/disabled site は configuration error である。許可されない processor も transform ごとに同型の metadata を受けるが、URL query、header/cookie 値、plugin data は redacted される。これは persistent config だけで指定でき、CLI/runtime の一時 override はない。
+`image_processors.transport_metadata_access` は、selected site plugin の画像 fetch に関する raw request/response metadata を processor へ渡すための明示 allow-list である。key は enabled な `image_processors.chain` の processor ID、value は enabled かつ non-builtin な site plugin ID の重複なし配列にする。wildcard は使えない。未登録の processor/site、chain 外 processor、builtin/disabled site は 設定エラー である。許可されない processor も transform ごとに同型の metadata を受けるが、URL query、header/cookie 値、plugin data は redacted される。これは persistent config だけで指定でき、CLI/runtime の一時 override はない。
 
 ```yaml
 image_processors:
@@ -322,7 +278,9 @@ YAML、ID・reference の検証規則、keyring の識別子、公開 API は変
 
 <a id="config-migration"></a>
 
-## Migration compatibility
+<a id="migration-compatibility"></a>
+
+## 移行と互換性
 
 v3 は旧 descriptor/tree を discovery しない。network の旧 static key は current model の timeout、retry、pool、response-size fields に置き換え、`config explain --json` の `origins` と `layers` で移管結果を確認する。user-managed YAML の obsolete/unknown static key は `rewrite_user_layers=True` のときだけ削除候補になり、read-only resolve は書換えない。
 ## Workflow実行履歴の保持設定

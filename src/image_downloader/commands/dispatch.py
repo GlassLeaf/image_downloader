@@ -4,31 +4,21 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
 import sys
 from collections.abc import Mapping, Sequence
 from typing import cast
 
-from ..diagnostics import diagnostic_for
-from ..exceptions import (
-    AuthenticationError,
-    ConfigurationError,
-    ErrorInfo,
-    PluginError,
-    error_info_for,
-)
-from ..observability.logging import safe_locator
-from ..privacy.log_safety import safe_url
 from .config import ConfigCommandHandler
-from .constants import EXIT_AUTHENTICATION, EXIT_CONFIGURATION, EXIT_FAILURE, EXIT_PLUGIN
 from .cookie import CookieCommandHandler
 from .doctor import DoctorCommandHandler
 from .download import DownloadCommandHandler
+from .errors import _render_error
 from .inspect import InspectCommandHandler
 from .parser import _CliArgumentParser, build_parser
 from .plugin import PluginCommandHandler
+from .prepared import CommandHandler
 from .state import StateCommandHandler
-from .validation import CommandHandler, validate_arguments
+from .validation import validate_arguments
 from .verify import VerifyCommandHandler
 from .workflow import WorkflowCommandHandler
 
@@ -46,13 +36,8 @@ _COMMAND_HANDLERS: Mapping[str, CommandHandler] = {
 
 
 async def run(args: argparse.Namespace) -> int:
-    handler_name = validate_arguments(args)
-    args._arguments_validated = True
-    try:
-        return await _COMMAND_HANDLERS[handler_name].handle(args)
-    finally:
-        for name in ("_arguments_validated", "_prepared_plugin_config", "_prepared_download_policy"):
-            vars(args).pop(name, None)
+    command = validate_arguments(args)
+    return await _COMMAND_HANDLERS[command.name].handle(command)
 
 
 def _operation_name(argv: Sequence[str], parsed: argparse.Namespace | None = None) -> str:
@@ -60,64 +45,6 @@ def _operation_name(argv: Sequence[str], parsed: argparse.Namespace | None = Non
     if handler in _COMMAND_HANDLERS:
         return str(handler)
     return "cli"
-
-
-def _cli_error_info(error: Exception) -> ErrorInfo:
-    return error_info_for(error)
-
-
-def _error_payload(error: Exception, *, operation: str) -> dict[str, object]:
-    info = _cli_error_info(error)
-    payload: dict[str, object] = {
-        "code": info.code,
-        "reason": info.reason,
-        "exception": info.exception,
-        "message": info.message,
-        "operation": operation,
-    }
-    diagnostic = diagnostic_for(error)
-    if diagnostic is not None:
-        payload["message"] = diagnostic.message
-        payload["details"] = dict(diagnostic.details)
-    if info.response_url is not None:
-        payload["response_url"] = safe_url(info.response_url)
-    if info.http_status is not None:
-        payload["http_status"] = info.http_status
-    if info.output_path is not None:
-        payload["output_path"] = info.output_path
-    context = getattr(error, "_image_failure_context", None)
-    if isinstance(context, Mapping):
-        for field in ("stage", "transport"):
-            if isinstance(context.get(field), str):
-                payload[field] = context[field]
-        if isinstance(context.get("image_url"), str):
-            payload["image_url"] = safe_locator(context["image_url"])
-        if isinstance(context.get("response_url"), str):
-            payload["response_url"] = safe_url(context["response_url"])
-        if isinstance(context.get("http_status"), int):
-            payload["http_status"] = context["http_status"]
-        if isinstance(context.get("output_path"), str):
-            payload["output_path"] = context["output_path"]
-    return payload
-
-
-def _exit_status(error: Exception) -> int:
-    if isinstance(error, AuthenticationError):
-        return EXIT_AUTHENTICATION
-    if isinstance(error, PluginError):
-        return EXIT_PLUGIN
-    if isinstance(error, ConfigurationError):
-        return EXIT_CONFIGURATION
-    return EXIT_FAILURE
-
-
-def _render_error(error: Exception, *, json_output: bool, operation: str) -> int:
-    payload = _error_payload(error, operation=operation)
-    if json_output:
-        print(json.dumps({"error": payload}, ensure_ascii=False))
-    else:
-        print(f"error [{payload['code']}]: {payload['message']}", file=sys.stderr)
-    return _exit_status(error)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

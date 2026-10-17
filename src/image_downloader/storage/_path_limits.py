@@ -10,7 +10,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
-from ..exceptions import StorageError
+from ..exceptions import PathLengthDiagnostic, StorageError
 
 
 @dataclass(frozen=True)
@@ -28,7 +28,7 @@ class _ComponentLimit:
         available = self.maximum - self.measure(marker + tail)
         if available < 1 or (tail and not value.endswith(tail)):
             error = StorageError("output component cannot retain its required suffix")
-            error.__dict__["_path_length_diagnostic"] = "component"
+            error.path_length_diagnostic = PathLengthDiagnostic.COMPONENT
             raise error
         prefix = value[: -len(tail)] if tail else value
         used = 0
@@ -106,10 +106,12 @@ def _component_limit(parent: Path) -> _ComponentLimit:
 
 def _path_diagnostic(path: Path, error: OSError | ValueError, *, creating: bool) -> StorageError | None:
     windows = os.name == "nt"
-    kind: str | None = None
+    kind: PathLengthDiagnostic | None = None
     if isinstance(error, OSError) and (error.errno == errno.ENAMETOOLONG or getattr(error, "winerror", None) == 206):
         budget = _component_limit(path.parent)
-        kind = "component" if budget.measure(path.name) > budget.maximum else "path"
+        kind = (
+            PathLengthDiagnostic.COMPONENT if budget.measure(path.name) > budget.maximum else PathLengthDiagnostic.PATH
+        )
     elif (
         windows
         and isinstance(error, ValueError)
@@ -118,24 +120,24 @@ def _path_diagnostic(path: Path, error: OSError | ValueError, *, creating: bool)
             for text in ("path too long for Windows", "src too long for Windows", "dst too long for Windows")
         )
     ):
-        kind = "path"
+        kind = PathLengthDiagnostic.PATH
     elif isinstance(error, OSError) and (error.errno == errno.EINVAL or getattr(error, "winerror", None) == 123):
         budget = _component_limit(path.parent)
         if budget.measure(path.name) > budget.maximum:
-            kind = "component"
+            kind = PathLengthDiagnostic.COMPONENT
     elif windows and creating and isinstance(error, FileNotFoundError):
         # Missing files are normal in exists()/allocation. Only a failed creation
         # beneath a still-existing parent can suggest this Windows API ambiguity.
         if _ComponentLimit(255, True).measure(str(path)) > 260:
             try:
                 if path.parent.is_dir():
-                    kind = "possible"
+                    kind = PathLengthDiagnostic.POSSIBLE
             except (OSError, ValueError):
                 pass
     if kind is None:
         return None
     result = StorageError("storage path length failure")
-    result.__dict__["_path_length_diagnostic"] = kind
+    result.path_length_diagnostic = kind
     return result
 
 

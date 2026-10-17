@@ -1,32 +1,24 @@
-# Open documentation, policy, and implementation TODOs
+<a id="open-documentation-policy-and-implementation-todos"></a>
 
-This is the intentionally small backlog left after the API v3 reference audit.
-It records questions that cannot be settled from this repository's reference
-documentation, example source units, or implementation.  It is **not** a
-second API specification: the current stable contracts remain the documents
-linked from [the v3 index](../README.md).
+# 文書・方針・実装に関する未決事項
 
-Each item needs an external service, a publisher/operator decision, or a
-maintainer product/policy decision before it can be closed.  Do not infer an answer from a
-fixture host, a generated signing key, or the current implementation.
+API v3参照資料の監査後に残った、未解決事項の一覧です。リポジトリ内の参照資料、サンプルのソース単位、実装だけでは判断できない課題を記録しています。現行APIの正式な仕様は、[v3索引](../README.md)から参照する文書です。
 
-| ID | priority | unresolved question | why repository material cannot answer it | decision or artifact needed | owner | status |
+各項目の解決には、外部サービス、発行者・運用者の判断、または保守担当者による製品・運用方針の決定が必要です。テスト用ホスト、生成した署名鍵、現在の実装だけから結論を推測しないでください。
+
+| ID | 優先度 | 未解決の課題 | リポジトリ内の資料だけでは判断できない理由 | 必要な決定・成果物 | 担当 | 状態 |
 | --- | --- | --- | --- | --- | --- | --- |
-| DOC-EXT-001 | P1 | What URL and plugin can a new user use for a real end-to-end successful download? | Tutorials and local source units deliberately use `example.test` fixture hosts; they are not a public service guarantee. | A maintained local demo fixture, or a published support catalog with ownership and availability policy. | product / plugin maintainers | open |
-| DOC-EXT-002 | P1 | Which publisher key or third-party plugin is trustworthy for a particular deployment? | Strict verification proves agreement with a configured catalog pin; it cannot prove real-world publisher identity, key custody, or organization approval. | Key-distribution, review, revocation, and deployment trust policy owned by the operator. | deployment operator / security owner | open |
-| DOC-EXT-003 | P2 | How long are API v3 and plugin package contracts supported, and how are breaking changes deprecated? | `__all__` defines the present stable surface, but source code cannot establish a future compatibility or release-notice commitment. | A versioning, deprecation, and release-note policy. | project maintainers | open |
-| DOC-EXT-004 | P2 | What controlled vocabulary, if any, may consumers assign to manifest `capabilities`? | The current contract intentionally accepts informational strings and grants no permission; it defines no interoperable vocabulary or policy semantics. | A registered vocabulary and consumer interpretation policy, or an explicit decision to keep the field opaque. | project / catalog maintainers | open |
-| DOC-EXT-005 | P2 | Which browser, profile, encryption setup, and OS combinations are supported by browser-cookie import? | The feature delegates browser access to an optional third-party dependency and depends on the user's local browser state. | A tested support matrix and support policy, maintained alongside the optional dependency. | project maintainers | open |
-| GENERIC-HTML-001 | P3 | Should the generic HTML fallback preserve selected `<img>` attributes, beginning with `alt`, as image metadata? | The current fallback has no metadata contract for HTML attributes. Direct filename use needs explicit privacy, length, duplicate, and filename-sanitization rules. | A bounded attribute allow-list, metadata schema, and a separate decision on any filename-template exposure. | project maintainers | open |
-| GENERIC-HTML-002 | P3 | Should the generic HTML fallback offer opt-in extraction of image-bearing links such as `<a href="image.jpeg">`? | Generic `src`/`href` values commonly identify navigation, documents, ads, or unrelated resources; URL suffixes alone are not a reliable image contract. | An opt-in extraction scope, candidate/duplicate limits, URL/content validation rules, and false-positive acceptance criteria. | project maintainers | open |
+| DOC-EXT-001 | P1 | 初めての利用者が実際にダウンロードを完了できるURLとプラグインは何か。 | チュートリアルとローカルのソース単位は、テスト用の`example.test`ホストを使っており、公開サービスの動作を保証しない。 | 保守されるローカルデモ環境、または担当と可用性の方針を定めた公開サポートカタログ。 | 製品・プラグイン保守担当 | 未解決 |
+| DOC-EXT-002 | P1 | 特定の導入環境で、どの発行者鍵や第三者プラグインを信頼するか。 | strict検証で証明できるのは設定済みカタログの固定値との一致であり、発行者の実在、鍵の管理状況、組織の承認は証明できない。 | 運用者が管理する鍵配布・レビュー・失効・導入時の信頼方針。 | 導入環境の運用・セキュリティ担当 | 未解決 |
+| DOC-EXT-003 | P2 | API v3とプラグインパッケージの仕様をいつまでサポートし、破壊的変更をどう非推奨化するか。 | `__all__`は現在の安定APIを定義するが、将来の互換性やリリース告知への約束はソースコードからは確定できない。 | バージョン管理・非推奨化・リリースノートの方針。 | プロジェクト保守担当 | 未解決 |
+| DOC-EXT-004 | P2 | manifestの`capabilities`に、利用側で共通に解釈できる語彙を設けるか。 | 現行仕様は情報用の文字列を受理するだけで権限を与えず、共通語彙や方針上の意味を定義していない。 | 登録済み語彙と利用側の解釈方針、または内容を解釈しないフィールドとして維持する明示的な決定。 | プロジェクト・カタログ保守担当 | 未解決 |
+| DOC-EXT-005 | P2 | ブラウザーCookieの取り込みで、どのブラウザー・プロファイル・暗号化設定・OSの組合せをサポートするか。 | ブラウザーへのアクセスを任意の外部依存に委譲しており、利用者のローカルのブラウザー状態に依存する。 | 任意依存と合わせて保守する、検証済みの対応環境一覧とサポート方針。 | プロジェクト保守担当 | 未解決 |
+| GENERIC-HTML-001 | P3 | 汎用HTMLフォールバックで、`alt`などの`<img>`属性を画像メタデータとして保持するか。 | 現在はHTML属性のメタデータ契約がない。ファイル名へ直接使用するには、プライバシー、長さ、重複、ファイル名の無害化の規則が必要。 | 対象を限定した属性許可リストとメタデータスキーマ、およびファイル名テンプレートに公開するかの別途の決定。 | プロジェクト保守担当 | 未解決 |
+| GENERIC-HTML-002 | P3 | 汎用HTMLフォールバックで、`<a href="image.jpeg">`などの画像リンクの抽出を任意で有効化できるようにするか。 | 汎用の`src`・`href`は、移動先、文書、広告、無関係なリソースも示すため、URLの拡張子だけでは画像と判定できない。 | 明示的に有効化する抽出範囲、候補・重複件数の制限、URL・内容の検証規則、誤検出の許容基準。 | プロジェクト保守担当 | 未解決 |
 
-Until an item is decided, consumer documentation must state only the current
-framework boundary: use a site plugin selected for the target URL, install only
-plugins trusted by the deployment operator, treat `capabilities` as
-informational, and use browser import on a best-effort basis.  The following
-existing documents remain the current behavior references:
+決定されるまでは、利用者向け文書に現行のフレームワークの境界だけを記載してください。対象URLに対応するサイトプラグインを使い、導入環境の運用者が信頼するプラグインだけをインストールし、`capabilities`は情報として扱い、ブラウザー取り込みはベストエフォートで使用します。現在の挙動は次の文書を参照してください。
 
-- [CLI reference](../reference/cli.md)
-- [Plugin package and trust reference](../reference/plugin-package.md)
-- [Plugin hook reference](../reference/plugin-hooks.md)
-- [Library API reference](../reference/library-api.md)
+- [CLI参照](../reference/cli.md)
+- [プラグインパッケージと信頼の参照](../reference/plugin-package.md)
+- [プラグインフック参照](../reference/plugin-hooks.md)
+- [ライブラリAPI参照](../reference/library-api.md)
