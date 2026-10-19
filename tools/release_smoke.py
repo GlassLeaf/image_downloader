@@ -142,7 +142,7 @@ def verify(*, offline: bool) -> None:
         # Every invocation uses explicit temporary configuration; user settings
         # must never be created, normalized or consulted by a package smoke test.
         common = ("--config", str(config), "--data-root", str(data_root), "--plugin-root", str(plugin_root), "--json")
-        doctor = json.loads(_run(str(python), "-m", "image_downloader", "doctor", *common))
+        doctor = json.loads(_run(str(python), "-m", "image_downloader", "doctor", *common))["execution"]["result"]
         if doctor["application"]["version"] != version or not doctor["healthy"]:
             raise RuntimeError("installed package doctor did not pass")
 
@@ -161,7 +161,7 @@ def verify(*, offline: bool) -> None:
             "--yes",
             "--json",
         )
-        installed = json.loads(_run(str(python), "-m", "image_downloader", "doctor", *common))
+        installed = json.loads(_run(str(python), "-m", "image_downloader", "doctor", *common))["execution"]["result"]
         if not installed["healthy"] or not any(
             item["name"] == "local.image-downloader.public-gallery" and item["loaded"]
             for item in installed["plugins"]

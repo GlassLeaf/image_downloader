@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import sys
-from contextlib import nullcontext, redirect_stdout
 from dataclasses import asdict, replace
 from pathlib import Path
 from typing import cast
@@ -17,6 +15,7 @@ from ..application.requests import WorkflowPlanRequest, WorkflowRequest
 from ..application.workflow_finalizer import revise_after_close
 from ..application.workflow_reporting import stopped_status, workflow_outcome, workflow_status
 from ..application.workflow_selection import FIRST_RUN_NOTE, workflow_selection
+from ..configuration.models import AppConfig
 from ..configuration.paths import resolve_paths
 from ..exceptions import (
     WorkflowCancelledError,
@@ -35,9 +34,8 @@ from ..models import (
     WorkflowRoundResult,
 )
 from ..privacy.log_safety import safe_exception_name, safe_locator, safe_relative_path, safe_url
-from .constants import (
-    EXIT_SUCCESS,
-)
+from ..storage.transactions import settle_operation
+from .outcome import CommandOutcome
 from .prepared import PreparedCommand, WorkflowArguments
 from .setup import (
     _config_for,
@@ -185,37 +183,12 @@ def _stopped_status(error: BaseException) -> int:
 
 
 class WorkflowCommandHandler:
-    async def handle(self, command: PreparedCommand) -> int:
+    async def handle(self, command: PreparedCommand, outcome: CommandOutcome) -> int:
         args = command.arguments
         assert isinstance(args, WorkflowArguments)
-        try:
-            return await self._handle(command)
-        except (Exception, asyncio.CancelledError) as exc:
-            if not args.dry_run:
-                raise
-            result = (
-                exc.result
-                if isinstance(exc, (WorkflowPlanError, WorkflowPlanCancelledError))
-                else WorkflowPlanResult(args.url, args.download_scope or "updated")
-            )
-            result = replace(
-                result,
-                stop_error=None if isinstance(exc, asyncio.CancelledError) else error_info_for(exc),
-                cancelled=isinstance(exc, asyncio.CancelledError),
-            )
-            _print_plan(result, args, Path.cwd())
-            return _stopped_status(exc)
-
-    async def _handle(self, command: PreparedCommand) -> int:
-        args = command.arguments
-        assert isinstance(args, WorkflowArguments)
-        retries = args.workflow_retries if args.workflow_retries is not None else 1
-        delay = args.workflow_retry_delay if args.workflow_retry_delay is not None else 600.0
-        timeout = args.workflow_retry_timeout
-        overrides = command.plugin_config
-        policies = command.download_policy
+        outcome.expect_shutdown()
         if args.dry_run:
-            return await _plan_command(args, overrides, policies)
+            return await _plan_command(args, command.plugin_config, command.download_policy, outcome)
         config, config_root, _, source = _config_for(
             args,
             urlparse(args.url).hostname,
@@ -223,6 +196,8 @@ class WorkflowCommandHandler:
         )
         _persist_initial_user_config(source)
         output_root = _output_root(args)
+        root = output_root or resolve_paths(config)["downloads"]
+        log_root = resolve_paths(config)["profile"]
         service = RuntimeComposer(
             config,
             config_root=config_root,
@@ -230,64 +205,69 @@ class WorkflowCommandHandler:
             output_root=output_root,
             plugin_verification_override=args.plugin_verification_override,
         ).compose()
-        diagnostics = redirect_stdout(sys.stderr) if args.json_output else nullcontext()
         result: WorkflowResult | None = None
-        try:
-            with diagnostics:
-                try:
-                    result = await service.workflow(
-                        WorkflowRequest(
-                            url=args.url,
-                            download_scope=args.download_scope or "updated",
-                            workflow_retries=retries,
-                            workflow_retry_delay=delay,
-                            workflow_retry_timeout=timeout,
-                            workflow_progress_log=None
-                            if args.workflow_progress_log is None
-                            else args.workflow_progress_log == "enabled",
-                            plugin_overrides=overrides,
-                            fallback_override=_fallback(args),
-                            plugin_id=args.plugin_id or args.force_plugin_id,
-                            force_plugin=args.force_plugin_id is not None,
-                            plugin_download_policy_overrides=policies,
-                            force_image_format=args.force_image_format,
-                        )
+        async with outcome.closing(service.close, handled=True):
+            try:
+                result = await service.workflow(
+                    WorkflowRequest(
+                        url=args.url,
+                        download_scope=args.download_scope or "updated",
+                        workflow_retries=args.workflow_retries if args.workflow_retries is not None else 1,
+                        workflow_retry_delay=args.workflow_retry_delay
+                        if args.workflow_retry_delay is not None
+                        else 600.0,
+                        workflow_retry_timeout=args.workflow_retry_timeout,
+                        workflow_progress_log=None
+                        if args.workflow_progress_log is None
+                        else args.workflow_progress_log == "enabled",
+                        plugin_overrides=command.plugin_config,
+                        fallback_override=_fallback(args),
+                        plugin_id=args.plugin_id or args.force_plugin_id,
+                        force_plugin=args.force_plugin_id is not None,
+                        plugin_download_policy_overrides=command.download_policy,
+                        force_image_format=args.force_image_format,
                     )
-                    status = _status(result)
-                except (Exception, asyncio.CancelledError) as exc:
-                    stopped_result = (
-                        exc.result if isinstance(exc, (WorkflowExecutionError, WorkflowCancelledError)) else None
-                    )
-                    if not isinstance(stopped_result, WorkflowResult):
-                        raise
-                    result = stopped_result
-                    status = _status(result) if result.timed_out else _stopped_status(exc)
-        finally:
-            with diagnostics:
-                try:
-                    await service.close()
-                except (Exception, asyncio.CancelledError) as exc:
-                    if result is None:
-                        raise
-                    if result.stop_error is None and not result.cancelled:
-                        result = replace(
-                            result,
-                            stop_error=None if isinstance(exc, asyncio.CancelledError) else error_info_for(exc),
-                            cancelled=isinstance(exc, asyncio.CancelledError),
-                        )
-                        status = _stopped_status(exc)
-                        result, status = await revise_after_close(
-                            config, result, status, output_root or resolve_paths(config)["downloads"]
-                        )
-        assert result is not None
-        payload = workflow_payload(
-            result, output_root or resolve_paths(config)["downloads"], log_root=resolve_paths(config)["profile"]
+                )
+            except (WorkflowExecutionError, WorkflowCancelledError) as error:
+                result = error.result
+                outcome.fail(
+                    error, handled=True, status=_status(result) if result.timed_out else _stopped_status(error)
+                )
+            status = outcome.execution.exit_code if outcome.execution.failure is not None else _status(result)
+            payload = workflow_payload(result, root, log_root=log_root)
+            outcome.set_result(payload, status or 0, text=lambda: _print_workflow(result, payload))
+            outcome.text_handles_error = True
+        if result is not None:
+            await _finalize_shutdown(config, result, root, log_root, outcome)
+        return outcome.exit_code
+
+
+async def _finalize_shutdown(
+    config: AppConfig, result: WorkflowResult, root: Path, log_root: Path, outcome: CommandOutcome
+) -> None:
+    final_result = result
+    error = outcome.shutdown.failure
+    if isinstance(error, (Exception, asyncio.CancelledError)) and outcome.execution.failure is None:
+        final_result = replace(
+            result,
+            stop_error=error_info_for(error) if isinstance(error, Exception) else None,
+            cancelled=isinstance(error, asyncio.CancelledError),
         )
-        if args.json_output:
-            print(json.dumps(payload, ensure_ascii=False))
-        else:
-            _print_workflow(result, payload)
-        return status
+        # Shield the complete correction so its cancellation cannot replace the
+        # already selected close failure or write a conflicting history status.
+        settled = await settle_operation(revise_after_close(config, final_result, outcome.exit_code, root))
+        if settled.value is not None:
+            final_result, _ = settled.value
+        if settled.error is not None or settled.cancellation is not None:
+            from ..application.shutdown import warn_shutdown_failure
+
+            warn_shutdown_failure()
+    final_payload = workflow_payload(final_result, root, log_root=log_root)
+    outcome.shutdown = replace(
+        outcome.shutdown,
+        result={name: final_payload[name] for name in ("history_saved", "history_warning", "workflow_log")},
+    )
+    outcome.render_text = lambda: _print_workflow(final_result, final_payload)
 
 
 def workflow_plan_payload(result: WorkflowPlanResult, root: Path) -> dict[str, object]:
@@ -324,11 +304,8 @@ def workflow_plan_payload(result: WorkflowPlanResult, root: Path) -> dict[str, o
     }
 
 
-def _print_plan(result: WorkflowPlanResult, args: WorkflowArguments, root: Path) -> None:
+def _print_plan(result: WorkflowPlanResult, root: Path) -> None:
     payload = workflow_plan_payload(result, root)
-    if args.json_output:
-        print(json.dumps(payload, ensure_ascii=False))
-        return
     for item in result.items:
         label = "selected" if item.selected else "excluded"
         print(f"{label} ({', '.join(item.reasons)}): {safe_url(item.candidate.url)}")
@@ -342,22 +319,41 @@ def _print_plan(result: WorkflowPlanResult, args: WorkflowArguments, root: Path)
         print("workflow dry-run cancelled", file=sys.stderr)
 
 
-async def _plan_command(args: WorkflowArguments, overrides, policies) -> int:
-    service = None
+def _capture_plan(result: WorkflowPlanResult, root: Path, outcome: CommandOutcome) -> None:
+    failure = outcome.execution.failure
+    if isinstance(failure, (Exception, asyncio.CancelledError)):
+        result = failure.result if isinstance(failure, (WorkflowPlanError, WorkflowPlanCancelledError)) else result
+        result = replace(
+            result,
+            stop_error=None if isinstance(failure, asyncio.CancelledError) else error_info_for(failure),
+            cancelled=isinstance(failure, asyncio.CancelledError),
+        )
+        outcome.fail(failure, handled=True)
+    outcome.set_result(workflow_plan_payload(result, root), outcome.execution.exit_code or 0)
+    outcome.render_text = lambda: _print_plan(result, root)
+    outcome.text_handles_error = True
+
+
+async def _plan_command(args: WorkflowArguments, overrides, policies, outcome: CommandOutcome) -> int:
     result = WorkflowPlanResult(args.url, args.download_scope or "updated")
-    root = _output_root(args) or Path.cwd()
-    status = EXIT_SUCCESS
-    with redirect_stdout(sys.stderr):
+    root = Path.cwd()
+    try:
+        root = _output_root(args) or root
+        config, config_root, _, _ = _config_for(args, urlparse(args.url).hostname, rewrite_user_layers=False)
+        root = _output_root(args) or resolve_paths(config)["downloads"]
+        service = RuntimeComposer(
+            config,
+            config_root=config_root,
+            plugin_root=_plugin_root(args, config),
+            output_root=_output_root(args),
+            plugin_verification_override=args.plugin_verification_override,
+        )._compose_for_workflow_plan()
+    except (Exception, asyncio.CancelledError) as error:
+        outcome.fail(error, handled=True)
+        _capture_plan(result, root, outcome)
+        return outcome.exit_code
+    async with outcome.closing(service.close, handled=True):
         try:
-            config, config_root, _, _ = _config_for(args, urlparse(args.url).hostname, rewrite_user_layers=False)
-            root = _output_root(args) or resolve_paths(config)["downloads"]
-            service = RuntimeComposer(
-                config,
-                config_root=config_root,
-                plugin_root=_plugin_root(args, config),
-                output_root=_output_root(args),
-                plugin_verification_override=args.plugin_verification_override,
-            )._compose_for_workflow_plan()
             result = await service.plan_workflow(
                 WorkflowPlanRequest(
                     url=args.url,
@@ -369,28 +365,18 @@ async def _plan_command(args: WorkflowArguments, overrides, policies) -> int:
                     plugin_download_policy_overrides=policies,
                 )
             )
-        except (Exception, asyncio.CancelledError) as exc:
-            result = exc.result if isinstance(exc, (WorkflowPlanError, WorkflowPlanCancelledError)) else result
-            result = replace(
-                result,
-                stop_error=None if isinstance(exc, asyncio.CancelledError) else error_info_for(exc),
-                cancelled=isinstance(exc, asyncio.CancelledError),
-            )
-            status = _stopped_status(exc)
-        finally:
-            if service is not None:
-                try:
-                    await service.close()
-                except (Exception, asyncio.CancelledError) as exc:
-                    if result.stop_error is None and not result.cancelled:
-                        result = replace(
-                            result,
-                            stop_error=None if isinstance(exc, asyncio.CancelledError) else error_info_for(exc),
-                            cancelled=isinstance(exc, asyncio.CancelledError),
-                        )
-                        status = _stopped_status(exc)
-    _print_plan(result, args, root)
-    return status
+        except (Exception, asyncio.CancelledError) as error:
+            outcome.fail(error, handled=True)
+        _capture_plan(result, root, outcome)
+    if outcome.execution.failure is None and outcome.shutdown.failure is not None:
+        close_error = outcome.shutdown.failure
+        display_result = replace(
+            result,
+            stop_error=error_info_for(close_error) if isinstance(close_error, Exception) else None,
+            cancelled=isinstance(close_error, asyncio.CancelledError),
+        )
+        outcome.render_text = lambda: _print_plan(display_result, root)
+    return outcome.exit_code
 
 
 def _print_workflow(result: WorkflowResult, payload: dict[str, object]) -> None:

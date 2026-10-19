@@ -12,8 +12,8 @@ from .config import ConfigCommandHandler
 from .cookie import CookieCommandHandler
 from .doctor import DoctorCommandHandler
 from .download import DownloadCommandHandler
-from .errors import _render_error
 from .inspect import InspectCommandHandler
+from .outcome import CommandOutcome, json_mode
 from .parser import _CliArgumentParser, build_parser
 from .plugin import PluginCommandHandler
 from .prepared import CommandHandler
@@ -36,8 +36,26 @@ _COMMAND_HANDLERS: Mapping[str, CommandHandler] = {
 
 
 async def run(args: argparse.Namespace) -> int:
-    command = validate_arguments(args)
-    return await _COMMAND_HANDLERS[command.name].handle(command)
+    outcome = await _execute(args)
+    return outcome.finish(propagate=True)
+
+
+async def _execute(args: argparse.Namespace) -> CommandOutcome:
+    outcome = CommandOutcome(
+        _operation_name((), args),
+        json_output=json_mode(args),
+        pretty=not bool(getattr(args, "json_output", False)),
+    )
+    with outcome.diagnostics():
+        try:
+            command = validate_arguments(args)
+            outcome.no_shutdown()
+            status = await _COMMAND_HANDLERS[command.name].handle(command, outcome)
+            if outcome.execution.result is None and outcome.execution.failure is None:
+                outcome.set_result({}, status)
+        except BaseException as error:
+            outcome.fail(error)
+    return outcome
 
 
 def _operation_name(argv: Sequence[str], parsed: argparse.Namespace | None = None) -> str:
@@ -55,13 +73,17 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.structured_errors = True
     try:
         parsed = parser.parse_args(source)
-        json_output = bool(getattr(parsed, "json_output", False))
-        return asyncio.run(run(parsed))
+        json_output = json_mode(parsed)
+        outcome = asyncio.run(_execute(parsed))
     except KeyboardInterrupt:
         return 130
     except Exception as exc:
-        return _render_error(
-            exc,
+        outcome = CommandOutcome(
+            _operation_name(source, parsed) if parsed is not None else getattr(parser, "operation", "cli"),
             json_output=json_output or getattr(parser, "json_error_mode", False),
-            operation=_operation_name(source, parsed) if parsed is not None else getattr(parser, "operation", "cli"),
         )
+        outcome.fail(exc)
+    try:
+        return outcome.finish()
+    except KeyboardInterrupt:
+        return 130

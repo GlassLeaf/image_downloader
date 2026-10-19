@@ -190,7 +190,7 @@ def test_unsupported_updates_cli_returns_one_safe_document_and_exit_four(tmp_pat
     arguments = ["workflow", URL, "--json"] + (["--dry-run"] if dry_run else [])
     assert main(arguments) == 4
     output = capsys.readouterr()
-    payload = json.loads(output.out)
+    payload = json.loads(output.out)["execution"]["result"]
     assert payload["stop_error"]["code"] == "update_check_unsupported"
     assert payload["stop_error"]["reason"] == "selected plugin does not support update checks"
     assert "secret" not in output.out

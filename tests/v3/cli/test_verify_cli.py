@@ -30,7 +30,7 @@ def test_logs_json_options_and_no_side_effects(tmp_path, capsys, monkeypatch, pl
     args.insert({"before": 0, "within": 1, "after": 3}[placement], "--json")
     before = {p: p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
     assert main(args) == 0
-    payload = json.loads(capsys.readouterr().out)
+    payload = json.loads(capsys.readouterr().out)["execution"]["result"]
     assert payload["operation"] == "verify" and payload["resource"] == "logs"
     assert payload["status"] == "passed"
     assert {p: p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()} == before
@@ -43,7 +43,7 @@ def test_error_indeterminate_precedence_and_human_display(tmp_path, capsys):
     assert "log.log:5" in capsys.readouterr().out
     path.write_text(HEADER + "error: image_save_failed (count=1)\n", encoding="utf-8")
     assert main(["verify", "logs", str(path), "--json"]) == 5
-    payload = json.loads(capsys.readouterr().out)
+    payload = json.loads(capsys.readouterr().out)["execution"]["result"]
     assert payload["logs"]["summary"]["errors"] == 1
     assert payload["logs"]["summary"]["indeterminate"] == 1
 
@@ -51,16 +51,16 @@ def test_error_indeterminate_precedence_and_human_display(tmp_path, capsys):
 @pytest.mark.parametrize("extra", [["--profile", "test"], ["--existing-file", "skip"], ["--config", "absent"]])
 def test_logs_rejects_unrelated_options(tmp_path, capsys, extra):
     assert main(["verify", "logs", str(tmp_path), *extra, "--json"]) == 2
-    assert json.loads(capsys.readouterr().out)["error"]["details"]["kind"] == "option_scope"
+    assert json.loads(capsys.readouterr().out)["execution"]["error"]["details"]["kind"] == "option_scope"
 
 
 def test_workflow_requires_run_and_output_root(tmp_path, capsys):
     assert main(["verify", "workflow", str(uuid4()), "--json"]) == 2
-    json.loads(capsys.readouterr().out)
+    json.loads(capsys.readouterr().out)["execution"]["result"]
     assert main(["verify", "workflow", "missing", "--output-dir", str(tmp_path), "--json"]) == 2
-    json.loads(capsys.readouterr().out)
+    json.loads(capsys.readouterr().out)["execution"]["result"]
     assert main(["verify", "logs", "relative", "--json"]) == 2
-    json.loads(capsys.readouterr().out)
+    json.loads(capsys.readouterr().out)["execution"]["result"]
 
 
 def test_workflow_offline_history_without_rewrite(tmp_path, capsys, monkeypatch):
@@ -86,13 +86,13 @@ def test_workflow_offline_history_without_rewrite(tmp_path, capsys, monkeypatch)
     monkeypatch.setattr("image_downloader.runtime.RuntimeComposer.compose", forbidden)
     args = ["--config", str(config_path), "verify", "workflow", record.run_id, "--output-dir", str(root), "--json"]
     assert main(args) == 0
-    payload = json.loads(capsys.readouterr().out)
+    payload = json.loads(capsys.readouterr().out)["execution"]["result"]
     assert payload["workflow"]["no_targets"]
     assert payload["workflow"]["summary"]["selected"] == 0
     assert {p: p.read_bytes() for p in tmp_path.rglob("*") if p.is_file() and not p.name.endswith(".lock")} == before
     args[args.index(record.run_id)] = str(uuid4())
     assert main(args) == 5
-    assert json.loads(capsys.readouterr().out)["workflow"]["status"] == "indeterminate"
+    assert json.loads(capsys.readouterr().out)["execution"]["result"]["workflow"]["status"] == "indeterminate"
 
 
 def test_workflow_corrupt_history_is_indeterminate(tmp_path, capsys):
@@ -108,5 +108,5 @@ def test_workflow_corrupt_history_is_indeterminate(tmp_path, capsys):
         )
         == 5
     )
-    result = json.loads(capsys.readouterr().out)
+    result = json.loads(capsys.readouterr().out)["execution"]["result"]
     assert result["workflow"]["indeterminate"][0]["code"] == "workflow_history_unreadable"

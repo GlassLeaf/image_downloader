@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-import json
-import sys
-
 from ..diagnostics import diagnostic_for
 from ..exceptions import (
     AuthenticationError,
@@ -70,12 +67,3 @@ def _exit_status(error: BaseException) -> int:
     if isinstance(error, ConfigurationError):
         return EXIT_CONFIGURATION
     return EXIT_FAILURE
-
-
-def _render_error(error: Exception, *, json_output: bool, operation: str) -> int:
-    payload = _error_payload(error, operation=operation)
-    if json_output:
-        print(json.dumps({"error": payload}, ensure_ascii=False))
-    else:
-        print(f"error [{payload['code']}]: {payload['message']}", file=sys.stderr)
-    return _exit_status(error)

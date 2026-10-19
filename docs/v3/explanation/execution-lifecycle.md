@@ -68,3 +68,10 @@ workflow の保持画像は画像単位の hook と callback を再実行せず�
 追加ファイルの取得・保存・既存ファイル読み込み・callback の失敗は `DownloadResult.additional_files` に分離し、画像の成功、失敗、終了コード、workflow 再試行判定を変更しない。必須データが得られなかったときは plugin が既存の request／transform hook で明示的に失敗させる。raw bytes、response、秘密の plugin state は公開結果へコピーしない。API と保存規則は [追加ファイル hook](../reference/plugin-hooks.md) を参照する。
 
 通常の fetch/process/save failure は `continue_on_image_error=true` なら `ImageOutcome.failure` に残る。authentication、configuration、plugin、storage safety、inter-process lock、fail-fast failure は partial `DownloadResult` を返さず operation を例外で終了する。`check_updates()` も complete `UpdateResult` または exception のいずれかである。
+
+
+## CLIの最終表示と終了処理
+
+CLIは本処理の結果整形後にリソースを閉じ、workflowの履歴訂正を終えてから最終結果を表示します。JSONを出力する全コマンドで、本処理の`execution`と終了処理の`shutdown`を[1文書へまとめます](../reference/cli.md#cli-json)。本処理が成功し終了だけが失敗した場合も、成功結果を保持します。
+
+本処理の例外・キャンセルは終了失敗より優先し、元の原因チェーンとworkflowの部分結果を保持します。待機側のキャンセルでも開始済みの終了処理を最後まで回収し、終了失敗があればそちらを優先します。主原因となる重大例外はJSON化しません。本処理の主原因がある場合の二次的な重大例外は、固定警告と終了側の中断状態で示します。logger終了の通常例外は警告だけとし、成功結果・終了コード・履歴を変更しません。

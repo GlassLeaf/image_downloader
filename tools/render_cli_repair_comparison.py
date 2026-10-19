@@ -22,7 +22,11 @@ def error(row: dict) -> dict:
         payload = json.loads(row["stdout"])
     except (ValueError, KeyError):
         return {}
-    return payload.get("error", {}) if isinstance(payload, dict) else {}
+    if not isinstance(payload, dict):
+        return {}
+    if "execution" in payload:
+        return payload["execution"]["error"] or payload["shutdown"]["error"] or {}
+    return payload.get("error", {})
 
 
 def message(row: dict) -> str:

@@ -58,7 +58,7 @@ def test_fixed_user_config_ignores_current_directory(
         monkeypatch.chdir(cwd)
         args = build_parser().parse_args(["doctor", "--json"])
         assert asyncio.run(doctor(args)) == EXIT_SUCCESS
-        reports.append(json.loads(capsys.readouterr().out))
+        reports.append(json.loads(capsys.readouterr().out)["execution"]["result"])
 
     assert reports[0]["configuration"]["config_file"] == str(config.resolve())
     assert reports[0]["configuration"]["source"] == "user"
@@ -79,7 +79,7 @@ def test_default_resolution_uses_cli_roots_without_creating_user_config(
     )
 
     assert asyncio.run(doctor(args)) == EXIT_SUCCESS
-    report = json.loads(capsys.readouterr().out)
+    report = json.loads(capsys.readouterr().out)["execution"]["result"]
     assert report["configuration"]["source"] == "defaults"
     assert report["configuration"]["config_file"] is None
     assert report["paths"]["profile"].startswith(str(data_root))

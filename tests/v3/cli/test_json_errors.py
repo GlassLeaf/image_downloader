@@ -12,7 +12,10 @@ def test_json_syntax_error_uses_the_fixed_error_envelope(capsys) -> None:
     output = capsys.readouterr()
     assert status == 2
     assert output.err == ""
-    assert json.loads(output.out) == {
+    assert json.loads(output.out)["execution"] == {
+        "status": "failed",
+        "exit_code": status,
+        "result": None,
         "error": {
             "code": "argument_error",
             "reason": "command-line arguments are invalid",
@@ -20,13 +23,13 @@ def test_json_syntax_error_uses_the_fixed_error_envelope(capsys) -> None:
             "message": "required argument missing: url",
             "operation": "download",
             "details": {"kind": "missing_argument", "argument": "url"},
-        }
+        },
     }
 
 
 def test_json_runtime_error_is_safe_and_preserves_plugin_exit_status(monkeypatch, capsys) -> None:
     class FailingHandler:
-        async def handle(self, _args: object) -> int:
+        async def handle(self, _args: object, _outcome) -> int:
             raise PluginError("token=do-not-expose")
 
     monkeypatch.setitem(dispatch._COMMAND_HANDLERS, "doctor", FailingHandler())
@@ -36,13 +39,16 @@ def test_json_runtime_error_is_safe_and_preserves_plugin_exit_status(monkeypatch
     output = capsys.readouterr()
     assert status == 4
     assert output.err == ""
-    assert json.loads(output.out) == {
+    assert json.loads(output.out)["execution"] == {
+        "status": "failed",
+        "exit_code": status,
+        "result": None,
         "error": {
             "code": "plugin_error",
             "reason": "plugin operation failed",
             "exception": "PluginError",
             "message": "plugin operation failed",
             "operation": "doctor",
-        }
+        },
     }
     assert "do-not-expose" not in output.out

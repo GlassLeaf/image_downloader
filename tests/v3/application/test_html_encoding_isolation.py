@@ -177,7 +177,7 @@ def test_independent_plugin_cli_operations_do_not_call_core_decoder(independent_
         [] if selection == "automatic" else ["--force-plugin" if selection == "forced" else "--plugin", PLUGIN_ID]
     )
     assert main([*forms[command], *selection_args, "--config", str(config_path), "--json"]) == 0
-    payload = json.loads(capsys.readouterr().out)
+    payload = json.loads(capsys.readouterr().out)["execution"]["result"]
     assert payload
     if command in {"inspect", "inspect_alias"}:
         assert calls == ["inspect"] and fetched == [URL]

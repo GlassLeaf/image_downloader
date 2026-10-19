@@ -43,7 +43,7 @@ def change_definitions(monkeypatch):
         pytest.fail("removed/invalid arguments or help must not resolve configuration or execute")
 
     class ForbiddenHandler:
-        async def handle(self, args):
+        async def handle(self, args, outcome):
             forbidden()
 
     monkeypatch.setattr(setup, "_resolved_config_for", forbidden)
@@ -60,7 +60,7 @@ def test_removing_any_option_does_not_break_unrelated_common_validation(change_d
     seen = []
 
     class Boundary:
-        async def handle(self, args):
+        async def handle(self, args, outcome):
             seen.append(args.name)
             return 31
 
@@ -105,8 +105,8 @@ def test_removed_choices_are_rejected_with_only_current_choices(
     words = [*command[:position], f"--{name}={old}", *command[position:], *(["--json"] if json_mode else [])]
     assert dispatch.main(words) == 2
     output = capsys.readouterr()
-    if json_mode:
-        payload = json.loads(output.out)["error"]
+    if json_mode or command[0] == "inspect":
+        payload = json.loads(output.out)["execution"]["error"]
         assert output.err == ""
         assert payload["code"] == "argument_error"
         assert payload["details"] == {"kind": "invalid_value", "option": "--" + name, "choices": list(kept)}
@@ -139,10 +139,10 @@ def test_renamed_option_uses_new_name_in_scope_errors(change_definitions, capsys
     )
     change_definitions(definitions)
     assert dispatch.main(["doctor", "--destination-root=private-value", "--json"]) == 2
-    payload = json.loads(capsys.readouterr().out)["error"]
+    payload = json.loads(capsys.readouterr().out)["execution"]["error"]
     assert payload["details"] == {"kind": "option_scope", "option": "--destination-root", "command": "doctor"}
     assert dispatch.main(["doctor", "--output-dir=private-value", "--json"]) == 2
-    assert json.loads(capsys.readouterr().out)["error"]["details"]["kind"] == "unknown_option"
+    assert json.loads(capsys.readouterr().out)["execution"]["error"]["details"]["kind"] == "unknown_option"
 
 
 def test_renamed_json_option_controls_early_error_output(change_definitions, capsys):
@@ -151,7 +151,7 @@ def test_renamed_json_option_controls_early_error_output(change_definitions, cap
     assert dispatch.main(["--machine", "--unknown-option=private-value"]) == 2
     output = capsys.readouterr()
     assert output.err == ""
-    payload = json.loads(output.out)["error"]
+    payload = json.loads(output.out)["execution"]["error"]
     assert payload["details"] == {"kind": "unknown_option", "option": "--unknown-option"}
     assert "private-value" not in output.out
 
@@ -165,7 +165,7 @@ def test_narrowed_scope_and_changed_default_are_used(change_definitions, capsys)
     args = parser.build_parser().parse_args(["plugin", "trust", str(__file__)])
     assert args.selection_priority == 7
     assert dispatch.main(["plugin", "install", str(__file__), "--selection-priority=7", "--json"]) == 2
-    payload = json.loads(capsys.readouterr().out)["error"]
+    payload = json.loads(capsys.readouterr().out)["execution"]["error"]
     assert payload["details"]["kind"] == "option_scope"
 
 
@@ -177,7 +177,7 @@ def test_changed_option_type_is_enforced(change_definitions, capsys):
     assert stopped.value.code == 2
     assert "previous-host.test" not in capsys.readouterr().err
     assert dispatch.main(["doctor", "--host=previous-host.test", "--json"]) == 2
-    payload = json.loads(capsys.readouterr().out)["error"]
+    payload = json.loads(capsys.readouterr().out)["execution"]["error"]
     assert "integer" in payload["message"] and payload["details"]["kind"] == "invalid_value"
 
 
@@ -207,7 +207,7 @@ def test_removed_or_renamed_configuration_choice_is_specific_and_does_not_rewrit
     output = capsys.readouterr()
     assert "private-secret" not in output.out + output.err and str(tmp_path) not in output.out + output.err
     if json_mode:
-        payload = json.loads(output.out)["error"]
+        payload = json.loads(output.out)["execution"]["error"]
         assert payload["code"] == "configuration_error"
         assert payload["details"]["field"] == f"media.{field}"
         assert payload["details"]["line"] == 2 and payload["details"]["source"] == "app:app.yaml"

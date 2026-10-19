@@ -152,7 +152,7 @@ class MailCase:
         )
         self.report["cli"].append({"exit_code": result.returncode, "stdout": result.stdout, "stderr": result.stderr})
         assert result.stdout.strip(), result.stderr
-        payload = json.loads(result.stdout)
+        payload = json.loads(result.stdout)["execution"]["result"]
         logs = "\n".join(p.read_text(encoding="utf-8") for p in (self.root / "data").rglob("debug.log"))
         self.report["cli"][-1]["log"] = logs
         return result.returncode, payload, logs

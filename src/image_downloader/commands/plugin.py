@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from pathlib import Path
 from typing import cast
@@ -15,6 +14,7 @@ from ..exceptions import ConfigurationError
 from ..plugins.management import install_plugin, revoke_plugin, trust_plugin, uninstall_plugin
 from ..plugins.runtime import PluginRuntime
 from .constants import EXIT_SUCCESS
+from .outcome import CommandOutcome
 from .prepared import PluginArguments, PreparedCommand
 from .setup import (
     _config_for,
@@ -25,8 +25,8 @@ from .validation import validate_arguments
 
 
 class PluginCommandHandler:
-    async def handle(self, command: PreparedCommand) -> int:
-        return _plugin_command(command)
+    async def handle(self, command: PreparedCommand, outcome: CommandOutcome) -> int:
+        return _plugin_command(command, outcome)
 
 
 def _confirm(args: PluginArguments, description: str) -> None:
@@ -47,9 +47,10 @@ def _plugin_root_for_mutation(args: PluginArguments) -> Path:
     return root
 
 
-def _plugin_list(args: PluginArguments, words: list[str]) -> int:
+def _plugin_list(args: PluginArguments, words: list[str], outcome: CommandOutcome) -> int:
     if words:
         raise ConfigurationError("plugin list takes no arguments")
+    outcome.expect_shutdown()
     config, _, _, _ = _config_for(args, None)
     root = _plugin_root(args, config)
     try:
@@ -59,32 +60,36 @@ def _plugin_list(args: PluginArguments, words: list[str]) -> int:
         catalog, catalog_warning = PluginCatalog(()), str(exc)
     mode = effective_verification_mode(config.security.plugin_verification, args.plugin_verification_override)
     registry = PluginRuntime(config, root, mode=mode)
-    payload = {
-        "plugin_root": str(root),
-        "plugins": [entry.as_json() for entry in catalog.entries],
-        "diagnostics": [
-            {
-                "name": item.name,
-                "source": item.source,
-                "loaded": item.loaded,
-                "detail": item.detail,
-                "warning": item.warning,
-            }
-            for item in registry.diagnostics
-        ],
-        "catalog_warning": catalog_warning,
-    }
-    print(
-        json.dumps(payload, ensure_ascii=False)
-        if args.json_output
-        else "\n".join(
-            f"{entry.id} {entry.version} {'revoked' if entry.revoked else 'trusted'}" for entry in catalog.entries
+    with outcome.closing_sync(registry.close):
+        payload = {
+            "plugin_root": str(root),
+            "plugins": [entry.as_json() for entry in catalog.entries],
+            "diagnostics": [
+                {
+                    "name": item.name,
+                    "source": item.source,
+                    "loaded": item.loaded,
+                    "detail": item.detail,
+                    "warning": item.warning,
+                }
+                for item in registry.diagnostics
+            ],
+            "catalog_warning": catalog_warning,
+        }
+        outcome.set_result(
+            payload,
+            EXIT_SUCCESS,
+            text=lambda: print(
+                "\n".join(
+                    f"{entry.id} {entry.version} {'revoked' if entry.revoked else 'trusted'}"
+                    for entry in catalog.entries
+                )
+            ),
         )
-    )
-    return EXIT_SUCCESS
+    return outcome.exit_code
 
 
-def _plugin_source_mutation(args: PluginArguments, command: str, words: list[str]) -> int:
+def _plugin_source_mutation(args: PluginArguments, command: str, words: list[str], outcome: CommandOutcome) -> int:
     if len(words) != 1:
         raise ConfigurationError(f"plugin {command} requires one absolute plugin directory")
     plugin_source = Path(words[0])
@@ -113,15 +118,12 @@ def _plugin_source_mutation(args: PluginArguments, command: str, words: list[str
         if command == "install"
         else trust_plugin(root, plugin_source, selection_priority=args.selection_priority, mode=management_mode)
     )
-    print(
-        json.dumps(entry.as_json(), ensure_ascii=False)
-        if args.json_output
-        else f"{command}ed {entry.id} ({entry.version})"
+    return outcome.set_result(
+        entry.as_json(), EXIT_SUCCESS, text=lambda: print(f"{command}ed {entry.id} ({entry.version})")
     )
-    return EXIT_SUCCESS
 
 
-def _plugin_id_mutation(args: PluginArguments, command: str, words: list[str]) -> int:
+def _plugin_id_mutation(args: PluginArguments, command: str, words: list[str], outcome: CommandOutcome) -> int:
     if len(words) != 1:
         raise ConfigurationError(f"plugin {command} requires an ID")
     plugin_id = words[0]
@@ -130,18 +132,21 @@ def _plugin_id_mutation(args: PluginArguments, command: str, words: list[str]) -
     root = _plugin_root_for_mutation(args)
     if command == "revoke":
         entry = revoke_plugin(root, plugin_id)
-        print(json.dumps(entry.as_json(), ensure_ascii=False) if args.json_output else f"revoked {entry.id}")
+        return outcome.set_result(entry.as_json(), EXIT_SUCCESS, text=lambda: print(f"revoked {entry.id}"))
     else:
         result = uninstall_plugin(root, plugin_id)
-        print(json.dumps(result.as_json(), ensure_ascii=False) if args.json_output else f"uninstalled {result.id}")
-    return EXIT_SUCCESS
+        return outcome.set_result(result.as_json(), EXIT_SUCCESS, text=lambda: print(f"uninstalled {result.id}"))
 
 
 def plugin_command(args: argparse.Namespace) -> int:
-    return _plugin_command(validate_arguments(args))
+    outcome = CommandOutcome("plugin", json_output=args.json_output)
+    outcome.no_shutdown()
+    with outcome.diagnostics():
+        _plugin_command(validate_arguments(args), outcome)
+    return outcome.finish(propagate=True)
 
 
-def _plugin_command(command: PreparedCommand) -> int:
+def _plugin_command(command: PreparedCommand, outcome: CommandOutcome) -> int:
     args = command.arguments
     assert isinstance(args, PluginArguments)
     words = list(args.command_args)
@@ -149,9 +154,9 @@ def _plugin_command(command: PreparedCommand) -> int:
         raise ConfigurationError("plugin command is required: install, trust, revoke, uninstall, or list")
     action = words.pop(0)
     if action == "list":
-        return _plugin_list(args, words)
+        return _plugin_list(args, words, outcome)
     if action in {"install", "trust"}:
-        return _plugin_source_mutation(args, action, words)
+        return _plugin_source_mutation(args, action, words, outcome)
     if action in {"revoke", "uninstall"}:
-        return _plugin_id_mutation(args, action, words)
+        return _plugin_id_mutation(args, action, words, outcome)
     raise ConfigurationError("unknown plugin command")

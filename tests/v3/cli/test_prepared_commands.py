@@ -39,7 +39,7 @@ def test_plugin_execution_does_not_read_changed_positional_parser_state(monkeypa
         command.arguments.command_args = ("uninstall", "example.other")
 
     class Handler:
-        async def handle(self, prepared):
+        async def handle(self, prepared, outcome):
             args.command_args[:] = ["uninstall", "example.other"]
             assert prepared.arguments.command_args == ("list",)
             return 37

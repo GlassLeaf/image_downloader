@@ -169,6 +169,11 @@ def actual(row):
         payload = json.loads(out)
     except (ValueError, TypeError):
         payload = None
+    if isinstance(payload, dict) and "execution" in payload:
+        failure = payload["execution"]["error"] or payload["shutdown"]["error"]
+        if failure:
+            return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
+        payload = payload["execution"]["result"]
     if isinstance(payload, dict) and "error" in payload:
         return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     errors = [line for line in err.splitlines() if "error:" in line or line.startswith("error [")]

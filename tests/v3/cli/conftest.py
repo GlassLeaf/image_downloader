@@ -26,10 +26,10 @@ def forbid_html_decoder_in_offline_commands(monkeypatch):
     ):
         original = handler.handle
 
-        async def guarded(self, args, original=original):
+        async def guarded(self, args, outcome, original=original):
             with pytest.MonkeyPatch.context() as guard:
                 guard.setattr(builtin, "_decode_html", forbidden)
                 guard.setattr(html_encoding, "_decode_html", forbidden)
-                return await original(self, args)
+                return await original(self, args, outcome)
 
         monkeypatch.setattr(handler, "handle", guarded)

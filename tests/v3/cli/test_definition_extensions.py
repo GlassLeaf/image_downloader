@@ -56,7 +56,7 @@ def extended_options(monkeypatch):
         pytest.fail("definition validation/help must not initialize configuration or execute commands")
 
     class ForbiddenHandler:
-        async def handle(self, args):
+        async def handle(self, args, outcome):
             forbidden()
 
     monkeypatch.setattr(setup, "_resolved_config_for", forbidden)
@@ -132,7 +132,7 @@ def test_added_option_errors_remain_specific_and_private(
     assert "private-value" not in captured.out + captured.err
     if json_mode:
         assert captured.err == ""
-        payload = json.loads(captured.out)["error"]
+        payload = json.loads(captured.out)["execution"]["error"]
         assert payload["code"] == "argument_error"
         assert payload["details"]["kind"] == kind
         assert payload["details"]["option"] == option
@@ -146,7 +146,7 @@ def test_added_option_errors_remain_specific_and_private(
 @pytest.mark.parametrize("words", [["--future-count"], ["plugin", "list", "--future-named", "--help"]])
 def test_added_option_missing_value_precedes_help(extended_options, words, capsys):
     assert dispatch.main([*words, "--json"]) == 2
-    payload = json.loads(capsys.readouterr().out)["error"]
+    payload = json.loads(capsys.readouterr().out)["execution"]["error"]
     assert payload["details"]["kind"] == "missing_value"
 
 
@@ -156,7 +156,7 @@ def test_added_option_scope_precedes_value_even_at_default(extended_options, pos
     command = ["config", "path"]
     argv = [*command[:position], f"--future-count={value}", *command[position:], "--json"]
     assert dispatch.main(argv) == 2
-    payload = json.loads(capsys.readouterr().out)["error"]
+    payload = json.loads(capsys.readouterr().out)["execution"]["error"]
     assert payload["details"] == {"kind": "option_scope", "option": "--future-count", "command": "config path"}
 
 
@@ -168,7 +168,7 @@ def test_added_conflict_is_detected_across_hierarchy_before_values(extended_opti
     if reverse:
         pair.reverse()
     assert dispatch.main([pair[0], "plugin", "list", pair[1], "--json"]) == 2
-    payload = json.loads(capsys.readouterr().out)["error"]
+    payload = json.loads(capsys.readouterr().out)["execution"]["error"]
     assert payload["details"] == {"kind": "option_conflict", "options": ["--future-count", "--future-mode"]}
 
 
@@ -195,7 +195,7 @@ def test_added_invalid_values_use_definition_order(extended_options, reverse, ca
     if reverse:
         words.reverse()
     assert dispatch.main(["plugin", "list", *words, "--json"]) == 2
-    assert json.loads(capsys.readouterr().out)["error"]["details"]["option"] == "--future-count"
+    assert json.loads(capsys.readouterr().out)["execution"]["error"]["details"]["option"] == "--future-count"
 
 
 def test_new_registry_definition_works_on_fresh_import_without_other_edits():
@@ -216,7 +216,7 @@ def test_new_registry_definition_works_on_fresh_import_without_other_edits():
         with contextlib.redirect_stdout(output):
             status = dispatch.main(["config", "--future-fresh=basic", "path", "--json"])
         print(json.dumps({"accepted": accepted, "value": args.future_destination,
-                          "status": status, "error": json.loads(output.getvalue())["error"]}))
+                          "status": status, "error": json.loads(output.getvalue())["execution"]["error"]}))
         """)
     process = subprocess.run(
         [sys.executable, "-c", code],
@@ -320,7 +320,7 @@ def test_added_config_field_diagnostics_include_field_and_location(
     assert f"network.{name}" in text and condition in text
     assert "private-value" not in text and "private-secret" not in text and str(tmp_path) not in text
     if json_mode:
-        payload = json.loads(output.out)["error"]
+        payload = json.loads(output.out)["execution"]["error"]
         assert output.err == ""
         assert payload["code"] == "configuration_error"
         details = payload["details"]

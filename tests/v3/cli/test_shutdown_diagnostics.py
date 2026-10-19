@@ -41,7 +41,7 @@ def test_close_failure_keeps_cli_error_code_and_json(tmp_path, monkeypatch, caps
     monkeypatch.setattr(service.gateway, "close", close)
     assert main([command, FEED, "--json"]) == status
     output = capsys.readouterr()
-    payload = json.loads(output.out)
+    payload = json.loads(output.out)["execution"]
     assert payload["error"]["code"] == primary.code
     assert payload["error"]["exception"] == error_type.__name__
     assert "service cleanup failed" in output.err

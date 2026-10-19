@@ -377,7 +377,7 @@ def test_doctor_uses_configured_matching_for_a_bare_host(tmp_path: Path, capsys:
     args = build_parser().parse_args(["doctor", "--config", str(config), "--host", "alternate.test", "--json"])
 
     assert asyncio.run(doctor(args)) == EXIT_SUCCESS
-    report = json.loads(capsys.readouterr().out)
+    report = json.loads(capsys.readouterr().out)["execution"]["result"]
     assert report["configuration"]["selection"] == [
         {"id": "com.example.gallery", "matcher": "configured", "matched": True}
     ]
@@ -705,7 +705,7 @@ def test_doctor_reports_runtime_and_plugin_provenance(tmp_path: Path, capsys: py
     args = build_parser().parse_args(["doctor", "--config", str(config), "--plugin-root", str(root), "--json"])
 
     assert asyncio.run(doctor(args)) == EXIT_SUCCESS
-    report = json.loads(capsys.readouterr().out)
+    report = json.loads(capsys.readouterr().out)["execution"]["result"]
 
     assert report["application"]["version"] == "0.0.0.1b0"
     assert Path(report["application"]["root_directory"]).is_absolute()
