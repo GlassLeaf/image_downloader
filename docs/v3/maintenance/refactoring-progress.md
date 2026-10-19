@@ -145,8 +145,38 @@ CLI JSONの外枠は、以前の検証記録にある「維持」の対象から
 | sdist・wheel | `build --no-isolation`で成功 |
 | 全体テスト・coverage | 2,355件成功・17件スキップ、coverage 89.85%（下限75%）。全体実行後の追加19件も、最終関連66件の実行で成功 |
 | 配布smoke | 依存解決を含む通常モードで成功。最初の制限付き実行の通信失敗は、接続許可を伴う再実行で解消 |
-| 多環境CI・Mailpit | 今回の変更に対しては未実行。過去のCI成功とは区別する。17件のスキップはシンボリックリンク不可5件・Mailpit任意実行12件 |
+| 多環境CI | 実装コミットに対する全15ジョブが成功。検証対象SHAと内訳は下記に記録 |
+| Mailpit | 任意実行のため未実行。ローカルの17件のスキップはシンボリックリンク不可5件・Mailpit 12件 |
 
 検証環境はWindows / Python 3.11.4です。全体テストのJUnit・coverage XMLは`.runtime/cli-final-junit.xml`・`.runtime/cli-final-coverage.xml`、最終関連検証のJUnitは`.runtime/cli-outcomes-final.xml`です。現行の収集件数2,391件について、全体実行と追加検証を合わせて2,374件成功・17件スキップを確認しました。
 
-今回の変更は基点`707b51ae949d59a9fb51bb3664cde5fc87fa5ba1`から`codex/cli-outcome-finalization`ブランチへまとめています。コミット・push後の品質検査12環境と配布smoke 3環境の結果は、検証対象SHA・run ID・attemptとともに追記します。配布物の公開は行っていません。
+今回の変更は基点`707b51ae949d59a9fb51bb3664cde5fc87fa5ba1`から`codex/cli-outcome-finalization`ブランチへまとめ、実装コミット`c61b907`をpushしました。配布物の公開は行っていません。
+
+<a id="cli-outcome-ci"></a>
+
+### 実装コミットの多環境CI
+
+実装コミット`c61b907f55bddb002141530da5b7b7da93a24221`に対する[quality実行 #99](https://github.com/GlassLeaf/image_downloader/actions/runs/39233367788)（run ID `39233367788`、attempt `1`、push起動）は、品質検査12ジョブと配布smoke 3ジョブの全15ジョブが成功しました。全ジョブの記録で、head SHAとcheckout SHAがこの実装コミットに一致することを確認しています。
+
+| OS | Python | 成功 | スキップ | coverage |
+| --- | --- | --- | --- | --- |
+| Linux | 3.11 | 2374 | 17 | 89.60% |
+| Linux | 3.12 | 2374 | 17 | 89.60% |
+| Linux | 3.13 | 2374 | 17 | 89.60% |
+| Linux | 3.14 | 2374 | 17 | 89.54% |
+| Windows | 3.11 | 2379 | 12 | 89.94% |
+| Windows | 3.12 | 2379 | 12 | 89.94% |
+| Windows | 3.13 | 2379 | 12 | 89.94% |
+| Windows | 3.14 | 2379 | 12 | 89.88% |
+| macOS | 3.11 | 2374 | 17 | 89.60% |
+| macOS | 3.12 | 2374 | 17 | 89.60% |
+| macOS | 3.13 | 2374 | 17 | 89.60% |
+| macOS | 3.14 | 2374 | 17 | 89.54% |
+
+配布smokeは3 OSとも通常モードで依存解決を含めて成功しました。品質検査12環境のJUnit・coverage XML成果物は、OS・Python版・attemptで一意な12件として保存され、同じhead SHAを指しています。全環境でcoverage下限75%を満たし、CIの失敗に伴うコード修正は発生していません。
+
+CIのWindowsはシンボリックリンクを作成できるため、スキップは任意のMailpit 12件だけです。Linux・macOSではMailpitに加えてWindows専用条件5件をスキップしています。ローカル検証のWindowsでシンボリックリンク不可だった5件とは、理由を区別します。
+
+UbuntuのPython 3.12・3.13でのfork警告、Python 3.14でのpublicsuffix2のcodecs.open警告、ActionsのNode.js非推奨警告は既存の保守候補として残っています。新しいCI失敗や、タスク未回収・未取得例外の警告とは区別しています。
+
+この記録を追加する文書更新コミットもpushし、最終headのCIを別途確認します。記録対象の実装SHAと、文書更新後の最終headを混同しないよう、最終headのSHAとrun URLは作業完了報告に記載します。
