@@ -369,7 +369,7 @@ def test_cli_serializes_only_safe_outcomes(tmp_path, monkeypatch, capsys):
     )
     assert main(["download", URL, "--config", str(config), "--json"]) == 0
     output = capsys.readouterr()
-    result = json.loads(output.out)
+    result = json.loads(output.out)["execution"]["result"]
     assert any(x["status"] == "saved" for x in result["additional_files"])
     assert "private-cli-payload" not in output.out + output.err
 

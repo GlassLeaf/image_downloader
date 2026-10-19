@@ -37,13 +37,13 @@ def test_config_initialization_commands_emit_fixed_json_objects(tmp_path: Path, 
     main = (tmp_path / "config" / "app.yaml").resolve()
 
     assert asyncio.run(cli.run(parser.parse_args(["config", "init", str(main), "--json"]))) == cli.EXIT_SUCCESS
-    assert json.loads(capsys.readouterr().out) == {"created_config": str(main)}
+    assert json.loads(capsys.readouterr().out)["execution"]["result"] == {"created_config": str(main)}
 
     assert (
         asyncio.run(cli.run(parser.parse_args(["config", "profile", "init", "work", "--config", str(main), "--json"])))
         == cli.EXIT_SUCCESS
     )
-    assert json.loads(capsys.readouterr().out) == {
+    assert json.loads(capsys.readouterr().out)["execution"]["result"] == {
         "main_config": str(main),
         "created_main_config": False,
         "profile_config": str((main.parent / "profiles" / "work" / "app.yaml").resolve()),
@@ -55,7 +55,7 @@ def test_profile_initialization_json_reports_when_it_created_main_config(tmp_pat
     args = cli.build_parser().parse_args(["config", "profile", "init", "work", "--config", str(main), "--json"])
 
     assert asyncio.run(cli.run(args)) == cli.EXIT_SUCCESS
-    assert json.loads(capsys.readouterr().out) == {
+    assert json.loads(capsys.readouterr().out)["execution"]["result"] == {
         "main_config": str(main),
         "created_main_config": True,
         "profile_config": str((main.parent / "profiles" / "work" / "app.yaml").resolve()),
@@ -94,7 +94,7 @@ def test_cookie_json_never_exposes_passphrases_or_cookie_records(monkeypatch, tm
     assert asyncio.run(cli.run(args)) == cli.EXIT_SUCCESS
 
     assert calls == [("export", str(destination), "never-print-this-passphrase")]
-    payload = json.loads(capsys.readouterr().out)
+    payload = json.loads(capsys.readouterr().out)["execution"]["result"]
     assert payload == {"operation": "cookie", "action": "export", "target": str(destination)}
     assert "passphrase" not in json.dumps(payload)
 
@@ -102,7 +102,7 @@ def test_cookie_json_never_exposes_passphrases_or_cookie_records(monkeypatch, tm
 def test_json_error_omits_unavailable_optional_fields(capsys) -> None:
     assert dispatch.main(["config", "unknown", "--json"]) == cli.EXIT_CONFIGURATION
 
-    error = json.loads(capsys.readouterr().out)["error"]
+    error = json.loads(capsys.readouterr().out)["execution"]["error"]
     assert {"operation", "exception", "code", "reason", "message"} <= set(error)
     assert "response_url" not in error
     assert "http_status" not in error
@@ -118,6 +118,9 @@ def test_plugin_list_applies_ephemeral_verification_override_only_to_diagnostics
     class Runtime:
         diagnostics = ()
 
+        def close(self):
+            pass
+
         def __init__(self, _config: AppConfig, _root: Path, *, mode: str) -> None:
             observed.append(mode)
 
@@ -127,7 +130,7 @@ def test_plugin_list_applies_ephemeral_verification_override_only_to_diagnostics
     args = cli.build_parser().parse_args(["plugin", "list", "--plugin-verification-override", "bypass-all", "--json"])
     assert plugin_command.plugin_command(args) == cli.EXIT_SUCCESS
 
-    payload = json.loads(capsys.readouterr().out)
+    payload = json.loads(capsys.readouterr().out)["execution"]["result"]
     assert observed == ["bypass-all"]
     assert payload["plugins"] == []
     assert config.security.plugin_verification == "strict"

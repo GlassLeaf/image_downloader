@@ -99,6 +99,7 @@ class _CliArgumentParser(argparse.ArgumentParser):
         """Recover output mode/command using option arity, never option values."""
         index = 0
         command_seen = False
+        inspect_only = False
         while index < len(source):
             token = source[index]
             if token == "--":
@@ -107,6 +108,8 @@ class _CliArgumentParser(argparse.ArgumentParser):
             action = self._option_string_actions.get(name)
             if action is not None and action.dest == "json_output" and action.nargs == 0 and not separator:
                 self.json_error_mode = True
+            if action is not None and action.dest == "inspect_only" and action.nargs == 0 and not separator:
+                inspect_only = True
             if token.startswith("-") and action is None:
                 command_seen = True
             if action is not None and action.nargs != 0 and not separator:
@@ -126,6 +129,8 @@ class _CliArgumentParser(argparse.ArgumentParser):
                 elif is_http_url(token):
                     self.operation = "download"
             index += 1
+        if self.operation == "inspect" or (self.operation == "download" and inspect_only):
+            self.json_error_mode = True
 
     def _help_target(self, words: Sequence[str], *, strict: bool = True) -> argparse.ArgumentParser:
         target: argparse.ArgumentParser = self

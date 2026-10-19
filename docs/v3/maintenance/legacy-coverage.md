@@ -166,10 +166,10 @@
 | LEGACY-CONFIG-016 | pre-reorg/v3/configuration-and-cli.md; "設定と CLI" | "設定スキーマ" |
 | LEGACY-CONFIG-017 | pre-reorg/v3/configuration-and-cli.md; "設定と CLI" | "プラグインの設定と秘密情報" |
 | LEGACY-CONFIG-018 | pre-reorg/v3/configuration-and-cli.md; "設定と CLI" | "移行と互換性" |
-| LEGACY-CONFIG-019 | pre-reorg/v3/configuration-and-cli.md; "設定と CLI" | "成功した`--json`コマンドは、標準出力にJSONオブジェクトを1つだけ出力します。downloadの章ログは標準出力に出さず、人間向けのエラー診断は標準エラー出力へ送ります。JSON形式のdownloadでは、プラグインのPythonの`print()`も標準エラー出力へ転送します。OSの標準出力ファイル記述子へ直接書き込むネイティブコードは、この制御の対象外です。" |
+| LEGACY-CONFIG-019 | pre-reorg/v3/configuration-and-cli.md; "設定と CLI" | "downloadの章ログは標準出力に出さず、人間向けのエラー診断は標準エラー出力へ送ります。JSON形式のdownloadでは、プラグインのPythonの`print()`も標準エラー出力へ転送します。OSの標準出力ファイル記述子へ直接書き込むネイティブコードは、この制御の対象外です。" |
 | LEGACY-CONFIG-020 | pre-reorg/v3/configuration-and-cli.md; "設定と CLI" | "`--json`は全コマンドで受理します。**受理される指定でも効果があるとは限りません**。適用できないオプションは、設定解決前に`ArgumentError`となります。オプションはコマンド前、サブコマンド間、位置引数の後に置くことができ、受理条件と診断の優先順位は同じです。完全なオプション名と文書化した別名だけを受理し、`--j`や`--list`のような省略形は拒否します。" |
 | LEGACY-CONFIG-021 | pre-reorg/v3/configuration-and-cli.md; "設定と CLI" | "code" |
-| LEGACY-CONFIG-022 | pre-reorg/v3/configuration-and-cli.md; "設定と CLI" | "成功した`--json`コマンドは、標準出力にJSONオブジェクトを1つだけ出力します。downloadの章ログは標準出力に出さず、人間向けのエラー診断は標準エラー出力へ送ります。JSON形式のdownloadでは、プラグインのPythonの`print()`も標準エラー出力へ転送します。OSの標準出力ファイル記述子へ直接書き込むネイティブコードは、この制御の対象外です。" |
+| LEGACY-CONFIG-022 | pre-reorg/v3/configuration-and-cli.md; "設定と CLI" | "downloadの章ログは標準出力に出さず、人間向けのエラー診断は標準エラー出力へ送ります。JSON形式のdownloadでは、プラグインのPythonの`print()`も標準エラー出力へ転送します。OSの標準出力ファイル記述子へ直接書き込むネイティブコードは、この制御の対象外です。" |
 | LEGACY-CONFIG-023 | pre-reorg/v3/configuration-and-cli.md; "設定と CLI" | "処理済みのJSONエラー" |
 | LEGACY-PLUGIN-001 | pre-reorg/v3/plugin-author-guide.md; "plugin 作者ガイド" | "`plugin-metadata.json`は付属の署名ツールが任意で受け取る入力であり、実行時には読みません。別の方法で完全なmanifestを生成・署名する場合、このファイルは不要です。付属の`tools/sign_local_site_plugin.py`は、メタデータの`kind`に応じてサイト用と画像プロセッサー用の両方を署名できます。署名ツールが読むメタデータは、未知のフィールドもフィールドの欠落も許さない厳密なオブジェクトです。" |
 | LEGACY-PLUGIN-002 | pre-reorg/v3/plugin-author-guide.md; "plugin 作者ガイド" | "`plugin-metadata.json`は付属の署名ツールが任意で受け取る入力であり、実行時には読みません。別の方法で完全なmanifestを生成・署名する場合、このファイルは不要です。付属の`tools/sign_local_site_plugin.py`は、メタデータの`kind`に応じてサイト用と画像プロセッサー用の両方を署名できます。署名ツールが読むメタデータは、未知のフィールドもフィールドの欠落も許さない厳密なオブジェクトです。" |

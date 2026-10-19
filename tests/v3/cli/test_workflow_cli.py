@@ -44,7 +44,7 @@ def test_workflow_progress_log_before_and_after_command(before, value):
 )
 def test_progress_log_rejected_on_other_commands(arguments, capsys):
     assert main([*arguments, "--workflow-progress-log", "disabled", "--json"]) == 2
-    assert json.loads(capsys.readouterr().out)["error"]["code"] == "argument_error"
+    assert json.loads(capsys.readouterr().out)["execution"]["error"]["code"] == "argument_error"
 
 
 @pytest.mark.parametrize("before", [False, True])
@@ -56,7 +56,7 @@ def test_dry_run_supported_before_and_after_command(before):
 @pytest.mark.parametrize("arguments", [["download", URL], [URL], ["inspect", URL], ["doctor"], ["config", "path"]])
 def test_dry_run_rejected_by_other_commands(arguments, capsys):
     assert main(["--dry-run", *arguments, "--json"]) == 2
-    assert json.loads(capsys.readouterr().out)["error"]["code"] == "argument_error"
+    assert json.loads(capsys.readouterr().out)["execution"]["error"]["code"] == "argument_error"
 
 
 @pytest.mark.parametrize("failure", [None, "check", "cleanup", "cancel"])
@@ -106,7 +106,7 @@ def test_dry_run_cli_is_sinkless_and_emits_one_safe_document(tmp_path, monkeypat
     monkeypatch.setattr(command, "RuntimeComposer", composer)
     status = main(["workflow", URL, "--dry-run", "--workflow-retries", "99", "--workflow-retry-delay", "600", "--json"])
     captured = capsys.readouterr()
-    payload = json.loads(captured.out)
+    payload = json.loads(captured.out)["execution"]["result"]
     assert payload["operation"] == "workflow" and payload["dry_run"] is True
     assert "secret" not in captured.out
     assert "plugin stdout" in captured.err
@@ -122,7 +122,7 @@ def test_dry_run_cli_is_sinkless_and_emits_one_safe_document(tmp_path, monkeypat
 
 def test_invalid_dry_run_options_return_plan_error_document(capsys):
     assert main(["workflow", URL, "--dry-run", "--workflow-retry-timeout", "0", "--json"]) == 2
-    payload = json.loads(capsys.readouterr().out)
+    payload = json.loads(capsys.readouterr().out)["execution"]
     assert payload["error"]["code"] == "argument_error"
     assert payload["error"]["operation"] == "workflow"
 
@@ -146,14 +146,14 @@ def test_retry_options_supported_before_and_after_command(before):
 )
 def test_invalid_retry_options_rejected_before_runtime(option, value, capsys):
     assert main(["workflow", URL, option, value, "--json"]) == 2
-    assert json.loads(capsys.readouterr().out)["error"]["code"] == "argument_error"
+    assert json.loads(capsys.readouterr().out)["execution"]["error"]["code"] == "argument_error"
 
 
 @pytest.mark.parametrize("option", ["--workflow-retries", "--workflow-retry-delay", "--workflow-retry-timeout"])
 @pytest.mark.parametrize("command", [["download", URL], ["inspect", URL], ["doctor"], ["config", "path"]])
 def test_retry_options_rejected_for_other_commands(option, command, capsys):
     assert main([option, "1", *command, "--json"]) == 2
-    assert json.loads(capsys.readouterr().out)["error"]["code"] == "argument_error"
+    assert json.loads(capsys.readouterr().out)["execution"]["error"]["code"] == "argument_error"
 
 
 @pytest.mark.parametrize(
@@ -182,7 +182,7 @@ def test_scope_supported_before_and_after_command(arguments):
 )
 def test_scope_rejected_for_other_commands(arguments, capsys):
     assert main(["--download-scope", "all", *arguments, "--json"]) == 2
-    payload = json.loads(capsys.readouterr().out)
+    payload = json.loads(capsys.readouterr().out)["execution"]
     assert payload["error"]["code"] == "argument_error"
 
 
@@ -207,7 +207,7 @@ def test_workflow_rejects_incompatible_global_options(option, capsys, tmp_path):
     }
     options = [option] + ([values[option]] if option in values else [])
     assert main([*options, "workflow", URL, "--json"]) == 2
-    assert json.loads(capsys.readouterr().out)["error"]["operation"] == "workflow"
+    assert json.loads(capsys.readouterr().out)["execution"]["error"]["operation"] == "workflow"
 
 
 def result(root: Path, *, failed=False):
@@ -284,7 +284,7 @@ def test_workflow_json_is_single_safe_document_and_keeps_partial_results(tmp_pat
     ]
     assert main(arguments) == {None: 0, "storage": 1, "configuration": 2, "cancel": 130, "close": 1}[stop]
     output = capsys.readouterr()
-    payload = json.loads(output.out)
+    payload = json.loads(output.out)["execution"]["result"]
     assert "secret" not in output.out
     assert "diagnostic" in output.err
     assert payload["items"][0]["download"]["saved"]
@@ -317,4 +317,4 @@ def test_workflow_status_and_stop_error_serialization(tmp_path):
 )
 def test_exclusions_across_global_and_command_options(before, after, capsys):
     assert main([*before, "workflow", URL, *after, "--json"]) == 2
-    assert json.loads(capsys.readouterr().out)["error"]["code"] == "argument_error"
+    assert json.loads(capsys.readouterr().out)["execution"]["error"]["code"] == "argument_error"

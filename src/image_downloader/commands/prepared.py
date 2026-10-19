@@ -10,6 +10,7 @@ from typing import Literal, Protocol, cast
 from ..configuration.models import ImageFormat
 from ..immutable import freeze_json
 from ..plugins.plugin_manifest import PluginConfigOverrides, PluginDownloadPolicyOverrides, PluginVerificationOverride
+from .outcome import CommandOutcome
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -174,4 +175,4 @@ class PreparedCommand:
 
 
 class CommandHandler(Protocol):
-    async def handle(self, command: PreparedCommand) -> int: ...
+    async def handle(self, command: PreparedCommand, outcome: CommandOutcome) -> int: ...

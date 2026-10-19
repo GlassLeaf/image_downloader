@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import asyncio
 import getpass
-import json
 from pathlib import Path
 
 from ..configuration.paths import resolve_paths
 from ..storage import FileSystem
 from ..storage.cookies import CookieStore
 from .constants import EXIT_SUCCESS
+from .outcome import CommandOutcome
 from .prepared import CookieArguments, PreparedCommand
 from .setup import (
     _config_for,
@@ -19,7 +19,7 @@ from .setup import (
 
 
 class CookieCommandHandler:
-    async def handle(self, command: PreparedCommand) -> int:
+    async def handle(self, command: PreparedCommand, outcome: CommandOutcome) -> int:
         args = command.arguments
         assert isinstance(args, CookieArguments)
         action, value = args.cookie_action, args.cookie_value
@@ -32,8 +32,5 @@ class CookieCommandHandler:
             await asyncio.to_thread(cookie_store.import_file, Path(value), getpass.getpass("Passphrase: "))
         else:
             await asyncio.to_thread(cookie_store.import_browser, str(value))
-        if args.json_output:
-            # Report only the requested target. Cookies, passphrases, and browser
-            # records are intentionally never part of machine-readable output.
-            print(json.dumps({"operation": "cookie", "action": action, "target": str(value)}, ensure_ascii=False))
-        return EXIT_SUCCESS
+        # Cookies, passphrases and browser records never enter presentation data.
+        return outcome.set_result({"operation": "cookie", "action": action, "target": str(value)}, EXIT_SUCCESS)

@@ -2,19 +2,17 @@
 
 from __future__ import annotations
 
-import json
 import sys
-from contextlib import nullcontext, redirect_stdout
 from urllib.parse import urlparse
 
 from ..application.composer import RuntimeComposer
 from ..application.requests import DownloadRequest, UpdateCheckRequest
-from ..application.shutdown import close_service
 from ..configuration.paths import resolve_paths
 from ..models import UpdateChangeKind
 from .constants import EXIT_FAILURE, EXIT_PARTIAL, EXIT_SUCCESS
 from .download_payload import download_payload
 from .inspect import inspect_command
+from .outcome import CommandOutcome
 from .prepared import DownloadArguments, PreparedCommand
 from .setup import (
     _config_for,
@@ -26,11 +24,12 @@ from .setup import (
 
 
 class DownloadCommandHandler:
-    async def handle(self, command: PreparedCommand) -> int:
+    async def handle(self, command: PreparedCommand, outcome: CommandOutcome) -> int:
         args = command.arguments
         assert isinstance(args, DownloadArguments)
         if args.inspect_only:
-            return await inspect_command(command)
+            return await inspect_command(command, outcome)
+        outcome.expect_shutdown()
         hostname = urlparse(args.url).hostname
         overrides = command.plugin_config
         download_policy_overrides = command.download_policy
@@ -51,12 +50,10 @@ class DownloadCommandHandler:
             output_root=custom_output_root,
             plugin_verification_override=args.plugin_verification_override,
         ).compose()
-        diagnostics_output = redirect_stdout(sys.stderr) if args.json_output else nullcontext()
         status = EXIT_FAILURE
-        primary: BaseException | None = None
-        try:
+        async with outcome.closing(service.close):
             if args.list_updated_urls:
-                with diagnostics_output:
+                with outcome.diagnostics():
                     update_result = await service.check_updates(
                         UpdateCheckRequest(
                             url=args.url,
@@ -69,16 +66,19 @@ class DownloadCommandHandler:
                     )
                 visible = [change for change in update_result.changes if change.kind is not UpdateChangeKind.REMOVED]
                 removed = sum(change.kind is UpdateChangeKind.REMOVED for change in update_result.changes)
-                if args.json_output:
-                    payload = {"updated_urls": [change.url for change in visible], "removed": removed}
-                    print(json.dumps(payload, ensure_ascii=False))
-                else:
+
+                def print_updates() -> None:
                     for change in visible:
                         print(change.url)
                     print(f"updated: {len(visible)}, removed: {removed}", file=sys.stderr)
-                status = EXIT_SUCCESS
+
+                status = outcome.set_result(
+                    {"updated_urls": [change.url for change in visible], "removed": removed},
+                    EXIT_SUCCESS,
+                    text=print_updates,
+                )
             else:
-                with diagnostics_output:
+                with outcome.diagnostics():
                     download_result = await service.download(
                         DownloadRequest(
                             url=args.url,
@@ -90,13 +90,6 @@ class DownloadCommandHandler:
                             force_image_format=args.force_image_format,
                         )
                     )
-                if args.json_output:
-                    print(
-                        json.dumps(
-                            download_payload(download_result, output_root),
-                            ensure_ascii=False,
-                        )
-                    )
                 status = (
                     EXIT_SUCCESS
                     if not download_result.failures
@@ -104,10 +97,7 @@ class DownloadCommandHandler:
                     if download_result.saved_files or download_result.skipped_files
                     else EXIT_FAILURE
                 )
-        except BaseException as exc:
-            primary = exc
-            raise
-        finally:
-            with diagnostics_output:
-                await close_service(service, primary=primary)
+                outcome.set_result(
+                    download_payload(download_result, output_root) if outcome.json_output else {}, status
+                )
         return status

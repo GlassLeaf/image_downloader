@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 import sys
 from dataclasses import asdict
 
@@ -12,6 +11,7 @@ from ..application.workflow_state import WorkflowStateService
 from ..exceptions import ConfigurationError
 from ..models import WorkflowStateView
 from ..storage.workflow_history import run_payload
+from .outcome import CommandOutcome
 from .prepared import PreparedCommand, StateArguments
 from .setup import _config_for
 from .state_formatting import print_state
@@ -35,7 +35,7 @@ def state_payload(view: WorkflowStateView) -> dict[str, object]:
 
 
 class StateCommandHandler:
-    async def handle(self, command: PreparedCommand) -> int:
+    async def handle(self, command: PreparedCommand, outcome: CommandOutcome) -> int:
         args = command.arguments
         assert isinstance(args, StateArguments)
         tokens = args.command_args
@@ -91,8 +91,4 @@ class StateCommandHandler:
                 print(f"warning: {SIZE_WARNING}", file=sys.stderr)
         if status:
             payload["not_found"] = True
-        if args.json_output:
-            print(json.dumps(payload, ensure_ascii=False))
-        else:
-            print_state(payload)
-        return status
+        return outcome.set_result(payload, status, text=lambda: print_state(payload))

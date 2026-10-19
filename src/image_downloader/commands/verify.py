@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import json
 from pathlib import Path
 from typing import Any
 
@@ -11,12 +10,13 @@ from ..application.log_verification import issue, verify_logs
 from ..application.workflow_state import WorkflowStateService
 from ..application.workflow_verification import verify_workflow
 from ..exceptions import UpdateStateError
+from .outcome import CommandOutcome
 from .prepared import PreparedCommand, VerifyArguments
 from .setup import _config_for
 
 
 class VerifyCommandHandler:
-    async def handle(self, command: PreparedCommand) -> int:
+    async def handle(self, command: PreparedCommand, outcome: CommandOutcome) -> int:
         args = command.arguments
         assert isinstance(args, VerifyArguments)
         resource = args.verify_resource
@@ -37,11 +37,9 @@ class VerifyCommandHandler:
             states.append(workflow["status"])
         status = "indeterminate" if "indeterminate" in states else "failed" if "failed" in states else "passed"
         payload["status"] = status
-        if args.json_output:
-            print(json.dumps(payload, ensure_ascii=False))
-        else:
-            _print(payload)
-        return {"passed": 0, "failed": 1, "indeterminate": 5}[status]
+        return outcome.set_result(
+            payload, {"passed": 0, "failed": 1, "indeterminate": 5}[status], text=lambda: _print(payload)
+        )
 
 
 def _print(payload: dict[str, Any]) -> None:

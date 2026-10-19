@@ -57,7 +57,7 @@ config 作成・rewrite の command ごとの副作用は [設定リファレン
 
 このコマンドは、`updates.json`・`workflow.json`の更新、設定の初期化・書き換え、Cookie・ファイルログの保存、通知送信を行いません。既存Cookieを独立したセッションへ読み込み、認証更新や通常のHTTP再試行は起こり得ますが、セッションの変更は破棄します。lockファイルと親ディレクトリは作成する場合があります。フィード・プラグインの認証、確認、後始末のコードは実行し、プラグインが起こす外部への副作用はサンドボックスで隔離しません。次の本実行ではフィードを再確認し、事前表示した一覧を予約するものではありません。
 
-`--json`では、安全な一つの文書に`operation="workflow"`、`dry_run=true`、`source_url`、`download_scope`、`plugin_id`、`first_run`、`checked_at`、`candidates`、`changes`、`selected_urls`、`items`、`summary`、`stop_error`、`cancelled`を含めます。各項目は`candidate`・`selected`・`reasons`を持ち、集計は`candidates`・`selected_urls`・`selected_candidates`・`excluded_candidates`・`removed_candidates`を数えます。`first_run`は履歴比較が完了するまではnullで、その後は当該プラグイン・フィードの履歴がないことを示します。失敗時も確定済みの事前確認情報を保持します。このモードではプラグインの標準出力を標準エラー出力へ送ります。空の選択を含め、成功時は0、エラーは既存の例外別終了コード、利用者キャンセルは130です。ダウンロードの部分成功を表す5は返しません。
+`--json`では、安全な一つの文書に`operation="workflow"`、`dry_run=true`、`source_url`、`download_scope`、`plugin_id`、`first_run`、`checked_at`、`candidates`、`changes`、`selected_urls`、`items`、`summary`、`stop_error`、`cancelled`を含めます。各項目は`candidate`・`selected`・`reasons`を持ち、集計は`candidates`・`selected_urls`・`selected_candidates`・`excluded_candidates`・`removed_candidates`を数えます。`first_run`は履歴比較が完了するまではnullで、その後は当該プラグイン・フィードの履歴がないことを示します。失敗時も確定済みの事前確認情報を保持します。このモードではプラグインの標準出力を標準エラー出力へ送ります。以下の結果項目は共通JSONの`execution.result`内にあります。空の選択を含め、成功時は0、エラーは既存の例外別終了コード、利用者キャンセルは130です。ダウンロードの部分成功を表す5は返しません。
 
 ```sh
 image-downloader workflow https://example.test/feed --dry-run
@@ -281,9 +281,46 @@ image-downloader download https://example.test/gallery --force-image-format ORIG
 
 download と workflow の download 結果に `additional_files` を追加する。要素はファイル ID、hook 段階、operation／invocation／試行 ID、章番号・画像 index、phase、status、安全な相対パスと error のみを持ち、raw bytes、HTTP response、request header、plugin 内部状態を含めない。取得・保存・読み込み・callback の結果は別々の項目である。追加ファイルだけの失敗は画像の件数、終了コード、workflow 再試行判断を変更しない。
 
-成功した`--json`コマンドは、標準出力にJSONオブジェクトを1つだけ出力します。downloadの章ログは標準出力に出さず、人間向けのエラー診断は標準エラー出力へ送ります。JSON形式のdownloadでは、プラグインのPythonの`print()`も標準エラー出力へ転送します。OSの標準出力ファイル記述子へ直接書き込むネイティブコードは、この制御の対象外です。
+全CLIのJSON出力は、本処理と終了処理を分けた次の外枠に統一します。成功・失敗にかかわらず、終了処理と必要な履歴訂正の完了後に標準出力へ1文書だけ出力します。`inspect`と`download --inspect-only`は、`--json`を省略した場合も同じ外枠を整形して出力します。引数・設定エラーも、JSON出力経路ではこの形式です。ヘルプはテキストのままです。
 
-| コマンド | 成功時のオブジェクト |
+```json
+{
+  "operation": "download",
+  "exit_code": 1,
+  "execution": {
+    "status": "success",
+    "exit_code": 0,
+    "result": {"saved": [], "skipped": [], "failures": [], "additional_files": []},
+    "error": null
+  },
+  "shutdown": {
+    "status": "failed",
+    "exit_code": 1,
+    "result": null,
+    "error": {
+      "code": "unexpected_runtime_error",
+      "reason": "unexpected runtime failure",
+      "exception": "UnknownError",
+      "message": "an unexpected runtime failure occurred",
+      "operation": "download"
+    }
+  }
+}
+```
+
+`execution.result`は下表のコマンド別データ、`execution.error`は本処理の例外です。workflowの部分結果と例外は両方保持します。結果を返した部分失敗では`result`を保持し、例外がなければ`error=null`です。`execution.status`は終了コード0なら`success`、通常の非0（部分失敗5を含む）なら`failed`、キャンセルなら`cancelled`です。
+
+`shutdown.status`は`success`・`failed`・`cancelled`・`interrupted`・`not_required`・`not_started`です。`not_required`は終了対象なし、`not_started`は初期化失敗などでCLI所有リソースの終了処理に未到達、`interrupted`は本処理の主原因がある場合の二次的な重大例外を表します。この3値では終了側の`exit_code=null`です。キャンセルは開始済み処理を回収した後に130で表し、キャンセル・重大例外の本文はJSON化しません。構築途中の巻き戻しは初期化を含む本処理の責務です。
+
+本処理が成功しても終了処理が失敗すれば、全体の`exit_code`は終了失敗に対応します。本処理で送出された例外・キャンセルがある場合はそちらを優先し、終了側も別途記録します。終了失敗と終了待機中のキャンセルでは終了失敗が優先です。主原因が`KeyboardInterrupt`／`SystemExit`ならJSONを出力せず、既存の中断・終了動作を維持します。logger終了の通常例外は固定警告に留め、終了失敗には数えません。
+
+通常workflowの`shutdown.result`には、最終的な`history_saved`・`history_warning`・`workflow_log`を格納します。本処理側の同名項目は本処理終了時点の値です。終了失敗を`execution.result.stop_error`へ書き込まず、別の結果で履歴・進捗ログを全体の終了コードへ訂正します。
+
+JSON形式は以前の最上位データから変更されています。利用側は`.saved`を`.execution.result.saved`、`.healthy`を`.execution.result.healthy`へ変更し、`.execution.error`と`.shutdown.error`を両方確認してください。旧形式へ切り替えるオプションはありません。終了処理が長引けば最終結果の表示も待機します。
+
+downloadの章ログは標準出力に出さず、人間向けのエラー診断は標準エラー出力へ送ります。JSON形式のdownloadでは、プラグインのPythonの`print()`も標準エラー出力へ転送します。OSの標準出力ファイル記述子へ直接書き込むネイティブコードは、この制御の対象外です。
+
+| コマンド | `execution.result`のオブジェクト |
 | --- | --- |
 | download | `{"saved": string[], "skipped": string[], "failures": ImageFailureJson[], "additional_files": AdditionalFileOutcomeJson[]}` |
 | download `--list-updated-urls` | `{"updated_urls": string[], "removed": integer}` |
@@ -304,7 +341,7 @@ download と workflow の download 結果に `additional_files` を追加する�
 
 <a id="cli-doctor-json"></a>
 
-`doctor`の最上位構造は固定で、`healthy: bool`、`application: {version: string, root_directory: string}`、`library: {version: string, root_directory: string}`、`plugin_root: string`、`verification: string`、`configuration: object`、`paths: {name: string}`、`loaded_plugins: object[]`、`plugins: PluginDiagnosticJson[]`を持ちます。
+`doctor`の`execution.result`構造は固定で、`healthy: bool`、`application: {version: string, root_directory: string}`、`library: {version: string, root_directory: string}`、`plugin_root: string`、`verification: string`、`configuration: object`、`paths: {name: string}`、`loaded_plugins: object[]`、`plugins: PluginDiagnosticJson[]`を持ちます。
 
 `configuration`は、`config_file: string|null`、`source: string`、`main_config_kind: string`、`config_root: string`、`selected_profile: string`、`target_host: string|null`、`target_has_url_path: bool`、`effective: object`、`runtime: object`、`selection: object[]`、`layers: object[]`、`origins: {dotted_key: source_label}`を正確に持ちます。`effective`は専用の固定doctorスキーマではなく、[設定スキーマ](configuration.md#config-schema)の動的なマッピングに従います。`runtime`は`application_overrides: object`、`plugin_overrides: object`、`fallback_generic: "auto"|"enabled"|"disabled"`、`plugin_verification_override: string|null`です。`layers[]`の各要素は`{role: string, path: string|null, status: string}`です。`selection[]`は`id`・`matcher`・`matched`などを含む実行時の選択診断であり、カタログ項目ではありません。
 
@@ -312,7 +349,7 @@ download と workflow の download 結果に `additional_files` を追加する�
 
 検査JSONの`inspection_data`は`url`・`http`・`all`のいずれかです。既定の`url`はmanifestの件数概要と、各要求の1始まりの`chapter_position`・`image_position`・`status`・AuthFlowとクエリとCookie jarの合成後の`effective_url`だけを含めます。実効要求の構築に失敗した場合はURLを推測しません。`http`は、返された完全な`RequestSpec`（`url`、`method`、`headers`、`cookies`、`referer`、`query`、`form`、`json`、`auth_required`、`retry_non_idempotent`）と`effective_request`（method、完全URL、順序・重複を保つヘッダー、実送信Cookie、Base64本文とバイト数）を追加します。`all`は、locator、referer、画像ヘッダー、保存設定、`original_filename`、メタデータを含む完全なmanifest・画像情報と、秘匿化前の`plugin_data`を追加します。`failed`と`partially_resolved`は、安定した`failure.code`・`failure.reason`・`failure.exception`・`failure.phase`を持ちます。後者の元の要求データは`http`・`all`だけで表示します。
 
-`url`にも署名付きURLのクエリが含まれる場合があります。`http`と`all`は通常の出力安全性の例外であり、秘匿化前の認証情報、Cookie、本文、署名付きURLなどの秘密情報を含み得ます。Base64は本文を保護しません。検査の標準出力・標準エラー出力を、ログ、CI成果物、遠隔計測、共有端末、問い合わせ、第三者へ送らないでください。通常のダウンロード・更新出力と処理済みのJSONエラーは無害化します。`error`には`operation`・`exception`・`code`・`reason`・`message`が必須で、`response_url`・`http_status`・`output_path`・`stage`・`transport`は判明している場合だけ含めます。画像失敗には`image_url`も含める場合がありますが、これは安全に表示したmanifestのlocatorで、必ずしもHTTP URLではありません。通常の成功・失敗出力には、URLクエリ・フラグメントの秘密値、Cookie内容、パスフレーズ、ブラウザー記録、認証情報の参照元の生の値を出しません。
+`url`にも署名付きURLのクエリが含まれる場合があります。`http`と`all`は通常の出力安全性の例外であり、秘匿化前の認証情報、Cookie、本文、署名付きURLなどの秘密情報を含み得ます。Base64は本文を保護しません。検査の標準出力・標準エラー出力を、ログ、CI成果物、遠隔計測、共有端末、問い合わせ、第三者へ送らないでください。検査の生データは`execution.result`だけに保持し、終了側や履歴へコピーしません。通常のダウンロード・更新出力と処理済みのJSONエラーは無害化します。`execution.error`・`shutdown.error`には`operation`・`exception`・`code`・`reason`・`message`が必須で、`response_url`・`http_status`・`output_path`・`stage`・`transport`は判明している場合だけ含めます。画像失敗には`image_url`も含める場合がありますが、これは安全に表示したmanifestのlocatorで、必ずしもHTTP URLではありません。通常の成功・失敗出力には、URLクエリ・フラグメントの秘密値、Cookie内容、パスフレーズ、ブラウザー記録、認証情報の参照元の生の値を出しません。
 
 `--inspection-data`が変更するのは**標準出力に表示する項目だけ**です。`--manifest-only`を除き、 `url`、`http`、`all` は同じ manifest、`create_image_request()`、`AuthFlow.apply()`、effective request build を実行し、library result には effective request を組み立てられた各画像の raw preview（encoded body を含む）を保持する。したがって `url` は表示の露出を減らすが、request 解決の時間、plugin hook の補助 HTTP、サーバー側副作用、process 内の一時メモリを減らさない。現在は request 解決する画像数、chapter/image 範囲、preview body サイズの CLI 上限を提供しない。大きな manifest または大きな form/JSON body では `--manifest-only` を使うか、site plugin が manifest を有限の operation に分割する。`http`／`all` の Base64 body は元の byte 列より約 33% 大きい stdout を生成し得る。
 
@@ -346,7 +383,7 @@ JSONは`operation="state"`、`resource="workflow"`、`action`を持つ一文書�
 
 list/showの各feedには`state_available`を追加する。falseでも互換性のため`checked_at=null`、空の`items`、0件の`summary`は維持する。この0件は「保存済みの空一覧」を意味しない。
 
-表示・整理の成功は0（過去の失敗を表示しても0）、明示したURL/RUN_IDが存在しない場合は1、設定不正は2、保存情報の破損・ロック・I/O失敗は1、キャンセルは130。空の一覧・履歴一覧は正常終了する。通常workflowのJSONには`run_id`、`history_saved`、`history_warning`を追加する。履歴保存失敗は警告し、元のworkflow終了コードを変更しない。
+表示・整理の成功は0（過去の失敗を表示しても0）、明示したURL/RUN_IDが存在しない場合は1、設定不正は2、保存情報の破損・ロック・I/O失敗は1、キャンセルは130。空の一覧・履歴一覧は正常終了する。通常workflowの`execution.result`には`run_id`、`history_saved`、`history_warning`を含める。終了後の履歴保存状態は`shutdown.result`を参照する。履歴保存失敗は警告し、元のworkflow終了コードを変更しない。
 
 
 ## 保存済みログとworkflow成果物の検証

@@ -3,30 +3,30 @@
 from __future__ import annotations
 
 import base64
-import json
 import sys
 from contextlib import redirect_stdout
 from urllib.parse import urlparse
 
 from ..application.composer import RuntimeComposer
 from ..application.requests import InspectRequest
-from ..application.shutdown import close_service
 from ..immutable import thaw_json
 from ..models import EffectiveRequestPreview, ImageSaveOptions, ManifestInspectionResult, RequestSpec
 from .constants import EXIT_PARTIAL, EXIT_SUCCESS
+from .outcome import CommandOutcome
 from .prepared import DownloadArguments, InspectArguments, PreparedCommand
 from .setup import _config_for, _fallback, _plugin_root
 
 
 class InspectCommandHandler:
-    async def handle(self, command: PreparedCommand) -> int:
-        return await inspect_command(command)
+    async def handle(self, command: PreparedCommand, outcome: CommandOutcome) -> int:
+        return await inspect_command(command, outcome)
 
 
-async def inspect_command(command: PreparedCommand) -> int:
+async def inspect_command(command: PreparedCommand, outcome: CommandOutcome) -> int:
     """Run inspection for the canonical command and the download alias."""
     args = command.arguments
     assert isinstance(args, (InspectArguments, DownloadArguments))
+    outcome.expect_shutdown()
     hostname = urlparse(args.url).hostname
     overrides = command.plugin_config
     plugin_id = args.plugin_id or args.force_plugin_id
@@ -45,8 +45,7 @@ async def inspect_command(command: PreparedCommand) -> int:
             plugin_root=_plugin_root(args, config),
             plugin_verification_override=args.plugin_verification_override,
         )._compose_for_inspection()
-    primary: BaseException | None = None
-    try:
+    async with outcome.closing(service.close):
         # Plugin output must not mix with the one structured command result.
         with redirect_stdout(sys.stderr):
             result = await service.inspect(
@@ -60,17 +59,8 @@ async def inspect_command(command: PreparedCommand) -> int:
                 )
             )
         payload = _inspection_json(result, args.inspection_data)
-        if args.json_output:
-            print(json.dumps(payload, ensure_ascii=False))
-        else:
-            print(json.dumps(payload, ensure_ascii=False, indent=2))
-        return EXIT_PARTIAL if result.failures else EXIT_SUCCESS
-    except BaseException as exc:
-        primary = exc
-        raise
-    finally:
-        with redirect_stdout(sys.stderr):
-            await close_service(service, primary=primary)
+        outcome.set_result(payload, EXIT_PARTIAL if result.failures else EXIT_SUCCESS)
+    return outcome.exit_code
 
 
 def _request_json(request: RequestSpec) -> dict[str, object]:

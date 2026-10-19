@@ -23,7 +23,7 @@ def no_execution(monkeypatch):
         pytest.fail("invalid arguments/help must not enter execution or configuration resolution")
 
     class ForbiddenHandler:
-        async def handle(self, args):
+        async def handle(self, args, outcome):
             forbidden()
 
     monkeypatch.setattr(setup, "_resolved_config_for", forbidden)
@@ -57,7 +57,7 @@ def test_specific_single_json_diagnostic(words, kind, operation, fragment, capsy
     assert dispatch.main([*words, "--json"]) == 2
     captured = capsys.readouterr()
     assert captured.err == ""
-    payload = json.loads(captured.out)["error"]
+    payload = json.loads(captured.out)["execution"]["error"]
     assert payload["code"] == "argument_error"
     assert payload["reason"] == "command-line arguments are invalid"
     assert payload["exception"] == "ArgumentError"
@@ -112,7 +112,7 @@ def test_conflicts_are_independent_of_level_and_order(command, left, right, caps
         for position in range(len(command) + 1):
             words = [*a, *command[:position], *b, *command[position:], "--json"]
             assert dispatch.main(words) == 2
-            payload = json.loads(capsys.readouterr().out)["error"]
+            payload = json.loads(capsys.readouterr().out)["execution"]["error"]
             assert payload["details"]["kind"] == "option_conflict"
             results.append(payload)
     assert all(value == results[0] for value in results)
@@ -142,7 +142,7 @@ def test_invalid_help_input_is_structured(words, capsys, no_execution):
     assert dispatch.main(["--json", *words]) == 2
     captured = capsys.readouterr()
     assert captured.err == ""
-    assert json.loads(captured.out)["error"]["code"] == "argument_error"
+    assert json.loads(captured.out)["execution"]["error"]["code"] == "argument_error"
     assert "private-value" not in captured.out
 
 
@@ -174,7 +174,7 @@ def test_help_stops_before_later_errors_and_handles_leaf_operands(capsys, no_exe
 @pytest.mark.parametrize("command", ["download", "inspect", "workflow"])
 def test_absolute_http_url_is_required(command, operand, capsys, no_execution):
     assert dispatch.main([command, operand, "--json"]) == 2
-    payload = json.loads(capsys.readouterr().out)["error"]
+    payload = json.loads(capsys.readouterr().out)["execution"]["error"]
     assert payload["details"] == {"kind": "invalid_value", "argument": "url"}
 
 
@@ -234,7 +234,7 @@ def test_terminator_and_option_values_never_select_json_or_commands(capsys, no_e
     captured = capsys.readouterr()
     assert captured.out == "" and "positional" in captured.err
     assert dispatch.main(["--json", "--config=plugin", "private-value"]) == 2
-    assert json.loads(capsys.readouterr().out)["error"]["operation"] == "cli"
+    assert json.loads(capsys.readouterr().out)["execution"]["error"]["operation"] == "cli"
     args = build_parser().parse_args(["--", URL])
     assert args.command_handler == "download" and not args.json_output
     args = build_parser().parse_args(["state", "workflow", "show", "--", "--json"])
@@ -253,7 +253,7 @@ def test_precedence_is_structure_then_scope_then_conflict_then_value(capsys, no_
     ]
     for words, kind in cases:
         assert dispatch.main([*words, "--json"]) == 2
-        assert json.loads(capsys.readouterr().out)["error"]["details"]["kind"] == kind
+        assert json.loads(capsys.readouterr().out)["execution"]["error"]["details"]["kind"] == kind
 
 
 @pytest.mark.parametrize("json_mode", [False, True])
@@ -281,7 +281,7 @@ def test_configuration_diagnostics_are_specific_and_private(tmp_path, content, k
     assert "private-value" not in text and str(tmp_path) not in text
     if json_mode:
         assert captured.err == ""
-        payload = json.loads(captured.out)["error"]
+        payload = json.loads(captured.out)["execution"]["error"]
         assert payload["code"] == "configuration_error"
         assert payload["details"]["kind"] == kind
         if content is not None:
@@ -301,13 +301,13 @@ def test_public_exception_and_shared_error_info_stay_compatible():
 
 def test_unknown_value_error_is_not_reclassified_as_configuration(monkeypatch, capsys):
     class BrokenHandler:
-        async def handle(self, args):
+        async def handle(self, args, outcome):
             raise ValueError("private-value")
 
     monkeypatch.setitem(dispatch._COMMAND_HANDLERS, "doctor", BrokenHandler())
     assert dispatch.main(["doctor", "--json"]) == 1
     captured = capsys.readouterr()
-    assert json.loads(captured.out)["error"]["code"] == "unexpected_runtime_error"
+    assert json.loads(captured.out)["execution"]["error"]["code"] == "unexpected_runtime_error"
     assert "private-value" not in captured.out
 
 
@@ -333,7 +333,7 @@ def test_validation_passes_stop_at_handler_boundary(monkeypatch):
     seen = []
 
     class Boundary:
-        async def handle(self, args):
+        async def handle(self, args, outcome):
             seen.append(args.name)
             return 31
 
@@ -349,7 +349,7 @@ def test_override_file_is_validated_once_and_namespace_can_be_reused(tmp_path, m
     seen = []
 
     class Boundary:
-        async def handle(self, args):
+        async def handle(self, args, outcome):
             seen.append(args.plugin_config)
             path.write_text("private-value is invalid JSON", encoding="utf-8")
             assert args.plugin_config == seen[-1]
@@ -370,7 +370,7 @@ def test_nonmapping_and_dynamic_field_diagnostics_do_not_expose_values(tmp_path,
     assert dispatch.main(["config", "explain", "--config", str(path), "--json"]) == 2
     captured = capsys.readouterr()
     assert "private-value" not in captured.out + captured.err
-    assert json.loads(captured.out)["error"]["code"] == "configuration_error"
+    assert json.loads(captured.out)["execution"]["error"]["code"] == "configuration_error"
 
 
 def test_policy_constraints_name_the_field_before_any_execution(capsys, no_execution):
@@ -387,7 +387,7 @@ def test_policy_constraints_name_the_field_before_any_execution(capsys, no_execu
         == 2
     )
     captured = capsys.readouterr()
-    payload = json.loads(captured.out)["error"]
+    payload = json.loads(captured.out)["execution"]["error"]
     assert payload["code"] == "argument_error"
     assert payload["details"]["field"] == "request_concurrency"
     assert "greater than or equal to 1" in payload["message"]
@@ -396,7 +396,7 @@ def test_policy_constraints_name_the_field_before_any_execution(capsys, no_execu
 
 def test_unknown_option_does_not_establish_a_command_from_its_possible_value(capsys, no_execution):
     assert dispatch.main(["--unknown-option", "plugin", "list", "--json"]) == 2
-    assert json.loads(capsys.readouterr().out)["error"]["operation"] == "cli"
+    assert json.loads(capsys.readouterr().out)["execution"]["error"]["operation"] == "cli"
 
 
 @pytest.mark.parametrize(
@@ -415,5 +415,5 @@ def test_unknown_option_does_not_establish_a_command_from_its_possible_value(cap
 )
 def test_empty_operation_values_fail_before_cookie_or_plugin_access(words, capsys, no_execution):
     assert dispatch.main([*words, "--json"]) == 2
-    payload = json.loads(capsys.readouterr().out)["error"]
+    payload = json.loads(capsys.readouterr().out)["execution"]["error"]
     assert payload["code"] == "argument_error" and "non-empty" in payload["message"]

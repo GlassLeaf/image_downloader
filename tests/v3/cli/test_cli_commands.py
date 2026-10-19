@@ -132,7 +132,9 @@ def test_output_options_are_ignored_for_non_saving_download_modes(monkeypatch, t
             "%IMAGE_INDEX%",
         ]
     )
-    monkeypatch.setattr(cli_download, "inspect_command", lambda _args: asyncio.sleep(0, result=cli.EXIT_SUCCESS))
+    monkeypatch.setattr(
+        cli_download, "inspect_command", lambda _args, _outcome: asyncio.sleep(0, result=cli.EXIT_SUCCESS)
+    )
 
     assert asyncio.run(cli.run(ignored)) == cli.EXIT_SUCCESS
     assert "directory_format" not in cli_setup._app_override(ignored).get("output", {})
@@ -378,7 +380,7 @@ def test_inspection_cli_selects_request_data_and_aliases_download(monkeypatch, t
     args = build_parser().parse_args(["inspect", "https://example.test/gallery", "--json"])
     assert asyncio.run(cli.run(args)) == cli.EXIT_PARTIAL
     output = capsys.readouterr()
-    payload = json.loads(output.out)
+    payload = json.loads(output.out)["execution"]["result"]
     assert payload["inspection_data"] == "url"
     assert payload["manifest"] == {"chapter_count": 1, "image_count": 1}
     assert payload["image_requests"][0]["effective_url"] == "https://cdn.example.test/1?signature=effective"
@@ -395,7 +397,7 @@ def test_inspection_cli_selects_request_data_and_aliases_download(monkeypatch, t
         ["inspect", "https://example.test/gallery", "--inspection-data", "http", "--json"]
     )
     assert asyncio.run(cli.run(http_args)) == cli.EXIT_PARTIAL
-    http_payload = json.loads(capsys.readouterr().out)
+    http_payload = json.loads(capsys.readouterr().out)["execution"]["result"]
     http_request = http_payload["image_requests"][0]
     assert http_payload["inspection_data"] == "http"
     assert http_request["request"]["headers"] == {"Authorization": "raw"}
@@ -415,7 +417,7 @@ def test_inspection_cli_selects_request_data_and_aliases_download(monkeypatch, t
         ["inspect", "https://example.test/gallery", "--inspection-data", "all", "--json"]
     )
     assert asyncio.run(cli.run(all_args)) == cli.EXIT_PARTIAL
-    all_payload = json.loads(capsys.readouterr().out)
+    all_payload = json.loads(capsys.readouterr().out)["execution"]["result"]
     all_image = all_payload["manifest"]["chapters"][0]["images"][0]
     assert all_payload["inspection_data"] == "all"
     assert all_image["url"] == "image:1"
@@ -427,7 +429,7 @@ def test_inspection_cli_selects_request_data_and_aliases_download(monkeypatch, t
 
     called: list[bool] = []
 
-    async def alias(args: object) -> int:
+    async def alias(args: object, outcome) -> int:
         called.append(args.arguments.manifest_only)  # type: ignore[attr-defined]
         return cli.EXIT_SUCCESS
 
@@ -511,7 +513,7 @@ def test_run_dispatches_explicit_and_legacy_cookie_commands(monkeypatch, tmp_pat
     handled: list[tuple[str, str]] = []
 
     class Handler:
-        async def handle(self, args) -> int:
+        async def handle(self, args, outcome) -> int:
             handled.append((args.arguments.cookie_action, str(args.arguments.cookie_value)))
             return 37
 
@@ -636,7 +638,7 @@ def test_download_json_keeps_stdout_machine_readable(monkeypatch, tmp_path: Path
     output = capsys.readouterr()
     assert "plugin output" in output.err
     assert "plugin cleanup" in output.err
-    assert json.loads(output.out) == (
+    assert json.loads(output.out)["execution"]["result"] == (
         {"updated_urls": ["https://example.test/new"], "removed": 1}
         if list_updates
         else {"saved": ["saved.jpg"], "skipped": [], "failures": [], "additional_files": []}
@@ -683,7 +685,7 @@ def test_download_json_includes_structured_existing_file_conflict(monkeypatch, t
     monkeypatch.setattr(cli_download, "RuntimeComposer", Composer)
 
     status = asyncio.run(cli.run(build_parser().parse_args(["download", "https://example.test/item", "--json"])))
-    output = json.loads(capsys.readouterr().out)
+    output = json.loads(capsys.readouterr().out)["execution"]["result"]
 
     assert status == cli.EXIT_PARTIAL
     assert output["failures"] == [
@@ -745,7 +747,7 @@ def test_download_json_makes_custom_output_failure_paths_relative(monkeypatch, t
             )
         )
     )
-    payload = json.loads(capsys.readouterr().out)
+    payload = json.loads(capsys.readouterr().out)["execution"]["result"]
 
     assert status == cli.EXIT_FAILURE
     assert payload["failures"][0]["output_path"] == "chapter/0001.jpeg"

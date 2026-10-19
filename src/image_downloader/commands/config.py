@@ -14,6 +14,7 @@ from ..exceptions import ConfigurationError
 from ..storage.path_safety import canonical_path, existing_directory, existing_regular_file
 from . import setup as cli_setup
 from .constants import EXIT_SUCCESS
+from .outcome import CommandOutcome
 from .prepared import ConfigArguments, PreparedCommand
 from .reporting import _doctor_redact
 from .setup import (
@@ -26,8 +27,8 @@ from .validation import validate_arguments
 
 
 class ConfigCommandHandler:
-    async def handle(self, command: PreparedCommand) -> int:
-        return _config_command(command)
+    async def handle(self, command: PreparedCommand, outcome: CommandOutcome) -> int:
+        return _config_command(command, outcome)
 
 
 def _path_payload() -> dict[str, object]:
@@ -41,17 +42,17 @@ def _path_payload() -> dict[str, object]:
     }
 
 
-def _config_path(args: ConfigArguments) -> int:
+def _config_path(args: ConfigArguments, outcome: CommandOutcome) -> int:
     payload = _path_payload()
-    if args.json_output:
-        print(json.dumps(payload, ensure_ascii=False))
-    else:
+
+    def render() -> None:
         print(f"user configuration: {payload['user_config']}")
         print(f"exists: {payload['user_config_exists']}")
         print(f"package baseline: {payload['package_baseline']}")
         print(f"automatic data root: {payload['default_data_root']}")
         print(f"automatic plugin root: {payload['default_plugin_root']}")
-    return EXIT_SUCCESS
+
+    return outcome.set_result(payload, EXIT_SUCCESS, text=render)
 
 
 def _explain_site(value: str | None) -> str | None:
@@ -65,7 +66,7 @@ def _explain_site(value: str | None) -> str | None:
     return normalize_host(value)[0]
 
 
-def _config_explain(args: ConfigArguments) -> int:
+def _config_explain(args: ConfigArguments, outcome: CommandOutcome) -> int:
     site = _explain_site(args.host)
     resolved = _resolved_config_for(args, site)
     runtime_overrides: dict[str, object] = {
@@ -90,9 +91,8 @@ def _config_explain(args: ConfigArguments) -> int:
         "origins": origins,
         "runtime_overrides": _doctor_redact(runtime_overrides),
     }
-    if args.json_output:
-        print(json.dumps(payload, ensure_ascii=False))
-    else:
+
+    def render() -> None:
         print(f"source: {payload['source']}")
         print(f"main configuration kind: {payload['main_config_kind']}")
         print(f"main configuration: {payload['main_config'] or '(none; package defaults only)'}")
@@ -107,7 +107,8 @@ def _config_explain(args: ConfigArguments) -> int:
             print(f"  {key}: {origin}")
         print("CLI runtime overrides:")
         print(json.dumps(payload["runtime_overrides"], ensure_ascii=False, indent=2))
-    return EXIT_SUCCESS
+
+    return outcome.set_result(payload, EXIT_SUCCESS, text=render)
 
 
 def _init_destination(words: list[str]) -> Path:
@@ -121,7 +122,7 @@ def _init_destination(words: list[str]) -> Path:
     raise ConfigurationError("config init is 'config init [ABSOLUTE_PATH]'")
 
 
-def _config_init(args: ConfigArguments, words: list[str]) -> int:
+def _config_init(args: ConfigArguments, words: list[str], outcome: CommandOutcome) -> int:
     destination = _init_destination(words)
     if existing_regular_file(destination, "configuration file", required=False) is not None:
         raise ConfigurationError(f"configuration file already exists: {destination}")
@@ -131,14 +132,14 @@ def _config_init(args: ConfigArguments, words: list[str]) -> int:
     data_root = Path(storage["data_root"]) if isinstance(storage, dict) and "data_root" in storage else None
     plugin_root = Path(plugins["root"]) if isinstance(plugins, dict) and "root" in plugins else None
     _write_user_config(destination, data_root, plugin_root)
-    if args.json_output:
-        print(json.dumps({"created_config": str(destination)}, ensure_ascii=False))
-    else:
-        print(f"created configuration: {destination}")
-    return EXIT_SUCCESS
+    return outcome.set_result(
+        {"created_config": str(destination)},
+        EXIT_SUCCESS,
+        text=lambda: print(f"created configuration: {destination}"),
+    )
 
 
-def _profile_init(args: ConfigArguments, words: list[str]) -> int:
+def _profile_init(args: ConfigArguments, words: list[str], outcome: CommandOutcome) -> int:
     if len(words) != 3 or words[:2] != ["profile", "init"]:
         raise ConfigurationError("config profile init is 'config profile init NAME'")
     name = words[2]
@@ -164,40 +165,40 @@ def _profile_init(args: ConfigArguments, words: list[str]) -> int:
             stream.write("# Profile-specific overrides. profile/storage/plugins are not allowed here.\n{}\n")
     except FileExistsError as exc:
         raise ConfigurationError(f"profile configuration already exists: {destination}") from exc
-    if args.json_output:
-        print(
-            json.dumps(
-                {
-                    "main_config": str(main),
-                    "created_main_config": created_main_config,
-                    "profile_config": str(destination),
-                },
-                ensure_ascii=False,
-            )
-        )
-    else:
+    payload = {
+        "main_config": str(main),
+        "created_main_config": created_main_config,
+        "profile_config": str(destination),
+    }
+
+    def render() -> None:
         if created_main_config:
             print(f"created configuration: {main}")
         print(f"created profile configuration: {destination}")
-    return EXIT_SUCCESS
+
+    return outcome.set_result(payload, EXIT_SUCCESS, text=render)
 
 
 def config_command(args: argparse.Namespace) -> int:
-    return _config_command(validate_arguments(args))
+    outcome = CommandOutcome("config", json_output=args.json_output)
+    outcome.no_shutdown()
+    with outcome.diagnostics():
+        _config_command(validate_arguments(args), outcome)
+    return outcome.finish(propagate=True)
 
 
-def _config_command(command: PreparedCommand) -> int:
+def _config_command(command: PreparedCommand, outcome: CommandOutcome) -> int:
     args = command.arguments
     assert isinstance(args, ConfigArguments)
     words = list(args.command_args)
     if words == ["path"]:
-        return _config_path(args)
+        return _config_path(args, outcome)
     if words == ["explain"]:
-        return _config_explain(args)
+        return _config_explain(args, outcome)
     if words and words[0] == "init":
-        return _config_init(args, words)
+        return _config_init(args, words, outcome)
     if words[:2] == ["profile", "init"]:
-        return _profile_init(args, words)
+        return _profile_init(args, words, outcome)
     raise ConfigurationError(
         "config command is 'config path', 'config explain [--host HOST]', 'config init [ABSOLUTE_PATH]', "
         "or 'config profile init NAME'"

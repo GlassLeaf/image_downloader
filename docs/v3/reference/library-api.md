@@ -269,7 +269,7 @@ preview = state.prune_history(dry_run=True)
 
 同期APIでruntimeを構築せず、ネットワーク・プラグイン・Cookie・通知を使用しない。設定解決は呼出し側で行う。`list_workflows()`と`get_workflow()`は不変の`WorkflowStateView`のtuple、`list_runs()`は`WorkflowRunRecord`のtuple、`get_run()`は記録またはNone、`prune_history()`は`WorkflowPruneResult`を返す。詳細シグネチャは[API signatures](api-signatures.md)を参照。
 
-`WorkflowResult`の末尾に省略可能な`run_id`、`history_saved`、`history_warning`を追加した。引数検証とサービスのopen検査を通過して開始したworkflowを記録し、失敗時は例外に付随する`result`にも保存状況を含める。CLIのservice closeで結果が変われば同じRUN_IDを更新する。APIはworkflow終了時の結果を記録し、呼出し側による後日のclose操作は別の操作である。
+`WorkflowResult`の末尾に省略可能な`run_id`、`history_saved`、`history_warning`を追加した。引数検証とサービスのopen検査を通過して開始したworkflowを記録し、失敗時は例外に付随する`result`にも保存状況を含める。CLIのservice closeで全体の終了状態が変われば同じRUN_IDを更新する。CLIが表示する本処理の結果は保持し、訂正後の履歴保存情報は[共通JSON](cli.md#cli-json)の`shutdown.result`で公開する。APIはworkflow終了時の結果を記録し、呼出し側による後日のclose操作は別の操作である。
 
 履歴はURL別最終結果・選択理由・保存/skip/失敗件数・安全なエラー・回復前の試行結果と周回の対象/削除URL・差分・件数を持つ。全画像の試行結果、manifest、画像データは保存しない。履歴保存失敗は固定の安全な警告を出し、元の例外、成果物、完了状態、終了コードを変更しない。期限終了とユーザーキャンセルは別のフラグで記録する。
 

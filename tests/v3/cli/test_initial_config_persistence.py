@@ -168,7 +168,12 @@ def test_download_keeps_success_and_json_when_initial_config_write_fails(
     args = build_parser().parse_args(["download", "https://example.test/item", "--json"])
     assert asyncio.run(cli.run(args)) == EXIT_SUCCESS
     output = capsys.readouterr()
-    assert json.loads(output.out) == {"saved": ["saved.jpg"], "skipped": [], "failures": [], "additional_files": []}
+    assert json.loads(output.out)["execution"]["result"] == {
+        "saved": ["saved.jpg"],
+        "skipped": [],
+        "failures": [],
+        "additional_files": [],
+    }
     assert "warning: could not create initial user configuration: permission denied" in output.err
     assert not user_config.exists()
 

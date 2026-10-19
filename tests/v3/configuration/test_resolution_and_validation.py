@@ -218,7 +218,7 @@ def test_config_explain_includes_layers_effective_values_and_origins(
     args = build_parser().parse_args(["config", "explain", "--config", str(main), "--image-format", "PNG", "--json"])
 
     assert asyncio.run(run(args)) == EXIT_SUCCESS
-    payload = json.loads(capsys.readouterr().out)
+    payload = json.loads(capsys.readouterr().out)["execution"]["result"]
     assert payload["source"] == "explicit"
     assert payload["main_config_kind"] == "explicit"
     assert payload["effective"]["network"]["request_concurrency"] == 3
@@ -242,7 +242,7 @@ def test_config_path_is_read_only_and_reports_the_fixed_location(
     args = build_parser().parse_args(["config", "path", "--json"])
 
     assert asyncio.run(run(args)) == EXIT_SUCCESS
-    payload = json.loads(capsys.readouterr().out)
+    payload = json.loads(capsys.readouterr().out)["execution"]["result"]
     assert payload["user_config"] == str(user_config)
     assert payload["default_data_root"] == str(data_root)
     assert payload["default_plugin_root"] == str(plugin_root)

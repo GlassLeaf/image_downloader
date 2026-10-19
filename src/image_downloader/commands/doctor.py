@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -12,9 +11,8 @@ from ..configuration.hosts import normalize_host
 from ..configuration.paths import resolve_paths
 from ..exceptions import ConfigurationError, PluginError
 from ..plugins.plugin_manifest import effective_verification_mode
-from ..plugins.runtime import PluginRuntime
 from .constants import EXIT_PLUGIN, EXIT_SUCCESS
-from .errors import _render_error
+from .outcome import CommandOutcome
 from .prepared import DoctorArguments, PreparedCommand
 from .reporting import _application_version, _doctor_plugin_details, _doctor_redact, _print_doctor_report
 from .setup import (
@@ -27,46 +25,48 @@ from .validation import validate_arguments
 
 
 class DoctorCommandHandler:
-    async def handle(self, command: PreparedCommand) -> int:
-        return _doctor(command, raise_errors=True)
+    async def handle(self, command: PreparedCommand, outcome: CommandOutcome) -> int:
+        return _doctor(command, outcome)
 
 
 async def doctor(args: argparse.Namespace, *, raise_errors: bool = False) -> int:
-    try:
-        return _doctor(validate_arguments(args), raise_errors=raise_errors)
-    except (ConfigurationError, PluginError) as exc:
-        if raise_errors:
-            raise
-        return _render_error(exc, json_output=args.json_output, operation="doctor")
+    outcome = CommandOutcome("doctor", json_output=args.json_output)
+    outcome.expect_shutdown()
+    with outcome.diagnostics():
+        try:
+            _doctor(validate_arguments(args), outcome)
+        except BaseException as error:
+            outcome.fail(error)
+    return outcome.finish(propagate=raise_errors or not isinstance(outcome.primary, (ConfigurationError, PluginError)))
 
 
-def _doctor(command: PreparedCommand, *, raise_errors: bool = False) -> int:
+def _doctor(command: PreparedCommand, outcome: CommandOutcome) -> int:
     args = command.arguments
     assert isinstance(args, DoctorArguments)
-    registry: PluginRuntime | None = None
-    try:
-        target = args.host
-        site: str | None = None
-        selection_url: str | None = None
-        if target:
-            parsed = urlparse(target)
-            if parsed.scheme:
-                if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-                    raise ConfigurationError("doctor --host must be a bare host or absolute HTTP(S) URL")
-                site, selection_url = parsed.hostname, target
-            else:
-                site, _ = normalize_host(target)
-                selection_url = f"https://{site}/"
-        resolved = _resolved_config_for(args, site)
-        config = resolved.config
-        config_root = resolved.config_root
-        paths = resolve_paths(config)
-        registry = RuntimeComposer(
-            config,
-            config_root=config_root,
-            plugin_root=_plugin_root(args, config),
-            plugin_verification_override=args.plugin_verification_override,
-        ).compose_registry()
+    outcome.expect_shutdown()
+    target = args.host
+    site: str | None = None
+    selection_url: str | None = None
+    if target:
+        parsed = urlparse(target)
+        if parsed.scheme:
+            if parsed.scheme not in {"http", "https"} or not parsed.hostname:
+                raise ConfigurationError("doctor --host must be a bare host or absolute HTTP(S) URL")
+            site, selection_url = parsed.hostname, target
+        else:
+            site, _ = normalize_host(target)
+            selection_url = f"https://{site}/"
+    resolved = _resolved_config_for(args, site)
+    config = resolved.config
+    config_root = resolved.config_root
+    paths = resolve_paths(config)
+    registry = RuntimeComposer(
+        config,
+        config_root=config_root,
+        plugin_root=_plugin_root(args, config),
+        plugin_verification_override=args.plugin_verification_override,
+    ).compose_registry()
+    with outcome.closing_sync(registry.close):
         overrides = command.plugin_config
         registry.doctor_validate(overrides)
         if selection_url:
@@ -132,19 +132,7 @@ def _doctor(command: PreparedCommand, *, raise_errors: bool = False) -> int:
                 for item in diagnostics
             ],
         }
-        if args.json_output:
-            print(json.dumps(payload, ensure_ascii=False))
-        else:
-            _print_doctor_report(payload)
-        return EXIT_SUCCESS if healthy else EXIT_PLUGIN
-    except ConfigurationError as exc:
-        if raise_errors:
-            raise
-        return _render_error(exc, json_output=args.json_output, operation="doctor")
-    except PluginError as exc:
-        if raise_errors:
-            raise
-        return _render_error(exc, json_output=args.json_output, operation="doctor")
-    finally:
-        if registry is not None:
-            registry.close()
+        outcome.set_result(
+            payload, EXIT_SUCCESS if healthy else EXIT_PLUGIN, text=lambda: _print_doctor_report(payload)
+        )
+    return outcome.exit_code
