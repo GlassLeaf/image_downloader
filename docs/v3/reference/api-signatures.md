@@ -133,7 +133,7 @@
 | `RuntimeComposer` <!-- api-contract: image_downloader.runtime.RuntimeComposer --> | `RuntimeComposer(config: AppConfig, *, config_root: Path, plugin_root: Path, output_root: Path | None = None, plugin_verification_override: PluginVerificationOverride | None = None)` |
 | `RuntimeComposer.compose` <!-- api-contract: image_downloader.runtime.RuntimeComposer.compose --> | `compose(self) -> DownloadService` |
 | `RuntimeComposer.compose_registry` <!-- api-contract: image_downloader.runtime.RuntimeComposer.compose_registry --> | `compose_registry(self) -> PluginRuntime` |
-| `RuntimeSecrets` <!-- api-contract: image_downloader.runtime.RuntimeSecrets --> | `RuntimeSecrets(plugin_id: str, references: Mapping[str, str])` |
+| `RuntimeSecrets` <!-- api-contract: image_downloader.runtime.RuntimeSecrets --> | `RuntimeSecrets(plugin_id: str, references: Mapping[str, str], *, store: ProfileCredentialStore)` |
 | `RuntimeSecrets.get` <!-- api-contract: image_downloader.runtime.RuntimeSecrets.get --> | `get(self, name: str) -> str` |
 | `UpdateState` <!-- api-contract: image_downloader.runtime.UpdateState --> | `UpdateState(filesystem: FileSystem, *, lock_timeout_seconds: float = 30.0)` |
 | `UpdateState.records` <!-- api-contract: image_downloader.runtime.UpdateState.records --> | `records(self) -> dict[str, _Record]` |
@@ -142,7 +142,7 @@
 | `UpdateState.apply_snapshot` <!-- api-contract: image_downloader.runtime.UpdateState.apply_snapshot --> | `apply_snapshot(self, plugin_id: str, source_url: str, snapshot: UpdateSnapshot) -> tuple[UpdateChange, ...]` |
 | `UpdateState.apply_snapshot_async` <!-- api-contract: image_downloader.runtime.UpdateState.apply_snapshot_async --> | `async apply_snapshot_async(self, plugin_id: str, source_url: str, snapshot: UpdateSnapshot) -> tuple[UpdateChange, ...]` |
 
-`_RuntimeDependencies`は独自の公開メソッド・プロパティを持たないdataclass DTOです。コンストラクターは`_RuntimeDependencies(outputs, logs, state, events, logger, notifications, cookie_store, cookie_baseline, gateway, image_processor, output_locks, persist_cookies_on_close=True)`です。
+`_RuntimeDependencies`は独自の公開メソッド・プロパティを持たないdataclass DTOです。コンストラクターは`_RuntimeDependencies(outputs, logs, state, events, logger, notifications, cookie_store, credentials, cookie_baseline, gateway, image_processor, output_locks, persist_cookies_on_close=True)`です。
 
 <a id="plugin-security-api"></a>
 
@@ -329,3 +329,12 @@
 | `source_key` <!-- api-contract: image_downloader.storage.source_identity.source_key --> | `source_key(url: str) -> str` |
 
 `read_feeds()`は同期context managerです。`WorkflowFeedSnapshot`は`frozen=True, slots=True`で、`plugin_id: str`、`feed_key: str`、`checked_at: datetime`、`items: tuple[WorkflowStateItem, ...]`を保持します。コンテキストを抜けた後も値は不変ですが、状態の再読込は行いません。
+
+## 資格情報保管庫API
+
+`image_downloader.credentials`は`CredentialVault`、`ProfileCredentialStore`、`SmtpCredential`を公開します。
+`RuntimeSecrets(plugin_id, references, *, store: ProfileCredentialStore)`と
+`CookieStore(filesystem: FileSystem, *, store: ProfileCredentialStore, lock_timeout_seconds: float = 30.0)`にはstoreが必須です。
+`RuntimeComposer`とプラグインの`get(name)`契約は維持します。CRUD・backup/restore・鍵更新の同期APIは
+[資格情報保管庫](credential-vault.md#直接利用するapi)を参照してください。
+`VaultError(kind: str)`は`AuthenticationError`の派生型で、秘密を含まない固定診断を返します。

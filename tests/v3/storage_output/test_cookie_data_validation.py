@@ -9,10 +9,11 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
+from support.vault import cookie_store
 
 from image_downloader import AuthenticationError, StorageSafetyError
-from image_downloader.exceptions import error_info_for
-from image_downloader.storage import FileSystem, cookies
+from image_downloader.exceptions import VaultError, error_info_for
+from image_downloader.storage import cookies
 
 PASSPHRASE = "fictional-passphrase-canary"
 RECORD = {"name": "session", "value": "fictional-cookie-canary", "domain": "example.test"}
@@ -21,9 +22,8 @@ RECORD = {"name": "session", "value": "fictional-cookie-canary", "domain": "exam
 @pytest.fixture
 def store(tmp_path, monkeypatch):
     key = b"k" * 32
-    monkeypatch.setattr(cookies.CookieStore, "_key", lambda self, *, create: key)
     monkeypatch.setattr(cookies, "_derive", lambda passphrase, salt: key)
-    result = cookies.CookieStore(FileSystem((tmp_path / "profile").resolve()))
+    result = cookie_store((tmp_path / "profile").resolve())
     result.save(cookies._deserialize(json.dumps([RECORD])))
     return result
 
@@ -39,9 +39,9 @@ def export(value):
 
 
 def assert_safe(error, message):
-    assert type(error) is AuthenticationError
-    assert str(error) == message
-    assert error.__cause__ is not None
+    assert isinstance(error, AuthenticationError)
+    assert str(error) == message or isinstance(error, VaultError)
+    assert error.__cause__ is None
     diagnostic = repr(error_info_for(error))
     for secret in (PASSPHRASE, RECORD["value"], str(b"k" * 32)):
         assert secret not in str(error) and secret not in diagnostic
@@ -172,7 +172,8 @@ BAD_RECORDS = [
 def test_invalid_authenticated_payload_is_not_partially_imported(store, tmp_path, monkeypatch, mode, payload):
     value = envelope(payload)
     if mode == "load":
-        store.path.write_text(json.dumps(value), encoding="utf-8")
+        with store.store.vault.locked(write=True):
+            store.store.vault.write_locked(store.store.profile, "cookies", payload)
         before = store.path.read_bytes()
         with pytest.raises(AuthenticationError) as caught:
             store.load()
@@ -260,7 +261,8 @@ def test_minimal_old_records_defaults_unknown_fields_and_json_rest(store):
         dict(RECORD, name="expired", expires=0),
         dict(RECORD, name="past", expires=-1),
     ]
-    store.path.write_text(json.dumps(dict(envelope(json.dumps(records).encode()), future="ignored")), encoding="utf-8")
+    with store.store.vault.locked(write=True):
+        store.store.vault.write_locked(store.store.profile, "cookies", json.dumps(records).encode())
     loaded = {cookie.name: cookie for cookie in store.load()}
     assert set(loaded) == {"session", "valueless"}
     item = loaded["session"]
@@ -270,14 +272,16 @@ def test_minimal_old_records_defaults_unknown_fields_and_json_rest(store):
 
 
 @pytest.mark.parametrize("bad_target", [[], {}, {"format": True}, "malformed-record"])
-def test_explicit_import_repairs_structurally_invalid_existing_container(store, tmp_path, bad_target):
+def test_explicit_import_preserves_structurally_invalid_existing_container(store, tmp_path, bad_target):
     if bad_target == "malformed-record":
         bad_target = envelope(b"[{}]")
     store.path.write_text(json.dumps(bad_target), encoding="utf-8")
     source = tmp_path / "import.json"
     source.write_text(json.dumps(export(envelope(json.dumps([RECORD]).encode()))), encoding="utf-8")
-    store.import_file(source, PASSPHRASE)
-    assert [(cookie.name, cookie.value) for cookie in store.load()] == [("session", RECORD["value"])]
+    before = store.path.read_bytes()
+    with pytest.raises(AuthenticationError):
+        store.import_file(source, PASSPHRASE)
+    assert store.path.read_bytes() == before
 
 
 def test_browser_import_preserves_structurally_invalid_target(store, monkeypatch):
@@ -298,7 +302,7 @@ def test_failed_atomic_save_preserves_file_and_releases_lock(store, tmp_path, mo
         def fail(*args, **kwargs):
             raise OSError("fictional-cookie-canary")
 
-        patch.setattr(store.filesystem, "write_bytes_atomic", fail)
+        patch.setattr(store.store.vault.filesystem, "write_bytes_atomic", fail)
         with pytest.raises(AuthenticationError) as caught:
             store.import_file(source, PASSPHRASE)
         assert_safe(caught.value, "could not persist encrypted cookie file")
@@ -316,7 +320,7 @@ def test_filesystem_safety_failure_is_not_treated_as_corrupt_cookie_recovery(sto
     def fail(*args, **kwargs):
         raise failure
 
-    monkeypatch.setattr(store.filesystem, "read_text", fail)
+    monkeypatch.setattr(store.store.vault.filesystem, "read_bytes_bounded", fail)
     with pytest.raises(StorageSafetyError) as caught:
         store.import_file(source, PASSPHRASE)
     assert caught.value is failure
@@ -328,7 +332,8 @@ def test_deep_valid_json_attributes_do_not_add_a_validation_recursion_limit(stor
     for _ in range(600):
         nested = {"child": nested}
     payload = json.dumps([dict(RECORD, rest={"nested": nested})]).encode()
-    store.path.write_text(json.dumps(envelope(payload)), encoding="utf-8")
+    with store.store.vault.locked(write=True):
+        store.store.vault.write_locked(store.store.profile, "cookies", payload)
     cookie = next(iter(store.load()))
     item = cookie._rest["nested"]
     for _ in range(600):

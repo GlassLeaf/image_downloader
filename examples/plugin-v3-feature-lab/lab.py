@@ -6,6 +6,7 @@ import argparse
 import getpass
 import json
 import shutil
+import subprocess
 import sys
 import threading
 from pathlib import Path
@@ -30,10 +31,6 @@ SECRET_UNITS = ("credential-gallery", "origin-auth-gallery")
 
 def plugin_id(slug: str) -> str:
     return f"local.image-downloader.lab-{slug}"
-
-
-def environment_name(slug: str) -> str:
-    return f"IMAGE_DOWNLOADER_PLUGIN_{plugin_id(slug).encode().hex().upper()}_{b'LAB_TOKEN'.hex().upper()}"
 
 
 def prepare(work: Path, origin: str, asset_origin: str) -> Path:
@@ -89,44 +86,51 @@ def install(work: Path, *, strict: bool) -> None:
             target.write_text(yaml.safe_dump(config, allow_unicode=True), encoding="utf-8")
 
 
-def credentials(action: str) -> None:
+def credentials(action: str, work: Path) -> None:
     if not sys.stdin.isatty():
         raise ValueError("credentials command requires an interactive local terminal")
-    import keyring
-
+    value = None
     if action == "set":
         value = getpass.getpass("Local dummy token (enter lab-token): ")
         if value != "lab-token":
             raise ValueError("use the fictional lab token only")
-        for slug in SECRET_UNITS:
-            keyring.set_password(f"image-downloader.plugin.{plugin_id(slug)}", "LAB_TOKEN", value)
-    else:
-        for slug in SECRET_UNITS:
-            keyring.delete_password(f"image-downloader.plugin.{plugin_id(slug)}", "LAB_TOKEN")
+    for slug in SECRET_UNITS:
+        arguments = [
+            sys.executable,
+            "-m",
+            "image_downloader",
+            "credential",
+            "plugin",
+            action,
+            plugin_id(slug),
+            "LAB_TOKEN",
+            "--config",
+            str(work / "app.yaml"),
+            "--data-root",
+            str(work / "data"),
+        ]
+        arguments.append("--stdin" if action == "set" else "--yes")
+        subprocess.run(
+            arguments, input=value, text=True, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
     print("PASS LAB_CREDENTIALS")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "action", choices=("serve", "prepare", "install", "credentials-set", "credentials-delete", "env-names")
-    )
+    parser.add_argument("action", choices=("serve", "prepare", "install", "credentials-set", "credentials-delete"))
     parser.add_argument("--work-dir", type=Path)
     parser.add_argument("--strict", action="store_true")
     parser.add_argument("--workflow-failure", action="store_true")
     args = parser.parse_args()
-    if args.action == "env-names":
-        for slug in SECRET_UNITS:
-            print(f"{slug}: {environment_name(slug)}")
-        return 0
-    if args.action.startswith("credentials-"):
-        credentials(args.action.split("-", 1)[1])
-        return 0
     from image_downloader.storage.path_safety import existing_directory
 
     if args.work_dir is None:
         parser.error("--work-dir ABSOLUTE_PATH is required")
     work = existing_directory(args.work_dir, "lab work directory")
+    if args.action.startswith("credentials-"):
+        credentials(args.action.split("-", 1)[1], work)
+        return 0
     if args.action == "serve":
         work.mkdir(parents=True, exist_ok=True)
         with LabSite() as site:

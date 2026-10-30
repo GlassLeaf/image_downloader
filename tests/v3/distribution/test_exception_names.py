@@ -19,7 +19,7 @@ from image_downloader import (
     UnsupportedSiteFeatureError,
 )
 from image_downloader.commands.errors import _exit_status
-from image_downloader.credentials import plugin_secrets
+from image_downloader.credentials import CredentialVault
 from image_downloader.exceptions import PUBLIC_EXCEPTION_NAMES, error_info_for
 from image_downloader.observability.logging import safe_exception_name
 from image_downloader.runtime import RequestGateway, RuntimeSecrets
@@ -60,11 +60,11 @@ def test_parent_catches_and_catalog_codes_remain_stable(exception, parent, code,
     assert safe_exception_name(exception.__name__) == exception.__name__
 
 
-def test_actual_missing_secret_uses_new_type_and_existing_message(monkeypatch):
-    monkeypatch.setattr(plugin_secrets.os, "getenv", lambda name: None)
-    monkeypatch.setattr(plugin_secrets, "load_secret", lambda service, name: None)
+def test_actual_missing_secret_uses_new_type_and_existing_message(monkeypatch, tmp_path):
     with pytest.raises(SecretNotFoundError, match="required plugin secret is unavailable") as caught:
-        RuntimeSecrets("com.example.plugin", {"token": "TOKEN"}).get("token")
+        RuntimeSecrets(
+            "com.example.plugin", {"token": "TOKEN"}, store=CredentialVault(tmp_path).profile("default")
+        ).get("token")
     assert type(caught.value) is SecretNotFoundError
     assert error_info_for(caught.value).exception == "SecretNotFoundError"
 

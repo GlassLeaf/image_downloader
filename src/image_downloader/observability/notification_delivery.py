@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
-import os
 import re
 import smtplib
 import ssl
@@ -16,7 +15,7 @@ from ipaddress import ip_address
 from typing import Any, Protocol
 
 from ..configuration.models import Email, Notification, NotificationMethod
-from ..credentials.keyring import load_secret
+from ..credentials.profile_store import ProfileCredentialStore
 from ..exceptions import ConfigurationError
 
 
@@ -119,31 +118,32 @@ class DesktopNotificationSender:
 
 
 class EmailNotificationSender:
-    def __init__(self, config: Email) -> None:
+    def __init__(self, config: Email, credentials: ProfileCredentialStore | None = None) -> None:
         self.config = config
+        self.credentials = credentials
 
     async def send(self, title: str, message: str) -> bool:
         settings = self.config.model_dump(by_alias=True, warnings=False)
         if not settings["smtp_host"] or not settings["from"] or not settings["to"]:
             raise RuntimeError("email notification requires smtp_host, from, and to")
-        username = settings["username"]
-        if username:
-            password = os.getenv("IMAGE_DOWNLOADER_SMTP_PASSWORD") or load_secret(
-                settings["credential_service"], username
-            )
-            if not password:
-                raise RuntimeError(
-                    "email notification requires SMTP credentials in keyring or IMAGE_DOWNLOADER_SMTP_PASSWORD"
-                )
-            settings["password"] = password
+        reference = settings["credential_reference"]
+        if reference:
+            if self.credentials is None:
+                raise ConfigurationError("email notification requires a profile credential store")
+            pair = await asyncio.to_thread(self.credentials.get_smtp, reference)
+            settings.update(username=pair.username, password=pair.password)
+        elif settings["username"]:
+            raise ConfigurationError("legacy SMTP credentials are unused; configure credential_reference")
         await asyncio.to_thread(_send_mail, settings, title, message)
         return True
 
 
-def default_notification_senders(config: Notification) -> Mapping[NotificationMethod, NotificationSender]:
+def default_notification_senders(
+    config: Notification, credentials: ProfileCredentialStore | None = None
+) -> Mapping[NotificationMethod, NotificationSender]:
     return {
         "desktop": DesktopNotificationSender(),
-        "email": EmailNotificationSender(config.email),
+        "email": EmailNotificationSender(config.email, credentials),
     }
 
 
@@ -172,7 +172,7 @@ def _send_mail(settings: dict[str, Any], title: str, message: str) -> None:
     with client:
         if not ssl_mode and settings.get("use_tls", True):
             client.starttls(context=context)
-        if settings.get("username"):
+        if settings.get("credential_reference"):
             client.login(settings["username"], settings.get("password", ""))
         refused = client.send_message(mail)
     if refused:

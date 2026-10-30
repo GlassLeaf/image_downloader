@@ -78,9 +78,13 @@ effective previewと実送信に同じ値を使う。HTMLの`Referrer-Policy`／
 <a id="runtime-cookies"></a>
 
 <!-- claim: TAX-RUNTIME-COOKIES -->
-profile cookie は `<storage.data_root>/profiles/<profile>/cookie/cookies.enc` に AES-256-GCM で保存する。暗号鍵は keyring service `image-downloader.cookie-key` に保持し、cookie 本体と鍵を app configuration に書かない。
+profile cookieは`<storage.data_root>/profiles/<profile>/cookie/cookies.v2.enc`へ保管庫形式2で保存する。
+データルートのマスターキーだけをOSストアに置き、保存ごとに生成したデータ鍵でAES-256-GCM暗号化する。
+保管庫ID・プロファイル・用途をAADで認証し、呼び出し側の所属と照合する。
+管理・backup/restore・鍵更新・障害処理は[資格情報保管庫](credential-vault.md)を参照する。
+旧`cookies.enc`は読取り・変更せず、新ファイルがない場合だけ固定警告を標準エラーへ出す。
 
-cookie export/import は passphrase container を使い、passphrase を対話入力する。browser import は `browser-cookie3` を含む `.[browser-cookies]` extra が必要で、既存 jar を差分 merge する。破損した encrypted file は上書きせず error にし、明示 import を復旧手段にする。
+cookie export/import は passphrase container を使い、passphrase を対話入力する。browser import は `browser-cookie3` を含む `.[browser-cookies]` extra が必要で、既存 jar を差分 merge する。破損した保存先はfile importでも上書きせずエラーにする。
 
 明示的な`chrome_user_data_dir`はChromeの`Default/Network/Cookies`と`Local State`に限定する。
 両方の通常ファイルを安全に開き、変更を検知するスナップショットから読み取る。SQLiteとLocal Stateの最低限の構造を検査し、
@@ -89,7 +93,7 @@ Local StateのJSON読取りは4MiBを上限にする。
 依存の生例外・標準出力は公開せず、固定文言の認証エラーにする。未対応の復号方式を回避する権限昇格や保護機能変更は行わない。
 実機確認では一時領域も隔離端末の専用領域内に置く。手順は[実Chrome試験](../../../manual-tests/browser-cookies/README.md)を参照する。
 
-容器はJSON object、`format`はboolを除く整数の1、`cipher`は`AES-256-GCM`を必須とする。
+従来のCookie export容器はJSON object、`format`はboolを除く整数の1、`cipher`は`AES-256-GCM`を必須とする。
 nonceはbase64文字列から復元した12バイト、ciphertextは認証tagを含む16バイト以上で、
 exportでは既存のkind・kdfと16バイトのsaltも検証する。復号後はrecordの配列とし、
 name・domainは必須文字列、valueは必須の文字列またはnull、pathは文字列（既定`/`）、
@@ -102,7 +106,7 @@ float変換可能な有限範囲の整数またはnull（既定null）、restは
 不正なJSON・base64・復号・recordは、入力値を含まない固定メッセージの`AuthenticationError`
 とする。file importは元データ全体の検証を終えてから既存データのlock・merge・保存を行い、
 不正recordを部分的に取り込まない。loadとbrowser importは破損容器を上書きしない。
-file importによる明示的な復旧と、失敗時の既存ファイル保持を維持する。
+file importも破損した保存先では停止し、既存ファイルを保持する。
 
 同一端末上の本 application process は `cookie/cookies.lock` で read/merge/write を直列化する。異なる cookie は保持し、同一 `(domain, path, name)` は後に確定した更新、同値なら長い expiry、session cookie は persistent cookie より短期として扱う。lock file は解放後も残る。NAS と外部 application の同時変更は保証対象外である。`CookieStore.save()` は jar 全体を置換する library API であり、runtime の delta merge とは異なる。
 

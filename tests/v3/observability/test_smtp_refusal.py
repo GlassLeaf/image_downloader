@@ -292,7 +292,9 @@ def test_refusal_logs_the_host_used_before_async_settings_replacement(tmp_path, 
 @pytest.mark.parametrize("stage", ["starttls", "login", "send", "close"])
 def test_existing_smtp_stage_failures_keep_original_exception(monkeypatch, stage):
     client, _ = _fake_smtp(monkeypatch, "partial", failure_stage=stage)
-    settings = _notification(use_tls=True, smtp_port=587, username="user").email.model_dump(by_alias=True)
+    settings = _notification(
+        use_tls=True, smtp_port=587, credential_reference="MAIL", username="user"
+    ).email.model_dump(by_alias=True)
     settings["password"] = "credential-secret"
     with pytest.raises(RuntimeError) as raised:
         delivery._send_mail(settings, "title", "body")

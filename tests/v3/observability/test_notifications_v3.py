@@ -289,6 +289,7 @@ def test_notification_smtp_tls_modes_are_local(monkeypatch) -> None:
             "from": "from@test",
             "to": ["to@test"],
             "username": "user",
+            "credential_reference": "MAIL",
             "password": "password",
         },
         "title",

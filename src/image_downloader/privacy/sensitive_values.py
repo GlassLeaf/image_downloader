@@ -30,7 +30,7 @@ SENSITIVE_TERM_PATTERN = "|".join(re.escape(term) for term in SENSITIVE_NAME_TER
 # These names contain a broad sensitive term but their values are documented,
 # non-secret application settings.  Keep this exception narrow: diagnostics
 # must still redact arbitrary plugin fields such as ``refresh_token``.
-_SAFE_REFERENCE_NAMES = frozenset(("auth_refresh_attempts", "credential_service"))
+_SAFE_REFERENCE_NAMES = frozenset(("auth_refresh_attempts", "credential_service", "credential_reference"))
 _SECRET_MAPPINGS = frozenset(("headers", "secrets"))
 
 

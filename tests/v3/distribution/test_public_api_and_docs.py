@@ -7,6 +7,8 @@ from dataclasses import fields
 from inspect import signature
 from pathlib import Path
 
+from support.vault import cookie_store
+
 import image_downloader.configuration.paths as configuration_paths
 from image_downloader import (
     AppConfig,
@@ -24,8 +26,6 @@ from image_downloader import (
 from image_downloader.config import plugin_root
 from image_downloader.exceptions import ERROR_CATALOG
 from image_downloader.runtime import DownloadService, RuntimeComposer
-from image_downloader.storage import FileSystem
-from image_downloader.storage.cookies import CookieStore
 
 LINK = re.compile(r"\[[^\]]*\]\((?P<target>[^)#]+)(?:#[^)]+)?\)")
 INVENTORY = re.compile(
@@ -56,7 +56,7 @@ EXPECTED_EXPORTS = {
         resolve_application_config RedirectPolicyError ResolvedApplicationConfig OriginScopedAuthFlow PluginError
         PluginExecutionContext PluginFormatContext OutputFormatValueProvider RequestPort RequestError
         RequestResponse RequestSpec ResponseSizeLimitError
-        RuntimeComposer SecretNotFoundError SecretProvider SitePlugin StorageError StorageSafetyError
+        RuntimeComposer SecretNotFoundError SecretProvider SitePlugin StorageError StorageSafetyError VaultError
         TransformContext TransportCookie TransportHeader TransportRequestMetadata
         UnsupportedImageFormatError UnsupportedSiteFeatureError UpdateCandidate UpdateChange UpdateChangeKind
         UpdateProvider UpdateResult UpdateSnapshot UpdateStateError UpdateCheckUnsupportedError
@@ -180,9 +180,9 @@ def test_existing_file_conflict_is_a_public_storage_error() -> None:
 
 
 def test_cookie_store_requires_the_v3_filesystem_boundary(tmp_path: Path) -> None:
-    store = CookieStore(FileSystem((tmp_path / "cookie").resolve()))
+    store = cookie_store((tmp_path / "cookie").resolve())
 
-    assert store.path.name == "cookies.enc"
+    assert store.path.name == "cookies.v2.enc"
     assert list(store.load()) == []
 
 

@@ -207,7 +207,9 @@ def test_configuration_plugin_and_runtime_references_cover_high_risk_semantics(
         assert key in configuration
     assert "config-template.yaml" in configuration
     assert "max_response_bytes" in template
-    assert "IMAGE_DOWNLOADER_PLUGIN_" in configuration
+    assert "credential plugin set" in configuration
+    assert "notification.email.credential_reference" in configuration
+    assert "資格情報保管庫" in configuration
     assert "rewrite_user_layers=True" in configuration
 
     for field in (
@@ -328,7 +330,7 @@ def test_cli_plugin_and_tutorial_references_expose_actionable_contracts(reposito
         "%SUBTITLE%",
         "%EXT%",
         "profiles/<profile>",
-        "cookie/cookies.enc",
+        "cookie/cookies.v2.enc",
     ):
         assert phrase in configuration
     assert "ファイル名は固定ではありません" in package

@@ -268,6 +268,12 @@ def _resolved_config_for(
         if not args.config.is_absolute():
             raise ConfigurationError("--config must be an absolute path")
         raw_config_path, source = args.config, "explicit"
+        if canonical_path(raw_config_path, "configuration path").is_dir():
+            raise configuration_error(
+                "--config must point to a configuration file, not a directory",
+                "configuration_not_file",
+                option="--config",
+            )
     else:
         user_config = _user_config_path()
         if existing_regular_file(user_config, "configuration file", required=False) is not None:

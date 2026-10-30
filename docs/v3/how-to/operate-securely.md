@@ -8,3 +8,7 @@
 - 自動処理で変更操作を確認する場合だけ、`--yes`を使います。
 
 暗号化・マージ・ロック・保証範囲は[実行時動作リファレンス](../reference/runtime-behavior.md#runtime-cookies)、カタログのポリシーは[プラグインパッケージリファレンス](../reference/plugin-package.md#plugin-catalog)、CLIの出力は[CLIリファレンス](../reference/cli.md#cli-json)を正本とします。
+
+資格情報は`credential plugin set`・`credential smtp set`でプロファイルごとに登録します。
+保管庫の初期化・暗号化バックアップ・空ルートへの復元・鍵更新と中断再開は
+[資格情報保管庫](../reference/credential-vault.md)を参照してください。旧環境変数・旧keyring項目は使用しません。

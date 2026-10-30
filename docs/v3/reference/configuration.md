@@ -107,7 +107,8 @@ mapping は再帰 merge、scalar/list/`null` は高い layer が置換する。I
 | `notification.email.smtp_port` | 厳密な整数 `1..65535`; `465` |
 | `notification.email.use_tls` | 厳密な真偽値; `true` |
 | `notification.email.to` | 文字列の一覧; `[]` |
-| `notification.email.credential_service` | 文字列。 `image-downloader.smtp` |
+| `notification.email.credential_service` | 非使用の互換項目。文字列、既定`image-downloader.smtp` |
+| `notification.email.credential_reference` | SMTP保管庫の参照名。大文字英数字・アンダースコア、既定`null`。旧`username`も非使用 |
 | `security.plugin_verification` | `strict|warn|off`; `strict`; メイン・プロファイルのアプリ設定レイヤーだけで指定可能 |
 | `image_processors.chain` | 重複のない逆DNS形式の画像処理プラグインID; `[]` |
 | `image_processors.transport_metadata_access` | 画像処理プラグインIDから、有効な非組み込みサイトプラグインIDの空でなく重複しない一覧へのマッピング; `{}`。チェーンに含まれるプロセッサーと、列挙したサイトの組合せだけが生の画像通信メタデータを受け取る |
@@ -145,7 +146,7 @@ mapping は再帰 merge、scalar/list/`null` は高い layer が置換する。I
 | メイン設定 | 明示的な`--config`、省略時はOS標準の利用者設定`conf/app.yaml` | 設定解決を行う全コマンド。状態変更コマンドは初回に作成できる |
 | プロファイルのデータルート | `<storage.data_root or platform data root>/profiles/<profile>` | 全実行操作で解決 |
 | 取得画像と章レポート | `<profile data root>/downloads` | 通常の`download`が書き込み、`--list-updated-urls`は画像出力を割り当てない |
-| 暗号化Cookie jarとlock | `<profile data root>/cookie/cookies.enc`、`cookie/cookies.lock` | Cookie操作と構築済みダウンロードサービス |
+| 暗号化Cookie jarとlock | `<profile data root>/cookie/cookies.v2.enc`、`cookie/cookies.v2.lock` | Cookie操作と構築済みダウンロードサービス |
 | 更新スナップショットとlock | `<profile data root>/state/updates.json`、`state/updates.lock` | 更新一覧と`DownloadService.check_updates()` |
 | ワークフローの完了状態 | `<profile data root>/state/workflow.json`、`state/workflow.lock` | 通常のワークフロー。オフラインの状態表示では読み取りのみ |
 | ワークフロー実行履歴とlock | `<profile data root>/state/workflow-history.json`、`state/workflow-history.lock` | 通常のワークフローが自動記録、オフライン表示が読み取り、pruneが整理 |
@@ -256,25 +257,21 @@ image_processors:
 ```
 
 <!-- claim: TAX-CONFIG-SECRETS -->
-raw credential を YAML、manifest、catalog、plugin source、log、exception に書かない。logical secret `name` の reference は、次の environment variable 名で解決する。
+raw credentialをYAML、manifest、catalog、plugin source、log、exceptionへ書かない。
+`plugin_settings.<id>.secrets`にはlogical nameから参照名（大文字英数字・アンダースコア）への対応だけを書く。
+`context.secrets.get(name)`は現在のデータルート・プロファイルの暗号化保管庫から毎回取得する。
+環境変数と旧keyring項目へのfallbackはない。未構成なら`SecretNotFoundError("required plugin secret is not configured")`、
+未登録なら`SecretNotFoundError("required plugin secret is unavailable")`となる。
 
-```text
-IMAGE_DOWNLOADER_PLUGIN_<ID_HEX>_<REFERENCE_HEX>
-```
+`credential plugin set <plugin-id> <REFERENCE>`でプロファイルごとに登録する。SMTPは
+`credential smtp set <REFERENCE>`でユーザー名・パスワードを一組として登録し、
+`notification.email.credential_reference`で選択する。旧`username`・`credential_service`は
+非使用の互換項目として設定に残す。旧ユーザー名だけを指定した状態では再設定エラーになる。
 
-`ID_HEX` と `REFERENCE_HEX` は、それぞれ元の plugin ID と reference 全体に `value.encode("utf-8", "surrogatepass").hex().upper()` を適用した値である。短縮、hash、文字置換は行わない。接頭辞に版番号を付けず、アプリの版更新だけでは変更しない恒久的な規約とする。直接 API と複数 runtime でも同じ規則を使い、Windows の大文字・小文字を区別しない環境でも名前が衝突しないよう、符号化後は大文字に統一する。
-
-plugin ID `com.example.a-b`、reference `TOKEN` の名前は次になる。
-
-```text
-IMAGE_DOWNLOADER_PLUGIN_636F6D2E6578616D706C652E612D62_544F4B454E
-```
-
-空でない environment value をそのまま優先する。未設定または空文字なら、従来と同じ keyring service `image-downloader.plugin.<plugin-id>` の username `<REFERENCE>` を参照する。keyring が `None` を返せば `SecretNotFoundError("required plugin secret is unavailable")`、空文字なら従来どおりその値を返す。logical name が未構成、または reference が空なら取得前に `SecretNotFoundError("required plugin secret is not configured")` となる。取得は各 `get(name)` 時に行い、値を cache しない。
-
-旧形式 `IMAGE_DOWNLOADER_PLUGIN_<NORMALIZED_ID>_<NORMALIZED_REFERENCE>` は読み出さない。現行の有効 ID は `.` が必須なので、旧名の接頭辞以降には区切りを含めて `_` が最低2個あり、新名では1個だけである。有効な現行 ID から生成される新旧名は衝突しない。旧名への fallback、値の自動コピー、環境変数の自動削除は行わない。
-
-YAML、ID・reference の検証規則、keyring の識別子、公開 API は変更しない。keyring のみの利用者は移行不要で、プラグインの再署名も不要である。環境変数の利用者は名前を移行し、他の plugin/profile が使っていないと確認した旧名を定義元から削除する。[移行・旧名削除手順](../maintenance/migration.md#plugin-secret-environment-migration) を参照する。
+OSストアにはマスターキーだけを保存し、資格情報とCookieの暗号文はデータルートへ保存する。
+`--data-root`の変更は資格情報の取得先も変更する。旧データの移行・削除は行わない。
+保管形式、上限、管理CLI、backup/restore、鍵更新、直接構築APIの変更は
+[資格情報保管庫](credential-vault.md)を参照する。プラグインの再署名は不要である。
 
 <a id="config-migration"></a>
 

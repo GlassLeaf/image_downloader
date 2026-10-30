@@ -50,7 +50,7 @@ class DownloadService:
         self._closed = False
         self._close_task: asyncio.Task[BaseException | None] | None = None
 
-        self._operations = SiteOperationFactory(config, registry, self.gateway, self.logger)
+        self._operations = SiteOperationFactory(config, registry, self.gateway, self.logger, dependencies.credentials)
         self._downloads = DownloadExecutor(config, registry, dependencies, self._operations)
         self._inspection = InspectionExecutor(config, self.cookie_store, self.gateway, self._operations)
         self._updates = UpdateExecutor(self.state, self.events, self.logger, self._operations)

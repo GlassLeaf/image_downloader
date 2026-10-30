@@ -10,9 +10,9 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from support.vault import cookie_store
 
 from image_downloader.exceptions import AuthenticationError, InterProcessLockError
-from image_downloader.storage import FileSystem
 from image_downloader.storage.cookies import CookieStore
 from image_downloader.storage.interprocess_lock import InterProcessFileLock
 
@@ -50,7 +50,7 @@ def _keyring(monkeypatch: pytest.MonkeyPatch) -> dict[tuple[str, str], str]:
 
 
 def _store(tmp_path: Path, name: str = "cookies") -> CookieStore:
-    return CookieStore(FileSystem((tmp_path / name).resolve()))
+    return cookie_store((tmp_path / name).resolve())
 
 
 def _fixed_key(_self: CookieStore, *, create: bool) -> bytes:
@@ -58,8 +58,7 @@ def _fixed_key(_self: CookieStore, *, create: bool) -> bytes:
 
 
 def _merge_in_child(root: str, name: str, ready: object, start: object, result: object) -> None:
-    CookieStore._key = _fixed_key  # type: ignore[method-assign]
-    store = CookieStore(FileSystem(Path(root)))
+    store = cookie_store(Path(root))
     jar = store.load()
     baseline = store.snapshot(jar)
     ready.set()  # type: ignore[attr-defined]
@@ -78,7 +77,9 @@ def _hold_lock_in_child(path: str, ready: object) -> None:
         time.sleep(10)
 
 
-def test_cookie_store_round_trip_export_and_corruption_repair(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_cookie_store_round_trip_export_and_legacy_preservation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     _keyring(monkeypatch)
     source = _store(tmp_path, "source")
     jar = CookieJar()
@@ -96,17 +97,17 @@ def test_cookie_store_round_trip_export_and_corruption_repair(tmp_path: Path, mo
     target.import_file(exported, "passphrase")
     assert [(item.name, item.value) for item in target.load()] == [("session", "secret")]
 
-    with pytest.raises(AuthenticationError, match="cannot be decrypted"):
+    with pytest.raises(AuthenticationError, match="cannot be decrypted|cannot be authenticated"):
         target.import_file(exported, "wrong passphrase")
 
 
 def test_cookie_store_empty_jar_is_persisted_and_validated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    keys = _keyring(monkeypatch)
+    _keyring(monkeypatch)
     store = _store(tmp_path)
     store.save(CookieJar())
     assert store.path.is_file()
     assert list(store.load()) == []
-    assert keys
+    assert store.store.vault.status()["state"] == "ready"
 
     with pytest.raises(AuthenticationError, match="passphrase is required"):
         store.export_file(tmp_path / "out", "")
@@ -161,7 +162,7 @@ def test_browser_import_merges_and_preserves_corrupt_target(tmp_path: Path, monk
 
     store.path.write_bytes(b"damaged")
     before = store.path.read_bytes()
-    with pytest.raises(AuthenticationError, match="cannot be decrypted"):
+    with pytest.raises(AuthenticationError, match="cannot be decrypted|cannot be authenticated"):
         store.import_browser("example.test")
     assert store.path.read_bytes() == before
 
@@ -221,7 +222,6 @@ def test_unchanged_cookie_session_does_not_overwrite_another_save(
 
 
 def test_cookie_delta_merges_two_processes(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(CookieStore, "_key", _fixed_key)
     root = str((tmp_path / "parallel").resolve())
     context = multiprocessing.get_context("spawn")
     ready = [context.Event(), context.Event()]
@@ -246,7 +246,7 @@ def test_cookie_delta_merges_two_processes(tmp_path: Path, monkeypatch: pytest.M
             if worker.is_alive():
                 worker.terminate()
             worker.join(timeout=5)
-    assert {cookie.name for cookie in CookieStore(FileSystem(Path(root))).load()} == {"one", "two"}
+    assert {cookie.name for cookie in cookie_store(Path(root)).load()} == {"one", "two"}
 
 
 def test_cookie_lock_timeout_does_not_change_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -262,7 +262,7 @@ def test_cookie_lock_timeout_does_not_change_file(tmp_path: Path, monkeypatch: p
     holder.start()
     try:
         assert ready.wait(10)
-        contender = CookieStore(store.filesystem, lock_timeout_seconds=0)
+        contender = cookie_store(store.filesystem.root, lock_timeout_seconds=0)
         with pytest.raises(InterProcessLockError, match="timed out"):
             contender.save(CookieJar())
     finally:

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from ..credentials.profile_store import ProfileCredentialStore
 from ..media.image_processor import ImageProcessor
 from ..observability.events import EventBus
 from ..observability.logging import (
@@ -30,6 +31,7 @@ class _RuntimeDependencies:
     logger: DownloadLogger
     notifications: NotificationService
     cookie_store: CookieStore
+    credentials: ProfileCredentialStore
     cookie_baseline: CookieSnapshot
     gateway: RequestGateway
     image_processor: ImageProcessor

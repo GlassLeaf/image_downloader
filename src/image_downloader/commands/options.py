@@ -50,22 +50,31 @@ _PLUGIN_MUTATIONS = frozenset({"plugin install", "plugin trust", "plugin revoke"
 _PLUGIN = _PLUGIN_MUTATIONS | {"plugin list"}
 _STATE = frozenset("state workflow " + action for action in ("list", "show", "run", "history", "prune"))
 _CONFIG = frozenset({"config path", "config explain", "config init", "config profile init"})
+_CREDENTIAL = frozenset(
+    f"credential {kind} {action}" for kind in ("plugin", "smtp") for action in ("set", "list", "delete")
+)
+_VAULT = frozenset(f"vault {action}" for action in ("init", "status", "backup", "restore", "rotate-key"))
+_MANAGED = _CREDENTIAL | _VAULT
 _RUNTIME = _DOWNLOAD | _INSPECT | _PLUGIN | {"doctor", "cookie"}
 _VERIFY_WORKFLOW = frozenset({"verify workflow"})
-_ALL = _RUNTIME | _STATE | _CONFIG | _VERIFY_WORKFLOW | {"verify logs"}
+_ALL = _RUNTIME | _STATE | _CONFIG | _VERIFY_WORKFLOW | {"verify logs"} | _MANAGED
 _OVERRIDES = _DOWNLOAD | _INSPECT | {"doctor"}
 _FORMAT = _DOWNLOAD | {"doctor", "config explain"}
 _OUTPUT_NOOP = frozenset({"download --inspect-only", "download --list-updated-urls"})
 _IMAGE_FORMATS = ("ORIGINAL", "JPEG", "PNG", "WEBP")
 
 OPTIONS = (
-    OptionDefinition("config", _RUNTIME | _STATE | _VERIFY_WORKFLOW | {"config explain", "config profile init"}, Path),
-    OptionDefinition("profile", _RUNTIME | _STATE | _VERIFY_WORKFLOW | {"config explain"}),
+    OptionDefinition(
+        "config", _RUNTIME | _STATE | _VERIFY_WORKFLOW | {"config explain", "config profile init"} | _MANAGED, Path
+    ),
+    OptionDefinition("profile", _RUNTIME | _STATE | _VERIFY_WORKFLOW | {"config explain"} | _CREDENTIAL),
     OptionDefinition("plugin-root", _RUNTIME | {"config explain", "config init"}, Path),
-    OptionDefinition("data-root", _RUNTIME | _STATE | _VERIFY_WORKFLOW | {"config explain", "config init"}, Path),
+    OptionDefinition(
+        "data-root", _RUNTIME | _STATE | _VERIFY_WORKFLOW | {"config explain", "config init"} | _MANAGED, Path
+    ),
     OptionDefinition(
         "yes",
-        _RUNTIME | {"config init", "config profile init"},
+        _RUNTIME | {"config init", "config profile init", "credential plugin delete", "credential smtp delete"},
         default=False,
         flag=True,
         no_effect=(_RUNTIME | {"config init", "config profile init"}) - _PLUGIN_MUTATIONS,
@@ -78,6 +87,15 @@ OPTIONS = (
         no_effect=_CONFIG | {"cookie"},
     ),
     OptionDefinition("json", _ALL, default=False, dest="json_output", flag=True),
+    OptionDefinition(
+        "stdin",
+        frozenset({"credential plugin set", "credential smtp set"}),
+        default=False,
+        dest="secret_stdin",
+        flag=True,
+    ),
+    OptionDefinition("passphrase-stdin", frozenset({"vault backup", "vault restore"}), default=False, flag=True),
+    OptionDefinition("resume", frozenset({"vault rotate-key"}), default=False, flag=True),
     OptionDefinition("plugin-config", _OVERRIDES, repeat=True, metavar="ID=JSON"),
     OptionDefinition("plugin-config-file", _OVERRIDES, Path, repeat=True, metavar="ABSOLUTE_PATH"),
     OptionDefinition("fallback-generic", _OVERRIDES, default="auto", choices=("auto", "enabled", "disabled")),

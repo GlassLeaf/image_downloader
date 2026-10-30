@@ -40,6 +40,10 @@ def _command_path(args: argparse.Namespace) -> str:
             else "cli"
         )
     words: Sequence[str] = getattr(args, "command_args", [])
+    if command == "credential":
+        return f"credential {args.credential_kind} {args.credential_action}"
+    if command == "vault":
+        return f"vault {args.vault_action}"
     if command == "verify":
         return "verify " + str(args.verify_resource)
     if command in {"config", "plugin"}:

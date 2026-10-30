@@ -66,7 +66,7 @@ def test_cookie_json_never_exposes_passphrases_or_cookie_records(monkeypatch, tm
     calls: list[tuple[str, str, str | None]] = []
 
     class Store:
-        def __init__(self, _filesystem: object) -> None:
+        def __init__(self, _filesystem: object, *, store: object) -> None:
             pass
 
         def export_file(self, path: Path, passphrase: str) -> None:

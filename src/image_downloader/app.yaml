@@ -64,6 +64,7 @@ notification:
     use_tls: true
     from: ''
     to: []
+    credential_reference: null
     username: ''
     credential_service: image-downloader.smtp
 security:

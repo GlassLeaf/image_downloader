@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from ..configuration.paths import resolve_paths
+from ..credentials.vault import CredentialVault
 from ..storage import FileSystem
 from ..storage.cookies import CookieStore
 from .constants import EXIT_SUCCESS
@@ -26,7 +27,8 @@ class CookieCommandHandler:
         action, value = args.cookie_action, args.cookie_value
         config, _, _, source = _config_for(args, None, rewrite_user_layers=True)
         _persist_initial_user_config(source)
-        cookie_store = CookieStore(FileSystem(resolve_paths(config)["cookie"]))
+        credentials = CredentialVault.from_config(config).profile(config.profile.default)
+        cookie_store = CookieStore(FileSystem(resolve_paths(config)["cookie"]), store=credentials)
         if action == "export":
             await asyncio.to_thread(cookie_store.export_file, Path(value), getpass.getpass("Passphrase: "))
         elif action == "import":

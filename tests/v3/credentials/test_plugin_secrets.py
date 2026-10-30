@@ -9,84 +9,24 @@ from urllib.parse import parse_qs
 import httpx
 import pytest
 from pydantic import ValidationError
+from support.vault import MemoryKeys
 
 from image_downloader import AppConfig, DownloadRequest, RuntimeComposer, SecretNotFoundError
-from image_downloader.credentials import plugin_secrets
+from image_downloader.credentials import CredentialVault
+from image_downloader.credentials.keyring import MasterKeyStore
 from image_downloader.runtime import RuntimeSecrets
 from image_downloader.security import install_plugin
 from image_downloader.storage.cookies import CookieStore
 
 PREFIX = "IMAGE_DOWNLOADER_PLUGIN_"
-AB = PREFIX + "636F6D2E6578616D706C652E612D62_544F4B454E"
-DOT = PREFIX + "636F6D2E6578616D706C652E612E62_544F4B454E"
-REFERENCE_BOUNDARY = PREFIX + "636F6D2E6578616D706C652E61_425F544F4B454E"
-SIMPLE = PREFIX + "612E62_544F4B454E"
-LEGACY_COLLISION = PREFIX + "COM_EXAMPLE_A_B_TOKEN"
 
 
 @pytest.fixture(autouse=True)
-def no_real_keyring(monkeypatch):
-    def unexpected(service, username):
-        pytest.fail("unexpected credential-store access")
-
-    monkeypatch.setattr(plugin_secrets, "load_secret", unexpected)
-
-
-@pytest.mark.parametrize(
-    ("plugin_id", "reference", "suffix"),
-    [
-        ("a.b", "TOKEN", "612E62_544F4B454E"),
-        ("com.example.a-b", "TOKEN", "636F6D2E6578616D706C652E612D62_544F4B454E"),
-        ("com.example.a.b", "TOKEN", "636F6D2E6578616D706C652E612E62_544F4B454E"),
-        ("com.example.a", "B_TOKEN", "636F6D2E6578616D706C652E61_425F544F4B454E"),
-        ("a.B", "token", "612E42_746F6B656E"),
-        ("é.x", "鍵", "C3A92E78_E98DB5"),
-        ("\ud800.x", "\udfff", "EDA0802E78_EDBFBF"),
-        ("a.b", "_0_TOKEN_", "612E62_5F305F544F4B454E5F"),
-    ],
-)
-def test_secret_lookup_uses_fixed_permanent_environment_names(monkeypatch, plugin_id, reference, suffix):
-    requested = []
-
-    def getenv(name):
-        requested.append(name)
-        return "canary-value"
-
-    monkeypatch.setattr(plugin_secrets.os, "getenv", getenv)
-    assert RuntimeSecrets(plugin_id, {"secret": reference}).get("secret") == "canary-value"
-    assert requested == [PREFIX + suffix]
-    assert suffix.count("_") == 1 and suffix.isascii() and suffix == suffix.upper()
-
-
-@pytest.mark.parametrize(
-    ("plugin_id", "reference", "expected"),
-    [
-        ("com.example.a-b", "TOKEN", AB),
-        ("com.example.a.b", "TOKEN", DOT),
-        ("com.example.a", "B_TOKEN", REFERENCE_BOUNDARY),
-    ],
-)
-def test_previously_colliding_pairs_only_receive_their_own_secret(monkeypatch, plugin_id, reference, expected):
-    monkeypatch.setenv(LEGACY_COLLISION, "legacy-canary")
-    for index, name in enumerate((AB, DOT, REFERENCE_BOUNDARY)):
-        monkeypatch.setenv(name, f"owner-{index}")
-    config = AppConfig.model_validate({"plugin_settings": {plugin_id: {"secrets": {"secret": reference}}}})
-    provider = RuntimeSecrets(plugin_id, config.plugin_settings[plugin_id].secrets)
-    assert provider.get("secret") == f"owner-{(AB, DOT, REFERENCE_BOUNDARY).index(expected)}"
-    assert len({AB.upper(), DOT.upper(), REFERENCE_BOUNDARY.upper()}) == 3
-    assert plugin_secrets.os.getenv(LEGACY_COLLISION) == "legacy-canary"
-
-
-@pytest.mark.parametrize(
-    ("plugin_id", "reference"),
-    [("a.b", "TOKEN"), ("com.example.a-b", "TOKEN"), ("com.example.a.b", "TOKEN"), ("a--b.c", "_0_TOKEN_")],
-)
-def test_valid_legacy_names_and_encoded_names_are_disjoint(plugin_id, reference):
-    AppConfig.model_validate({"plugin_settings": {plugin_id: {"secrets": {"secret": reference}}}})
-    # Freeze the former grammar rather than using the new encoder to generate old names.
-    legacy_suffix = plugin_id.upper().replace(".", "_").replace("-", "_") + "_" + reference
-    assert legacy_suffix.count("_") >= 2
-    assert RuntimeSecrets._environment_name(plugin_id, reference).removeprefix(PREFIX).count("_") == 1
+def artificial_keys(monkeypatch):
+    keys = MemoryKeys()
+    monkeypatch.setattr(MasterKeyStore, "get", lambda self, v, k: keys.get(v, k))
+    monkeypatch.setattr(MasterKeyStore, "create", lambda self, v, k, value: keys.create(v, k, value))
+    return keys
 
 
 @pytest.mark.parametrize("plugin_id", ["ab", "612e62", "a-b"])
@@ -95,81 +35,28 @@ def test_id_validation_still_requires_a_dot(plugin_id):
         AppConfig.model_validate({"plugin_settings": {plugin_id: {"secrets": {"secret": "TOKEN"}}}})
 
 
-@pytest.mark.parametrize("environment_value", ["env-canary", "0", " "])
-def test_nonempty_environment_values_win_without_keyring_access(monkeypatch, environment_value):
-    monkeypatch.setenv(SIMPLE, environment_value)
-    assert RuntimeSecrets("a.b", {"secret": "TOKEN"}).get("secret") == environment_value
-
-
-@pytest.mark.parametrize("environment_value", [None, ""])
-@pytest.mark.parametrize("keyring_value", ["keyring-canary", ""])
-def test_absent_or_empty_environment_uses_the_unchanged_keyring_identity(monkeypatch, environment_value, keyring_value):
-    if environment_value is None:
-        monkeypatch.delenv(SIMPLE, raising=False)
-    else:
-        monkeypatch.setenv(SIMPLE, environment_value)
-    monkeypatch.setenv(PREFIX + "A_B_TOKEN", "unused-legacy-canary")
-    calls = []
-
-    def keyring(service, username):
-        calls.append((service, username))
-        return keyring_value
-
-    monkeypatch.setattr(plugin_secrets, "load_secret", keyring)
-    assert RuntimeSecrets("a.b", {"secret": "TOKEN"}).get("secret") == keyring_value
-    assert calls == [("image-downloader.plugin.a.b", "TOKEN")]
-
-
 @pytest.mark.parametrize("references", [{}, {"secret": ""}, {"other": "TOKEN"}])
-def test_unconfigured_secret_fails_before_any_lookup(monkeypatch, references):
-    monkeypatch.setattr(plugin_secrets.os, "getenv", lambda _: pytest.fail("unexpected environment access"))
-    with pytest.raises(SecretNotFoundError) as error:
-        RuntimeSecrets("a.b", references).get("secret")
-    assert str(error.value) == "required plugin secret is not configured"
+def test_unconfigured_secret_fails_before_any_lookup(tmp_path, monkeypatch, references):
+    store = CredentialVault(tmp_path).profile("default")
+    monkeypatch.setattr(store, "get_plugin", lambda *args: pytest.fail("unexpected lookup"))
+    with pytest.raises(SecretNotFoundError, match="not configured"):
+        RuntimeSecrets("a.b", references, store=store).get("secret")
 
 
-@pytest.mark.parametrize("environment_value", [None, ""])
-def test_unavailable_secret_ignores_legacy_values_and_keeps_the_safe_error(monkeypatch, environment_value, capsys):
-    if environment_value is None:
-        monkeypatch.delenv(SIMPLE, raising=False)
-    else:
-        monkeypatch.setenv(SIMPLE, environment_value)
-    monkeypatch.setenv(PREFIX + "A_B_TOKEN", "unused-legacy-canary")
-    monkeypatch.setattr(plugin_secrets, "load_secret", lambda _service, _username: None)
-    with pytest.raises(SecretNotFoundError) as error:
-        RuntimeSecrets("a.b", {"secret": "TOKEN"}).get("secret")
-    assert str(error.value) == "required plugin secret is unavailable"
-    assert capsys.readouterr() == ("", "")
-
-
-def test_environment_is_read_lazily_and_the_reference_mapping_is_detached(monkeypatch):
+def test_lookup_is_lazy_mapping_detached_and_ids_do_not_collide(tmp_path, monkeypatch):
+    store = CredentialVault(tmp_path).profile("default")
     references = {"first": "TOKEN", "second": "TOKEN"}
-    provider = RuntimeSecrets("a.b", references)
+    provider = RuntimeSecrets("com.example.a-b", references, store=store)
     references["first"] = "OTHER"
-    monkeypatch.setenv(SIMPLE, "first-canary")
-    assert provider.get("first") == provider.get("second") == "first-canary"
-    monkeypatch.setenv(SIMPLE, "second-canary")
-    assert provider.get("first") == provider.get("second") == "second-canary"
-
-
-def test_colliding_ids_keep_distinct_keyring_services(monkeypatch):
-    for name in (AB, DOT):
-        monkeypatch.delenv(name, raising=False)
-    monkeypatch.setenv(LEGACY_COLLISION, "unused-legacy-canary")
-    calls = []
-    values = {
-        ("image-downloader.plugin.com.example.a-b", "TOKEN"): "hyphen-canary",
-        ("image-downloader.plugin.com.example.a.b", "TOKEN"): "dot-canary",
-    }
-
-    def keyring(service, username):
-        calls.append((service, username))
-        return values[service, username]
-
-    monkeypatch.setattr(plugin_secrets, "load_secret", keyring)
-    assert RuntimeSecrets("com.example.a-b", {"secret": "TOKEN"}).get("secret") == "hyphen-canary"
-    assert RuntimeSecrets("com.example.a.b", {"secret": "TOKEN"}).get("secret") == "dot-canary"
-    assert calls == list(values)
+    monkeypatch.setenv(PREFIX + "COM_EXAMPLE_A_B_TOKEN", "unused-canary")
+    with pytest.raises(SecretNotFoundError, match="unavailable"):
+        provider.get("first")
+    store.set_plugin("com.example.a-b", "TOKEN", "hyphen-canary")
+    store.set_plugin("com.example.a.b", "TOKEN", "dot-canary")
+    assert provider.get("first") == provider.get("second") == "hyphen-canary"
+    assert RuntimeSecrets("com.example.a.b", {"secret": "TOKEN"}, store=store).get("secret") == "dot-canary"
+    store.set_plugin("com.example.a-b", "TOKEN", "updated-canary")
+    assert provider.get("first") == "updated-canary"
 
 
 UNIT_HEX = {
@@ -256,37 +143,18 @@ def _mock_transport(monkeypatch):
     return observed
 
 
-@pytest.mark.parametrize("source", ["environment", "keyring"])
 @pytest.mark.parametrize(
     "units", [("cursor-api-gallery",), ("oauth-media-api",), ("csrf-login-gallery",), tuple(UNIT_HEX)]
 )
 def test_signed_auth_plugins_resolve_secrets_in_runtime_contexts_and_multiple_runtimes(
-    tmp_path: Path, plugin_sources: Path, monkeypatch, source, units
+    tmp_path: Path, plugin_sources: Path, monkeypatch, units
 ):
     observed = _mock_transport(monkeypatch)
-    keyring_values = {}
-    keyring_calls = []
     canaries = ["unused-legacy-canary", "renewed-canary", "csrf-canary"]
     for unit in units:
-        plugin_id = "local.image-downloader." + unit
-        for _, reference, ref_hex, value in UNIT_SECRETS[unit]:
-            key = PREFIX + UNIT_HEX[unit] + "_" + ref_hex
+        for _, _, ref_hex, value in UNIT_SECRETS[unit]:
             canaries.append(value)
-            monkeypatch.setenv(
-                PREFIX + plugin_id.upper().replace(".", "_").replace("-", "_") + "_" + reference, "unused-legacy-canary"
-            )
-            if source == "environment":
-                monkeypatch.setenv(key, value)
-            else:
-                monkeypatch.delenv(key, raising=False)
-                keyring_values["image-downloader.plugin." + plugin_id, reference] = value
-
-    def keyring(service, username):
-        keyring_calls.append((service, username))
-        assert source == "keyring"
-        return keyring_values[service, username]
-
-    monkeypatch.setattr(plugin_secrets, "load_secret", keyring)
+            monkeypatch.setenv(PREFIX + UNIT_HEX[unit] + "_" + ref_hex, "unused-legacy-canary")
 
     async def scenario():
         async with AsyncExitStack() as stack:
@@ -294,6 +162,9 @@ def test_signed_auth_plugins_resolve_secrets_in_runtime_contexts_and_multiple_ru
             for unit in units:
                 unit_root = tmp_path / unit
                 unit_root.mkdir()
+                store = CredentialVault(unit_root / "data").profile("default")
+                for _, reference, _, value in UNIT_SECRETS[unit]:
+                    store.set_plugin("local.image-downloader." + unit, reference, value)
                 services.append(await stack.enter_async_context(_compose(unit_root, plugin_sources, unit)))
             results = await asyncio.gather(
                 *(
@@ -311,7 +182,6 @@ def test_signed_auth_plugins_resolve_secrets_in_runtime_contexts_and_multiple_ru
     assert len(observed) == sum(
         {"cursor-api-gallery": 1, "oauth-media-api": 3, "csrf-login-gallery": 4}[u] for u in units
     )
-    assert set(keyring_calls) == set(keyring_values)
     logs = "\n".join(path.read_text(encoding="utf-8") for path in tmp_path.rglob("*.log"))
     assert logs.count("operation_started") == len(units)
     assert all(value not in logs for value in canaries)

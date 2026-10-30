@@ -8,6 +8,7 @@ from dataclasses import dataclass, field, replace
 
 from ..configuration.models import AppConfig, PluginDownloadPolicy
 from ..credentials.plugin_secrets import RuntimeSecrets
+from ..credentials.profile_store import ProfileCredentialStore
 from ..exceptions import (
     ConfigurationError,
 )
@@ -91,11 +92,19 @@ class SiteSelection:
 
 
 class SiteOperationFactory:
-    def __init__(self, config: AppConfig, registry: PluginRuntime, gateway: RequestGateway, logger: DownloadLogger):
+    def __init__(
+        self,
+        config: AppConfig,
+        registry: PluginRuntime,
+        gateway: RequestGateway,
+        logger: DownloadLogger,
+        credentials: ProfileCredentialStore,
+    ):
         self.config = config
         self.registry = registry
         self.gateway = gateway
         self.logger = logger
+        self.credentials = credentials
 
     def select(
         self,
@@ -171,7 +180,7 @@ class SiteOperationFactory:
             self.registry.effective_download_policy(record, download_policy_overrides),
         )
         settings = self.config.plugin_settings.get(record.id)
-        secrets = RuntimeSecrets(record.id, settings.secrets if settings else {})
+        secrets = RuntimeSecrets(record.id, settings.secrets if settings else {}, store=self.credentials)
         context: PluginExecutionContext | None = None
 
         def auth_flow_factory(session: OperationRequestGateway) -> object | None:

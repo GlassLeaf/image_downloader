@@ -168,11 +168,11 @@ site overlay または main config の `plugin_settings.<id>.download_policy.pre
 
 ### 6. login が必要なサイトの cookie や credential はどう扱うか？
 
-browser cookie は `cookie browser-import DOMAIN`、バックアップ・移行は `cookie export` と `cookie import` を使う。passphrase、cookie 値、raw credential を CLI option、YAML、ログへ書かない。plugin 用 secret は keyring または環境変数から logical reference で解決する。[secure operations](operate-securely.md) と [plugin secrets](../reference/configuration.md#config-secrets) を参照する。
-
-QS-016 の修正後も接頭辞は `IMAGE_DOWNLOADER_PLUGIN_` のままで、環境変数名は `IMAGE_DOWNLOADER_PLUGIN_<ID_HEX>_<REFERENCE_HEX>` になる。各フィールドは元の文字列全体の UTF-8（`surrogatepass`）bytes を大文字の16進表現にした値である。旧名への fallback はない。旧名だけを設定している場合は keyring へ進み、利用可能な値がなければ `SecretNotFoundError` になる。
-
-keyring のみの利用者、YAML の reference、公開 API は従来どおりである。環境変数の利用者は新名で認証・取得を確認し、他の plugin/profile が使っていないと確認した旧名を User/System 環境、shell 設定、`.env`、CI 設定などの定義元から削除する。アプリは環境変数を自動削除しない。[名前だけを生成する例と移行手順](../maintenance/migration.md#plugin-secret-environment-migration) を参照する。
+ブラウザーCookieは`cookie browser-import DOMAIN`で再取込できます。旧版のパスフレーズ付きCookie exportも明示importできます。
+サイト・SMTP資格情報は`credential plugin set`、`credential smtp set`でプロファイルごとに登録してください。
+資格情報用環境変数・旧keyring項目・旧`cookies.enc`は使用せず、自動移行・削除もしません。
+保管庫全体の暗号化バックアップは`vault backup`、空のデータルートへの復元は`vault restore`を使います。
+[資格情報保管庫](../reference/credential-vault.md)と[secure operations](operate-securely.md)を参照してください。
 
 ### 7. plugin を安全に導入・診断するには？
 

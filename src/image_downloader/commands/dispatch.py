@@ -10,6 +10,7 @@ from typing import cast
 
 from .config import ConfigCommandHandler
 from .cookie import CookieCommandHandler
+from .credentials import CredentialCommandHandler, VaultCommandHandler
 from .doctor import DoctorCommandHandler
 from .download import DownloadCommandHandler
 from .inspect import InspectCommandHandler
@@ -23,6 +24,8 @@ from .verify import VerifyCommandHandler
 from .workflow import WorkflowCommandHandler
 
 _COMMAND_HANDLERS: Mapping[str, CommandHandler] = {
+    "credential": CredentialCommandHandler(),
+    "vault": VaultCommandHandler(),
     "download": DownloadCommandHandler(),
     "workflow": WorkflowCommandHandler(),
     "state": StateCommandHandler(),

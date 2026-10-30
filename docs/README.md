@@ -24,3 +24,5 @@
 [v2のアーカイブ](../archive/docs/legacy/v2/README.md)には、v2の文書・サンプル・fixture・旧テストを保存しています。現在のチェックアウトで実行できることは保証しません。v3はv2のエントリーポイント・記述子・wheelの補助ファイル・旧設定ツリーを読まないため、新規プラグインや運用には[検証・移行・リリース](v3/maintenance/testing.md)を参照してください。
 
 [v1のアーカイブ](../archive/docs/legacy/v1/README.md)は、削除済みAPIの境界だけを記録しています。
+
+資格情報・Cookieの保存と管理は[資格情報保管庫](v3/reference/credential-vault.md)、切替時の変更は[リリースノート](v3/maintenance/master-key-release-notes.md)を参照してください。

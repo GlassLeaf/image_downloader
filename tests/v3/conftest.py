@@ -21,6 +21,7 @@ def forbid_real_browser_and_keyring(monkeypatch, tmp_path_factory):
     keyring.get_password = blocked
     keyring.set_password = blocked
     keyring.delete_password = blocked
+    keyring.get_keyring = blocked
     monkeypatch.setitem(sys.modules, "browser_cookie3", browser)
     monkeypatch.setitem(sys.modules, "keyring", keyring)
 
@@ -41,9 +42,9 @@ def forbid_real_browser_and_keyring(monkeypatch, tmp_path_factory):
         require_artificial(store.filesystem.root)
         return original(store)
 
-    def lock_artificial(store):
+    def lock_artificial(store, *, write=True):
         require_artificial(store.filesystem.root)
-        return original_lock(store)
+        return original_lock(store, write=write)
 
     from image_downloader.storage import browser_cookies
 
@@ -56,6 +57,23 @@ def forbid_real_browser_and_keyring(monkeypatch, tmp_path_factory):
 
     monkeypatch.setattr(CookieStore, "_load_unlocked", load_artificial)
     monkeypatch.setattr(CookieStore, "_lock", lock_artificial)
+
+    from image_downloader.credentials.vault import CredentialVault
+
+    original_vault_lock = CredentialVault.locked
+
+    def vault_artificial(vault, *, write=False):
+        require_artificial(vault.filesystem.root)
+        return original_vault_lock(vault, write=write)
+
+    monkeypatch.setattr(CredentialVault, "locked", vault_artificial)
+    original_backup_contents = CredentialVault._backup_contents
+
+    def backup_artificial(vault, source, passphrase):
+        require_artificial(source)
+        return original_backup_contents(vault, source, passphrase)
+
+    monkeypatch.setattr(CredentialVault, "_backup_contents", backup_artificial)
     monkeypatch.setattr(browser_cookies, "import_chrome", chrome_artificial)
 
 

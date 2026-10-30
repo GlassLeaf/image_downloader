@@ -443,3 +443,12 @@ workflow検証は `run_id` と `workflow` も持つ。`logs` はファイル別 
 workflow履歴の読取りに必要なロックとその親ディレクトリは作成され得る。
 「ログにエラー記録なし」は成果物の完全性を保証しない。画像のデコード・内容の正常性・
 保存後のバイト変更・配信元との一致は検査しない。ログ出力失敗で記録されなかったエラーも検出できない。
+
+## 資格情報と保管庫の管理
+
+`credential plugin set/list/delete`と`credential smtp set/list/delete`は`--config`・`--data-root`・`--profile`を共通で受け付けます。
+setは非表示対話入力または`--stdin`、deleteは確認または`--yes`を使います。
+`vault init/status/backup/restore/rotate-key`はデータルート全体を扱い、`--profile`は受け付けません。
+backup/restoreはパス引数と任意の`--passphrase-stdin`、rotate-keyは任意の`--resume`を受け付けます。
+いずれも`--json`に対応し、通常のexecution.resultへ状態・識別情報・操作結果だけを返します。秘密を表示するCLIはありません。
+詳しい構文、サイズ制限、状態と再開方法は[資格情報保管庫](credential-vault.md)を参照してください。

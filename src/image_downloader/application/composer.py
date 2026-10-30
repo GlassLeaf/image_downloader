@@ -15,6 +15,7 @@ from image_downloader.observability.notifications import NotificationService
 
 from ..configuration.models import AppConfig
 from ..configuration.paths import resolve_paths
+from ..credentials.vault import CredentialVault
 from ..media.image_processor import ImageProcessor
 from ..observability.events import EventBus
 from ..output.output_lock import OutputDirectoryLocks
@@ -84,6 +85,7 @@ class RuntimeComposer:
         self, guard: _ConstructionGuard, *, inspection: bool, planning: bool
     ) -> _RuntimeDependencies:
         paths = resolve_paths(self.config)
+        credentials = CredentialVault.from_config(self.config).profile(self.config.profile.default)
         outputs = FileSystem(self.output_root or paths["downloads"])
         logs = FileSystem(paths["logs"])
         state = UpdateState(FileSystem(paths["state"]))
@@ -110,9 +112,9 @@ class RuntimeComposer:
             self.config.notification.model_copy(update={"enabled": False}) if planning else self.config.notification,
             logger,
             events,
-            default_notification_senders(self.config.notification),
+            default_notification_senders(self.config.notification, credentials),
         )
-        cookie_store = CookieStore(FileSystem(paths["cookie"]))
+        cookie_store = CookieStore(FileSystem(paths["cookie"]), store=credentials)
         gateway = RequestGateway(self.config, cookie_store.load(), logger=logger)
         guard.async_callback("http", gateway.close)
         cookie_baseline = cookie_store.snapshot(gateway.client.cookies.jar)
@@ -131,6 +133,7 @@ class RuntimeComposer:
             logger=logger,
             notifications=notifications,
             cookie_store=cookie_store,
+            credentials=credentials,
             cookie_baseline=cookie_baseline,
             gateway=gateway,
             image_processor=image_processor,

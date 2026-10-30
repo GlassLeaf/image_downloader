@@ -9,6 +9,9 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from support.vault import MemoryKeys, cookie_store
+
+from image_downloader.credentials.keyring import MasterKeyStore
 
 ROOT = Path(__file__).resolve().parents[3]
 
@@ -185,11 +188,9 @@ def test_reload_distinguishes_empty_mismatch_and_errors(runner, monkeypatch, tmp
     from http.cookiejar import CookieJar
 
     from image_downloader import AuthenticationError
-    from image_downloader.storage import FileSystem
-    from image_downloader.storage.cookies import CookieStore, _cookie
+    from image_downloader.storage.cookies import _cookie
 
-    monkeypatch.setattr(CookieStore, "_key", lambda *args, **kwargs: b"k" * 32)
-    store = CookieStore(FileSystem(tmp_path / "cookie"))
+    store = cookie_store(tmp_path / "cookie")
     jar = CookieJar()
     token = "fictional-cookie-value"
     if kind not in {"empty", "not-imported"}:
@@ -276,16 +277,10 @@ def test_exercise_uses_only_fake_browser_cookie_and_keyring(
     """Simulate the HUMAN runner without a browser, decryption or network."""
     from image_downloader.storage.cookies import _cookie
 
-    keys = {}
-    monkeypatch.setitem(
-        sys.modules,
-        "keyring",
-        SimpleNamespace(
-            get_password=lambda service, account: keys.get((service, account)),
-            set_password=lambda service, account, value: keys.__setitem__((service, account), value),
-            delete_password=lambda service, account: keys.pop((service, account)),
-        ),
-    )
+    keys = MemoryKeys()
+    monkeypatch.setattr(MasterKeyStore, "get", lambda self, v, k: keys.get(v, k))
+    monkeypatch.setattr(MasterKeyStore, "create", lambda self, v, k, value: keys.create(v, k, value))
+    monkeypatch.setattr(MasterKeyStore, "delete", lambda self, v, k: keys.delete(v, k))
     fake_site = SimpleNamespace(
         origin="http://127.0.0.1:45678", cookie_token="fictional-manual-cookie", cookie_status=lambda: "ready"
     )
@@ -376,4 +371,4 @@ def test_exercise_uses_only_fake_browser_cookie_and_keyring(
     assert "fictional" not in output.out and str(tmp_path) not in output.out
     assert not output.err
     assert not work.exists()
-    assert not keys
+    assert not keys.values

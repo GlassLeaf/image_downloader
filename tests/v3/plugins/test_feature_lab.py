@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
+import io
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -10,6 +11,7 @@ import pytest
 import yaml
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from PIL import Image
+from support.vault import MemoryKeys
 from tools.sign_local_site_plugin import sign
 
 from image_downloader import (
@@ -23,6 +25,8 @@ from image_downloader import (
     WorkflowPlanRequest,
     WorkflowRequest,
 )
+from image_downloader.credentials import CredentialVault
+from image_downloader.credentials.keyring import MasterKeyStore
 from image_downloader.security import PluginRuntime
 from image_downloader.storage.cookies import _cookie
 
@@ -44,18 +48,12 @@ def lab(monkeypatch):
 
 
 @pytest.fixture
-def artificial_stores(monkeypatch):
-    values = {}
-    monkeypatch.setitem(
-        sys.modules,
-        "keyring",
-        SimpleNamespace(
-            get_password=lambda service, account: values.get((service, account)),
-            set_password=lambda service, account, value: values.__setitem__((service, account), value),
-            delete_password=lambda service, account: values.pop((service, account), None),
-        ),
-    )
-    return values
+def artificial_stores(monkeypatch, tmp_path):
+    keys = MemoryKeys()
+    monkeypatch.setattr(MasterKeyStore, "get", lambda self, v, k: keys.get(v, k))
+    monkeypatch.setattr(MasterKeyStore, "create", lambda self, v, k, value: keys.create(v, k, value))
+    monkeypatch.setattr(MasterKeyStore, "delete", lambda self, v, k: keys.delete(v, k))
+    return CredentialVault(tmp_path / "data").profile("default")
 
 
 def configuration(work):
@@ -119,7 +117,7 @@ def test_local_end_to_end(lab, tmp_path, artificial_stores, monkeypatch, slug):
         with lab.LabSite() as site:
             lab.prepare(tmp_path, site.origin, site.asset_origin)
             for unit in lab.SECRET_UNITS:
-                artificial_stores[f"image-downloader.plugin.{lab.plugin_id(unit)}", "LAB_TOKEN"] = "lab-token"
+                artificial_stores.set_plugin(lab.plugin_id(unit), "LAB_TOKEN", 'lab-token')
             config = configuration(tmp_path)
             async with RuntimeComposer(
                 config, config_root=tmp_path, plugin_root=tmp_path / "plugins"
@@ -194,9 +192,7 @@ def test_origin_allowlist_and_denied_redirect(lab, tmp_path, artificial_stores):
     async def scenario():
         with lab.LabSite() as site:
             lab.prepare(tmp_path, site.origin, site.asset_origin)
-            artificial_stores[f"image-downloader.plugin.{lab.plugin_id('origin-auth-gallery')}", "LAB_TOKEN"] = (
-                "lab-token"
-            )
+            artificial_stores.set_plugin(lab.plugin_id('origin-auth-gallery'), "LAB_TOKEN", 'lab-token')
             config = configuration(tmp_path)
             async with RuntimeComposer(
                 config, config_root=tmp_path, plugin_root=tmp_path / "plugins"
@@ -267,15 +263,29 @@ def test_additional_callback_failure_and_cancellation_cleanup(lab, tmp_path, art
     asyncio.run(scenario())
 
 
-def test_credential_helper_only_changes_sample_accounts(lab, artificial_stores, monkeypatch, capsys):
+def test_credential_helper_only_changes_sample_accounts(lab, artificial_stores, monkeypatch, capsys, tmp_path):
+    from image_downloader.cli import main
+
+    lab.prepare(tmp_path, "http://127.0.0.1:8765", "http://127.0.0.1:8766")
     monkeypatch.setattr(lab.sys, "stdin", SimpleNamespace(isatty=lambda: True))
     monkeypatch.setattr(lab.getpass, "getpass", lambda *args: "lab-token")
-    lab.credentials("set")
-    assert set(artificial_stores) == {
-        (f"image-downloader.plugin.{lab.plugin_id(slug)}", "LAB_TOKEN") for slug in lab.SECRET_UNITS
+    calls = []
+
+    def run(arguments, **kwargs):
+        calls.append(arguments)
+        assert arguments[arguments.index("--data-root") + 1] == str(tmp_path / "data")
+        with monkeypatch.context() as patch:
+            patch.setattr(sys, "stdin", io.StringIO(kwargs.get("input") or ""))
+            assert main(arguments[3:]) == 0
+
+    monkeypatch.setattr(lab.subprocess, "run", run)
+    lab.credentials("set", tmp_path)
+    assert {entry["plugin_id"] for entry in artificial_stores.list_entries("plugin")} == {
+        lab.plugin_id(slug) for slug in lab.SECRET_UNITS
     }
-    lab.credentials("delete")
-    assert artificial_stores == {}
+    lab.credentials("delete", tmp_path)
+    assert artificial_stores.list_entries("plugin") == []
+    assert len(calls) == 4
     assert "lab-token" not in capsys.readouterr().out
 
 
@@ -324,7 +334,7 @@ def test_missing_required_additional_metadata(lab, tmp_path, artificial_stores):
     asyncio.run(scenario())
 
 
-def test_secret_lookup_and_environment_override(lab, tmp_path, artificial_stores, monkeypatch):
+def test_secret_lookup_ignores_environment(lab, tmp_path, artificial_stores, monkeypatch):
     async def scenario():
         with lab.LabSite() as site:
             lab.prepare(tmp_path, site.origin, site.asset_origin)
@@ -334,10 +344,9 @@ def test_secret_lookup_and_environment_override(lab, tmp_path, artificial_stores
                 url = f"{site.origin}/samples/credential-gallery/work"
                 with pytest.raises(SecretNotFoundError):
                     await service.inspect(InspectRequest(url=url))
-                artificial_stores[f"image-downloader.plugin.{lab.plugin_id('credential-gallery')}", "LAB_TOKEN"] = (
-                    "wrong"
-                )
-                monkeypatch.setenv(lab.environment_name("credential-gallery"), "lab-token")
+                artificial_stores.set_plugin(lab.plugin_id('credential-gallery'), "LAB_TOKEN", 'wrong')
+                monkeypatch.setenv("IMAGE_DOWNLOADER_PLUGIN_UNUSED", "unused-environment-canary")
+                artificial_stores.set_plugin(lab.plugin_id("credential-gallery"), "LAB_TOKEN", "lab-token")
                 result = await service.inspect(InspectRequest(url=url))
                 assert not result.failures
 

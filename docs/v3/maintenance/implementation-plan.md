@@ -29,8 +29,9 @@
 
 現行の [設定モデル](../../../src/image_downloader/configuration/models.py) は `notification.enabled=false` が既定。
 有効な `notify_on` の経路についてだけ送信要件を検証し、カテゴリ別 `routes` がなければ `methods` を使う。
-email には host、from、to が必要。username がある場合、非空の `IMAGE_DOWNLOADER_SMTP_PASSWORD` を優先し、
-なければ keyring の `credential_service` と username から取得する。パスワードがなければ送信を失敗させる。
+emailにはhost、from、toが必要。`credential_reference`がある場合は、現在のデータルート・プロファイルの
+保管庫からユーザー名とパスワードを取得する。環境変数・旧keyringへのfallbackはなく、未登録なら送信を失敗させる。
+旧`username`だけが指定された状態でも匿名送信せず再設定エラーにする。[資格情報保管庫](../reference/credential-vault.md)を参照する。
 
 `use_tls=true` かつ port 465 は implicit TLS、それ以外の TLS 有効時は SMTP 接続後に STARTTLS。
 TLS 無効時は通常 SMTP。TLS context は `ssl.create_default_context()`、接続の timeout 引数は30秒。

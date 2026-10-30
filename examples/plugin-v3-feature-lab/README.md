@@ -78,35 +78,21 @@ image-downloader download "$origin/samples/additional-files/work" --config $conf
 必須補助データが足りない場合は、追加処理のoptional失敗だけで終わらず、後続のinspect／画像要求で明示的に失敗させます。
 失敗・キャンセル・callback例外は自動テストで人工的に再現します。
 
-### keyringへの登録と参照
+### 保管庫への登録と参照
 
-次のコマンドは**利用者が対話ターミナルで実行する操作**です。CIやAIのテストではkeyringをモックします。
+次のコマンドは利用者が対話ターミナルで実行する操作です。自動テストではOSストアを人工実装へ置き換えます。
 
 ```powershell
-python examples/plugin-v3-feature-lab/lab.py credentials-set
-# 非表示入力には、架空の値 lab-token を入力する。
+python examples/plugin-v3-feature-lab/lab.py credentials-set --work-dir $work
+# 非表示入力には架空の値 lab-token を入力する。
 image-downloader download "$origin/samples/credential-gallery/work" --config $config --json
 image-downloader download "$origin/samples/origin-auth-gallery/work" --config $config --json
-python examples/plugin-v3-feature-lab/lab.py credentials-delete
+python examples/plugin-v3-feature-lab/lab.py credentials-delete --work-dir $work
 ```
 
-操作対象は`image-downloader.plugin.local.image-downloader.lab-credential-gallery`と
-`image-downloader.plugin.local.image-downloader.lab-origin-auth-gallery`の`LAB_TOKEN`だけです。
-既存サービスの秘密情報は登録しません。削除後、環境変数も未設定なら同じ取得は`SecretNotFoundError`になります。
-
-環境変数による上書きは、名前だけを表示する補助操作で確認できます。値をコマンド引数やソースへ書かないでください。
-
-```powershell
-python examples/plugin-v3-feature-lab/lab.py env-names
-$name = ('IMAGE_DOWNLOADER_PLUGIN_' + [Convert]::ToHexString([Text.Encoding]::UTF8.GetBytes('local.image-downloader.lab-credential-gallery')) + '_' + [Convert]::ToHexString([Text.Encoding]::UTF8.GetBytes('LAB_TOKEN')))
-$value = Read-Host 'Local dummy token: lab-token' -MaskInput
-[Environment]::SetEnvironmentVariable($name, $value, 'Process')
-image-downloader inspect "$origin/samples/credential-gallery/work" --config $config --manifest-only --json
-[Environment]::SetEnvironmentVariable($name, $null, 'Process')
-Remove-Variable value
-```
-
-この上書き例はPowerShell 7以降です。非空の環境変数がkeyringより優先することは自動テストでも確認します。
+新CLIへ`--data-root <work-dir>/data`を明示し、独立した試験用保管庫のdefaultプロファイルだけを操作します。
+二つのサンプルIDの`LAB_TOKEN`を登録・削除し、マスターキーは削除しません。
+資格情報用環境変数の上書きは廃止しました。削除後の取得は`SecretNotFoundError`になります。
 
 ### ブラウザCookie
 
@@ -169,3 +155,11 @@ image-downloader verify logs (Join-Path $work 'data/profiles/default/logs') --js
 自動テストはパッケージの署名可能性・strict install・7例の取得、全追加段階、秘密情報の優先順位、
 origin境界、出力形式、選択、workflowの再試行・履歴・照合を確認します。
 実Chromeの抽出・復号が成功したという保証ではありません。実機試験の結果は隔離環境内で別管理します。
+
+## マスターキー方式への切替
+
+資格情報とCookieは試験専用の`<work-dir>/data`に独立した保管庫を作って保存します。
+OSストアにはその保管庫のマスターキーだけを登録します。旧Cookie鍵・旧プラグイン資格情報には触れません。
+本番のデータルートを指定しないでください。実OSストア・ブラウザー試験は人間の隔離した手動試験だけで実行します。
+資格情報の環境変数上書きと`env-names`は廃止しました。feature labの`credentials-set`・`credentials-delete`にも
+`--work-dir`が必須です。補助スクリプトは新CLIへ試験用データルートを明示して呼び出します。

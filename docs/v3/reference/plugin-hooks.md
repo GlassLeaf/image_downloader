@@ -182,7 +182,7 @@ template は `%CHAPTER_NUMBER%` と `%IMAGE_INDEX%` にその値を四桁ゼロ�
 
 `output_format_values()`は任意の同期フックです。本体は、選択したサイトと有効なプロセッサーチェーンを構成した後で一度だけ呼びます。返されたマッピングを不変にし、その操作中のすべての出力名に使います。`PluginFormatContext`と、それが公開するすべてのマッピングも不変です。フックはI/Oを行わず、変化する時刻、画像、成果物、`DownloadManifest`、章の状態に依存しないでください。例えば`com.example.grayscale`が`{"FILTER_NAME": "_grayscale"}`を返すと、本体は`%PLUGIN[com.example.grayscale:FILTER_NAME]%`という名前空間付きのトークンとして扱います。値は秘密情報を含まない出力用テキストです。フック・選択プラグイン・キーの欠落はエラーではありません。対応するトークンは文字列のまま残し、その後にパス構成要素の安全化を適用します。例外、マッピング以外の戻り値、文字列以外の値、`[A-Z][A-Z0-9_]{0,63}`に合わないキーは`PluginError`です。将来のプラグイン種別では、その操作の構成処理が出力書式値の提供元として明示的に登録した場合だけ、この仕組みに参加できます。
 
-`AuthFlow` は既定で operation URL の origin にだけ credential を送る。credentialed CDN は `OriginScopedAuthFlow.allowed_origins` に absolute origin を明示して opt-in する。environment、keyring、YAML へ refreshed token を永続書込みする API はない。display-only inspection は `apply()` を呼ぶが image request を送らない。`apply()` が token 発行などの補助 HTTP や外部 state 変更を自ら行えば、そのサーバー側副作用は取り消せない。可能な限り `apply()` は request を決定するだけにし、必要な補助 HTTP は明示的に扱う。
+`AuthFlow` は既定で operation URL の origin にだけ credential を送る。credentialed CDN は `OriginScopedAuthFlow.allowed_origins` に absolute origin を明示して opt-in する。プラグインから保管庫へrefreshed tokenを永続書込みするAPIはない。display-only inspection は `apply()` を呼ぶが image request を送らない。`apply()` が token 発行などの補助 HTTP や外部 state 変更を自ら行えば、そのサーバー側副作用は取り消せない。可能な限り `apply()` は request を決定するだけにし、必要な補助 HTTP は明示的に扱う。
 
 HTTP 401と403は、独自の`AuthFlow.is_auth_failure()`判定より先に、常に認証失敗として扱います。それ以外のステータスは、判定によって認証処理の対象にできます。要求の順序は、`apply`、通信、必要なら認証更新（最大`network.auth_refresh_attempts`回）、再度`apply`、それでもHTTPステータスが`>=400`なら最大1回の`recover_image_request`です。認証更新が`None`を返す場合、認証失敗の応答に対応する認証フローがない場合、更新回数を使い切った場合は`AuthenticationError`を送出します。回復フックには通信の例外を渡しません。
 
@@ -256,7 +256,7 @@ class WatermarkProcessor:
 | Pillowでの縮小 | [リサイズプロセッサー](../../../plugin-sources/resize-processor/resize_processor.py) |
 | 要求・サイト変換での画像メタデータと、許可したプロセッサーへの受渡し | [メタデータ連携の組合せ](../../../examples/plugin-v3-metadata-bridge/README.md) |
 | 全7段階の追加ファイル・必須データ連携・cleanup | [追加ファイルパッケージ](../../../examples/plugin-v3-additional-files/README.md) |
-| keyring認証・追加origin・保存指定・設定付き選択・短命URL・workflow | [ローカル機能ラボ](../../../examples/plugin-v3-feature-lab/README.md) |
+| 保管庫認証・追加origin・保存指定・設定付き選択・短命URL・workflow | [ローカル機能ラボ](../../../examples/plugin-v3-feature-lab/README.md) |
 | Cookie認証のプラグインと、実ブラウザ確認の分離 | [Cookie認証例](../../../examples/plugin-v3-feature-lab/cookie-gallery/plugin.py)、[隔離環境の手動試験](../../../manual-tests/browser-cookies/README.md) |
 
 HTTP(S) 以外、SSE/WebSocket、JavaScript/DOM/headless browser、CAPTCHA、interactive MFA/WebAuthn、multipart/streaming body は contract 外である。必要な site は `UnsupportedSiteFeatureError` または明示的な plugin/authentication error で失敗させる。

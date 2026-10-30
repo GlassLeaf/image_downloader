@@ -12,6 +12,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from support.vault import cookie_store
 
 from image_downloader import AppConfig, AuthenticationError
 from image_downloader.cli import build_parser
@@ -19,8 +20,7 @@ from image_downloader.commands import cookie as command
 from image_downloader.commands.outcome import CommandOutcome
 from image_downloader.commands.validation import validate_arguments
 from image_downloader.exceptions import ArgumentError
-from image_downloader.storage import FileSystem
-from image_downloader.storage.cookies import CookieStore, _cookie
+from image_downloader.storage.cookies import _cookie
 
 
 @pytest.fixture
@@ -46,8 +46,7 @@ def test_explicit_source_never_discovers_and_filters_exact_domain(source, tmp_pa
         return jar
 
     monkeypatch.setitem(sys.modules, "browser_cookie3", SimpleNamespace(chrome=chrome))
-    monkeypatch.setattr(CookieStore, "_key", lambda *args, **kwargs: b"k" * 32)
-    store = CookieStore(FileSystem(tmp_path / "destination"))
+    store = cookie_store(tmp_path / "destination")
     before = (source / "Default/Network/Cookies").read_bytes()
     store.import_browser("example.test", chrome_user_data_dir=source)
     assert [(item.name, item.value) for item in store.load()] == [("session", "fictional-value")]
@@ -68,8 +67,7 @@ def test_sqlite_browser_security_flags_round_trip(source, tmp_path, monkeypatch,
     monkeypatch.setitem(
         sys.modules, "browser_cookie3", SimpleNamespace(chrome=lambda **kwargs: jar, load=lambda **kwargs: jar)
     )
-    monkeypatch.setattr(CookieStore, "_key", lambda *args, **kwargs: b"k" * 32)
-    store = CookieStore(FileSystem(tmp_path / "destination"))
+    store = cookie_store(tmp_path / "destination")
     store.import_browser("example.test", chrome_user_data_dir=source if scoped else None)
     imported = next(iter(store.load()))
     assert imported.secure is bool(secure)
@@ -84,7 +82,7 @@ def test_invalid_browser_flags_are_rejected_before_storage(source, tmp_path, mon
     jar = CookieJar()
     jar.set_cookie(_cookie("session", "fictional-private-value", domain="example.test", secure=secure))
     monkeypatch.setitem(sys.modules, "browser_cookie3", SimpleNamespace(chrome=lambda **kwargs: jar))
-    store = CookieStore(FileSystem(tmp_path / "destination"))
+    store = cookie_store(tmp_path / "destination")
     with pytest.raises(AuthenticationError, match="browser cookie data is invalid") as error:
         store.import_browser("example.test", chrome_user_data_dir=source)
     assert error.value.__suppress_context__
@@ -106,7 +104,7 @@ def test_invalid_source_fails_before_loader(source, tmp_path, kind):
         source = Path("relative")
     else:
         os.link(source / "Local State", tmp_path / "hardlinked-state")
-    store = CookieStore(FileSystem(tmp_path / "destination"))
+    store = cookie_store(tmp_path / "destination")
     with pytest.raises(AuthenticationError, match="source is invalid"):
         store.import_browser("example.test", chrome_user_data_dir=source)
     assert not store.path.exists()
@@ -119,7 +117,7 @@ def test_linked_source_is_rejected(source, tmp_path):
     except OSError:
         pytest.skip("creating symlinks requires platform permission")
     with pytest.raises(AuthenticationError, match="source is invalid"):
-        CookieStore(FileSystem(tmp_path / "destination")).import_browser("example.test", chrome_user_data_dir=linked)
+        cookie_store(tmp_path / "destination").import_browser("example.test", chrome_user_data_dir=linked)
 
 
 def test_loader_failure_is_sanitized_and_has_no_fallback(source, tmp_path, monkeypatch, capsys):
@@ -130,7 +128,7 @@ def test_loader_failure_is_sanitized_and_has_no_fallback(source, tmp_path, monke
 
     monkeypatch.setitem(sys.modules, "browser_cookie3", SimpleNamespace(chrome=fail))
     with pytest.raises(AuthenticationError, match="Chrome cookie import is unavailable") as error:
-        CookieStore(FileSystem(tmp_path / "destination")).import_browser("example.test", chrome_user_data_dir=source)
+        cookie_store(tmp_path / "destination").import_browser("example.test", chrome_user_data_dir=source)
     assert error.value.__suppress_context__
     assert "fictional" not in str(error.value)
     assert capsys.readouterr() == ("", "")
@@ -147,7 +145,7 @@ def test_dependency_initialization_failure_is_sanitized(source, tmp_path, monkey
 
     monkeypatch.setattr(builtins, "__import__", guarded_import)
     with pytest.raises(AuthenticationError, match="Chrome cookie import is unavailable") as error:
-        CookieStore(FileSystem(tmp_path / "destination")).import_browser("example.test", chrome_user_data_dir=source)
+        cookie_store(tmp_path / "destination").import_browser("example.test", chrome_user_data_dir=source)
     assert error.value.__suppress_context__
     assert error.value.failure == "dependency_init"
     assert capsys.readouterr() == ("", "")
@@ -156,7 +154,7 @@ def test_dependency_initialization_failure_is_sanitized(source, tmp_path, monkey
 def test_app_bound_only_state_is_unsupported_before_loading(source, tmp_path):
     (source / "Local State").write_text(json.dumps({"os_crypt": {"app_bound_encrypted_key": "fictional-key"}}))
     with pytest.raises(AuthenticationError) as error:
-        CookieStore(FileSystem(tmp_path / "destination")).import_browser("example.test", chrome_user_data_dir=source)
+        cookie_store(tmp_path / "destination").import_browser("example.test", chrome_user_data_dir=source)
     assert error.value.failure == "encryption"
 
 
@@ -172,7 +170,7 @@ def test_source_failure_categories_are_distinct(source, tmp_path, kind, failure)
     else:
         (source / "Local State").write_bytes(b"not-json")
     with pytest.raises(AuthenticationError) as error:
-        CookieStore(FileSystem(tmp_path / "destination")).import_browser("example.test", chrome_user_data_dir=source)
+        cookie_store(tmp_path / "destination").import_browser("example.test", chrome_user_data_dir=source)
     assert error.value.failure == failure
 
 
@@ -208,7 +206,7 @@ def test_cli_forwards_explicit_source(source, tmp_path, monkeypatch):
     seen = []
 
     class Store:
-        def __init__(self, filesystem):
+        def __init__(self, filesystem, *, store):
             pass
 
         def import_browser(self, domain, **kwargs):

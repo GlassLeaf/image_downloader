@@ -98,7 +98,7 @@ def owned(work: Path, identity: str) -> bool:
         return False
 
 
-def clean(work: Path, identity: str, account: str) -> None:
+def clean(work: Path, identity: str, vault, expected_master: tuple[str, str] | None) -> None:
     if not owned(work, identity):
         raise ValueError
     from image_downloader.storage.path_safety import is_link_or_reparse
@@ -107,10 +107,16 @@ def clean(work: Path, identity: str, account: str) -> None:
     for current, directories, files in os.walk(work, followlinks=False):
         if any(is_link_or_reparse(Path(current) / name) for name in directories + files):
             raise ValueError
-    import keyring
-
-    if keyring.get_password("image-downloader.cookie-key", account) is not None:
-        keyring.delete_password("image-downloader.cookie-key", account)
+    if vault.filesystem.root != work / "data":
+        raise ValueError
+    # Only the independently created test vault's master may be removed.
+    with vault.locked():
+        meta = vault._meta()
+        if meta is not None:
+            meta, _ = vault._ready()
+            if (meta["vault_id"], meta["key_id"]) != expected_master:
+                raise ValueError
+            vault.keys.delete(meta["vault_id"], meta["key_id"])
     shutil.rmtree(work)
 
 
@@ -259,6 +265,7 @@ def _site_class():
 
 
 def exercise(work: Path, chrome: Path) -> int:
+    from image_downloader.credentials import CredentialVault
     from image_downloader.storage import FileSystem
     from image_downloader.storage.cookies import CookieStore
     from image_downloader.storage.path_safety import existing_directory, existing_regular_file
@@ -287,14 +294,19 @@ def exercise(work: Path, chrome: Path) -> int:
         ),
         encoding="utf-8",
     )
-    store = CookieStore(FileSystem(work / "data/profiles/browser-lab/cookie"))
+    vault = CredentialVault(work / "data")
+    store = CookieStore(FileSystem(work / "data/profiles/browser-lab/cookie"), store=vault.profile("browser-lab"))
     previous_temp = tempfile.tempdir
     previous_environment = {name: os.environ.get(name) for name in ("TEMP", "TMP", "TMPDIR")}
     tempfile.tempdir = str(scratch)
     os.environ.update({name: str(scratch) for name in previous_environment})
     status = 1
     browser = None
+    expected_master = None
     try:
+        vault.initialize()
+        state = vault.status()
+        expected_master = (state["vault_id"], state["key_id"])
         with _site_class()() as site:
             browser = subprocess.Popen(
                 [
@@ -342,7 +354,7 @@ def exercise(work: Path, chrome: Path) -> int:
                 if browser is not None:
                     browser.wait(timeout=15)
                 with quiet():
-                    clean(work, identity, store.account)
+                    clean(work, identity, vault, expected_master)
                 print("PASS LOCAL_CLEANUP")
             else:
                 print("FAIL CLEANUP_PENDING")

@@ -5,12 +5,13 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+from support.vault import MemoryKeys
 
 import image_downloader.application.composer as composer_module
 from image_downloader.config import AppConfig, resolve_paths
+from image_downloader.credentials.keyring import MasterKeyStore
 from image_downloader.exceptions import ConfigurationError
 from image_downloader.runtime import DownloadService, RuntimeComposer, _RuntimeDependencies
-from image_downloader.storage.cookies import CookieStore
 
 
 def _composer(tmp_path: Path) -> RuntimeComposer:
@@ -37,6 +38,7 @@ def _dependencies() -> _RuntimeDependencies:
         logger=MagicMock(),
         notifications=MagicMock(),
         cookie_store=MagicMock(),
+        credentials=MagicMock(),
         cookie_baseline={},
         gateway=MagicMock(),
         image_processor=MagicMock(),
@@ -137,7 +139,9 @@ def test_runtime_composer_rejects_a_relative_output_root(tmp_path: Path) -> None
 
 
 def test_two_services_preserve_each_others_cookie_changes(tmp_path: Path, monkeypatch) -> None:
-    monkeypatch.setattr(CookieStore, "_key", lambda _self, *, create: b"t" * 32)
+    keys = MemoryKeys()
+    monkeypatch.setattr(MasterKeyStore, "get", lambda self, v, k: keys.get(v, k))
+    monkeypatch.setattr(MasterKeyStore, "create", lambda self, v, k, value: keys.create(v, k, value))
 
     async def scenario() -> None:
         composer = _composer(tmp_path)

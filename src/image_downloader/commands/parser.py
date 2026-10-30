@@ -4,6 +4,7 @@ import argparse
 import re
 import sys
 from collections.abc import Sequence
+from pathlib import Path
 from typing import NoReturn
 
 from ..diagnostics import argument_error, safe_option
@@ -12,7 +13,19 @@ from .argument_rules import _check_conflicts, is_http_url
 from .options import OPTIONS
 
 _COMMAND_NAMES = frozenset(
-    ("download", "workflow", "inspect", "config", "plugin", "doctor", "cookie", "state", "verify")
+    (
+        "download",
+        "workflow",
+        "inspect",
+        "config",
+        "plugin",
+        "doctor",
+        "cookie",
+        "state",
+        "verify",
+        "credential",
+        "vault",
+    )
 )
 
 
@@ -254,13 +267,44 @@ def _compatibility_command_args(args: argparse.Namespace) -> list[str]:
     return []
 
 
+def _management_grammar(command: argparse.ArgumentParser, name: str) -> None:
+    if name == "credential":
+        kinds = command.add_subparsers(dest="credential_kind", required=True)
+        for kind in ("plugin", "smtp"):
+            actions = kinds.add_parser(kind).add_subparsers(dest="credential_action", required=True)
+            for action in ("set", "list", "delete"):
+                operation = actions.add_parser(action)
+                if action != "list":
+                    if kind == "plugin":
+                        operation.add_argument("credential_plugin_id")
+                    operation.add_argument("credential_reference")
+    else:
+        actions = command.add_subparsers(dest="vault_action", required=True)
+        for action in ("init", "status", "backup", "restore", "rotate-key"):
+            operation = actions.add_parser(action)
+            if action in {"backup", "restore"}:
+                operation.add_argument("vault_target", type=Path)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = _CliArgumentParser(description="local plugin API v3 image downloader")
     parser.set_defaults(config_explicit=False, command=None)
     for option in OPTIONS:
         option.add_to(parser)
     commands = parser.add_subparsers(dest="command", metavar="COMMAND")
-    for name in ("download", "workflow", "inspect", "doctor", "cookie", "config", "plugin", "state", "verify"):
+    for name in (
+        "download",
+        "workflow",
+        "inspect",
+        "doctor",
+        "cookie",
+        "config",
+        "plugin",
+        "state",
+        "verify",
+        "credential",
+        "vault",
+    ):
         command = commands.add_parser(name, help=f"{name} operations")
         command.set_defaults(command_handler=name)
         # Help lists canonical options from the single root registry. Parsing
@@ -269,6 +313,8 @@ def build_parser() -> argparse.ArgumentParser:
         command.epilog = "Options may appear before, within, or after the command. See --help at the root."
         if name in {"download", "workflow", "inspect"}:
             command.add_argument("url")
+        elif name in {"credential", "vault"}:
+            _management_grammar(command, name)
         elif name == "verify":
             command.description = "Check recorded errors and file presence; does not validate image contents."
             actions = command.add_subparsers(dest="verify_resource", required=True)

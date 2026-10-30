@@ -116,6 +116,24 @@ class VerifyArguments(ConfigurationArguments):
     output_dir: Path | None = None
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class CredentialArguments(ConfigurationArguments):
+    credential_kind: Literal["plugin", "smtp"]
+    credential_action: Literal["set", "list", "delete"]
+    credential_plugin_id: str | None = None
+    credential_reference: str | None = None
+    secret_stdin: bool = False
+    yes: bool = False
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class VaultArguments(ConfigurationArguments):
+    vault_action: Literal["init", "status", "backup", "restore", "rotate-key"]
+    vault_target: Path | None = None
+    passphrase_stdin: bool = False
+    resume: bool = False
+
+
 CommandArguments = (
     DownloadArguments
     | InspectArguments
@@ -126,6 +144,8 @@ CommandArguments = (
     | CookieArguments
     | StateArguments
     | VerifyArguments
+    | CredentialArguments
+    | VaultArguments
 )
 
 _ARGUMENT_TYPES: dict[str, type[ConfigurationArguments]] = {
@@ -138,6 +158,8 @@ _ARGUMENT_TYPES: dict[str, type[ConfigurationArguments]] = {
     "cookie": CookieArguments,
     "state": StateArguments,
     "verify": VerifyArguments,
+    "credential": CredentialArguments,
+    "vault": VaultArguments,
 }
 
 

@@ -71,8 +71,8 @@
 #     use_tls: true
 #     from: ''
 #     to: []
-#     username: ''
-#     credential_service: image-downloader.smtp
+#     credential_reference: null
+# Legacy SMTP fields username and credential_service are retained but unused.
 # security:
 #   plugin_verification: strict      # strict, warn, off
 # image_processors:

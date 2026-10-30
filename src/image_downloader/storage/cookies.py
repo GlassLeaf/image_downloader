@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import base64
-import hashlib
 import json
 import secrets
+import sys
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from http.cookiejar import Cookie, CookieJar
 from pathlib import Path
 from typing import cast
@@ -16,46 +18,58 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 
 from .._numeric import _is_finite
+from ..credentials.profile_store import ProfileCredentialStore
+from ..credentials.vault_crypto import FILE_LIMIT
+from ..credentials.vault_files import private_directory
 from ..exceptions import AuthenticationError
 from .filesystem import FileSystem, atomic_write
 from .interprocess_lock import InterProcessFileLock
+from .path_safety import existing_directory
 
-_KEY_SERVICE = "image-downloader.cookie-key"
 _FORMAT = 1
 CookieKey = tuple[str, str, str]
 CookieSnapshot = dict[CookieKey, dict[str, object]]
 
 
 class CookieStore:
-    """Keep encrypted cookies in a profile while the key remains in the OS keyring."""
+    """Profile cookies protected by the shared vault master key."""
 
-    def __init__(self, filesystem: FileSystem, *, lock_timeout_seconds: float = 30.0) -> None:
+    def __init__(
+        self, filesystem: FileSystem, *, store: ProfileCredentialStore, lock_timeout_seconds: float = 30.0
+    ) -> None:
         self.filesystem = filesystem
-        self.relative = Path("cookies.enc")
-        self.lock_relative = Path("cookies.lock")
+        self.store = store
+        expected = store.vault.filesystem.path(store.vault.relative(store.profile, "cookies")).parent
+        if filesystem.root != expected:
+            raise ValueError("CookieStore filesystem must match its profile store")
+        self.relative = Path("cookies.v2.enc")
+        self.lock_relative = Path("cookies.v2.lock")
         self.path = filesystem.path(self.relative)
-        self.account = hashlib.sha256(str(self.path.resolve()).encode("utf-8")).hexdigest()
         self.lock_timeout_seconds = lock_timeout_seconds
+        self._legacy_warned = False
 
     def load(self) -> CookieJar:
-        with self._lock():
+        if not self.filesystem.exists(self.relative):
+            self.store.vault.check_pending()
+            if not self._legacy_warned and self.filesystem.exists(Path("cookies.enc")):
+                sys.stderr.write("warning: legacy cookies are unused; import browser cookies or a cookie export\n")
+                self._legacy_warned = True
+            return CookieJar()
+        with self._lock(write=False):
             return self._load_unlocked()
 
     def _load_unlocked(self) -> CookieJar:
-        if not self.filesystem.exists(self.relative):
-            return CookieJar()
         try:
-            payload = self.filesystem.read_text(self.relative)
-            key = self._key(create=False)
-            if key is None:
-                raise AuthenticationError("cookie encryption key is missing")
-            jar = _deserialize(_decrypt(json.loads(payload), key).decode("utf-8"))
+            payload = self.store.vault.read_locked(self.store.profile, "cookies")
+            if payload is None:
+                return CookieJar()
+            jar = _deserialize(payload.decode("utf-8"))
             jar.clear_expired_cookies()
             return jar
         except AuthenticationError:
             raise
-        except (OSError, ValueError, TypeError, RecursionError, json.JSONDecodeError, InvalidTag) as exc:
-            raise AuthenticationError("encrypted cookie file cannot be decrypted") from exc
+        except (OSError, ValueError, TypeError, RecursionError, json.JSONDecodeError, InvalidTag):
+            raise AuthenticationError("encrypted cookie file cannot be decrypted") from None
 
     def save(self, jar: CookieJar) -> None:
         """Explicitly replace the complete persisted jar."""
@@ -65,14 +79,11 @@ class CookieStore:
     def _save_unlocked(self, jar: CookieJar) -> None:
         jar.clear_expired_cookies()
         try:
-            payload = json.dumps(
-                _encrypt(_serialize(jar).encode("utf-8"), self._key(create=True)), separators=(",", ":")
-            )
-            self.filesystem.write_bytes_atomic(self.relative, payload.encode("utf-8"))
+            self.store.vault.write_locked(self.store.profile, "cookies", _serialize(jar).encode("utf-8"))
         except AuthenticationError:
             raise
-        except OSError as exc:
-            raise AuthenticationError("could not persist encrypted cookie file") from exc
+        except OSError:
+            raise AuthenticationError("could not persist encrypted cookie file") from None
 
     def export_file(self, path: Path, passphrase: str) -> None:
         if not passphrase:
@@ -89,18 +100,13 @@ class CookieStore:
         if not passphrase:
             raise AuthenticationError("cookie import passphrase is required")
         try:
-            source = json.loads(path.read_text(encoding="utf-8"))
+            source = json.loads(FileSystem(path.parent).read_bytes_bounded(Path(path.name), FILE_LIMIT))
             salt = _export_salt(source)
             imported = _deserialize(_decrypt(source, _derive(passphrase, salt)).decode("utf-8"))
-        except (OSError, ValueError, TypeError, RecursionError, json.JSONDecodeError, InvalidTag) as exc:
-            raise AuthenticationError("cookie import cannot be decrypted") from exc
+        except (OSError, ValueError, TypeError, RecursionError, json.JSONDecodeError, InvalidTag):
+            raise AuthenticationError("cookie import cannot be decrypted") from None
         with self._lock():
-            try:
-                target = self._load_unlocked()
-            except AuthenticationError:
-                # An explicit import is also the supported recovery path for a
-                # damaged local cookie container.
-                target = CookieJar()
+            target = self._load_unlocked()
             self._merge(target, imported)
             self._save_unlocked(target)
 
@@ -182,26 +188,18 @@ class CookieStore:
                 changed = True
         return changed
 
-    def _lock(self) -> InterProcessFileLock:
-        self.filesystem.ensure_directory()
-        # Validate an existing sidecar before opening it through the OS lock API.
-        self.filesystem.exists(self.lock_relative)
-        return InterProcessFileLock(self.filesystem.path(self.lock_relative), timeout_seconds=self.lock_timeout_seconds)
-
-    def _key(self, *, create: bool) -> bytes | None:
-        try:
-            import keyring
-
-            value = keyring.get_password(_KEY_SERVICE, self.account)
-            if value:
-                return _unb64(value)
-            if not create:
-                return None
-            key = secrets.token_bytes(32)
-            keyring.set_password(_KEY_SERVICE, self.account, _b64(key))
-            return key
-        except Exception as exc:
-            raise AuthenticationError("could not access cookie encryption key in the OS credential store") from exc
+    @contextmanager
+    def _lock(self, *, write: bool = True) -> Iterator[None]:
+        with self.store.vault.locked(write=write):
+            if write:
+                private_directory(self.filesystem)
+            else:
+                existing_directory(self.filesystem.root, "cookie root", required=True)
+            self.filesystem.exists(self.lock_relative)
+            with InterProcessFileLock(
+                self.filesystem.path(self.lock_relative), timeout_seconds=self.lock_timeout_seconds
+            ):
+                yield
 
 
 def _normalize_browser_cookies(imported: CookieJar) -> CookieJar:

@@ -102,6 +102,7 @@ SecretProvider
 SitePlugin
 StorageError
 StorageSafetyError
+VaultError
 TransformContext
 TransportCookie
 TransportHeader

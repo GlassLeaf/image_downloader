@@ -84,6 +84,36 @@ class SecretNotFoundError(AuthenticationError):
     reason = "required secret was not found"
 
 
+_VAULT_REASONS = {
+    "missing": "credential vault is not initialized",
+    "key_missing": "credential vault master key is missing",
+    "access": "credential vault cannot be accessed",
+    "backend": "a supported secure OS keyring backend is required",
+    "corrupt": "credential vault data cannot be authenticated",
+    "format": "credential vault format is unsupported",
+    "scope": "credential vault data belongs to a different scope",
+    "pending": "credential vault operation is incomplete; resume the operation",
+    "rotation": "credential vault key rotation requires vault rotate-key --resume",
+    "no_rotation": "credential vault has no key rotation to resume",
+    "size": "credential vault input exceeds the size limit",
+    "input": "credential vault input is invalid",
+    "destination": "credential vault restore requires an empty destination",
+    "exists": "credential vault backup destination already exists",
+}
+
+
+class VaultError(AuthenticationError):
+    """A storage failure that never publishes provider errors or input values."""
+
+    code = "vault_error"
+    reason = "credential vault operation failed"
+
+    def __init__(self, kind: str) -> None:
+        self.code = "vault_" + (kind if kind in _VAULT_REASONS else "error")
+        self.reason = _VAULT_REASONS.get(kind, type(self).reason)
+        super().__init__(self.reason)
+
+
 class RequestError(ImageDownloaderError):
     """The image or plugin HTTP request could not complete as requested."""
 
@@ -323,6 +353,7 @@ ERROR_CATALOG: Final[tuple[ErrorCatalogEntry, ...]] = (
     ErrorCatalogEntry(UnsupportedSiteFeatureError),
     ErrorCatalogEntry(AuthenticationError),
     ErrorCatalogEntry(SecretNotFoundError),
+    ErrorCatalogEntry(VaultError),
     ErrorCatalogEntry(RequestError),
     ErrorCatalogEntry(HttpTransportError),
     ErrorCatalogEntry(HttpStatusError, ("status", "response_url")),
@@ -347,6 +378,7 @@ ERROR_CATALOG: Final[tuple[ErrorCatalogEntry, ...]] = (
 
 PUBLIC_EXCEPTION_NAMES: Final[frozenset[str]] = frozenset(entry.exception_name for entry in ERROR_CATALOG)
 _ERROR_REASONS = {entry.code: entry.reason for entry in ERROR_CATALOG}
+_ERROR_REASONS.update({"vault_" + kind: reason for kind, reason in _VAULT_REASONS.items()})
 _ERROR_REASONS.update(
     {
         "unexpected_image_failure": "unexpected image failure",

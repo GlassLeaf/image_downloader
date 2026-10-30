@@ -164,6 +164,14 @@ class Email(StrictModel):
     to: tuple[StrictStr, ...] = ()
     username: StrictStr = ""
     credential_service: StrictStr = "image-downloader.smtp"
+    credential_reference: StrictStr | None = None
+
+    @field_validator("credential_reference")
+    @classmethod
+    def smtp_reference(cls, value: str | None) -> str | None:
+        if value is not None and not re.fullmatch(r"[A-Z0-9_]+", value):
+            raise ValueError("SMTP credential reference must be uppercase")
+        return value
 
 
 NotificationMethod = Literal["desktop", "email"]

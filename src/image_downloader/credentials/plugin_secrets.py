@@ -2,33 +2,20 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import Mapping
 
 from ..exceptions import SecretNotFoundError
 from ..ports import SecretProvider
-from .keyring import load_secret
+from .profile_store import ProfileCredentialStore
 
 
 class RuntimeSecrets(SecretProvider):
-    def __init__(self, plugin_id: str, references: Mapping[str, str]) -> None:
+    def __init__(self, plugin_id: str, references: Mapping[str, str], *, store: ProfileCredentialStore) -> None:
         self.plugin_id, self.references = plugin_id, dict(references)
-
-    @staticmethod
-    def _environment_name(plugin_id: str, reference: str) -> str:
-        """Encode both fields completely; keep the permanent, unversioned prefix."""
-        encoded_id = plugin_id.encode("utf-8", "surrogatepass").hex().upper()
-        encoded_reference = reference.encode("utf-8", "surrogatepass").hex().upper()
-        return f"IMAGE_DOWNLOADER_PLUGIN_{encoded_id}_{encoded_reference}"
+        self._store = store
 
     def get(self, name: str) -> str:
         reference = self.references.get(name)
         if not reference:
             raise SecretNotFoundError("required plugin secret is not configured")
-        value = os.getenv(self._environment_name(self.plugin_id, reference))
-        if value:
-            return value
-        value = load_secret(f"image-downloader.plugin.{self.plugin_id}", reference)
-        if value is None:
-            raise SecretNotFoundError("required plugin secret is unavailable")
-        return value
+        return self._store.get_plugin(self.plugin_id, reference)
