@@ -289,7 +289,13 @@ def test_credential_helper_only_changes_sample_accounts(lab, artificial_stores, 
     assert "lab-token" not in capsys.readouterr().out
 
 
-def test_lab_notifications_use_injected_local_senders(lab, tmp_path, artificial_stores):
+def test_lab_notifications_use_injected_local_senders(lab, tmp_path, artificial_stores, monkeypatch):
+    # Delivery uses in-memory senders; optional desktop integration is never imported.
+    monkeypatch.setitem(
+        sys.modules,
+        "desktop_notifier",
+        SimpleNamespace(__spec__=importlib.util.spec_from_loader("desktop_notifier", loader=None)),
+    )
     messages = []
 
     class Sender:
