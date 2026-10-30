@@ -121,6 +121,13 @@ OPTIONS = (
     OptionDefinition("export-cookies", frozenset({"cookie"}), Path, help="legacy Cookie export"),
     OptionDefinition("import-cookies", frozenset({"cookie"}), Path, help="legacy Cookie import"),
     OptionDefinition(
+        "chrome-user-data-dir",
+        frozenset({"cookie"}),
+        Path,
+        metavar="ABSOLUTE_PATH",
+        help="explicit Chrome Default profile source; cookie browser-import only",
+    ),
+    OptionDefinition(
         "import-browser-cookies", frozenset({"cookie"}), metavar="DOMAIN", help="legacy browser Cookie import"
     ),
     OptionDefinition("limit", frozenset({"state workflow history"}), int, help="history limit (default: 20)"),

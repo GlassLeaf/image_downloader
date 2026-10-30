@@ -1,0 +1,7 @@
+{
+  "manifest": {
+    "id": "com.example.host-check",
+    "kind": "site_plugin",
+    "entry": {"file": "plugin.py", "class": "HostCheckPlugin"}
+  }
+}

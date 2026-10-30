@@ -255,5 +255,8 @@ class WatermarkProcessor:
 | プロセッサーの契約 | [加工履歴プロセッサー](../../../plugin-sources/artifact-history-processor/artifact_history_processor.py) |
 | Pillowでの縮小 | [リサイズプロセッサー](../../../plugin-sources/resize-processor/resize_processor.py) |
 | 要求・サイト変換での画像メタデータと、許可したプロセッサーへの受渡し | [メタデータ連携の組合せ](../../../examples/plugin-v3-metadata-bridge/README.md) |
+| 全7段階の追加ファイル・必須データ連携・cleanup | [追加ファイルパッケージ](../../../examples/plugin-v3-additional-files/README.md) |
+| keyring認証・追加origin・保存指定・設定付き選択・短命URL・workflow | [ローカル機能ラボ](../../../examples/plugin-v3-feature-lab/README.md) |
+| Cookie認証のプラグインと、実ブラウザ確認の分離 | [Cookie認証例](../../../examples/plugin-v3-feature-lab/cookie-gallery/plugin.py)、[隔離環境の手動試験](../../../manual-tests/browser-cookies/README.md) |
 
 HTTP(S) 以外、SSE/WebSocket、JavaScript/DOM/headless browser、CAPTCHA、interactive MFA/WebAuthn、multipart/streaming body は contract 外である。必要な site は `UnsupportedSiteFeatureError` または明示的な plugin/authentication error で失敗させる。

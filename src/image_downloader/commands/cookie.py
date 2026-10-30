@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import getpass
+import sys
 from pathlib import Path
 
 from ..configuration.paths import resolve_paths
@@ -31,6 +32,16 @@ class CookieCommandHandler:
         elif action == "import":
             await asyncio.to_thread(cookie_store.import_file, Path(value), getpass.getpass("Passphrase: "))
         else:
-            await asyncio.to_thread(cookie_store.import_browser, str(value))
+            if args.chrome_user_data_dir is None:
+                await asyncio.to_thread(cookie_store.import_browser, str(value))
+            elif sys.platform == "win32":
+                # browser-cookie3 imports WMI/COM even for explicit snapshots.
+                # Keep those process-lived references on the CLI owner thread;
+                # a short-lived executor thread can leave invalid COM references.
+                cookie_store.import_browser(str(value), chrome_user_data_dir=args.chrome_user_data_dir)
+            else:
+                await asyncio.to_thread(
+                    cookie_store.import_browser, str(value), chrome_user_data_dir=args.chrome_user_data_dir
+                )
         # Cookies, passphrases and browser records never enter presentation data.
         return outcome.set_result({"operation": "cookie", "action": action, "target": str(value)}, EXIT_SUCCESS)

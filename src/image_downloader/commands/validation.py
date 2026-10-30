@@ -106,6 +106,22 @@ def _check_positional_path(value: str, command: str, argument: str, *, directory
 
 
 def _check_empty_values(args: argparse.Namespace, command: str) -> None:
+    chrome_source = getattr(args, "chrome_user_data_dir", None)
+    if chrome_source is not None:
+        if command != "cookie" or getattr(args, "cookie_action", None) != "browser-import":
+            raise argument_error(
+                "--chrome-user-data-dir requires cookie browser-import",
+                "option_not_allowed",
+                option="--chrome-user-data-dir",
+            )
+        try:
+            existing_directory(chrome_source, "Chrome source", required=True)
+        except ConfigurationError:
+            raise argument_error(
+                "--chrome-user-data-dir requires an existing absolute safe directory",
+                "invalid_value",
+                option="--chrome-user-data-dir",
+            ) from None
     for name in ("plugin", "force-plugin", "import-browser-cookies", "export-cookies", "import-cookies"):
         option = _OPTIONS_BY_NAME.get(name)
         if option is None:

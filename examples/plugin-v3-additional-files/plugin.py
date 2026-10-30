@@ -1,4 +1,4 @@
-"""Optional-file hook example; integrate into your packaged site plugin."""
+"""Seven additional-file stages, using only the public v3 plugin API."""
 
 from __future__ import annotations
 
@@ -10,55 +10,102 @@ from image_downloader import (
     AdditionalFileReceiveResult,
     AdditionalFileSaveResult,
     AdditionalFileSpec,
+    DownloadManifest,
     ImageFetchRequest,
     ImageResource,
     PluginExecutionContext,
     RequestSpec,
 )
 from image_downloader.exceptions import AuthenticationError
-from image_downloader.plugins.builtin import GenericHtmlPlugin
+
+from .base import BaseGallery, local_origin
 
 
-class GalleryPlugin(GenericHtmlPlugin):
+class GalleryPlugin(BaseGallery):
+    slug = "additional-files"
+
     def __init__(self) -> None:
-        self.keys: dict[int, str] = {}
-        self.saved: dict[str, bytes] = {}
+        self.layout: str | None = None
+        self.variants: dict[int, str] = {}
+        self.saved: dict[str, tuple[str, bytes]] = {}
 
     def additional_file_hook_points(self, context: PluginExecutionContext) -> tuple[AdditionalFileHookPoint, ...]:
-        return (AdditionalFileHookPoint.BEFORE_IMAGE_REQUEST, AdditionalFileHookPoint.AFTER_DOWNLOAD)
+        return tuple(AdditionalFileHookPoint)
 
     async def additional_files(
         self, hook: AdditionalFileHookContext, context: PluginExecutionContext
     ) -> tuple[AdditionalFileSpec, ...]:
-        if hook.point == AdditionalFileHookPoint.BEFORE_IMAGE_REQUEST:
+        point = hook.point
+        origin = local_origin(context.config["origin"])
+        if point == AdditionalFileHookPoint.BEFORE_MANIFEST:
+            return (
+                AdditionalFileSpec(
+                    "bootstrap",
+                    "metadata/bootstrap.json",
+                    request=RequestSpec(f"{origin}/samples/{self.slug}/bootstrap"),
+                ),
+            )
+        if point == AdditionalFileHookPoint.BEFORE_IMAGE_REQUEST:
             assert hook.image is not None
             return (
                 AdditionalFileSpec(
-                    "metadata",
-                    f"metadata/{hook.image.index}.json",
-                    request=RequestSpec(str(context.config["metadata_url"]), query={"image": hook.image.url}),
+                    "variant",
+                    f"metadata/{hook.image.image_id}/variant.json",
+                    request=RequestSpec(f"{origin}/samples/{self.slug}/metadata"),
                 ),
             )
-        assert hook.chapter_result is not None
-        data = json.dumps({"images": len(hook.chapter_result.outcomes)}).encode("utf-8")
-        return (AdditionalFileSpec("summary", "metadata/images.json", data=data),)
+        if point == AdditionalFileHookPoint.AFTER_DOWNLOAD:
+            assert hook.chapter_result is not None
+            data = {
+                "images": len(hook.chapter_result.outcomes),
+                "saved_callbacks": sum(status == "saved" for status, _ in self.saved.values()),
+                "skipped_callbacks": sum(status == "skipped" for status, _ in self.saved.values()),
+            }
+            return (AdditionalFileSpec("summary", "metadata/summary.json", data=json.dumps(data).encode()),)
+        # Public facts only: never persist request headers, cookies or credentials.
+        data: dict[str, object] = {"point": point.value}
+        if hook.chapter is not None:
+            data["chapter"] = hook.chapter.chapter_id
+        if hook.response is not None:
+            data["status"] = hook.response.status
+        if hook.artifact is not None:
+            data.update(content_type=hook.artifact.content_type, byte_count=len(hook.artifact.data))
+        if hook.image_outcome is not None:
+            data["outcome"] = hook.image_outcome.kind.value
+        prefix = f"metadata/{hook.image.image_id}" if hook.image is not None else "metadata"
+        return (AdditionalFileSpec(point.name, f"{prefix}/{point.value}.json", data=json.dumps(data).encode()),)
 
     async def additional_file_received(
         self, result: AdditionalFileReceiveResult, context: PluginExecutionContext
     ) -> None:
-        if result.file_id == "metadata" and result.data is not None and result.hook.image is not None:
-            self.keys[id(result.hook.image)] = str(json.loads(result.data)["key"])
+        if result.data is None:
+            return
+        if result.file_id == "bootstrap":
+            value = json.loads(result.data).get("layout")
+            if value == "standard":
+                self.layout = value
+        elif result.file_id == "variant" and result.hook.image is not None:
+            value = json.loads(result.data).get("variant")
+            if value == "full":
+                self.variants[id(result.hook.image)] = value
 
     async def additional_file_saved(self, result: AdditionalFileSaveResult, context: PluginExecutionContext) -> None:
         if result.path is not None and result.data is not None:
-            self.saved[result.path] = result.data
+            # On skip this contains the EXISTING file, not the just-received bytes.
+            self.saved[result.path] = (result.status, result.data)
+
+    async def inspect(self, url: str, context: PluginExecutionContext) -> DownloadManifest:
+        if self.layout is None:
+            raise AuthenticationError("required supplemental layout is unavailable")
+        return await super().inspect(url, context)
 
     async def create_image_request(self, image: ImageResource, context: PluginExecutionContext) -> ImageFetchRequest:
-        key = self.keys.get(id(image))
-        if key is None:
-            raise AuthenticationError("required per-image key is unavailable")
-        return ImageFetchRequest(RequestSpec(image.url, headers={"X-Image-Key": key}), {"key": key})
+        variant = self.variants.get(id(image))
+        if variant is None:
+            raise AuthenticationError("required per-image metadata is unavailable")
+        return ImageFetchRequest(RequestSpec(image.url, headers={"X-Variant": variant}), {"variant": variant})
 
     def cleanup_after_use(self) -> None:
-        self.keys.clear()
+        self.layout = None
+        self.variants.clear()
         self.saved.clear()

@@ -1,0 +1,12 @@
+{
+  "manifest": {
+    "id": "local.image-downloader.lab-output-gallery",
+    "kind": "site_plugin",
+    "entry": {
+      "file": "plugin.py",
+      "class": "LabPlugin"
+    },
+    "config_file": "plugin.yaml",
+    "match_priority": 100
+  }
+}

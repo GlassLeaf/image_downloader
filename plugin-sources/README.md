@@ -2,6 +2,9 @@
 
 # ローカルプラグインのソース
 
+保存クレデンシャルの参照、追加ファイル、追加origin認証、画像ごとの保存指定、設定付き選択、短命URL、workflowをローカルで試す例は、
+[機能ラボ](../examples/plugin-v3-feature-lab/README.md)にあります。実ブラウザCookieはAI・CIから分離した[手動試験](../manual-tests/browser-cookies/README.md)で扱います。
+
 ここには、ローカルプラグインAPI v3の署名済みソース一式があります。実行時の配置先は`.runtime/config/app.yaml`で設定します。実行時のルートへファイルを手動でコピーしないでください。変更したプラグインを再署名してから`image-downloader plugin install`を使うことで、カタログのpinも原子的に更新できます。
 
 同梱の各プラグインは、付属の署名ツールへの入力に`plugin-metadata.json`を使います。実行時には読みません。署名ツールが、生成した鍵・ファイルツリー・署名のフィールドとともに`manifest.json`へ反映します。メタデータ、入口のソース、作者既定値のYAML、補助モジュールを変更してから署名ツールを再実行し、生成済みのmanifestは直接編集しないでください。正確なスキーマ、実行時には任意であること、ファイルツリーの規則は[プラグインパッケージリファレンス](../docs/v3/reference/plugin-package.md#plugin-package)に記載しています。

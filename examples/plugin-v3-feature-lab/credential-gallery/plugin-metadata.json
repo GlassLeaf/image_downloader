@@ -1,0 +1,13 @@
+{
+  "id": "local.image-downloader.lab-credential-gallery",
+  "publisher": "local.image-downloader",
+  "version": "1.0.0",
+  "kind": "site_plugin",
+  "capabilities": [],
+  "match_priority": 100,
+  "entry": {
+    "file": "plugin.py",
+    "class": "LabPlugin"
+  },
+  "config_file": "plugin.yaml"
+}

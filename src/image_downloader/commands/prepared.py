@@ -98,6 +98,7 @@ class PluginArguments(ConfigurationArguments):
 class CookieArguments(ConfigurationArguments):
     cookie_action: Literal["export", "import", "browser-import"]
     cookie_value: str | Path
+    chrome_user_data_dir: Path | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

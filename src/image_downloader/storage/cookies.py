@@ -104,17 +104,27 @@ class CookieStore:
             self._merge(target, imported)
             self._save_unlocked(target)
 
-    def import_browser(self, domain: str) -> None:
-        try:
-            import browser_cookie3
+    def import_browser(self, domain: str, *, chrome_user_data_dir: Path | None = None) -> None:
+        if chrome_user_data_dir is not None:
+            from .browser_cookies import import_chrome
 
-            imported = browser_cookie3.load(domain_name=domain)
-        except ImportError as exc:
-            raise AuthenticationError("browser cookie import requires browser-cookie3") from exc
+            imported = import_chrome(domain, chrome_user_data_dir)
+        else:
+            imported = self._discover_browser(domain)
+        imported = _normalize_browser_cookies(imported)
         with self._lock():
             target = self._load_unlocked()
             if self._merge(target, imported):
                 self._save_unlocked(target)
+
+    @staticmethod
+    def _discover_browser(domain: str) -> CookieJar:
+        try:
+            import browser_cookie3
+
+            return cast(CookieJar, browser_cookie3.load(domain_name=domain))
+        except ImportError as exc:
+            raise AuthenticationError("browser cookie import requires browser-cookie3") from exc
 
     @staticmethod
     def snapshot(jar: CookieJar) -> CookieSnapshot:
@@ -192,6 +202,24 @@ class CookieStore:
             return key
         except Exception as exc:
             raise AuthenticationError("could not access cookie encryption key in the OS credential store") from exc
+
+
+def _normalize_browser_cookies(imported: CookieJar) -> CookieJar:
+    """Adapt the browser library's SQLite flags to the strict storage schema."""
+    normalized = CookieJar()
+    try:
+        for cookie in imported:
+            record = _cookie_record(cookie)
+            # browser-cookie3 passes SQLite's 0/1 is_secure into Cookie without
+            # coercion. Accept exactly those integers at this import boundary;
+            # persisted/exported records still require actual bool values.
+            secure = record["secure"]
+            if type(secure) is int and secure in (0, 1):
+                record["secure"] = bool(secure)
+            normalized.set_cookie(_cookie_from_record(record))
+    except (ValueError, TypeError, AttributeError, OverflowError, RecursionError):
+        raise AuthenticationError("browser cookie data is invalid") from None
+    return normalized
 
 
 def _encrypt(value: bytes, key: bytes | None) -> dict[str, object]:

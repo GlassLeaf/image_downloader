@@ -82,6 +82,13 @@ profile cookie は `<storage.data_root>/profiles/<profile>/cookie/cookies.enc` �
 
 cookie export/import は passphrase container を使い、passphrase を対話入力する。browser import は `browser-cookie3` を含む `.[browser-cookies]` extra が必要で、既存 jar を差分 merge する。破損した encrypted file は上書きせず error にし、明示 import を復旧手段にする。
 
+明示的な`chrome_user_data_dir`はChromeの`Default/Network/Cookies`と`Local State`に限定する。
+両方の通常ファイルを安全に開き、変更を検知するスナップショットから読み取る。SQLiteとLocal Stateの最低限の構造を検査し、
+Local StateのJSON読取りは4MiBを上限にする。
+依存ローダーのsubstringドメインフィルターに加えて、取得後にドメイン完全一致で絞る。
+依存の生例外・標準出力は公開せず、固定文言の認証エラーにする。未対応の復号方式を回避する権限昇格や保護機能変更は行わない。
+実機確認では一時領域も隔離端末の専用領域内に置く。手順は[実Chrome試験](../../../manual-tests/browser-cookies/README.md)を参照する。
+
 容器はJSON object、`format`はboolを除く整数の1、`cipher`は`AES-256-GCM`を必須とする。
 nonceはbase64文字列から復元した12バイト、ciphertextは認証tagを含む16バイト以上で、
 exportでは既存のkind・kdfと16バイトのsaltも検証する。復号後はrecordの配列とし、

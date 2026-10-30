@@ -164,6 +164,7 @@ URL results: success=0 partial=0 failed=0 unprocessed=0 removed=0
 | `--manifest-only` | inspect、`download URL --inspect-only` | 通常downloadでは拒否。`create_image_request()`を呼ばない |
 | `--inspection-data url\|http\|all` | inspect、`download URL --inspect-only` | 標準出力に含める検査情報の段階。既定値`url`。通常downloadでは拒否 |
 | `--host` | doctor、config explain | その他では拒否 |
+| `--chrome-user-data-dir ABSOLUTE_PATH` | cookie browser-import | 専用Chrome Defaultプロファイルを明示。他のCookie操作・旧形式・その他コマンドでは拒否 |
 | `--selection-priority INT` | plugin install/trust | その他では拒否 |
 
 `--plugin-config`は繰り返し指定できる`ID=<JSON-object>`です。`--plugin-config-file`は、絶対パスの既存の通常JSONファイルを繰り返し指定する形式で、リンクは不可です。オブジェクトは正確に`{"plugin_id": "…", "config": {…}}`の形にします。ファイルのマッピングをコマンドラインのファイル順に再帰的に合成し、その後でインラインの`--plugin-config`を出現順に再帰的に合成します。このオプションはYAMLを受け付けません。
@@ -225,6 +226,13 @@ URL results: success=0 partial=0 failed=0 unprocessed=0 removed=0
 ### Cookie操作とブラウザー対応
 
 `cookie export PATH`と`cookie import PATH`は、制御端末で`Passphrase:`と表示して入力を求めます。パスフレーズはオプションや環境変数で受け付けません。`cookie browser-import DOMAIN`は、任意のブラウザー読み取り依存を`pip install 'image-downloader[browser-cookies]'`で追加してから使ってください。一致するブラウザーCookieを読み取り、現在のプロファイルへ合成します。3操作とも、成功JSONにはCookie値・パスフレーズ・ブラウザーの記録・暗号鍵を含めません。暗号化・合成・lockの挙動は[実行時の挙動](runtime-behavior.md#runtime-cookies)を参照してください。
+
+`cookie browser-import DOMAIN --chrome-user-data-dir ABSOLUTE_PATH`は、閉じたChromeの専用user-data-dirを指定します。
+`Default/Network/Cookies`と`Local State`だけを安定した一時コピーとしてChrome専用ローダーへ渡し、既定プロファイル・別ブラウザ・旧パスを探索しません。
+欠落・不正なファイル・リンク／再解析ポイント・ハードリンク・読取り中の変更は拒否します。復号失敗時も自動探索へ戻りません。
+指定しない既存形式は従来の自動探索を維持します。アプリprofileやDOMAINだけでは取得元ブラウザを隔離できません。
+本体APIは`CookieStore.import_browser(domain, *, chrome_user_data_dir: Path | None = None)`です。
+実Chromeによる動作確認は[隔離環境専用の手動試験](../../../manual-tests/browser-cookies/README.md)で扱い、CI・AIでは人工データだけを使用します。
 
 <a id="cli-examples"></a>
 
@@ -345,7 +353,7 @@ downloadの章ログは標準出力に出さず、人間向けのエラー診断
 
 `configuration`は、`config_file: string|null`、`source: string`、`main_config_kind: string`、`config_root: string`、`selected_profile: string`、`target_host: string|null`、`target_has_url_path: bool`、`effective: object`、`runtime: object`、`selection: object[]`、`layers: object[]`、`origins: {dotted_key: source_label}`を正確に持ちます。`effective`は専用の固定doctorスキーマではなく、[設定スキーマ](configuration.md#config-schema)の動的なマッピングに従います。`runtime`は`application_overrides: object`、`plugin_overrides: object`、`fallback_generic: "auto"|"enabled"|"disabled"`、`plugin_verification_override: string|null`です。`layers[]`の各要素は`{role: string, path: string|null, status: string}`です。`selection[]`は`id`・`matcher`・`matched`などを含む実行時の選択診断であり、カタログ項目ではありません。
 
-`loaded_plugins[]`の各要素は、`id`、`kind`、`publisher`、`version`、`api_version`、`source`、`enabled`、`status`、`match_priority`、`capabilities`、`entry`、`config_file`、`key_id`、`manifest_digest`、`file_tree_sha256`、`verification`、`catalog`、`author_defaults`、`effective_config`を持ちます。`entry`は`{file: string, class: string}`、`catalog`は`null`または`{selection_priority, revoked, key_id, manifest_digest, file_tree_sha256}`です。`author_defaults`と`effective_config`は秘匿化された動的なマッピングです。`plugins[]`は`{name: string, source: string, loaded: bool, detail: string, warning: bool}`で、受理前に失敗したソース単位も含みます。機密値は置換しますが、置換後の固定文字列は保証しません。`null`は明示的にnull許容としたフィールドだけに使い、処理済みエラーの未知フィールドは後述のとおり省略します。
+`loaded_plugins[]`の各要素は、`id`、`kind`、`publisher`、`version`、`api_version`、`source`、`enabled`、`status`、`match_priority`、`capabilities`、`entry`、`config_file`、`key_id`、`manifest_digest`、`file_tree_sha256`、`verification`、`catalog`、`author_defaults`、`effective_config`を持ちます。`entry`は`{file: string, class: string}`、`catalog`は`null`または`{selection_priority, revoked, key_id, manifest_digest, file_tree_sha256}`です。最小manifestを許す検証モードでは、省略された`publisher`・`version`・`api_version`・`config_file`・`key_id`・`file_tree_sha256`は`null`、`capabilities`は空配列になります。`author_defaults`と`effective_config`は秘匿化された動的なマッピングです。`plugins[]`は`{name: string, source: string, loaded: bool, detail: string, warning: bool}`で、受理前に失敗したソース単位も含みます。機密値は置換しますが、置換後の固定文字列は保証しません。`null`は明示的にnull許容としたフィールドだけに使い、処理済みエラーの未知フィールドは後述のとおり省略します。
 
 検査JSONの`inspection_data`は`url`・`http`・`all`のいずれかです。既定の`url`はmanifestの件数概要と、各要求の1始まりの`chapter_position`・`image_position`・`status`・AuthFlowとクエリとCookie jarの合成後の`effective_url`だけを含めます。実効要求の構築に失敗した場合はURLを推測しません。`http`は、返された完全な`RequestSpec`（`url`、`method`、`headers`、`cookies`、`referer`、`query`、`form`、`json`、`auth_required`、`retry_non_idempotent`）と`effective_request`（method、完全URL、順序・重複を保つヘッダー、実送信Cookie、Base64本文とバイト数）を追加します。`all`は、locator、referer、画像ヘッダー、保存設定、`original_filename`、メタデータを含む完全なmanifest・画像情報と、秘匿化前の`plugin_data`を追加します。`failed`と`partially_resolved`は、安定した`failure.code`・`failure.reason`・`failure.exception`・`failure.phase`を持ちます。後者の元の要求データは`http`・`all`だけで表示します。
 

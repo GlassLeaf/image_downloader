@@ -115,6 +115,9 @@ def _heading_anchor(heading: str) -> str:
 
 def _all_anchors(document: Path) -> set[str]:
     content = document.read_text(encoding="utf-8")
+    if document.suffix == ".py":
+        # GitHub source links use bounded line anchors, not Markdown headings.
+        return {f"L{number}" for number, _ in enumerate(content.splitlines(), 1)}
     anchors = set(ANCHOR.findall(content))
     for line in content.splitlines():
         if match := re.match(r"^#{1,6}\s+(.+?)\s*#*\s*$", line):
