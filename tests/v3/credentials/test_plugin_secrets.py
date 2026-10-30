@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import re
+import shlex
 from contextlib import AsyncExitStack
 from pathlib import Path
 from unittest.mock import AsyncMock
@@ -8,6 +10,7 @@ from urllib.parse import parse_qs
 
 import httpx
 import pytest
+import yaml
 from pydantic import ValidationError
 from support.vault import MemoryKeys
 
@@ -82,10 +85,12 @@ UNIT_SECRETS = {
 }
 
 
-def _compose(tmp_path, plugin_sources, unit):
+def _compose(tmp_path, plugin_sources, unit, *, references=None):
     root = tmp_path / "plugins"
     install_plugin(root, plugin_sources / unit)
     plugin_id = "local.image-downloader." + unit
+    if references is None:
+        references = {name: ref for name, ref, _, _ in UNIT_SECRETS[unit]}
     config = AppConfig.model_validate(
         {
             "storage": {"data_root": str(tmp_path / "data")},
@@ -94,7 +99,7 @@ def _compose(tmp_path, plugin_sources, unit):
             "network": {"max_attempts": 1},
             "download": {"allow_empty_chapter_manifest": True},
             "security": {"plugin_verification": "strict"},
-            "plugin_settings": {plugin_id: {"secrets": {name: ref for name, ref, _, _ in UNIT_SECRETS[unit]}}},
+            "plugin_settings": {plugin_id: {"secrets": references}},
         }
     )
     service = RuntimeComposer(config, config_root=tmp_path, plugin_root=root).compose()
@@ -186,3 +191,67 @@ def test_signed_auth_plugins_resolve_secrets_in_runtime_contexts_and_multiple_ru
     assert logs.count("operation_started") == len(units)
     assert all(value not in logs for value in canaries)
     assert all(reference not in logs for unit in units for _, reference, _, _ in UNIT_SECRETS[unit])
+
+
+def test_documented_registrations_and_yaml_feed_signed_auth_samples(
+    repository_root, tmp_path, plugin_sources, monkeypatch, capsys, artificial_keys
+):
+    from image_downloader.cli import main
+
+    readme = (repository_root / "plugin-sources/README.md").read_text(encoding="utf-8")
+    settings = next(
+        yaml.safe_load(block)["plugin_settings"]
+        for block in re.findall(r"```yaml\n(.*?)\n```", readme, re.DOTALL)
+        if "EXAMPLE_GALLERY_USERNAME" in block
+    )
+    config = tmp_path / "app.yaml"
+    data = tmp_path / "data"
+    config.write_text(yaml.safe_dump({"plugin_settings": settings}), encoding="utf-8")
+    values = {
+        ("local.image-downloader." + unit, settings["local.image-downloader." + unit]["secrets"][name]): value
+        for unit in UNIT_SECRETS
+        for name, _, _, value in UNIT_SECRETS[unit]
+    }
+    commands = [line for line in readme.splitlines() if line.startswith("image-downloader credential plugin set ")]
+    assert len(commands) == len(values) == 5
+    variables = {"$config": str(config), "$data": str(data)}
+    for line in commands:
+        arguments = [variables.get(part, part) for part in shlex.split(line)[1:]]
+        value = values[arguments[3], arguments[4]]
+        monkeypatch.setattr("image_downloader.commands.credentials._prompt", lambda label, value=value: value)
+        assert main(arguments) == 0
+    output = capsys.readouterr()
+    assert all(value not in output.out + output.err for value in values.values())
+    assert len(artificial_keys.values) == 1
+    _mock_transport(monkeypatch)
+
+    async def scenario():
+        for unit in UNIT_SECRETS:
+            references = settings["local.image-downloader." + unit]["secrets"]
+            async with _compose(tmp_path, plugin_sources, unit, references=references) as service:
+                result = await service.download(DownloadRequest(url=f"https://{UNIT_HOST[unit]}.example.test/works/1"))
+                assert not result.failures
+
+    asyncio.run(scenario())
+    store = CredentialVault(data).profile("default")
+    for (plugin_id, reference), value in values.items():
+        assert store.get_plugin(plugin_id, reference) == value
+    assert store.vault.profile("other").list_entries("plugin") == []
+
+
+def test_documented_vault_api_example_uses_one_scoped_store(repository_root, tmp_path, monkeypatch):
+    from http.cookiejar import CookieJar
+
+    document = (repository_root / "docs/v3/reference/credential-vault.md").read_text(encoding="utf-8")
+    (block,) = re.findall(r"```python\n(.*?)\n```", document, re.DOTALL)
+    monkeypatch.chdir(tmp_path)
+    namespace = {}
+    exec(compile(block, "credential-vault-example", "exec"), namespace)
+    data = namespace["data_root"]
+    assert not data.exists()
+    namespace["store"].set_plugin("com.example.gallery", "TOKEN", "documented-canary")
+    assert namespace["secrets"].get("api_token") == "documented-canary"
+    namespace["cookies"].save(CookieJar())
+    assert (data / "profiles/default/credentials/credentials.enc").is_file()
+    assert (data / "profiles/default/cookie/cookies.v2.enc").is_file()
+    assert not (data / "profiles/default/cookie/cookies.enc").exists()

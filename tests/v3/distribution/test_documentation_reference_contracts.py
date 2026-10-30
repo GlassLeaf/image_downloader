@@ -709,7 +709,7 @@ def test_current_documentation_links_are_recursive_and_archive_is_excluded(repos
         repository_root / "docs" / "README.md",
         *(repository_root / "docs" / "v3").rglob("*.md"),
         repository_root / "plugin-sources" / "README.md",
-        repository_root / "examples" / "plugin-v3-template" / "README.md",
+        *(repository_root / "examples").glob("plugin-v3-*/**/README.md"),
     )
     for document in documents:
         for match in LINK.finditer(document.read_text(encoding="utf-8")):

@@ -14,6 +14,7 @@
 | よくある運用・実装判断を確認する | [CLI・ライブラリ・プラグインのFAQ](how-to/faq.md) |
 | 設定・プロファイルを運用する | [設定の操作手順](how-to/configure-profiles.md) |
 | Cookie・秘密情報・プラグインを管理する | [安全な運用の手順](how-to/operate-securely.md) |
+| 資格情報を登録し、バックアップ・鍵更新を行う | [資格情報保管庫](reference/credential-vault.md) |
 | 認証・ページ分割・短命URLを実装する | [動的URLの実装手順](how-to/dynamic-urls-and-auth.md) |
 | CLIとJSONを自動処理する | [CLIリファレンス](reference/cli.md) |
 | YAML・HTTP・Cookie・更新状態を確認する | [設定リファレンス](reference/configuration.md)と[実行時動作リファレンス](reference/runtime-behavior.md) |

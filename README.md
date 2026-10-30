@@ -81,6 +81,7 @@ image-downloader plugin uninstall com.example.gallery `
 - [CLI・ライブラリ・プラグインのFAQ](docs/v3/how-to/faq.md)
 - [CLIリファレンス](docs/v3/reference/cli.md)
 - [設定リファレンス](docs/v3/reference/configuration.md)
+- [資格情報・Cookieの保管庫と登録・バックアップ・鍵更新](docs/v3/reference/credential-vault.md)
 - [実行ライフサイクル](docs/v3/explanation/execution-lifecycle.md)
 - [プラグインパッケージ・フックリファレンス](docs/v3/reference/plugin-package.md)
 - [配布・信頼・運用](docs/v3/reference/runtime-behavior.md)

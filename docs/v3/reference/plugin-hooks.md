@@ -165,7 +165,7 @@ template は `%CHAPTER_NUMBER%` と `%IMAGE_INDEX%` にその値を四桁ゼロ�
 | `.app_settings` | `Mapping[str, object]` | 秘密情報を除いたアプリ設定。通信ヘッダー・プロキシ、セキュリティポリシー、通知、資格情報、他のプラグイン設定は含みません。 |
 | `.manifest` | `Mapping[str, object]` | 選択したプラグインのmanifestのスナップショット |
 | `.catalog` | `Mapping[str, object] | None` | 選択したプラグインのカタログのpin。pinなし・組込みの場合は`None`。 |
-| `.secrets` | `SecretProvider` | `get(name: str) -> str`。欠落・利用不可の場合は`SecretNotFoundError`。 |
+| `.secrets` | `SecretProvider` | `get(name: str) -> str`。参照の未構成・未登録は`SecretNotFoundError`、鍵欠損・破損などの保管庫障害は`VaultError`。読取り専用。[登録方法](credential-vault.md#登録一覧削除)。 |
 | `.requests` | `RequestPort` | `await execute(RequestSpec) -> RequestResponse`。提供する通信権限はこれだけです。 |
 | `PluginFormatContext.plugin_id`, `.plugin_kind`, `.operation_url` | `str` | 出力書式値を提供しているプラグインの識別情報と操作URL。マッピングは画像・章・成果物ではなく、操作中に変わらないこのコンテキストだけに依存します。 |
 | `.config`, `.app_settings`, `.manifest`, `.catalog` | 上記と同じマッピング型 | 出力書式値の提供元プラグインの設定、秘密情報を除いたアプリ設定、manifest・カタログのスナップショット。要求・秘密情報・ファイルシステムの権限はありません。 |

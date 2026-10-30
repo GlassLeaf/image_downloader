@@ -2,6 +2,8 @@
 
 AuthFlow.allowed_originsへ設定のasset_originだけを追加します。APIと別ポートの画像要求へ認証を付け、未許可originへのredirectは本体が送信前に拒否します。
 
+トークンは[総合手順の保管庫への登録と参照](../README.md#保管庫への登録と参照)で、このプラグインIDの`LAB_TOKEN`として登録します。credential-galleryと同じ参照名でも別の登録です。取得には同じ試験用データルート・defaultプロファイルを使います。
+
 [準備・署名・実行・期待結果・異常系・後片付け](../README.md)を先に確認してください。
 manifestは署名なしの最小形です。利用者の鍵で署名したコピーをstrictでinstallすることもできます。
 このパッケージはpublic v3 APIとPython標準ライブラリだけを使い、他のサンプルをimportしません。

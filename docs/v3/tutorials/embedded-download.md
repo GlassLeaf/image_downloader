@@ -151,4 +151,4 @@ def build_service(
     return DownloadService(config, registry, dependencies)
 ```
 
-これは独自の依存構築を統合するための境界です。`_RuntimeDependencies`には、利用可能で互換性のあるファイルシステム、状態、ログ、Cookie、ゲートウェイ、画像処理、イベント、通知、lockの全依存を含めます。受け取った`DownloadService`が、それらの非同期の終了処理を所有します。使用前に[高度な依存構築の契約](../reference/library-api.md#api-call-outcomes)を確認してください。
+これは独自の依存構築を統合するための境界です。`_RuntimeDependencies`には、利用可能で互換性のあるファイルシステム、状態、ログ、Cookie、資格情報、ゲートウェイ、画像処理、イベント、通知、lockの全依存を含めます。必須の`credentials`には、対象データルート・プロファイルの`ProfileCredentialStore`を渡し、`cookie_store`にも同じストアを使います。受け取った`DownloadService`が、それらの非同期の終了処理を所有します。使用前に[高度な依存構築の契約](../reference/library-api.md#api-call-outcomes)と[直接利用する保管庫API](../reference/credential-vault.md#直接利用するapi)を確認してください。

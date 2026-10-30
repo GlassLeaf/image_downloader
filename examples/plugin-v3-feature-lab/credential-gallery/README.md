@@ -1,6 +1,8 @@
-# keyringと環境変数の参照
+# プロファイル別保管庫の参照
 
-context.secrets.get("api_token")をAuthFlowでBearerヘッダーに設定します。登録・削除と未設定時の確認は総合手順のkeyring節を参照してください。
+`context.secrets.get("api_token")`をAuthFlowでBearerヘッダーに設定します。登録・削除と未設定時の確認は[総合手順の保管庫への登録と参照](../README.md#保管庫への登録と参照)を参照してください。
+
+試験用の`<work-dir>/data`、defaultプロファイルへ`credential plugin set`で登録します。OSストアには保管庫のマスターキーだけを置き、トークン本体は`profiles/default/credentials/credentials.enc`へ暗号化保存します。環境変数や旧keyring項目からは取得しません。
 
 [準備・署名・実行・期待結果・異常系・後片付け](../README.md)を先に確認してください。
 manifestは署名なしの最小形です。利用者の鍵で署名したコピーをstrictでinstallすることもできます。

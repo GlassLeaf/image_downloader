@@ -121,7 +121,7 @@ ORIGINAL保存も対象になる。設定の許可範囲と既存設定の変更
 | `OutputAllocation(relative_path, ...)` | `should_write` プロパティ、`async commit()`、`async abort()`。reservation を持つ `should_write=True` allocation は commit/abort のいずれか一回が必要で、二回目は `RuntimeError`。既存ファイルによるスキップ用の割当て (`should_write=False`) は reservation を持たず、`commit()`/`abort()` は完了操作不要の反復 no-op。 |
 | `RuntimeSecrets(plugin_id, references, *, store)` | `get(name) -> str`。プロファイル別保管庫を注入する。[資格情報保管庫](credential-vault.md)。 |
 | `UpdateState(filesystem, *, lock_timeout_seconds=30.0)` | `records() -> dict`、`save(records) -> None`、`apply_snapshot(plugin_id, source_url, snapshot) -> tuple[UpdateChange, ...]`、`async apply_snapshot_async(...)`。state contract は [実行時動作](runtime-behavior.md#runtime-update-state)。 |
-| `_RuntimeDependencies(outputs, logs, state, events, logger, notifications, cookie_store, cookie_baseline, gateway, image_processor, output_locks)` | stable re-export された advanced composition DTO。すべて compatible かつ open な dependency が必要で、通常は composer を使う。 |
+| `_RuntimeDependencies(outputs, logs, state, events, logger, notifications, cookie_store, credentials, cookie_baseline, gateway, image_processor, output_locks, persist_cookies_on_close=True)` | stable re-export された advanced composition DTO。`credentials`は対象プロファイルの`ProfileCredentialStore`。すべて compatible かつ open な dependency が必要で、通常は composer を使う。 |
 
 service snapshot 後の plugin filesystem 変更は既存 service に再発見されない。HTTP pool、cookie jar、host/site limiter は service 単位で共有する一方、plugin ID、AuthFlow、allowed origin、refresh state は operation 単位で隔離する。selected site plugin は各 `download()` / `check_updates()` / `inspect()` の runtime 利用終了時に、任意の `cleanup_after_use()` を一回だけ受ける。configured processor も download 終了時に同じ hook を受け、processor が先、site が後である。hook は同期または awaitable を返せ、runtime は完了後に同じ instance の plugin hook を呼ばない。normal completion の cleanup failure は `PluginError`、既存の failure/cancellation がある場合は主原因を維持し cleanup failure は診断に留める。`close()` は operation 完了を待ち、gateway/processor/logger を閉じ、cookie delta を保存する。
 
@@ -138,7 +138,6 @@ service snapshot 後の plugin filesystem 変更は既存 service に再発見�
 | `RuntimeComposer.compose()` | リソースを所有する`DownloadService`を返す。`async with`か`await service.close()`で閉じる | ファイルに保存するログ・状態・Cookie、HTTPゲートウェイ、ワーカー、ログ処理を作成 | 設定・通知・プラグインの初期化は、サービスを返す前に失敗し得る。構築済みリソースを巻き戻し、Cookie保存や通知送信を行わず、元の例外・中断を維持する。入力を修正するか新しく構築し直す。構築途中のサービスは利用できない。 |
 | `RuntimeComposer.compose_registry()` | `PluginRuntime`を返す。同期の`close()`は**呼び出し側**で実行する | プラグインの発見・検証・分離モジュールのロードだけを行い、実行時データ保存先・ログ処理・ゲートウェイ・ワーカーは開かない | 不正なルート・設定は`ConfigurationError`、ソース・検証・クラスの失敗は`PluginError`。構築失敗時は自身のruntimeを閉じてから、元の例外・中断を伝播する。 |
 | `DownloadService.download()` | `DownloadResult`。通常の画像失敗と画像の対応は`chapter.outcomes`から得る | 同一サービスでは一度に一操作だけを実行し、プラグイン・設定のスナップショットを固定する | `AuthenticationError`、`ConfigurationError`、`PluginError`、`StorageSafetyError`、`InterProcessLockError`、即時停止対象の画像失敗、キャンセルは部分結果を返さず中断する。`ImageDownloaderError`の捕捉はアプリケーション境界で行い、回復には具体的な型・コードを使う。 |
-| `VaultError` | `vault_error` | credential vault operation failed |
 | `DownloadService.check_updates()` | 完全な`UpdateResult`。部分結果は返さない | `download`と直列に実行し、lock内で更新状態を読み取り・比較・保存する | サイトが`UpdateProvider`を持たなければ`PluginError`のサブクラス`UpdateCheckUnsupportedError`。`UpdateStateError`、認証・設定・要求・保存の失敗、キャンセルも操作を中断する。 |
 | `DownloadService.inspect()` | `ManifestInspectionResult`。`create_image_request()`の失敗は`failed`、元の要求の生成後に認証・組み立てが失敗すると`partially_resolved`。後続画像をmanifest順に続ける | download・updateと直列に実行し、Cookie jarを複製した独立の一時ゲートウェイを使う。`inspect()`、必要なら`create_image_request()`、`AuthFlow.apply()`を呼び、`EffectiveRequestPreview`を作る。画像本文の取得、回復、加工、保存、出力割当、レポート、状態更新、イベント、通知は行わない。フック自身による許可された補助HTTP通信は起こり得る。 | 選択・設定・manifest・認証フロー構築・後始末の失敗とキャンセルは、結果を返さず中断する。`request_resolution_performed=False`なら画像要求フックは未実行。元の要求、プラグインデータ、実効URL・ヘッダー・Cookie・本文は秘匿化前の診断情報であり、保存・ログ出力・公開してはならない。組み立てられた各画像要求のエンコード済み本文を含むプレビューを保持し、件数・本文サイズのAPI上限やストリーミング結果はない。大規模なmanifestは操作を分けるか`resolve_image_requests=False`を使う。CLIの`--inspection-data`は出力への投影だけで、ライブラリの結果は秘匿化しない。 |
 | `DownloadService.close()` / 非同期コンテキストの終了 | `None`。繰り返し呼び出し可能 | 現在の操作を待ち、Cookie差分を保存し、ゲートウェイ・画像処理・ログ処理を閉じる | 閉じた後の5つのアプリケーション操作は`RuntimeError`。[実行時の挙動](runtime-behavior.md#observability-and-notification)で規定する範囲では、確定済みの主結果から後始末・観測処理の失敗を分離する。 |
@@ -146,7 +145,7 @@ service snapshot 後の plugin filesystem 変更は既存 service に再発見�
 | `OutputAllocator.allocate()` | `OutputAllocation` | 割当器内部の予約で競合パスを直列化し、外側の出力lockでプロセス間を調整 | `existing_file=error`は`ExistingFileConflictError`、改名候補の枯渇は`OutputAllocationError`、実現不能な名前長制限は`ConfigurationError`。書き込み予約は一度だけ確定または中止する。 |
 | `UpdateState`のメソッド | 記録、または完全な`UpdateChange`のタプル | 同期の`apply_snapshot`はメモリー・ファイルの処理。非同期版はプロセス間の更新lockを使用 | `UpdateStateError`、`StorageSafetyError`、`InterProcessLockError`なら信頼できる更新結果はない。壊れた状態ファイルを黙って作り直さない。 |
 
-`_RuntimeDependencies`は高度な依存構築向けの安定DTOです。`outputs`、`logs`、`state`、`events`、`logger`、`notifications`、`cookie_store`、`cookie_baseline`、`gateway`、`image_processor`、`output_locks`には、互いに互換性があり利用可能な依存を渡す必要があります。`DownloadService`へ渡すと、サービスが終了処理を所有します。正確なコンストラクターフィールドはシグネチャの契約で固定し、サービスの構築に失敗した場合は、直接呼び出した側が所有権を保ちます。通常は`RuntimeComposer`を使用してください。
+`_RuntimeDependencies`は高度な依存構築向けの安定DTOです。`outputs`、`logs`、`state`、`events`、`logger`、`notifications`、`cookie_store`、`credentials`、`cookie_baseline`、`gateway`、`image_processor`、`output_locks`には、互いに互換性があり利用可能な依存を渡す必要があります。`credentials`と`cookie_store`には同じデータルート・プロファイルの保管庫を使います。`DownloadService`へ渡すと、サービスが終了処理を所有します。正確なコンストラクターフィールドはシグネチャの契約で固定し、サービスの構築に失敗した場合は、直接呼び出した側が所有権を保ちます。通常は`RuntimeComposer`を使用してください。
 
 `close()`は、操作の終了を待ってからCookie保存、HTTPゲートウェイ、画像ワーカー、プラグイン登録、ログ処理の順に後始末します。同時に呼ぶと同じ終了タスクを待ち、終了後の再呼び出しは何もしません。待機側をキャンセルしても、開始済みの終了処理は中断せず、ワーカースレッドも含めて完了してからキャンセルを伝えます。終了失敗も生じた場合はその失敗を優先し、通常の終了失敗が複数あれば最初のものを返します。重大例外は通常例外へ変換しません。ログの通常終了例外は、最初の通常終了失敗を返す規則の対象外です。固定の診断警告に留め、成功結果・CLI終了コード・履歴を変更しません。キャンセルや重大例外は、この通常例外の抑制対象ではありません。
 
@@ -205,6 +204,7 @@ service snapshot 後の plugin filesystem 変更は既存 service に再発見�
 | `UnsupportedSiteFeatureError` | `unsupported_site_feature` | site requires an unsupported feature | — |
 | `AuthenticationError` | `authentication_error` | authentication failed | — |
 | `SecretNotFoundError` | `secret_not_found` | required secret was not found | — |
+| `VaultError` | `vault_error` | credential vault operation failed | インスタンスの`code`・`reason`は障害に応じた`vault_*`の固定値。[保管庫の障害](credential-vault.md#初期化と障害)を参照。 |
 | `RequestError` | `request_error` | HTTP request failed | — |
 | `HttpTransportError` | `http_transport_error` | HTTP transport failed | — |
 | `HttpStatusError` | `http_status_error` | HTTP server returned an error response | `status`, `response_url` |

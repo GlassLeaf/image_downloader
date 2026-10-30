@@ -11,7 +11,7 @@
 | 対応ID | 追加した例・機能 | 現在の状態 |
 | --- | --- | --- |
 | F01–F11 | [追加ファイル](../../../examples/plugin-v3-additional-files/README.md) | 独立パッケージ、全7段階、必須データ連携、callback、cleanup |
-| A01/A05/A06 | [keyring認証](../../../examples/plugin-v3-feature-lab/credential-gallery/plugin.py) | 登録・削除補助、参照、未登録、環境変数上書きの手順と人工テスト |
+| A01/A05/A06 | [保管庫認証](../../../examples/plugin-v3-feature-lab/credential-gallery/plugin.py) | プロファイル別の登録・削除・参照、未登録エラーの手順と人工テスト。環境変数・旧keyringへのフォールバックは廃止 |
 | A07–A09 | [Cookie認証](../../../examples/plugin-v3-feature-lab/cookie-gallery/plugin.py)・[実機手順](../../../manual-tests/browser-cookies/README.md) | 本体に取得元限定オプションを追加。実機読取りはAI／CI外の利用者試験で、未実施・非対応は別管理 |
 | A10 | [追加origin](../../../examples/plugin-v3-feature-lab/origin-auth-gallery/plugin.py) | 認証許可・未許可・redirect拒否の使用例 |
 | I08/O02/O04 | [出力指定](../../../examples/plugin-v3-feature-lab/output-gallery/plugin.py) | 形式・品質・圧縮・EXIF、元名、独自token、force指定との優先順位 |

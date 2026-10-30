@@ -102,10 +102,11 @@ from image_downloader.runtime import RuntimeSecrets
 from image_downloader.storage import FileSystem
 from image_downloader.storage.cookies import CookieStore
 
-vault = CredentialVault(Path("C:/isolated/data"))
+data_root = Path("isolated-data").resolve()
+vault = CredentialVault(data_root)
 store = vault.profile("default")
 secrets = RuntimeSecrets("com.example.gallery", {"api_token": "TOKEN"}, store=store)
-cookies = CookieStore(FileSystem(Path("C:/isolated/data/profiles/default/cookie")), store=store)
+cookies = CookieStore(FileSystem(data_root / "profiles" / "default" / "cookie"), store=store)
 ```
 
 `CredentialVault.profile(name)`が返す`ProfileCredentialStore`は`get_plugin(plugin_id, reference)`、`set_plugin(plugin_id, reference, value)`、`get_smtp(reference)`、`set_smtp(reference, username, password)`、`list_entries(kind)`、`delete(kind, reference, plugin_id=None)`を提供します。`set_*`は登録と更新を兼ねます。`get_smtp`の結果は`SmtpCredential`で、reprは秘密を伏せます。CLIと異なり管理APIでは秘密の取得もできます。

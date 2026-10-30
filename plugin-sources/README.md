@@ -86,11 +86,15 @@ python tools/sign_local_site_plugin.py `
   plugin-sources/oauth-media-api plugin-sources/signed-cdn-gallery
 
 $env:PYTHONPATH = 'src'
-python -m image_downloader plugin install "${PWD}/plugin-sources/csrf-login-gallery" `
-  --config "${PWD}/.runtime/config/app.yaml" --plugin-root "${PWD}/.runtime/plugin-root" --yes
+$units = 'chaptered-catalog','public-gallery','cursor-api-gallery','csrf-login-gallery','oauth-media-api','signed-cdn-gallery'
+foreach ($unit in $units) {
+    python -m image_downloader plugin install "${PWD}/plugin-sources/$unit" `
+      --config "${PWD}/.runtime/config/app.yaml" --plugin-root "${PWD}/.runtime/plugin-root" --yes
+}
 ```
 
 認証情報はプラグインの外部で管理します。`plugin_settings`には資格情報そのものではなく、秘密情報への参照を設定してください。
+次のYAMLを利用者設定へ追加し、続くCLIで参照名に対応する値を登録します。`EXAMPLE_*`は環境変数名ではありません。
 
 ```yaml
 plugin_settings:
@@ -106,3 +110,25 @@ plugin_settings:
       access_token: EXAMPLE_OAUTH_ACCESS_TOKEN
       refresh_token: EXAMPLE_OAUTH_REFRESH_TOKEN
 ```
+
+```powershell
+$config = Join-Path (Get-Location).Path '.runtime/config/app.yaml'
+$data = Join-Path (Get-Location).Path '.runtime/sample-data'
+$plugins = Join-Path (Get-Location).Path '.runtime/plugin-root'
+image-downloader credential plugin set local.image-downloader.csrf-login-gallery EXAMPLE_GALLERY_USERNAME --config $config --data-root $data --profile default
+image-downloader credential plugin set local.image-downloader.csrf-login-gallery EXAMPLE_GALLERY_PASSWORD --config $config --data-root $data --profile default
+image-downloader credential plugin set local.image-downloader.cursor-api-gallery EXAMPLE_GALLERY_API_TOKEN --config $config --data-root $data --profile default
+image-downloader credential plugin set local.image-downloader.oauth-media-api EXAMPLE_OAUTH_ACCESS_TOKEN --config $config --data-root $data --profile default
+image-downloader credential plugin set local.image-downloader.oauth-media-api EXAMPLE_OAUTH_REFRESH_TOKEN --config $config --data-root $data --profile default
+
+# インストール済みの対象プラグインで実行する。example.testは架空サイトの例。
+image-downloader download 'https://csrf-login.example.test/works/1' --config $config --data-root $data --plugin-root $plugins --profile default
+```
+
+秘密値は各コマンドの非表示入力で指定します。登録と実行には同じ`--config`・`--data-root`・`--profile`を指定してください。
+別プロファイルでは同じプラグインID・参照名も別の登録です。OSストアには保管庫ごとのマスターキーだけを保存し、
+資格情報本体はデータルートの`profiles/default/credentials/credentials.enc`へ暗号化保存します。
+環境変数・旧keyring資格情報へのフォールバックはありません。管理・一覧・削除は[資格情報保管庫](../docs/v3/reference/credential-vault.md)を参照してください。
+
+プラグインの`context.secrets.get(name)`契約と署名形式は変わりません。この保存方式の切替だけでプラグインの再署名は不要です。
+OAuth例で更新したaccess tokenはAuthFlowのメモリー内だけに保持し、access token・refresh tokenを保管庫へ自動保存しません。
