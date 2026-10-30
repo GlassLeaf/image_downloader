@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import ctypes
-import os
+import sys
 from pathlib import Path
 
 from ..exceptions import VaultError
@@ -16,7 +16,7 @@ def restrict(path: Path, *, directory: bool) -> None:
         existing_directory(path, "private directory", required=True)
     else:
         existing_regular_file(path, "private file", required=True)
-    if os.name != "nt":
+    if sys.platform != "win32":
         path.chmod(0o700 if directory else 0o600)
         return
     from ctypes import wintypes
