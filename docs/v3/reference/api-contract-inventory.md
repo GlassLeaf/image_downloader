@@ -49,6 +49,7 @@ AuthenticationError
 Chapter
 ChapterResult
 ConfigurableSitePlugin
+CookieProvider
 ConfigurationError
 ArgumentError
 DownloadManifest

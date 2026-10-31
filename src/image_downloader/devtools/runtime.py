@@ -303,6 +303,7 @@ class DevelopmentSession:
                 None,
                 RuntimeSecrets(self.record.id, private.secrets, store=self.credentials),
                 self.gateway,
+                cookie_provider=self.gateway,
             )
             if self.record.kind == "site_plugin":
                 self.context, _, _ = self.service._operations.build(  # type: ignore[union-attr]

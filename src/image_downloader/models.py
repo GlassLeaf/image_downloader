@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
+from http.cookies import CookieError, SimpleCookie
 from types import MappingProxyType
 from typing import Literal, TypeVar
 
@@ -68,9 +69,34 @@ class RequestResponse:
     status: int
     headers: Mapping[str, str]
     body: bytes
+    set_cookie_headers: tuple[str, ...] | None = field(default=None, kw_only=True, repr=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "headers", freeze_mapping(self.headers))
+        if self.set_cookie_headers is not None and (
+            not isinstance(self.set_cookie_headers, tuple)
+            or any(not isinstance(value, str) for value in self.set_cookie_headers)
+        ):
+            raise TypeError("set_cookie_headers must be a tuple of strings or None")
+
+    def set_cookies(self) -> dict[str, str]:
+        """Extract this response's Set-Cookie values without modifying any jar.
+
+        Deletion directives retain their stated value; later duplicate names
+        win. The legacy headers fallback cannot reconstruct merged headers.
+        """
+        headers = self.set_cookie_headers
+        if headers is None:
+            headers = tuple(value for name, value in self.headers.items() if name.lower() == "set-cookie")
+        result: dict[str, str] = {}
+        for value in headers:
+            parsed = SimpleCookie()
+            try:
+                parsed.load(value)
+            except CookieError:
+                continue
+            result.update((name, morsel.value) for name, morsel in parsed.items())
+        return result
 
 
 @dataclass(frozen=True, slots=True)

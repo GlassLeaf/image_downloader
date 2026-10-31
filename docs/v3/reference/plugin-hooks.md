@@ -167,6 +167,7 @@ template は `%CHAPTER_NUMBER%` と `%IMAGE_INDEX%` にその値を四桁ゼロ�
 | `.catalog` | `Mapping[str, object] | None` | 選択したプラグインのカタログのpin。pinなし・組込みの場合は`None`。 |
 | `.secrets` | `SecretProvider` | `get(name: str) -> str`。参照の未構成・未登録は`SecretNotFoundError`、鍵欠損・破損などの保管庫障害は`VaultError`。読取り専用。[登録方法](credential-vault.md#登録一覧削除)。 |
 | `.requests` | `RequestPort` | `await execute(RequestSpec) -> RequestResponse`。提供する通信権限はこれだけです。 |
+| `.get_cookies(*, domain=None, path=None)` | `dict` | 共有Cookie jarの現在値を同期取得する。domain/pathは保存属性との完全一致。返却階層は下記を参照。 |
 | `PluginFormatContext.plugin_id`, `.plugin_kind`, `.operation_url` | `str` | 出力書式値を提供しているプラグインの識別情報と操作URL。マッピングは画像・章・成果物ではなく、操作中に変わらないこのコンテキストだけに依存します。 |
 | `.config`, `.app_settings`, `.manifest`, `.catalog` | 上記と同じマッピング型 | 出力書式値の提供元プラグインの設定、秘密情報を除いたアプリ設定、manifest・カタログのスナップショット。要求・秘密情報・ファイルシステムの権限はありません。 |
 | `TransformContext.image_id` | `str | None` | 元の`ImageResource.image_id` |
@@ -195,6 +196,42 @@ async def create_image_request(self, image, context):
         RequestSpec(signed.headers["x-image-url"]),
         {"variant": image.metadata["variant"]},
     )
+```
+
+### Cookieの同期取得
+
+`PluginExecutionContext.get_cookies(*, domain: str | None = None, path: str | None = None)` は、
+指定なしでは `{domain: {path: {name: value}}}`、domainのみでは `{path: {name: value}}`、
+pathのみでは `{domain: {name: value}}`、両方では `{name: value}` を返す。overloadで各返却型を定義する。
+一致条件は保存文字列との完全一致で、`example.com` と `.example.com`、`/` と `/images` は別扱い。
+該当なしは空辞書。全階層がコピーされ、変更してもjarは変わらない。
+有効期限切れは除き、Secure/HttpOnlyを含める。値がNoneの場合は空文字列になる。
+送信先への適用判定・通信・永続化は行わず、jarにない `RequestSpec.cookies` や手動Cookieヘッダーは含めない。
+
+呼出時点の共有jarを参照するため、受信したSet-Cookieの適用後の値を取得できる。
+リダイレクト途中、再試行、認証更新、他の並行通信による更新も含み、直前の自分の要求専用の履歴ではない。
+`TransformContext` と `PluginFormatContext` にはこの取得機能を追加しない。
+
+手動で構築する `PluginExecutionContext` は従来の位置引数を維持し、任意のkeyword-only引数
+`cookie_provider: CookieProvider | None = None` を追加する。
+`CookieProvider.get_cookie_snapshot() -> dict[str, dict[str, dict[str, str]]]` は有効なCookieのコピーを返す。
+未注入時の `get_cookies()` は `UnsupportedSiteFeatureError`。本体と開発ツールはproviderを注入する。
+
+`RequestResponse.set_cookies() -> dict[str, str]` は最終応答自身のSet-Cookieだけを同期解析する。
+途中の応答は含めず、各ヘッダーを個別にSimpleCookieで解析し、カンマで分割しない。
+同名は後のヘッダーが優先し、属性は返さない。削除指定も記載値を返すのでjarの現在値とは異なり得る。
+不正なヘッダーは無視し、該当なしは空辞書。jarは変更しない。
+keyword-onlyの `set_cookie_headers: tuple[str, ...] | None = None` に個別のヘッダーを保持し、reprには出さない。
+手動構築時に未指定なら既存headersのSet-Cookieを単一ヘッダーとして扱うが、結合済みの複数ヘッダーの復元は保証しない。
+新APIを使うpluginは対応する本体版を必要とする。API version 3と永続化形式は維持する。
+取得した秘密値をmanifest/画像metadata、成果物、公開結果、ログへコピーしないこと。
+
+```python
+response = await context.requests.execute(RequestSpec("https://example.test/login"))
+received = response.set_cookies()
+current = context.get_cookies(domain="example.test", path="/")
+session = current.get("session")
+all_cookies = context.get_cookies()  # domain -> path -> name -> value
 ```
 
 <a id="plugin-hook-errors"></a>

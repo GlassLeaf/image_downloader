@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import Collection, Mapping
-from typing import Protocol, TypeGuard, cast, runtime_checkable
+from typing import Protocol, TypeGuard, cast, overload, runtime_checkable
 
+from .exceptions import UnsupportedSiteFeatureError
 from .immutable import freeze_json
 from .models import (
     AdditionalFileHookContext,
@@ -34,10 +35,17 @@ class SecretProvider(Protocol):
     def get(self, name: str) -> str: ...
 
 
+@runtime_checkable
+class CookieProvider(Protocol):
+    def get_cookie_snapshot(self) -> dict[str, dict[str, dict[str, str]]]:
+        """Return a detached snapshot of non-expired cookies by domain/path/name."""
+        ...
+
+
 class PluginExecutionContext:
     """Capability-reduced v3 context supplied to a selected site plugin."""
 
-    __slots__ = ("_config", "_app_settings", "_manifest", "_catalog", "_secrets", "_requests")
+    __slots__ = ("_config", "_app_settings", "_manifest", "_catalog", "_secrets", "_requests", "_cookie_provider")
 
     def __init__(
         self,
@@ -47,6 +55,8 @@ class PluginExecutionContext:
         catalog: Mapping[str, object] | None,
         secrets: SecretProvider,
         requests: RequestPort,
+        *,
+        cookie_provider: CookieProvider | None = None,
     ) -> None:
         self._config = _readonly_mapping(config)
         self._app_settings = _readonly_mapping(app_settings)
@@ -54,6 +64,49 @@ class PluginExecutionContext:
         self._catalog = _readonly_mapping(catalog) if catalog is not None else None
         self._secrets = secrets
         self._requests = requests
+        self._cookie_provider = cookie_provider
+
+    @overload
+    def get_cookies(self, *, domain: None = None, path: None = None) -> dict[str, dict[str, dict[str, str]]]: ...
+
+    @overload
+    def get_cookies(self, *, domain: str, path: None = None) -> dict[str, dict[str, str]]: ...
+
+    @overload
+    def get_cookies(self, *, domain: None = None, path: str) -> dict[str, dict[str, str]]: ...
+
+    @overload
+    def get_cookies(self, *, domain: str, path: str) -> dict[str, str]: ...
+
+    @overload
+    def get_cookies(
+        self, *, domain: str | None = None, path: str | None = None
+    ) -> dict[str, dict[str, dict[str, str]]] | dict[str, dict[str, str]] | dict[str, str]: ...
+
+    def get_cookies(
+        self, *, domain: str | None = None, path: str | None = None
+    ) -> dict[str, dict[str, dict[str, str]]] | dict[str, dict[str, str]] | dict[str, str]:
+        """Read current cookies using exact stored domain/path matches.
+
+        Omitted dimensions remain dictionary levels; specified dimensions are
+        removed. Values are detached from the shared jar, including all nested
+        dictionaries. No network request or persistence is performed.
+        """
+        if domain is not None and not isinstance(domain, str):
+            raise TypeError("domain must be a string or None")
+        if path is not None and not isinstance(path, str):
+            raise TypeError("path must be a string or None")
+        if self._cookie_provider is None:
+            raise UnsupportedSiteFeatureError("cookie access is unavailable in this context")
+        snapshot = self._cookie_provider.get_cookie_snapshot()
+        if domain is not None:
+            paths = snapshot.get(domain, {})
+            if path is not None:
+                return dict(paths.get(path, {}))
+            return {key: dict(values) for key, values in paths.items()}
+        if path is not None:
+            return {key: dict(paths[path]) for key, paths in snapshot.items() if path in paths}
+        return {key: {p: dict(values) for p, values in paths.items()} for key, paths in snapshot.items()}
 
     @property
     def config(self) -> Mapping[str, object]:

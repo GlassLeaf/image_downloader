@@ -86,6 +86,7 @@ result = await service.workflow(WorkflowRequest(url=feed_url, workflow_retries=2
 | 更新のDTO | `UpdateCandidate(url, content_id=None, revision=None)`、`UpdateSnapshot(source_url, candidates, checked_at)`、`UpdateChange(kind, url, content_id=None, revision=None)`、`UpdateResult(source_url, plugin_id, changes, checked_at)`。kind は ADDED/CHANGED/REMOVED。 |
 | `RequestPort` | `async execute(spec: RequestSpec) -> RequestResponse`。`RequestError` family を送出し得る。 |
 | `SecretProvider` | `get(name: str) -> str`。未設定/取得不能は `SecretNotFoundError`。 |
+| `CookieProvider` | `get_cookie_snapshot() -> dict[str, dict[str, dict[str, str]]]`。有効なCookieをdomain/path/name別の独立した辞書で返す。 |
 | `AuthFlow` | `is_auth_failure(request, response) -> bool`、`async apply(request) -> RequestSpec`、`async refresh(failed, response) -> RequestSpec | None`。 |
 | `SitePlugin` / `ImageProcessor` / `UpdateProvider` | signature と hook failure は [プラグインフックリファレンス](plugin-hooks.md) が正本。 |
 

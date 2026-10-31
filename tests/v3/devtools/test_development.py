@@ -534,7 +534,10 @@ def test_existing_profile_credentials_and_cookies_are_read_only(tmp_path, monkey
             assert not result.failures
             events = (session.output.directory / "events.jsonl").read_text(encoding="utf-8")
             assert "PROFILE-SECRET" in events and "PROFILE-COOKIE" in events
+            context = session.execution_context()
+            assert context.get_cookies(domain="example.test", path="/") == {"session": "PROFILE-COOKIE"}
             session.gateway.client.cookies.set("session", "CHANGED", domain="example.test")
+            assert context.get_cookies(domain="example.test", path="/") == {"session": "CHANGED"}
 
     asyncio.run(scenario())
     assert {

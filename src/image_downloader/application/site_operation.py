@@ -192,6 +192,7 @@ class SiteOperationFactory:
                 record.catalog.as_json() if record.catalog else None,
                 secrets,
                 _PluginRequests(session),
+                cookie_provider=request_gateway or self.gateway,
             )
             return invoker.auth_flow(plugin, context)
 

@@ -96,6 +96,21 @@ python examples/plugin-v3-feature-lab/lab.py credentials-delete --work-dir $work
 
 ### ブラウザCookie
 
+対応する本体版では、Cookie認証プラグインから以下の同期APIで値を参照できます。
+既存の自動送信に加えて、Cookie値を別の要求ヘッダーへ使う場合などに利用します。
+
+```python
+# Cookie jarの保存属性と完全一致。先頭ドットやパスも区別する。
+session = context.get_cookies(domain="127.0.0.1", path="/").get("lab_session")
+all_cookies = context.get_cookies()  # domain -> path -> name -> value
+
+response = await context.requests.execute(RequestSpec(login_url))
+received = response.set_cookies()  # 最終応答のSet-Cookieのみ。await不要。
+```
+
+取得値は秘密情報として扱い、表示やログ出力は行いません。
+`get_cookies()` は呼出時点のjarを参照するため、並行通信の更新も含みます。
+
 このページでは通常の`cookie browser-import`を実行しません。
 自動テストは人工jarだけを使用し、[手動試験](../../manual-tests/browser-cookies/README.md)が専用Chromeプロファイルの読取りを担当します。
 profile・Cookie DB・Local State・暗号鍵・実行結果を、この作業先やCIへコピーしないでください。

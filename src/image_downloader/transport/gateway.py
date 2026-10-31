@@ -72,9 +72,7 @@ class RequestGateway:
         self._last_request = 0.0
         self._logger = logger
         self.transport_factory = transport_factory
-        transport_options: dict[str, Any] = (
-            {"transport": transport_factory()} if transport_factory is not None else {}
-        )
+        transport_options: dict[str, Any] = {"transport": transport_factory()} if transport_factory is not None else {}
         self.client = httpx.AsyncClient(
             http2=network.http2,
             timeout=timeout,
@@ -112,6 +110,15 @@ class RequestGateway:
 
     async def execute(self, spec: RequestSpec) -> RequestResponse:
         return await self.operation(plugin_id=None, operation_url=spec.url).execute(spec)
+
+    def get_cookie_snapshot(self) -> dict[str, dict[str, dict[str, str]]]:
+        """Read the current jar without exposing or mutating its Cookie objects."""
+        now = int(time.time())
+        snapshot: dict[str, dict[str, dict[str, str]]] = {}
+        for cookie in self.client.cookies.jar:
+            if not cookie.is_expired(now):
+                snapshot.setdefault(cookie.domain, {}).setdefault(cookie.path, {})[cookie.name] = cookie.value or ""
+        return snapshot
 
     async def _transport(
         self,
@@ -303,7 +310,13 @@ class RequestGateway:
                     limit_bytes=limit,
                 )
             body.extend(chunk)
-        return RequestResponse(str(response.url), response.status_code, dict(response.headers), bytes(body))
+        return RequestResponse(
+            str(response.url),
+            response.status_code,
+            dict(response.headers),
+            bytes(body),
+            set_cookie_headers=tuple(response.headers.get_list("set-cookie")),
+        )
 
     @staticmethod
     def _retry_after(response: RequestResponse) -> float | None:

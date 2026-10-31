@@ -78,7 +78,7 @@
 | `ImageSaveOptions` | `ImageSaveOptions(format: str | None = None, extension: str | None = None, quality: int | None = None, optimize: bool | None = None, progressive: bool | None = None, lossless: bool | None = None, compress_level: int | None = None, exif: bool = False)` |
 | `ImageTransportMetadata` | `ImageTransportMetadata(initial_request: TransportRequestMetadata, final_request: TransportRequestMetadata, response_url: str, response_headers: Mapping[str, tuple[str, ...]], plugin_data: Mapping[str, str] = <factory: freeze_mapping>, is_redacted: bool = False)` |
 | `RequestSpec` | `RequestSpec(url: str, method: str = "GET", headers: Mapping[str, str] = <factory: freeze_mapping>, cookies: Mapping[str, str] = <factory: freeze_mapping>, referer: str | None = None, query: Mapping[str, str] = <factory: freeze_mapping>, form: Mapping[str, str] = <factory: freeze_mapping>, json: object | None = None, auth_required: bool = True, retry_non_idempotent: bool = False)` |
-| `RequestResponse` | `RequestResponse(url: str, status: int, headers: Mapping[str, str], body: bytes)` |
+| `RequestResponse` | `RequestResponse(url: str, status: int, headers: Mapping[str, str], body: bytes, *, set_cookie_headers: tuple[str, ...] | None = None)`。`set_cookies() -> dict[str, str]` はこの応答のCookie値を同期取得する。 |
 | `TransportCookie` | `TransportCookie(name: str, value: str)` |
 | `TransportHeader` | `TransportHeader(name: str, value: str)` |
 | `TransportRequestMetadata` | `TransportRequestMetadata(url: str, headers: Mapping[str, tuple[str, ...]], cookies: tuple[TransportCookie, ...] = ())` |
@@ -129,6 +129,7 @@
 | `RequestGateway` <!-- api-contract: image_downloader.runtime.RequestGateway --> | `RequestGateway(config: AppConfig, cookie_jar: CookieJar | None = None, *, logger: DownloadLogger | None = None, transport_factory: Callable[[], httpx.AsyncBaseTransport] | None = None)` |
 | `RequestGateway.operation` <!-- api-contract: image_downloader.runtime.RequestGateway.operation --> | `operation(self, *, plugin_id: str | None, operation_url: str, auth_flow_factory: Callable[[OperationRequestGateway], object | None] | None = None, invoker: PluginInvoker | None = None, request_concurrency: int | None = None) -> OperationRequestGateway` |
 | `RequestGateway.execute` <!-- api-contract: image_downloader.runtime.RequestGateway.execute --> | `async execute(self, spec: RequestSpec) -> RequestResponse` |
+| `RequestGateway.get_cookie_snapshot` <!-- api-contract: image_downloader.runtime.RequestGateway.get_cookie_snapshot --> | `get_cookie_snapshot(self) -> dict[str, dict[str, dict[str, str]]]`。有効なCookieをdomain/path/name別にコピーする。 |
 | `RequestGateway.close` <!-- api-contract: image_downloader.runtime.RequestGateway.close --> | `async close(self) -> None` |
 | `RuntimeComposer` <!-- api-contract: image_downloader.runtime.RuntimeComposer --> | `RuntimeComposer(config: AppConfig, *, config_root: Path, plugin_root: Path, output_root: Path | None = None, plugin_verification_override: PluginVerificationOverride | None = None)` |
 | `RuntimeComposer.compose` <!-- api-contract: image_downloader.runtime.RuntimeComposer.compose --> | `compose(self) -> DownloadService` |
