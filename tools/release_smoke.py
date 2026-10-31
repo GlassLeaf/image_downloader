@@ -89,6 +89,10 @@ def _check_archive_names(names: list[str], *, source_archive: bool) -> None:
         "transport/gateway.py",
         "transport/operation.py",
         "transport/image_requests.py",
+        "devtools/cli.py",
+        "devtools/worker.py",
+        "devtools/generation.py",
+        "devtools/templates/support.py.txt",
     )
     for module in required_modules:
         if not any(name.endswith(f"image_downloader/{module}") for name in names):
@@ -163,10 +167,44 @@ def verify(*, offline: bool) -> None:
         )
         installed = json.loads(_run(str(python), "-m", "image_downloader", "doctor", *common))["execution"]["result"]
         if not installed["healthy"] or not any(
-            item["name"] == "local.image-downloader.public-gallery" and item["loaded"]
-            for item in installed["plugins"]
+            item["name"] == "local.image-downloader.public-gallery" and item["loaded"] for item in installed["plugins"]
         ):
             raise RuntimeError("installed signed plugin was not loaded in strict mode")
+        development = base / "development"
+        _run(
+            str(python),
+            "-m",
+            "image_downloader.devtools",
+            "init",
+            str(development),
+            "--features",
+            "json,cleanup",
+            "--non-interactive",
+            "--json",
+        )
+        executable = environment / (
+            "Scripts/image-downloader-dev.exe" if sys.platform == "win32" else "bin/image-downloader-dev"
+        )
+        loaded = json.loads(_run(str(executable), "load", str(development), "--json"))
+        if not loaded["ok"]:
+            raise RuntimeError("installed development CLI could not load its generated plugin")
+        replay = json.loads(
+            _run(
+                str(python),
+                "-m",
+                "image_downloader.devtools",
+                "simulate",
+                str(development),
+                "https://example.test/gallery",
+                "--mode",
+                "replay",
+                "--fixture",
+                str(development / "fixtures/replay.yaml"),
+                "--json",
+            )
+        )
+        if not replay["ok"] or replay["result"]["chapters"][0]["outcomes"][0]["kind"] != "saved":
+            raise RuntimeError("installed development CLI could not replay a generated fixture")
     print(f"release smoke passed: {version}")
 
 

@@ -28,10 +28,11 @@ class InspectionExecutor:
         self.config, self.cookie_store, self.gateway, self.operations = config, cookie_store, gateway, operations
 
     async def execute(self, request: InspectRequest) -> ManifestInspectionResult:
-        temporary_gateway = RequestGateway(
-            self.config,
-            self.cookie_store.clone_jar(self.gateway.client.cookies.jar),
-        )
+        cookies = self.cookie_store.clone_jar(self.gateway.client.cookies.jar)
+        if self.gateway.transport_factory is None:
+            temporary_gateway = RequestGateway(self.config, cookies)
+        else:
+            temporary_gateway = RequestGateway(self.config, cookies, transport_factory=self.gateway.transport_factory)
         async with closing_gateway(temporary_gateway):
             async with self.operations.open(
                 request.url,

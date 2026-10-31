@@ -126,7 +126,7 @@
 | `OutputAllocator.chapter_directory` <!-- api-contract: image_downloader.runtime.OutputAllocator.chapter_directory --> | `chapter_directory(self, context: OutputFormatContext) -> Path` |
 | `OutputAllocator.allocate` <!-- api-contract: image_downloader.runtime.OutputAllocator.allocate --> | `async allocate(self, chapter_directory: Path, context: OutputFormatContext) -> OutputAllocation` |
 | `OutputAllocator.allocate_relative` <!-- api-contract: image_downloader.runtime.OutputAllocator.allocate_relative --> | `async allocate_relative(self, base: Path) -> OutputAllocation` |
-| `RequestGateway` <!-- api-contract: image_downloader.runtime.RequestGateway --> | `RequestGateway(config: AppConfig, cookie_jar: CookieJar | None = None, *, logger: DownloadLogger | None = None)` |
+| `RequestGateway` <!-- api-contract: image_downloader.runtime.RequestGateway --> | `RequestGateway(config: AppConfig, cookie_jar: CookieJar | None = None, *, logger: DownloadLogger | None = None, transport_factory: Callable[[], httpx.AsyncBaseTransport] | None = None)` |
 | `RequestGateway.operation` <!-- api-contract: image_downloader.runtime.RequestGateway.operation --> | `operation(self, *, plugin_id: str | None, operation_url: str, auth_flow_factory: Callable[[OperationRequestGateway], object | None] | None = None, invoker: PluginInvoker | None = None, request_concurrency: int | None = None) -> OperationRequestGateway` |
 | `RequestGateway.execute` <!-- api-contract: image_downloader.runtime.RequestGateway.execute --> | `async execute(self, spec: RequestSpec) -> RequestResponse` |
 | `RequestGateway.close` <!-- api-contract: image_downloader.runtime.RequestGateway.close --> | `async close(self) -> None` |
@@ -190,7 +190,7 @@
 | `PluginRegistry` <!-- api-contract: image_downloader.security.PluginRegistry --> | `PluginRegistry(records: Mapping[str, PluginRecord] | tuple[PluginRecord, ...] = (), *, catalog: PluginCatalog | None = None)` |
 | `PluginRegistry.records` <!-- api-contract: image_downloader.security.PluginRegistry.records --> | `records(self) -> Mapping[str, PluginRecord]` プロパティ |
 | `PluginRegistry.get` <!-- api-contract: image_downloader.security.PluginRegistry.get --> | `get(self, plugin_id: str) -> PluginRecord | None` |
-| `PluginRuntime` <!-- api-contract: image_downloader.security.PluginRuntime --> | `PluginRuntime(config: AppConfig, plugin_root: Path, *, mode: PluginVerificationMode)` |
+| `PluginRuntime` <!-- api-contract: image_downloader.security.PluginRuntime --> | `PluginRuntime(config: AppConfig, plugin_root: Path, *, mode: PluginVerificationMode, loader: PluginClassLoader | None = None)` |
 | `PluginRuntime.records` <!-- api-contract: image_downloader.security.PluginRuntime.records --> | `records(self) -> Mapping[str, PluginRecord]` プロパティ |
 | `PluginRuntime.catalog` <!-- api-contract: image_downloader.security.PluginRuntime.catalog --> | `catalog(self) -> PluginCatalog | None` プロパティ |
 | `PluginRuntime.register_builtin` <!-- api-contract: image_downloader.security.PluginRuntime.register_builtin --> | `register_builtin(self, plugin_class: type[object]) -> None` |

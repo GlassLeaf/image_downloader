@@ -215,7 +215,21 @@ def test_config_explain_includes_layers_effective_values_and_origins(
     main = tmp_path / "app.yaml"
     original = "network: {request_concurrency: 3, stale: ignored}\n"
     main.write_text(original, encoding="utf-8")
-    args = build_parser().parse_args(["config", "explain", "--config", str(main), "--image-format", "PNG", "--json"])
+    args = build_parser().parse_args(
+        [
+            "config",
+            "explain",
+            "--config",
+            str(main),
+            "--image-format",
+            "PNG",
+            "--json",
+            "--data-root",
+            str(tmp_path / "data"),
+            "--plugin-root",
+            str(tmp_path / "plugins"),
+        ]
+    )
 
     assert asyncio.run(run(args)) == EXIT_SUCCESS
     payload = json.loads(capsys.readouterr().out)["execution"]["result"]
@@ -276,7 +290,18 @@ def test_state_changing_command_rewrites_user_layer_before_composing_service(
             return Service()
 
     monkeypatch.setattr(cli_download, "RuntimeComposer", Composer)
-    args = build_parser().parse_args(["download", "https://example.test/item", "--config", str(main)])
+    args = build_parser().parse_args(
+        [
+            "download",
+            "https://example.test/item",
+            "--config",
+            str(main),
+            "--data-root",
+            str(tmp_path / "data"),
+            "--plugin-root",
+            str(tmp_path / "plugins"),
+        ]
+    )
 
     assert asyncio.run(run(args)) == EXIT_SUCCESS
     assert composed

@@ -36,7 +36,7 @@ jobs:
               "attempt": os.environ["GITHUB_RUN_ATTEMPT"],
           }))
       - run: python -m pip install --upgrade pip
-      - run: python -m pip install -e ".[dev]"
+      - run: python -m pip install -e ".[dev,parser]"
       - run: python -m pip check
       - run: python -m ruff check .
       - run: python -m mypy src/image_downloader

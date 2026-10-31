@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from http.cookiejar import CookieJar
-from typing import Unpack
+from typing import Any, Unpack
 from urllib.parse import urlparse
 
 import httpx
@@ -51,6 +51,7 @@ class RequestGateway:
         cookie_jar: CookieJar | None = None,
         *,
         logger: DownloadLogger | None = None,
+        transport_factory: Callable[[], httpx.AsyncBaseTransport] | None = None,
     ) -> None:
         self.config = config
         network = config.network
@@ -70,6 +71,10 @@ class RequestGateway:
         self._interval_lock = asyncio.Lock()
         self._last_request = 0.0
         self._logger = logger
+        self.transport_factory = transport_factory
+        transport_options: dict[str, Any] = (
+            {"transport": transport_factory()} if transport_factory is not None else {}
+        )
         self.client = httpx.AsyncClient(
             http2=network.http2,
             timeout=timeout,
@@ -79,9 +84,10 @@ class RequestGateway:
             ),
             # Redirects are followed by this gateway so every hop is checked first.
             follow_redirects=False,
-            proxy=network.proxy,
+            proxy=network.proxy if transport_factory is None else None,
             headers=dict(network.headers),
             cookies=cookie_jar,
+            **transport_options,
         )
 
     def operation(

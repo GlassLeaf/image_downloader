@@ -97,6 +97,14 @@ image-downloader plugin uninstall com.example.gallery `
 
 ## 開発
 
+プラグインの生成・単体呼出し・模擬ダウンロードには
+[`image-downloader-dev`](docs/v3/how-to/plugin-devtools.md)を利用できます。
+
+```powershell
+image-downloader-dev init "C:\work\my-gallery"
+image-downloader-dev load "C:\work\my-gallery"
+```
+
 ```powershell
 python -m pip install -e ".[dev]"
 python -m pytest -q

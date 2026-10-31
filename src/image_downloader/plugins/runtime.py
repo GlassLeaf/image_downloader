@@ -137,14 +137,21 @@ class PluginSelector:
 class PluginRuntime:
     """Coordinate plugin configuration, loading and selection around a record snapshot."""
 
-    def __init__(self, config: AppConfig, plugin_root: Path, *, mode: PluginVerificationMode) -> None:
+    def __init__(
+        self,
+        config: AppConfig,
+        plugin_root: Path,
+        *,
+        mode: PluginVerificationMode,
+        loader: PluginClassLoader | None = None,
+    ) -> None:
         self.config, self.plugin_root, self.mode = config, existing_directory(plugin_root, "plugin root"), mode
         discovery = PluginDiscovery(self.plugin_root, mode=mode).discover()
         verification = PluginManifestVerifier(self.plugin_root, mode=mode).verify(discovery)
         self.registry = PluginRegistry(verification.records, catalog=verification.catalog)
         self.diagnostics = [*discovery.diagnostics, *verification.diagnostics]
         self.selection_diagnostics: tuple[Mapping[str, Any], ...] = ()
-        self.loader = PluginClassLoader()
+        self.loader = loader if loader is not None else PluginClassLoader()
         self.selector = PluginSelector(self.loader)
 
     @property

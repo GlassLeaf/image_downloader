@@ -10,6 +10,7 @@
 | --- | --- |
 | 初めてCLIを実行する | [CLIチュートリアル](tutorials/first-download.md) |
 | 初めてプラグインを作る | [プラグインチュートリアル](tutorials/first-plugin.md) |
+| プラグインを生成・単体実行・模擬ダウンロードする | [プラグイン開発支援CLI](how-to/plugin-devtools.md) |
 | Pythonから組み込む | [ライブラリのチュートリアル](tutorials/embedded-download.md) |
 | よくある運用・実装判断を確認する | [CLI・ライブラリ・プラグインのFAQ](how-to/faq.md) |
 | 設定・プロファイルを運用する | [設定の操作手順](how-to/configure-profiles.md) |

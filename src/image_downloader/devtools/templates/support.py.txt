@@ -1,0 +1,295 @@
+"""Generated API v3 implementations. This file can be customised; extend detects edits."""
+from __future__ import annotations
+
+import io
+import json
+from collections.abc import Mapping
+from dataclasses import replace
+from datetime import UTC, datetime
+from urllib.parse import parse_qsl, quote, urlencode, urljoin, urlparse, urlunparse
+
+from PIL import Image
+
+from image_downloader import (
+    AdditionalFileHookPoint, AdditionalFileSpec, AuthenticationError, Chapter,
+    DownloadManifest, ImageFetchRequest, ImageResource, ImageSaveOptions,
+    RequestSpec, UpdateCandidate, UpdateSnapshot,
+)
+
+
+def field(value, path, default=None):
+    for name in path.split(".") if path else ():
+        if not isinstance(value, Mapping):
+            return default
+        value = value.get(name, default)
+    return value
+
+
+def html_tree(body):
+    from selectolax.lexbor import LexborHTMLParser
+    return LexborHTMLParser(body)
+
+
+def request(url, config, **extra):
+    return RequestSpec(
+        url, method=config.get("request_method", "GET"), headers=config.get("headers", {}),
+        query=config.get("query", {}), form=config.get("form", {}), json=config.get("request_json"),
+        referer=config.get("referer") or None, **extra,
+    )
+
+
+class GeneratedAuth:
+    def __init__(self, context, features):
+        self.context, self.features = context, features
+        self.config = context.config
+        self.token = None
+        self.logged_in = False
+        self.allowed_origins = tuple(self.config.get("allowed_origins", ()))
+
+    def is_auth_failure(self, request, response):
+        return response.status in (401, 403)
+
+    async def apply(self, spec):
+        if "csrf" in self.features and not self.logged_in:
+            await self.login()
+        headers = dict(spec.headers)
+        if "api-key" in self.features:
+            headers[self.config.get("api_key_header", "X-Api-Key")] = self.context.secrets.get("api_token")
+        if {"bearer", "oauth"} & self.features:
+            token = self.token or self.context.secrets.get("access_token")
+            headers["Authorization"] = "Bearer " + token
+        return replace(spec, headers=headers)
+
+    async def refresh(self, failed, response):
+        if "oauth" in self.features:
+            response = await self.context.requests.execute(RequestSpec(
+                self.config["token_url"], method="POST", auth_required=False,
+                form={"grant_type": "refresh_token", "refresh_token": self.context.secrets.get("refresh_token")},
+            ))
+            if response.status >= 400:
+                raise AuthenticationError("token refresh failed")
+            self.token = json.loads(response.body)["access_token"]
+            return await self.apply(failed)
+        if "csrf" in self.features:
+            self.logged_in = False
+            await self.login()
+            return failed
+        return None
+
+    async def login(self):
+        url = self.config["login_url"]
+        page = await self.context.requests.execute(RequestSpec(url, auth_required=False))
+        node = html_tree(page.body).css_first(self.config["csrf_selector"])
+        if node is None:
+            raise AuthenticationError("CSRF input is missing")
+        response = await self.context.requests.execute(RequestSpec(
+            url, method="POST", auth_required=False, form={
+                self.config["csrf_field"]: node.attributes.get("value", ""),
+                self.config["username_field"]: self.context.secrets.get("username"),
+                self.config["password_field"]: self.context.secrets.get("password"),
+            },
+        ))
+        if response.status >= 400:
+            raise AuthenticationError("login failed")
+        self.logged_in = True
+
+
+class GeneratedSupport:
+    def __init__(self, features):
+        self.features = set(features)
+        self.events = []
+
+    def validate_config(self, config, app_settings):
+        hosts = config.get("hosts", ())
+        if "host" in self.features and (not isinstance(hosts, (list, tuple)) or
+                                         any(not isinstance(host, str) or not host for host in hosts)):
+            raise ValueError("hosts must contain nonempty host names")
+        for key in ("max_pages", "max_width", "max_height"):
+            if key in config and (type(config[key]) is not int or config[key] <= 0):
+                raise ValueError(key + " must be a positive integer")
+        for point in config.get("additional_points", ()):
+            AdditionalFileHookPoint(point)
+
+    def matches(self, url, config):
+        parsed = urlparse(url)
+        return (parsed.scheme in {"http", "https"} and parsed.hostname in config.get("hosts", ())
+                and parsed.path.startswith(config.get("path_prefix", "/")))
+
+    async def inspect(self, url, context):
+        config = context.config
+        next_url = config.get("endpoint") or url
+        chapters, seen_pages, seen_images = [], set(), set()
+        title, content_id, revision = "Gallery", url, None
+        for page_number in range(1, config.get("max_pages", 50) + 1):
+            if next_url in seen_pages:
+                raise ValueError("pagination cycle detected: " + next_url)
+            seen_pages.add(next_url)
+            response = await context.requests.execute(request(next_url, config))
+            if response.status >= 400:
+                raise ValueError("manifest request failed: " + str(response.status))
+            if "json" in self.features:
+                document = json.loads(response.body)
+                title = str(field(document, config.get("title_field", "title"), title))
+                content_id = str(field(document, config.get("id_field", "id"), content_id))
+                revision = str(document["revision"]) if "revision" in document else revision
+                groups = field(document, config.get("chapters_field", "chapters"), []) if (
+                    "chapters" in self.features
+                ) else [document]
+                for group in groups:
+                    images = self.json_images(group, response.url, config, seen_images)
+                    if "chapters" not in self.features and chapters:
+                        previous = chapters.pop()
+                        images = previous.images + tuple(replace(image, index=len(previous.images) + i)
+                                                          for i, image in enumerate(images, 1))
+                    chapters.append(Chapter(len(chapters) + 1, str(group.get("title", title)), images=tuple(images),
+                        chapter_id=str(group.get(config.get("chapter_id_field", "id"), len(chapters) + 1)),
+                        allow_empty_images=config.get("allow_empty_images")))
+                cursor = field(document, config.get("next_field", "next_cursor"))
+                if not cursor:
+                    next_url = None
+                elif config.get("pagination_style", "cursor") == "url":
+                    next_url = urljoin(response.url, str(cursor))
+                else:
+                    parsed = urlparse(config.get("endpoint") or url)
+                    query = dict(parse_qsl(parsed.query))
+                    key = config.get("page_parameter", "page") if config.get("pagination_style") == "page" else (
+                        config.get("cursor_parameter", "cursor"))
+                    query[key] = str(cursor)
+                    next_url = urlunparse(parsed._replace(query=urlencode(query)))
+            else:
+                tree = html_tree(response.body)
+                node = tree.css_first(config.get("title_selector", "title"))
+                title = node.text(strip=True) if node else title
+                chapter_links = tree.css(config["chapter_selector"]) if "chapters" in self.features else []
+                if chapter_links:
+                    for link in chapter_links:
+                        chapter_url = urljoin(response.url, link.attributes["href"])
+                        detail = await context.requests.execute(request(chapter_url, config))
+                        if detail.status >= 400:
+                            raise ValueError("chapter request failed: " + chapter_url)
+                        images = self.html_images(html_tree(detail.body), detail.url, config, seen_images)
+                        chapters.append(Chapter(len(chapters) + 1, link.text(strip=True), images=tuple(images),
+                            chapter_id=chapter_url, allow_empty_images=config.get("allow_empty_images")))
+                else:
+                    images = self.html_images(tree, response.url, config, seen_images)
+                    previous = chapters.pop() if chapters else None
+                    if previous:
+                        images = previous.images + tuple(replace(image, index=len(previous.images) + i)
+                                                          for i, image in enumerate(images, 1))
+                    chapters.append(Chapter(1, title, images=tuple(images), chapter_id=url,
+                                           allow_empty_images=config.get("allow_empty_images")))
+                node = tree.css_first(config.get("next_selector", "a[rel=next]"))
+                next_url = urljoin(response.url, node.attributes["href"]) if node and node.attributes.get("href") else None
+            if "pagination" not in self.features or not next_url:
+                break
+        else:
+            raise ValueError("pagination max_pages reached before completion")
+        return DownloadManifest(title, tuple(chapters), content_id=content_id, revision=revision,
+                                allow_empty_chapters=config.get("allow_empty_chapters"))
+
+    def json_images(self, group, base, config, seen):
+        images = []
+        for item in field(group, config.get("images_field", "images"), []):
+            url = item if isinstance(item, str) else field(item, config.get("url_field", "url"))
+            image_id = url if isinstance(item, str) else str(item.get("id", url))
+            absolute = urljoin(base, str(url))
+            if absolute not in seen:
+                seen.add(absolute)
+                metadata = item.get("metadata", {}) if isinstance(item, Mapping) else {}
+                images.append(self.image(absolute, len(images) + 1, image_id, config, metadata))
+        return tuple(images)
+
+    def html_images(self, tree, base, config, seen):
+        images = []
+        for node in tree.css(config.get("image_selector", "img")):
+            raw = node.attributes.get(config.get("image_attribute", "src"))
+            if raw:
+                absolute = urljoin(base, raw)
+                if absolute not in seen:
+                    seen.add(absolute)
+                    images.append(self.image(absolute, len(images) + 1, absolute, config, {}))
+        return tuple(images)
+
+    def image(self, url, index, image_id, config, metadata):
+        return ImageResource(url, index, image_id=image_id,
+            metadata={str(key): str(value) for key, value in metadata.items()} if "metadata" in self.features else {},
+            save_options=ImageSaveOptions(**dict(config.get("save_options", {}))),
+            original_filename=urlparse(url).path.rsplit("/", 1)[-1] or None)
+
+    async def create_image_request(self, image, context):
+        config = context.config
+        data = {}
+        if "short-lived" in self.features:
+            endpoint = config["resolve_url"].replace("{id}", quote(image.image_id or image.url, safe=""))
+            response = await context.requests.execute(RequestSpec(endpoint))
+            if response.status >= 400:
+                raise ValueError("image URL resolution failed")
+            document = json.loads(response.body)
+            url = urljoin(response.url, field(document, config.get("resolved_url_field", "url")))
+            data = {str(key): str(value) for key, value in document.get("plugin_data", {}).items()}
+        else:
+            url = image.url
+        spec = RequestSpec(url, headers={**config.get("headers", {}), **dict(image.headers)},
+                           referer=image.referer or config.get("referer") or None,
+                           auth_required=config.get("image_auth_required", "short-lived" not in self.features))
+        return ImageFetchRequest(spec, data) if "metadata" in self.features else spec
+
+    async def recover_image_request(self, image, failed, response, context):
+        return await self.create_image_request(image, context) if "short-lived" in self.features else None
+
+    def auth_flow(self, context):
+        return GeneratedAuth(context, self.features) if {"api-key", "bearer", "oauth", "csrf"} & self.features else None
+
+    async def transform(self, artifact, context):
+        result = artifact
+        if "transform" in self.features:
+            with Image.open(io.BytesIO(artifact.data)) as image:
+                image.thumbnail((context.config.get("max_width", 1600), context.config.get("max_height", 1600)))
+                output = io.BytesIO()
+                format_name = context.config.get("transform_format", "PNG").upper()
+                if format_name == "JPEG" and image.mode not in ("RGB", "L"):
+                    image = image.convert("RGB")
+                image.save(output, format=format_name)
+            result = replace(artifact, data=output.getvalue(), content_type=Image.MIME[format_name],
+                             extension=".jpg" if format_name == "JPEG" else "." + format_name.lower())
+        if "history" in self.features:
+            result = replace(result, history=(*result.history, "generated-transform"))
+        return result
+
+    async def check_updates(self, url, context):
+        response = await context.requests.execute(RequestSpec(context.config.get("update_url") or url))
+        if response.status >= 400:
+            raise ValueError("update request failed")
+        if "json" in self.features:
+            items = field(json.loads(response.body), context.config.get("updates_field", "updates"), [])
+            candidates = tuple(UpdateCandidate(urljoin(response.url, item["url"]),
+                str(item["id"]) if "id" in item else None,
+                str(item["revision"]) if "revision" in item else None) for item in items)
+        else:
+            candidates = tuple(UpdateCandidate(urljoin(response.url, node.attributes["href"])) for node in
+                html_tree(response.body).css(context.config.get("update_selector", "a[href]")))
+        return UpdateSnapshot(url, candidates, datetime.now(UTC))
+
+    def additional_file_hook_points(self, context):
+        return tuple(AdditionalFileHookPoint(value) for value in context.config.get("additional_points", ()))
+
+    async def additional_files(self, hook, context):
+        name = hook.point.value + "-" + str(hook.image.index if hook.image else 0)
+        url = context.config.get("additional_url")
+        if url:
+            return (AdditionalFileSpec(name, name + ".bin", request=RequestSpec(url)),)
+        data = json.dumps({"point": hook.point.value, "source": hook.operation_url,
+                           "image": hook.image.url if hook.image else None}, ensure_ascii=False).encode()
+        return (AdditionalFileSpec(name, name + ".json", data=data),)
+
+    async def additional_file_received(self, result, context):
+        self.events.append(("received", result.file_id, result.status))
+
+    async def additional_file_saved(self, result, context):
+        self.events.append(("saved", result.file_id, result.status))
+
+    def output_format_values(self, context):
+        return dict(context.config.get("output_values", {}))
+
+    async def cleanup_after_use(self):
+        self.events.clear()

@@ -5,6 +5,7 @@ import io
 import json
 import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import yaml
@@ -13,6 +14,7 @@ import image_downloader.cli as cli
 import image_downloader.commands.download as cli_download
 import image_downloader.commands.plugin as cli_plugin
 import image_downloader.commands.setup as cli_setup
+import image_downloader.configuration.paths as configuration_paths
 from image_downloader.cli import EXIT_CONFIGURATION, EXIT_SUCCESS, build_parser, doctor
 from image_downloader.config import AppConfig, apply_overrides, load_application_config, resolve_application_config
 from image_downloader.diagnostics import diagnostic_for
@@ -43,6 +45,19 @@ def _user_config(path: Path, *, verification: str = "strict") -> None:
 class _InteractiveInput(io.StringIO):
     def isatty(self) -> bool:
         return True
+
+
+@pytest.fixture
+def automatic_roots(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Automatic-root behavior must not inspect the machine's real profile directory.
+    monkeypatch.setattr(
+        configuration_paths,
+        "platform_dirs",
+        lambda: SimpleNamespace(
+            user_data_path=tmp_path / "automatic-data",
+            user_config_path=tmp_path / "automatic-config",
+        ),
+    )
 
 
 def test_fixed_user_config_ignores_current_directory(
@@ -159,13 +174,13 @@ def test_invalid_user_root_is_rejected_without_repairing_file(tmp_path: Path, mo
 
 
 def test_missing_user_config_never_reads_interactive_input(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], automatic_roots: None
 ) -> None:
     user_config = tmp_path / "user" / "conf" / "app.yaml"
     monkeypatch.setattr(cli_setup, "_user_config_path", lambda: user_config)
     monkeypatch.setattr(cli_setup.sys, "stdin", io.StringIO())
 
-    assert asyncio.run(doctor(build_parser().parse_args(["doctor"]))) == EXIT_SUCCESS
+    assert asyncio.run(doctor(build_parser().parse_args(["doctor"]), raise_errors=True)) == EXIT_SUCCESS
     assert capsys.readouterr().err == ""
     assert not user_config.exists()
 
@@ -196,7 +211,9 @@ def test_profile_init_uses_explicit_configuration_without_rewriting_roots(
     assert (config.parent / "profiles" / "work" / "app.yaml").is_file()
 
 
-def test_default_and_explicit_null_roots_work_noninteractively(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_default_and_explicit_null_roots_work_noninteractively(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, automatic_roots: None
+) -> None:
     user_config = tmp_path / "user" / "conf" / "app.yaml"
     monkeypatch.setattr(cli_setup, "_user_config_path", lambda: user_config)
 
