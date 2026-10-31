@@ -87,6 +87,10 @@ class WorkerClient:
             str(Path(__file__).resolve().parents[2]) + os.pathsep + environment.get("PYTHONPATH", "")
         )
         environment["PYTHONIOENCODING"] = "utf-8"
+        if sys.platform == "win32":
+            creationflags = subprocess.CREATE_NEW_PROCESS_GROUP
+        else:
+            creationflags = 0
         self.process = subprocess.Popen(
             [sys.executable, "-u", "-m", "image_downloader.devtools.worker", str(path)],
             stdin=subprocess.PIPE,
@@ -95,7 +99,7 @@ class WorkerClient:
             text=True,
             encoding="utf-8",
             env=environment,
-            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0,
+            creationflags=creationflags,
         )
         self.messages: queue.Queue[str | None] = queue.Queue()
         self.reader = threading.Thread(target=self._read, daemon=True)
@@ -123,7 +127,10 @@ class WorkerClient:
         if self.process.poll() is None:
             try:
                 if interrupt:
-                    self.process.send_signal(signal.CTRL_BREAK_EVENT if os.name == "nt" else signal.SIGINT)
+                    if sys.platform == "win32":
+                        self.process.send_signal(signal.CTRL_BREAK_EVENT)
+                    else:
+                        self.process.send_signal(signal.SIGINT)
                 elif self.process.stdin:
                     self.process.stdin.write('{"command":"quit"}\n')
                     self.process.stdin.flush()
