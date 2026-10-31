@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from .catalog import FEATURES
+from .display import LEVELS, SOURCES, nonempty_pattern
 from .generation import create_project, extend_project, wizard
 from .loading import workspace_for
 from .output import read_document
@@ -52,6 +53,16 @@ def parser() -> argparse.ArgumentParser:
         command.add_argument("--timeout", type=float, default=120)
         command.add_argument("--run-root", type=Path)
         command.add_argument("--json", action="store_true", default=argparse.SUPPRESS)
+        command.add_argument("--log-view", choices=("summary", "all"), default="summary",
+                             help="診断表示: summaryはINFO以上の要点、allはDEBUG以上・全出力元")
+        command.add_argument("--log-level", choices=tuple(LEVELS), type=str.upper,
+                             help="最低表示レベル（通常INFO、--log-view allではDEBUG）。保存は全レベル")
+        command.add_argument("--log-source", dest="log_sources", choices=SOURCES, action="append",
+                             help="表示する出力元。繰り返し可。指定時は既定の出力元を置換")
+        for option, destination in (("event", "events"), ("exclude-event", "excluded_events"),
+                                    ("logger", "loggers"), ("exclude-logger", "excluded_loggers")):
+            command.add_argument("--" + option, dest=destination, action="append", type=nonempty_pattern,
+                                 help="表示条件のglobパターン（大文字小文字を区別、繰り返し可）")
         if name == "call":
             command.add_argument("method")
             command.add_argument("--input", dest="input_file", type=Path)

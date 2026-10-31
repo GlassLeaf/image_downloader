@@ -19,6 +19,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, TextIO
 
+from .display import LEVELS, ConsoleOutput, DisplayPolicy, event_level
+
 
 def read_document(path: Path) -> Any:
     import yaml
@@ -27,9 +29,13 @@ def read_document(path: Path) -> Any:
 
 
 class RawOutput:
-    def __init__(self, directory: Path, *, binary: str = "file", stream: TextIO | None = None) -> None:
+    def __init__(
+        self, directory: Path, *, binary: str = "file", stream: TextIO | None = None,
+        policy: DisplayPolicy | None = None,
+    ) -> None:
         self.directory, self.binary = directory, binary
         self.stream = stream if stream is not None else sys.stderr
+        self.console = ConsoleOutput(self.stream, policy if policy is not None else DisplayPolicy())
         directory.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
         self._sequence = 0
@@ -93,11 +99,34 @@ class RawOutput:
                 "event": event,
                 **{name: self.value(value) for name, value in values.items()},
             }
+            if event == "python_log":
+                level = values["level"]
+                level_number = values["levelno"]
+                source = "python"
+            else:
+                level = event_level(event, values)
+                level_number = LEVELS[level]
+                source = "event"
+            payload.update(source=source, level=level)
             rendered = json.dumps(payload, ensure_ascii=False, default=str)
             with (self.directory / "events.jsonl").open("a", encoding="utf-8") as file:
                 file.write(rendered + "\n")
-            self.stream.write(rendered + "\n")
-            self.stream.flush()
+            self.console.event(payload, level_number)
+
+    def write_stream(self, name: str, data: bytes) -> None:
+        data = bytes(data)
+        with self._lock:
+            with (self.directory / (name + ".log")).open("ab") as file:
+                file.write(data)
+            self.console.write_stream(name, data)
+
+    @contextmanager
+    def reporting(self) -> Iterator[None]:
+        try:
+            yield
+        finally:
+            with self._lock:
+                self.console.finish(str(self.directory))
 
     def result(self, value: Any) -> Any:
         result = self.value(value)
@@ -115,6 +144,7 @@ class RawLogHandler(logging.Handler):
             "python_log",
             logger=record.name,
             level=record.levelname,
+            levelno=record.levelno,
             message=record.getMessage(),
             error=record.exc_info[1] if record.exc_info else None,
         )
@@ -123,21 +153,17 @@ class RawLogHandler(logging.Handler):
 class CapturedStream:
     """Tee plugin streams without ever writing into the structured result channel."""
 
-    def __init__(self, output: RawOutput, name: str, destination: TextIO) -> None:
-        self.output, self.name, self.destination = output, name, destination
+    def __init__(self, output: RawOutput, name: str) -> None:
+        self.output, self.name = output, name
         self.encoding = "utf-8"
-        self.buffer = BinaryCapturedStream(output, name, destination)
+        self.buffer = BinaryCapturedStream(output, name)
 
     def write(self, text: str) -> int:
-        with self.output._lock:
-            with (self.output.directory / (self.name + ".log")).open("a", encoding="utf-8") as file:
-                file.write(text)
-            self.destination.write(text)
-            self.destination.flush()
+        self.output.write_stream(self.name, text.encode(self.encoding))
         return len(text)
 
     def flush(self) -> None:
-        self.destination.flush()
+        self.output.stream.flush()
 
     def isatty(self) -> bool:
         return False
@@ -147,40 +173,29 @@ class CapturedStream:
 
 
 class BinaryCapturedStream:
-    def __init__(self, output: RawOutput, name: str, destination: TextIO) -> None:
-        self.output, self.name, self.destination = output, name, destination
+    def __init__(self, output: RawOutput, name: str) -> None:
+        self.output, self.name = output, name
 
     def write(self, data: bytes) -> int:
-        with self.output._lock:
-            with (self.output.directory / (self.name + ".log")).open("ab") as file:
-                file.write(data)
-            self.destination.flush()
-            self.destination.buffer.write(data)
-            self.destination.buffer.flush()
+        self.output.write_stream(self.name, data)
         return len(data)
 
     def flush(self) -> None:
-        self.destination.flush()
+        self.output.stream.flush()
 
     def fileno(self) -> int:
         return 1 if self.name == "stdout" else 2
 
 
 @contextmanager
-def capture_native_streams(output: RawOutput, diagnostics: TextIO) -> Iterator[None]:
+def capture_native_streams(output: RawOutput) -> Iterator[None]:
     """Keep os.write, native extensions and plugin subprocesses off the IPC channel."""
     streams: list[tuple[int, int, threading.Thread]] = []
 
     def pump(reader: int, name: str) -> None:
         try:
             while data := os.read(reader, 64 * 1024):
-                with output._lock:
-                    with (output.directory / (name + ".log")).open("ab") as file:
-                        file.write(data)
-                    diagnostics.flush()
-                    remaining = memoryview(data)
-                    while remaining:
-                        remaining = remaining[os.write(diagnostics.fileno(), remaining) :]
+                output.write_stream(name, data)
         finally:
             os.close(reader)
 

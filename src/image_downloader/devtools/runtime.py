@@ -437,6 +437,7 @@ class DevelopmentSession:
             "force_plugin": bool(plugin_id and self.options.get("force_plugin", False)),
         }
         result: Any
+        self.output.event("simulation_started", url=url, mode=mode)
         if mode == "preview":
             result = await self.service.inspect(InspectRequest(**options))
         else:

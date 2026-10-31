@@ -90,6 +90,7 @@ def _check_archive_names(names: list[str], *, source_archive: bool) -> None:
         "transport/operation.py",
         "transport/image_requests.py",
         "devtools/cli.py",
+        "devtools/display.py",
         "devtools/worker.py",
         "devtools/generation.py",
         "devtools/templates/support.py.txt",
@@ -200,6 +201,10 @@ def verify(*, offline: bool) -> None:
                 "replay",
                 "--fixture",
                 str(development / "fixtures/replay.yaml"),
+                "--log-level",
+                "WARNING",
+                "--exclude-event",
+                "http_*",
                 "--json",
             )
         )

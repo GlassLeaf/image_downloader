@@ -388,7 +388,7 @@ def test_cli_child_json_channels_raw_output_and_signing(tmp_path, capfd):
 """,
         encoding="utf-8",
     )
-    assert main(["call", str(directory), "debug", "--json"]) == 0
+    assert main(["call", str(directory), "debug", "--json", "--log-view", "all"]) == 0
     captured = capfd.readouterr()
     reply = json.loads(captured.out)
     assert reply["result"] == {"secret": "VISIBLE"}
@@ -591,7 +591,9 @@ def test_cli_timeout_cleans_up_worker(tmp_path, capfd):
         encoding="utf-8",
     )
     start = time.monotonic()
-    assert main(["call", str(directory), "wait_forever", "--timeout", "10", "--json"]) == 1
+    assert main([
+        "call", str(directory), "wait_forever", "--timeout", "10", "--json", "--exclude-event", "*",
+    ]) == 1
     assert time.monotonic() - start < 25
     assert "timed out" in capfd.readouterr().out
     assert source.with_suffix(".cleanup").read_text(encoding="utf-8") == "closed"

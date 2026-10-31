@@ -212,9 +212,66 @@ Cookieを複製して使用します。試験中の変更は実行ディレク�
 DTOは`repr`を使わずフィールドを展開します。
 バイナリは`bodies/`に保存し、場所・サイズ・SHA-256を表示します。
 `--binary base64`または`--binary hex`で全体表示もできます。
-`--json`時は結果を標準出力、プラグインの出力・ログ・tracebackを標準エラーへ出します。
+`--json`時は結果を標準出力、表示対象の診断情報を標準エラーへ出します。
 `events.jsonl`、`stdout.log`、`stderr.log`、`result.json`で後から確認できます。
 各操作の保存先は結果の`run_directory`に表示します。`--run-root`で親ディレクトリを変更できます。
+
+### コンソール表示のフィルター
+
+`load`、`methods`、`call`、`simulate`、`session`、`check`で次のオプションを共通に使えます。
+表示条件は保存内容に影響しません。非表示のDEBUG、直接出力、通信本文もすべて伏字なしで保存します。
+最終結果、終了コード、`run_directory`はフィルター対象外です。
+
+| オプション | 指定内容 |
+|---|---|
+| `--log-view summary\|all` | 既定は`summary`。`all`は詳細を表示するプリセット |
+| `--log-level LEVEL` | DEBUG / INFO / WARNING / ERROR / CRITICAL以上を表示。小文字も使用可能 |
+| `--log-source SOURCE` | event / python / stdout / stderr。繰り返しで複数指定 |
+| `--event PATTERN` / `--exclude-event PATTERN` | イベント名の包含／除外glob。繰り返し可能 |
+| `--logger PATTERN` / `--exclude-logger PATTERN` | Pythonロガー名の包含／除外glob。繰り返し可能 |
+
+既定の`summary`は構造化イベント・Pythonログともに**INFO以上**を表示します。
+`print()`、`stdout.buffer`、`os.write()`、ネイティブ拡張、プラグインの子プロセスによる
+標準出力・標準エラーは、いずれも既定では非表示です。
+`all`を明示するとDEBUG以上と全出力元を表示します。
+`--log-level`と`--log-source`の明示指定は、プリセットの対応する既定値を置き換えます。
+
+同じ項目の複数指定はOR、異なる項目はANDで判定し、除外を優先します。
+globは大文字小文字を区別します。`--logger`の包含指定時は一致するPythonログだけを表示し、
+ロガー名を持たないイベントや直接出力は表示しません。
+`--exclude-logger`だけを指定した場合は他の出力元に影響しません。
+直接出力にはログレベルを推測して付けず、出力元とイベント名相当の`stdout`／`stderr`で制御します。
+
+```powershell
+# 既定: 両ログ種別ともINFO以上の要点表示
+image-downloader-dev simulate . https://example.test/gallery
+# WARNING以上、直接出力は非表示
+image-downloader-dev simulate . https://example.test/gallery --log-level WARNING
+# DEBUG・全出力元・完全なイベント内容
+image-downloader-dev simulate . https://example.test/gallery --log-view all
+# HTTPイベントだけを詳細表示（Pythonログ・直接出力は一致しない）
+image-downloader-dev simulate . https://example.test/gallery --log-view all --event "http_*"
+# 特定のPythonロガーのINFO以上だけを表示
+image-downloader-dev simulate . https://example.test/gallery --logger "my_plugin.*"
+# stdoutだけを表示
+image-downloader-dev simulate . https://example.test/gallery --log-source stdout
+```
+
+構造化イベントには`source`と`level`を記録します。
+操作開始・完了はINFO、再試行・HTTPの400以上・回復可能な通信失敗はWARNING、
+メソッド・操作・cleanupの例外はERROR、通常のフック呼出し・HTTP詳細・画像単位の処理はDEBUGです。
+Pythonログは独自レベルも含め元のレベルを保持し、数値で最低レベルと比較します。
+
+`summary`の診断表示は、識別情報・メッセージ・例外の種類とメッセージを1行のJSONにまとめます。
+引数、返却DTO、設定、ヘッダー、本文、traceback全体は`all`か保存ファイルで確認できます。
+表示する値に伏字や文字数切り詰めは適用しません。バイナリ全体のBase64／16進表示は、
+詳細表示では`--log-view all --binary base64`または`--log-view all --binary hex`を使用します。
+終了時は、非表示イベント件数、非表示のstdout／stderrのバイト数、保存先を
+`diagnostics_summary`として標準エラーへ表示します。この集計は表示フィルターの対象外です。
+
+セッションの条件は起動時に決まり、`reload`でも維持します。
+今回のフィルターは実行時オプション専用で、`plugin-dev.yaml`には保存しません。
+不正なレベル・出力元・空パターンは、ワーカー起動前に終了コード`2`で拒否します。
 
 既定の操作タイムアウトは120秒で、`--timeout`で変更できます。
 中断時はcleanupを試み、終了しないワーカーを停止します。

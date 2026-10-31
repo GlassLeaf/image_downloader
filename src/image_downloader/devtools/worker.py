@@ -12,6 +12,7 @@ from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from typing import Any, TextIO
 
+from .display import DisplayPolicy
 from .inputs import DevelopmentInputError
 from .loading import describe_methods
 from .output import CapturedStream, RawLogHandler, RawOutput, capture_native_streams, read_document
@@ -49,7 +50,10 @@ async def dispatch(session: DevelopmentSession, request: dict[str, Any]) -> Any:
 
 
 async def run(options: dict[str, Any], channel: TextIO, diagnostics: TextIO) -> None:
-    output = RawOutput(Path(options["run_directory"]), binary=options.get("binary", "file"), stream=diagnostics)
+    output = RawOutput(
+        Path(options["run_directory"]), binary=options.get("binary", "file"), stream=diagnostics,
+        policy=DisplayPolicy.from_options(options),
+    )
     handler = RawLogHandler(output)
     root = logging.getLogger()
     root.addHandler(handler)
@@ -61,9 +65,10 @@ async def run(options: dict[str, Any], channel: TextIO, diagnostics: TextIO) -> 
         channel.flush()
 
     with (
-        capture_native_streams(output, diagnostics),
-        redirect_stdout(CapturedStream(output, "stdout", diagnostics)),
-        redirect_stderr(CapturedStream(output, "stderr", diagnostics)),
+        output.reporting(),
+        capture_native_streams(output),
+        redirect_stdout(CapturedStream(output, "stdout")),
+        redirect_stderr(CapturedStream(output, "stderr")),
     ):
         try:
             session = DevelopmentSession(options, output)
