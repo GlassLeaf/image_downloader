@@ -144,6 +144,42 @@ plugin_settings:
 
 processor へ raw transport data を渡す組は、`image_processors.transport_metadata_access` で永続設定する。processor が transport 情報を必要としないなら、この allow-list を追加せず site transform 内で処理を完結させる。[transport metadata access](../reference/configuration.md#config-plugin-settings) と [capability contexts](../reference/plugin-hooks.md#plugin-contexts) を参照する。
 
+<a id="faq-image-save-format"></a>
+
+### Q15. `transform_image()` がPNGを返したのに、JPEGで保存されるのはなぜか？
+
+`artifact.content_type` は保存形式の指定ではない。保存形式は `--force-image-format` →
+`ImageResource.save_options.format` → `output.image_format` の順で決まり、最後の既定値は
+`ORIGINAL` である。通常の `--image-format` は `output.image_format` をその操作だけ上書きし、
+プラグインの指定より優先しない。PNG bytesと`image/png`を返しても、JPEG指定が有効なら
+入力検証後にJPEGへ再エンコードする。
+[優先順位と具体例](../reference/configuration.md#image-save-format)を参照する。
+
+### Q16. 保存形式を指定すれば、MIME不一致や画像として読めないデータも保存できるか？
+
+既定ではできない。サイトの `transform_image()` が返したデータを、形式変換より先に検証する。
+`content_type_mismatch: accept`（既定）は有効な画像の宣言MIMEと実体の不一致を許容するが、
+`error`なら `ImageMimeMismatchError` になる。入力PNG・宣言`image/png`をJPEGへ変換する場合は、
+入力MIMEの不一致ではない。既定の `input_validation: both` はHTML・JSON等の非画像MIMEも拒否する。
+
+保存形式・MIMEが未指定で、bytesを画像としてデコードできなければ `ImageDecodeError` で保存しない。
+形式不明時にJPEGへ自動変換する処理はない。明示的に `input_validation: content_type` と
+`content_type_mismatch: accept` を使い、有効な保存形式が `ORIGINAL` なら、非空本文と空MIMEでも
+そのbytesを保存し、他の拡張子の手掛かりもなければ `.bin` になる。
+[入力検証](../reference/configuration.md#image-input-validation)と
+[保存形式](../reference/configuration.md#image-save-format)を参照する。
+
+### Q17. `ORIGINAL`ならダウンロード前の形式に戻るか？ 拡張子は実データから決まるか？
+
+どちらも違う。`ORIGINAL` は、プラグインやプロセッサーが返した最終データをコアで
+再エンコードしない指定であり、検証のためのデコードは行い得る。保存拡張子は有効な
+`artifact.extension` → `artifact.content_type` に対応する拡張子 → `artifact.source_url`の拡張子 →
+`.bin` の順で決まり、実データの検出結果では自動補正しない。
+
+例えば実体PNG・宣言`image/jpeg`・`artifact.extension`未指定のままでは、既定の設定で
+PNG bytesが`.jpeg`名で保存され得る。変換したプラグインでMIME・拡張子も実体に合わせる。
+[ORIGINALの意味と拡張子決定](../reference/configuration.md#image-save-format)を参照する。
+
 ## CLI 利用者向け Q&A
 
 ### 1. 実際にどの plugin が選ばれるか確認するには？

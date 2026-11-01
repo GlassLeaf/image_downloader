@@ -242,6 +242,24 @@ async def create_image_request(self, image, context):
     )
 ```
 
+### 変換後の画像と保存形式
+
+`transform_image(artifact, context)` が返す `ImageArtifact` に保存オプションはない。
+`artifact.data` / `artifact.content_type` は変換後の入力であり、保存形式は
+`--force-image-format` → `ImageResource.save_options.format` → `output.image_format`
+（通常の `--image-format` による上書きを含む、既定は `ORIGINAL`）の順で決まる。
+PNG bytesと`image/png`を返しても、保存指定がJPEGなら、入力検証後にJPEGへ再エンコードする。
+宣言MIMEと実体が違う場合は`media.content_type_mismatch`に従い、非画像MIME等の検証エラーは
+変換より先に発生する。MIMEを変更するだけで保存形式を指定することはできない。
+
+`ORIGINAL` はサイト変換・プロセッサー後の最終bytesを維持する。元のHTTP本文へ戻す指定ではなく、
+画像検証も省略しない。保存拡張子は最終artifactの `extension`、`content_type`、`source_url`の拡張子、
+`.bin` の順で選び、bytesのデコード結果では自動補正しない。形式を変えるプラグインは
+`data`・`content_type`・`extension` を一致させる。
+形式の食い違いの具体例と、形式不明データの扱いは
+[保存形式の正本](configuration.md#image-save-format)、[入力検証](configuration.md#image-input-validation)、
+[FAQ](../how-to/faq.md#faq-image-save-format)を参照する。
+
 ### Cookieの同期取得
 
 `PluginExecutionContext.get_cookies(*, domain: str | None = None, path: str | None = None)` は、

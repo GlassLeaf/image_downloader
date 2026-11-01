@@ -189,6 +189,10 @@ plugin_settings:
 
 YAMLは永続設定を指定します。CLIの実行時上書き（`--existing-file`、`--image-format`、`--directory-format`、プラグイン設定・方針の上書きJSON、フォールバックモード）は、その操作のレイヤー解決後に適用し、ファイルへ書き戻しません。`--output-dir`も`AppConfig`のフィールドではなく、ダウンロード専用の依存構築時の上書きであり、保存しません。対応する設定上書きとその由来は`config explain --json`で確認できます。このコマンドは、ダウンロード専用の`--directory-format`・`--output-dir`を受理しません。
 
+<a id="image-save-format"></a>
+
+### 変換後の画像と保存形式
+
 画像の保存形式は次の優先順位で決まる。
 
 | 優先順位 | 参照元 | 効果 |
@@ -198,10 +202,53 @@ YAMLは永続設定を指定します。CLIの実行時上書き（`--existing-f
 | 3 | CLI `--image-format` または YAML の `output.image_format` | plugin 指定がないときの既定。CLI はその operation 限り。 |
 | 4 | bundled default `ORIGINAL` | 上位の指定がない新規設定の既定。 |
 
+`ImageArtifact` 自体は `ImageSaveOptions` を持たない。`transform_image()` が返す
+`artifact.data` は変換後の入力データ、`artifact.content_type` はそのデータの宣言MIMEであり、
+保存形式の指定ではない。コアは元の `ImageResource.save_options` と上記の優先順位から
+保存形式を決める。通常の `--image-format` はプラグイン指定を上書きしない。
+
+`ORIGINAL` 以外では、site transform後の入力をまず検証し、通過したデータを指定形式へ
+再エンコードする。プロセッサーが成果物を変更した場合は、保存前にも同じ保存オプションで
+再度正規化する。以下は強制指定なし、`artifact.extension` 未指定、既定の検証設定での例である。
+
+| `artifact.data` の実体 | `artifact.content_type` | 有効な保存形式 | 保存結果 |
+| --- | --- | --- | --- |
+| PNG | `image/png` | `JPEG` | JPEGへ再エンコードし、`.jpeg`で保存 |
+| JPEG | `image/jpeg` | `PNG` | PNGへ再エンコードし、`.png`で保存 |
+| PNG | `image/jpeg` | `PNG` | 既定の`accept`では不一致を許容し、PNGへ再エンコードして保存 |
+| PNG | `image/png` | `ORIGINAL` | 後続プロセッサーの変更がなければ、返却されたPNG bytesを維持して保存 |
+
+`media.content_type_mismatch: error` は、実データと宣言MIMEの不一致を検出すると、
+指定保存形式への変換より前に `ImageMimeMismatchError` にする。入力PNG・宣言`image/png`を
+JPEGとして保存するような、入力形式と保存形式の違い自体は不一致エラーではない。
+既定の`both`ではHTMLやJSON等の非画像MIMEも変換前に拒否するため、
+保存形式にJPEGやPNGを指定しても、不正な入力を画像として保存できるわけではない。
+
 `ORIGINAL` は HTTP 応答の raw-download モードではなく、site transform と processor
-chain 後の最終 artifact を core が decode/re-encode せず保存するモードである。
-`media.input_validation` は維持され、processor 完了後の artifact も検証する。extension
-は artifact、Content-Type、locator、`.bin` の順で決める。
+chain 後の最終 artifact のバイト列を core が再エンコードせず保存するモードである。
+`media.input_validation` は維持され、検証のためのデコードは行い得る。
+ダウンロード直後のデータに戻す指定ではない。
+
+`ORIGINAL` の保存拡張子は、最終artifactの次の情報から順に決める。
+
+1. 有効な `artifact.extension`（前後空白を除去し、ドット省略可の1～16文字の英数字を小文字化）。
+2. `artifact.content_type` に対応する既知の画像拡張子。
+3. `artifact.source_url` のパス末尾にある有効な拡張子。
+4. いずれも得られなければ `.bin`。
+
+この拡張子選択では、`artifact.data` のデコード結果を使わない。`source_url` は通常manifestの
+locatorであり、リダイレクト後の応答URLではない。例えば実体PNG・宣言`image/jpeg`・
+`artifact.extension`未指定のまま`ORIGINAL`にすると、既定の`accept`ではPNG bytesが
+`.jpeg`名で保存され得る。プラグインが形式を変えた場合は `data` に合わせて
+`content_type` と `extension` も更新する。明示した `artifact.extension` が実体と異なる場合も、
+コアは `ORIGINAL` の拡張子を自動補正しない。
+
+形式指定も宣言MIMEもなく、データが画像としてデコードできない場合は、既定の`both`で
+`ImageDecodeError`になり、保存しない。保存形式未指定時の既定は`ORIGINAL`であって、
+形式不明のデータを自動的にJPEGへ変換する処理はない。
+`media.input_validation: content_type` と既定の `content_type_mismatch: accept` を明示的に使う場合は、
+非空本文と空のMIMEでも検証を通る。有効な保存形式が`ORIGINAL`ならそのbytesを保存し、
+拡張子の手掛かりもなければ `.bin` になる。空本文はこの場合も拒否する。
 
 <a id="image-input-validation"></a>
 
