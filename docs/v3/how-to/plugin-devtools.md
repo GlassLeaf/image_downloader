@@ -93,11 +93,65 @@ kwargs: {}
 image-downloader-dev call C:\work\my-gallery create_image_request --input input.yaml
 ```
 
-`$type`は公開DTO・Enumの名前を使い、各フィールドを隣接するキーで指定します。
-Enumは `{$type: AdditionalFileHookPoint, value: after_download}`、日時は
-`{$type: datetime, value: '2026-10-31T00:00:00+00:00'}` で指定します。
+`$type`と`$ref`は、引数として渡すオブジェクトの指定方法です。
+型を指定して構築する場合は`$type`、すでに存在する値を参照する場合は`$ref`を使います。
+
+| 指定 | 値が表すもの | 処理と結果の型 | 例 |
+|---|---|---|---|
+| `$type` | ツールに登録された型名 | フィールドから指定した型の値を構築する | `{$type: ImageResource, url: 'https://example.test/image.png'}` → `ImageResource` |
+| `$ref` | 既存オブジェクトの参照名・ドット区切りのパス | 複製や型変換をせず、参照先の値をそのまま取得する。型は参照先による | `{$ref: context}` → 準備済みの`PluginExecutionContext` |
+
+「公開DTO・Enumの名前を使う」とは、**`$type`キーの値に型名を書く**という意味です。
+DTOの各フィールドは`$type`に隣接するキーで指定します。
+`$type`を省略した辞書は、型注釈やフィールド名にかかわらず通常の辞書として渡されます。
+Enumは `{$type: AdditionalFileHookPoint, value: after_download}` のように型名と列挙値を指定します。
+この例の結果は`AdditionalFileHookPoint.AFTER_DOWNLOAD`です。
+日時は `{$type: datetime, value: '2026-10-31T00:00:00+00:00'}` で指定します。
+`PluginExecutionContext`、`TransformContext`、`PluginFormatContext`も登録されています。
+任意のPythonクラス名やモジュールパスを指定して読み込む機能はありません。
+
+`$ref`では、次の参照を利用できます。
+
+| 参照名 | 参照する値・利用条件 |
+|---|---|
+| `plugin` | 呼出し対象として読み込んだプラグインインスタンス。`call`時に用意される |
+| `context` | ツールが準備した`PluginExecutionContext`。対象メソッドの引数名が`context`または`_context`など、先頭の`_`を除くと`context`になる場合に、呼出し前に用意される |
+| `last` | 同じセッション内の直近の成功した返却値。呼出し成功後に利用できる |
+| `save_as`で指定した名前 | 同じセッションやシナリオ内で、その名前で保存した返却値 |
+
+たとえば`{$ref: manifest.chapters.0.images.0}`は、`save_as: manifest`で保存した返却値から、
+最初の章の最初の画像を取得します。ドットの後には属性名・辞書のキー・リストなどの添字を指定できます。
+存在しない参照名はエラーになり、型名として解釈したり、新しいオブジェクトを構築したりはしません。
+返却値の参照は別々に起動した`call`コマンド間では引き継がれません。
+
+次の入力では、画像DTOを`$type`で構築し、`$ref`で既存の実行コンテキストを渡します。
+先の`create_image_request`の例と同じく`call --input input.yaml`で指定できます。
+
+```yaml
+args:
+  - $type: ImageResource
+    url: https://example.test/image.png
+    image_id: image1
+    index: 1
+kwargs:
+  context:
+    $ref: context
+```
+
+`context`は型名ではなく参照名です。引数名が`ctx`などの場合は、
+`PluginExecutionContext`という型注釈だけではこの参照を新たに用意しません。
+`{$type: PluginExecutionContext}`だけでは必須引数が不足します。
+構築には`config`、`app_settings`、`manifest`、`catalog`、`secrets`、`requests`の指定が必要です。
+`$type`が通信や秘密情報のサービスを自動で準備するわけではないため、
+ツールが準備済みのコンテキストを使う場合は`{$ref: context}`を指定します。
+
+この`context`参照は常に`PluginExecutionContext`です。
+公式フックの引数を省略したときの補完は別の仕組みで、
+`transform`・`transform_image`では`TransformContext`、
+`output_format_values`では`PluginFormatContext`を用意します。
+これらのフックには、引数を省略する補助か、対応する`$type`で構築した値を使います。
+
 `$file`は入力ファイルからの相対パスのバイナリ、`$base64`はBase64のバイナリを読みます。
-`$ref`は同一セッション内の返却値を参照し、`manifest.chapters.0.images.0`のように辿れます。
 入力のPython式の評価は行いません。
 
 公式フックは本体の返却値検証を共用します。
@@ -167,7 +221,9 @@ quit
 ```
 
 `call`間で同じインスタンスと返却値を保持します。独自・内部補助メソッドも明示指定で呼べます。
-`last`は直近の成功した返却値、`context`は構築した実行コンテキストです。
+`last`は直近の成功した返却値、`plugin`は読み込んだプラグインインスタンスです。
+`context`は対象メソッドの引数名に応じて用意する`PluginExecutionContext`です。
+参照の指定方法と利用条件は「メソッド単体実行」の`$type`・`$ref`の説明を参照してください。
 返却された認証フローなどのオブジェクトは`call flow.apply ...`の形式で呼び出せます。
 `reload`はcleanup後にソースを読み直し、返却値参照を破棄します。
 `simulate URL replay`は本体と同じoperation単位で新しいインスタンスを生成・cleanupします。
