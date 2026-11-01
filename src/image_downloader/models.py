@@ -350,9 +350,9 @@ class Chapter:
     images: tuple[ImageResource, ...] = ()
     chapter_id: str | None = None
     allow_empty_images: bool | None = field(default=None, kw_only=True, repr=False)
-    published_at: str | None = field(default=None, kw_only=True)
-    publication_date: str | None = field(default=None, kw_only=True)
-    log_fields: Mapping[str, str] = field(default_factory=freeze_mapping, kw_only=True)
+    published_at: str | None = field(default=None, kw_only=True, repr=False)
+    publication_date: str | None = field(default=None, kw_only=True, repr=False)
+    log_fields: Mapping[str, str] = field(default_factory=freeze_mapping, kw_only=True, repr=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "log_fields", _validate_publication_fields(self))
@@ -371,9 +371,9 @@ class DownloadManifest:
     revision: str | None = None
     metadata: Mapping[str, str] = field(default_factory=freeze_mapping)
     allow_empty_chapters: bool | None = field(default=None, kw_only=True, repr=False)
-    published_at: str | None = field(default=None, kw_only=True)
-    publication_date: str | None = field(default=None, kw_only=True)
-    log_fields: Mapping[str, str] = field(default_factory=freeze_mapping, kw_only=True)
+    published_at: str | None = field(default=None, kw_only=True, repr=False)
+    publication_date: str | None = field(default=None, kw_only=True, repr=False)
+    log_fields: Mapping[str, str] = field(default_factory=freeze_mapping, kw_only=True, repr=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "log_fields", _validate_publication_fields(self))

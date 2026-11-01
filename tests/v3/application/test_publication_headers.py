@@ -58,6 +58,24 @@ def test_publication_fields_are_keyword_only_and_frozen(kind):
     assert value.publication_date is None
 
 
+@pytest.mark.parametrize("on_chapter", [False, True])
+def test_publication_fields_preserve_repr_but_participate_in_equality(on_chapter):
+    original = Chapter(1, "chapter") if on_chapter else DownloadManifest("work", ())
+    enriched = replace(
+        original,
+        published_at="2026年11月",
+        publication_date="2026-11-01",
+        log_fields={"publisher": "publisher-name"},
+    )
+    assert repr(enriched) == repr(original)
+    assert enriched != original
+    copied = replace(enriched)
+    assert copied == enriched
+    assert copied.published_at == "2026年11月"
+    assert copied.publication_date == "2026-11-01"
+    assert copied.log_fields == {"publisher": "publisher-name"}
+
+
 @pytest.mark.parametrize("kind", [Chapter, DownloadManifest])
 @pytest.mark.parametrize(
     "fields",

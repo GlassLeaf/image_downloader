@@ -36,6 +36,8 @@ hook内の通常の失敗や不正な返却値は引き続き`PluginError`とし
 両DTOに keyword-only の `published_at: str | None`、`publication_date: str | None`、
 `log_fields: Mapping[str, str]` を指定できます。既定値はそれぞれ `None`、`None`、空mappingです。
 日時はサイトの表記を保持し、日付解析やタイムゾーン変換を行いません。
+新フィールドは既存の `repr()` を維持するため文字列表現には含めませんが、等値比較と
+`dataclasses.replace()` では保持されます。ログ・inspection JSON・開発支援ツールには明示的に渡されます。
 
 `log_fields` はログへ記録する非秘密の独自項目です。キーは `[a-z][a-z0-9]*(?:_[a-z0-9]+)*`、
 値は文字列に限り、コピーして不変化します。不正な型・キーはconstructorでTypeError/ValueError、
