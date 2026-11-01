@@ -29,6 +29,48 @@
 codeは`update_check_unsupported`、安全な固定reasonは`selected plugin does not support update checks`。
 hook内の通常の失敗や不正な返却値は引き続き`PluginError`として区別する。
 
+## 作品・章情報とログへの明示出力
+
+作品情報は `DownloadManifest`、章情報は `Chapter` で提供します。作品タイトル・作者は
+`DownloadManifest.title` / `author`、章タイトル・サブタイトルは `Chapter.title` / `subtitle` です。
+両DTOに keyword-only の `published_at: str | None`、`publication_date: str | None`、
+`log_fields: Mapping[str, str]` を指定できます。既定値はそれぞれ `None`、`None`、空mappingです。
+日時はサイトの表記を保持し、日付解析やタイムゾーン変換を行いません。
+
+`log_fields` はログへ記録する非秘密の独自項目です。キーは `[a-z][a-z0-9]*(?:_[a-z0-9]+)*`、
+値は文字列に限り、コピーして不変化します。不正な型・キーはconstructorでTypeError/ValueError、
+hook内の構築失敗や契約違反は `PluginError` になります。既存の `metadata` は自動出力しません。
+ログでは `content.<key>` と `chapter.<key>` を区別します。詳しくは
+[ログヘッダー](logging.md#chapter-publication-header)を参照してください。
+
+```python
+from image_downloader import Chapter, DownloadManifest
+
+
+def example_manifest() -> DownloadManifest:
+    return DownloadManifest(
+        title="作品A",
+        author="作者名",
+        publication_date="2026年11月",
+        log_fields={"publisher": "出版社名"},
+        chapters=(
+            Chapter(
+                number=1,
+                title="第1話",
+                subtitle="出会い",
+                published_at="2026-11-01 09:00 JST",
+                log_fields={"edition": "改訂版"},
+                images=(),
+            ),
+        ),
+    )
+```
+
+`inspect()` が返した情報からコアが各章の `log.log` を生成します。追加の必須hookはありません。
+既存の位置引数とAPI version 3は維持しますが、新フィールドを渡すには対応する本体版が必要です。
+旧本体ではTypeErrorになるため、constructor signatureで対応を確認するか対応配布版を指定してください。
+新しい `log_fields` は `inspect --inspection-data all` と開発支援ツールでも確認できます。
+
 ## 空の結果の許可
 
 <a id="empty-result-permissions"></a>

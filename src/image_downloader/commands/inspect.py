@@ -10,7 +10,14 @@ from urllib.parse import urlparse
 from ..application.composer import RuntimeComposer
 from ..application.requests import InspectRequest
 from ..immutable import thaw_json
-from ..models import EffectiveRequestPreview, ImageSaveOptions, ManifestInspectionResult, RequestSpec
+from ..models import (
+    Chapter,
+    DownloadManifest,
+    EffectiveRequestPreview,
+    ImageSaveOptions,
+    ManifestInspectionResult,
+    RequestSpec,
+)
 from .constants import EXIT_PARTIAL, EXIT_SUCCESS
 from .outcome import CommandOutcome
 from .prepared import DownloadArguments, InspectArguments, PreparedCommand
@@ -112,6 +119,17 @@ def _save_options_json(options: ImageSaveOptions) -> dict[str, object]:
     }
 
 
+def _publication_json(value: Chapter | DownloadManifest) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for name in ("published_at", "publication_date"):
+        item = getattr(value, name)
+        if item is not None:
+            result[name] = item
+    if value.log_fields:
+        result["log_fields"] = dict(value.log_fields)
+    return result
+
+
 def _full_manifest_json(result: ManifestInspectionResult) -> dict[str, object]:
     manifest = result.manifest
     return {
@@ -121,6 +139,7 @@ def _full_manifest_json(result: ManifestInspectionResult) -> dict[str, object]:
         "access": manifest.access,
         "revision": manifest.revision,
         "metadata": dict(manifest.metadata),
+        **_publication_json(manifest),
         **(
             {"allow_empty_chapters": manifest.allow_empty_chapters} if manifest.allow_empty_chapters is not None else {}
         ),
@@ -130,6 +149,7 @@ def _full_manifest_json(result: ManifestInspectionResult) -> dict[str, object]:
                 "title": chapter.title,
                 "subtitle": chapter.subtitle,
                 "chapter_id": chapter.chapter_id,
+                **_publication_json(chapter),
                 **(
                     {"allow_empty_images": chapter.allow_empty_images} if chapter.allow_empty_images is not None else {}
                 ),

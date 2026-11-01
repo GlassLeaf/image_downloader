@@ -2,6 +2,52 @@
 
 <a id="logging-reference"></a>
 
+## 章ログの作品・章情報ヘッダー
+
+<a id="chapter-publication-header"></a>
+
+通常downloadの各章の `log.log` は、次の順のヘッダーを記録します。
+
+```text
+---
+url: https://example.com/work
+content_title: 作品A
+author: 作者名
+title: 第1話
+subtitle: 出会い
+content_id: work-123
+chapter_number: 1
+chapter_id: chapter-1
+content_published_at: 2026年10月
+content_publication_date: 2026年11月
+chapter_published_at: 2026-11-01 09:00 JST
+chapter_publication_date: 2026-11-01
+content.publisher: 出版社名
+chapter.edition: 改訂版
+---
+```
+
+先頭は `url` → `content_title` → `author` → `title` → `subtitle` の固定順です。
+`url` は操作に渡された元URL、`content_title` と `author` は `DownloadManifest`、
+`title` と `subtitle` は `Chapter` の情報です。`url`・`content_title`・`title`・`chapter_number`
+は常に出力し、それ以外の標準項目がNoneまたは空文字列なら省略します。
+日付・日時の表記は変換しません。
+
+独自項目は `DownloadManifest.log_fields` を `content.<key>`、`Chapter.log_fields` を
+`chapter.<key>` として標準項目の後に出力します。作品側、章側の順で、各側はキー順です。
+空文字列の独自項目は省略します。表示設定はなく、`metadata` は自動転記しません。
+値は秘密値マスク、制御文字除去による単一行化、1024文字の制限（超過時は末尾に `…`）を受けます。
+フォルダ名の書式とは独立しています。
+
+`DownloadLogger.chapter_header()` の既存引数に、省略可能なkeyword引数 `content_title`、`author`、
+`extra_fields: Mapping[str, str] | None` を追加しています。`extra_fields` は先頭5項目以外の
+上記標準項目と `content.<key>` / `chapter.<key>` を受け付け、値は文字列に限ります。
+無効なキー・先頭5項目の上書きはValueError、不正な値の型はTypeErrorです。
+既存の引数だけの呼出しは旧形式を出力できます。
+
+`verify logs` は旧形式・新形式・追記による両者の混在を検証します。既存ログは書き換えず、
+新しいdownloadは新形式を追記します。独自項目の値にある `error:` などは失敗記録として解釈しません。
+
 ## workflowの実行記録ファイル
 
 <a id="workflow-execution-files"></a>

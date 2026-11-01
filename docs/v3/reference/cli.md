@@ -403,6 +403,10 @@ image-downloader state workflow history --json
 image-downloader verify workflow RUN_ID --output-dir "C:\Downloads" --json
 ```
 
+`inspect --inspection-data all` のmanifestと各chapterには、指定された場合だけ
+`published_at`・`publication_date` をサイト表記の文字列として含めます。空でない `log_fields` も
+文字列mappingとして含め、未指定の日時と空の `log_fields` は省略します。
+
 `verify logs` は絶対パスを必須とし、フォルダー以下の `log.log` を再帰検査する。
 単一ファイル指定は `log.log` または `debug.log`。章ログの `error:` / `error=`、
 debugログの失敗イベント・`error=`・Python ERROR/CRITICALを構文として検出し、

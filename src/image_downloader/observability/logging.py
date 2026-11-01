@@ -5,7 +5,7 @@ import contextvars
 import logging
 import queue
 import re
-from collections.abc import Awaitable, Iterable
+from collections.abc import Awaitable, Iterable, Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
@@ -18,6 +18,7 @@ from ..privacy.log_safety import (
     safe_url,
 )
 from ..privacy.log_safety import safe_log_text as safe_log_text
+from .chapter_header import header_key_order, is_extra_header_key
 from .diagnostic_safety import warn_diagnostic_failure
 from .log_sinks import ChapterFailureRecord as ChapterFailureRecord
 from .log_sinks import ChapterFileSink as ChapterFileSink
@@ -281,10 +282,34 @@ class DownloadLogger:
     async def log(self, message: str, *, chapter_id: str | None = None, module: str = "library") -> None:
         await self._write(LogRecord(message, chapter_id, {"module": module}))
 
-    async def chapter_header(self, chapter_id: str, *, url: str, title: str, subtitle: str | None) -> None:
-        lines = ["---", f"url: {self.safe_url(url)}", f"title: {_safe_text(mask_log_text(title), 1024)}"]
+    async def chapter_header(
+        self,
+        chapter_id: str,
+        *,
+        url: str,
+        title: str,
+        subtitle: str | None,
+        content_title: str | None = None,
+        author: str | None = None,
+        extra_fields: Mapping[str, str] | None = None,
+    ) -> None:
+        fields = dict(extra_fields or {})
+        if any(not isinstance(key, str) or not is_extra_header_key(key) for key in fields):
+            raise ValueError("invalid chapter header field")
+        if any(not isinstance(value, str) for value in fields.values()):
+            raise TypeError("chapter header fields must contain strings")
+        lines = ["---", f"url: {self.safe_url(url)}"]
+        if content_title is not None:
+            lines.append(f"content_title: {_safe_text(mask_log_text(content_title), 1024)}")
+        if author:
+            lines.append(f"author: {_safe_text(mask_log_text(author), 1024)}")
+        lines.append(f"title: {_safe_text(mask_log_text(title), 1024)}")
         if subtitle:
             lines.append(f"subtitle: {_safe_text(mask_log_text(subtitle), 1024)}")
+        for key in sorted(fields, key=header_key_order):
+            if fields[key]:
+                value = mask_log_text(f"{key}: {fields[key]}").partition(": ")[2]
+                lines.append(f"{key}: {_safe_text(value, 1024)}")
         lines.append("---")
         await self._write_chapter(chapter_id, "\n".join(lines))
 

@@ -43,6 +43,7 @@ class ChapterReporter:
         self._next = 0
         self._finished = False
         self._source_url = manifest.metadata.get("source_url", "")
+        self._manifest = manifest
 
     async def start(self) -> None:
         self.filesystem.ensure_directory(self.chapter_directory)
@@ -52,12 +53,26 @@ class ChapterReporter:
             filesystem=self.filesystem,
             relative_path=self.chapter_directory / "log.log",
         )
+        fields = {
+            "content_id": self._manifest.content_id or "",
+            "chapter_number": str(self.chapter.number),
+            "chapter_id": self.chapter.chapter_id or "",
+            "content_published_at": self._manifest.published_at or "",
+            "content_publication_date": self._manifest.publication_date or "",
+            "chapter_published_at": self.chapter.published_at or "",
+            "chapter_publication_date": self.chapter.publication_date or "",
+            **{f"content.{key}": value for key, value in self._manifest.log_fields.items()},
+            **{f"chapter.{key}": value for key, value in self.chapter.log_fields.items()},
+        }
         await best_effort_diagnostic(
             self.logger.chapter_header,
             self.reporter_id,
             url=self._source_url,
             title=self.chapter.title,
             subtitle=self.chapter.subtitle or None,
+            content_title=self._manifest.title,
+            author=self._manifest.author,
+            extra_fields=fields,
         )
 
     async def record(self, position: int, outcome: ImageOutcome) -> None:

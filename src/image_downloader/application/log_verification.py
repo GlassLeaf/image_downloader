@@ -9,6 +9,7 @@ from typing import Any
 from image_downloader.storage.reading import classify_path, stable_file
 
 from ..exceptions import ConfigurationError, StorageSafetyError
+from ..observability.chapter_header import valid_header_keys
 from ..privacy.log_safety import safe_log_text
 from ..storage.filesystem import FileSystem
 from ..storage.path_safety import canonical_path
@@ -76,8 +77,10 @@ class _LogParser:
 
     def chapter_record(self, text: str, number: int) -> None:
         if self.header:
-            self.header.append((number, text))
-            if text == "---" or len(self.header) > 5:
+            # Keep keys only; values may contain log-like text and are never records.
+            key, separator, _ = text.partition(": ")
+            self.header.append((number, "---" if text == "---" else key if separator else ""))
+            if text == "---":
                 self.finish_header()
             return
         if text == "---":
@@ -111,13 +114,7 @@ class _LogParser:
 
     def finish_header(self) -> None:
         values = [value for _, value in self.header]
-        valid = (
-            len(values) in {4, 5}
-            and values[-1] == "---"
-            and values[1].startswith("url: ")
-            and values[2].startswith("title: ")
-            and (len(values) == 4 or values[3].startswith("subtitle: "))
-        )
+        valid = values[-1] == "---" and valid_header_keys(values[1:-1])
         if valid:
             self.recognized = True
             if self.session is not None:

@@ -21,6 +21,7 @@ from ..models import (
     RequestSpec,
     UpdateCandidate,
     UpdateSnapshot,
+    _validate_publication_fields,
 )
 from ..observability.logging import DownloadLogger
 from ..ports import (
@@ -323,6 +324,7 @@ class PluginInvoker:
     def _validate_manifest(self, hook: str, value: object) -> None:
         if not isinstance(value, DownloadManifest):
             raise self._error(hook, "inspect must return DownloadManifest")
+        self._validate_publication(hook, value)
         if not isinstance(value.title, str):
             raise self._error(hook, "inspect returned an invalid title")
         optional_text = (value.content_id, value.author, value.access, value.revision)
@@ -338,6 +340,7 @@ class PluginInvoker:
             self._validate_chapter(hook, chapter, chapter_index)
 
     def _validate_chapter(self, hook: str, chapter: Chapter, chapter_index: int) -> None:
+        self._validate_publication(hook, chapter)
         if isinstance(chapter.number, bool) or not isinstance(chapter.number, int) or chapter.number < 0:
             raise self._error(hook, f"inspect returned an invalid chapter number at chapters[{chapter_index}]")
         if not isinstance(chapter.title, str) or not isinstance(chapter.subtitle, str):
@@ -351,6 +354,12 @@ class PluginInvoker:
                 path = f"chapters[{chapter_index}].images[{image_index}]"
                 raise self._error(hook, f"inspect returned an invalid image at {path}")
             self._validate_image(hook, image, chapter_index, image_index)
+
+    def _validate_publication(self, hook: str, value: Chapter | DownloadManifest) -> None:
+        try:
+            _validate_publication_fields(value)
+        except (TypeError, ValueError, AttributeError) as exc:
+            raise self._error(hook, "inspect returned invalid publication fields") from exc
 
     def _validate_image(self, hook: str, image: ImageResource, chapter_index: int, image_index: int) -> None:
         path = f"chapters[{chapter_index}].images[{image_index}]"

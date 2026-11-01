@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -38,6 +39,17 @@ def _freeze_header_values(value: Mapping[str, tuple[str, ...]], *, field_name: s
             raise TypeError(f"{field_name} must map strings to tuples of strings")
         frozen[key] = tuple(items)
     return freeze_mapping(frozen)
+
+
+def _validate_publication_fields(value: Chapter | DownloadManifest) -> Mapping[str, str]:
+    for name in ("published_at", "publication_date"):
+        item = getattr(value, name)
+        if item is not None and not isinstance(item, str):
+            raise TypeError(f"{name} must be a string or None")
+    fields = _freeze_string_mapping(value.log_fields, field_name="log_fields")
+    if any(re.fullmatch(r"[a-z][a-z0-9]*(?:_[a-z0-9]+)*", key) is None for key in fields):
+        raise ValueError("log_fields keys must be lower snake_case")
+    return fields
 
 
 @dataclass(frozen=True, slots=True)
@@ -338,8 +350,12 @@ class Chapter:
     images: tuple[ImageResource, ...] = ()
     chapter_id: str | None = None
     allow_empty_images: bool | None = field(default=None, kw_only=True, repr=False)
+    published_at: str | None = field(default=None, kw_only=True)
+    publication_date: str | None = field(default=None, kw_only=True)
+    log_fields: Mapping[str, str] = field(default_factory=freeze_mapping, kw_only=True)
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "log_fields", _validate_publication_fields(self))
         if self.allow_empty_images is not None and not isinstance(self.allow_empty_images, bool):
             raise TypeError("Chapter.allow_empty_images must be bool or None")
         object.__setattr__(self, "images", tuple(self.images))
@@ -355,8 +371,12 @@ class DownloadManifest:
     revision: str | None = None
     metadata: Mapping[str, str] = field(default_factory=freeze_mapping)
     allow_empty_chapters: bool | None = field(default=None, kw_only=True, repr=False)
+    published_at: str | None = field(default=None, kw_only=True)
+    publication_date: str | None = field(default=None, kw_only=True)
+    log_fields: Mapping[str, str] = field(default_factory=freeze_mapping, kw_only=True)
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "log_fields", _validate_publication_fields(self))
         if self.allow_empty_chapters is not None and not isinstance(self.allow_empty_chapters, bool):
             raise TypeError("DownloadManifest.allow_empty_chapters must be bool or None")
         object.__setattr__(self, "chapters", tuple(self.chapters))

@@ -13,6 +13,11 @@
 
 テンプレートは最小限の雛形であり、カーソルによるページ分割、CSRF・OAuth、短命URL、プロセッサーの画像変換の完成例ではありません。これらは[プラグインの実装例](../reference/plugin-hooks.md#plugin-examples)と比較してください。ソースを更新したら、[署名手順](../reference/plugin-package.md#plugin-signing-workflow)に従ってmanifestのツリーと署名を再生成します。
 
+作品タイトル・作者は `DownloadManifest`、章タイトル・サブタイトルは `Chapter` に設定します。
+公開日時・発行日や出版社などを章ログに残す例は、
+[作品・章情報](../reference/plugin-hooks.md)と[ログヘッダー](../reference/logging.md#chapter-publication-header)
+を参照してください。独自情報は `log_fields` に明示し、`metadata` からは自動転記しません。
+
 空結果の成功を制御したい場合は、[空の結果の許可](../reference/plugin-hooks.md#empty-result-permissions)
 に従い、`DownloadManifest.allow_empty_chapters`と各`Chapter.allow_empty_images`を指定する。
 未指定は従来動作を維持する。章一覧0件には既存設定の拒否が優先し、画像0件は章ごとに判断する。
