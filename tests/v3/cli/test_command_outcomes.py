@@ -298,7 +298,10 @@ def test_public_run_still_raises_the_original_unhandled_error(tmp_path, monkeypa
         (["state", "workflow", "list"], "not_required"),
     ],
 )
-def test_offline_command_envelopes(tmp_path, capsys, words, shutdown):
+def test_offline_command_envelopes(tmp_path, capsys, words, shutdown, monkeypatch):
+    from image_downloader.commands import config as config_command
+
+    monkeypatch.setattr(config_command, "default_user_config_path", lambda: tmp_path / "unused-user.yaml")
     config = tmp_path / "app.yaml"
     config.write_text(
         json.dumps(

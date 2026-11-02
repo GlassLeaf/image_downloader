@@ -20,7 +20,7 @@ class ResizeProcessor:
             if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
                 raise ValueError(f"resize processor requires positive integer config.{key}")
 
-    async def transform(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:
+    def transform(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:
         width = context.config["max_width"]
         height = context.config["max_height"]
         assert isinstance(width, int) and isinstance(height, int)  # validated before invocation

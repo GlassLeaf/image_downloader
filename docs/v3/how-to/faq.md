@@ -109,7 +109,26 @@ plugin_settings:
 
 ### Q11. `transform_image()` は並列安全か？　他画像の結果に依存してよいか？
 
-並列安全でなければならない。選択済み site plugin の同じ instance に対し、複数画像の request hook と site transform が並列に呼ばれ得る。他画像の完了順、変換結果、共有可変 state に依存してはならない。processor transform には instance ごとの runtime lock があるが、site `transform_image()` にはない。[実行ライフサイクル](../explanation/execution-lifecycle.md#lifecycle-concurrency) を参照する。
+並列安全でなければならない。選択済み site plugin の同じ instance に対し、複数画像の request hook と site transform が並列に呼ばれ得る。他画像の完了順、変換結果、共有可変 state に依存してはならない。サイト・processor の同期変換は同一インスタンスへ別スレッドから並行して呼ばれるため、両方ともスレッド安全でなければならない。[実行ライフサイクル](../explanation/execution-lifecycle.md#lifecycle-concurrency) を参照する。
+
+<a id="faq-transform-async-dependencies"></a>
+
+#### 変換内部で非同期関数をawaitしたい場合は？
+
+現行の `transform_image()` とprocessorの `transform()` は同期関数なので、内部に直接
+`await func()` は書けない。`async def` は読み込み時、awaitableの返却は実行時に `PluginError` となる。
+コア側で変換の完了をawaitできても、フック内部の非同期処理が自動実行されるわけではない。
+別途の非同期変換APIの追加は判断保留であり、現在は `transform_image_async` 等も呼ばれない。
+
+通信・認証は既存のinspect/request/authフックで済ませ、Q12の方法で必要な値を渡す。
+非同期専用ライブラリを変換内で使うための `asyncio.run()` は、プラグイン側が管理するアダプターになる。
+処理とリソースをその呼び出し内で完結させ、本体や以前の変換のループに属するTask/Future/client等を
+共有しない。同期の `wait()` に包んでも、この制約は変わらない。
+
+非同期待機中も変換ワーカーの枠を保持する。呼び出し側をキャンセルしてもワーカー内の処理は
+自動キャンセルされず、コアは完了を回収してからcleanupするため、終了時刻の保証はない。
+ループ管理・共有状態・再投入を含む注意点は[移行ガイド](../maintenance/synchronous-image-transforms.md#async-dependencies)、
+契約の正本は[同期変換の制限](../reference/plugin-hooks.md#synchronous-image-transforms)を参照する。
 
 ### Q12. 変換時に、鍵ファイルなど画像取得時の別情報が必要なら？
 

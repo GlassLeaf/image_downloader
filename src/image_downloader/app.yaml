@@ -13,6 +13,7 @@ output:
   max_component_length: null
   lock_timeout_seconds: 30
 media:
+  transform_workers: 2
   input_validation: both
   content_type_mismatch: accept
   max_image_pixels: null

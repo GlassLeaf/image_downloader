@@ -144,7 +144,7 @@ def test_input_validation_uses_specific_content_type_and_mime_errors() -> None:
         processor.close()
 
 
-def test_original_format_preserves_the_transformed_artifact_and_validates_it_twice() -> None:
+def test_original_format_preserves_the_transformed_artifact_and_validates_it_once() -> None:
     transformed = ImageArtifact(b"unconverted-avif", "image/avif", "image:1")
     validations: list[ImageArtifact] = []
 
@@ -171,6 +171,7 @@ def test_original_format_preserves_the_transformed_artifact_and_validates_it_twi
     pipeline.invoker = Invoker()
     pipeline.processors = ()
     pipeline.force_image_format = None
+    pipeline.transform_executor = None
     pipeline._validate_input = validations.append
 
     image = ImageResource("image:1")
@@ -187,7 +188,7 @@ def test_original_format_preserves_the_transformed_artifact_and_validates_it_twi
     assert result.data == transformed.data
     assert result.extension == ".avif"
     assert result.history[-1] == "core.original-preserve"
-    assert validations == [transformed, transformed]
+    assert validations == [transformed]
 
 
 def test_format_precedence_keeps_plugin_default_and_force_overrides_it() -> None:
@@ -197,6 +198,7 @@ def test_format_precedence_keeps_plugin_default_and_force_overrides_it() -> None
     default_image = ImageResource("image:2")
 
     pipeline.force_image_format = None
+    pipeline.transform_executor = None
     assert pipeline._effective_save_options(plugin_image).format == "JPEG"
     assert pipeline._effective_save_options(default_image).format == "PNG"
 
@@ -250,6 +252,7 @@ def test_forced_jpeg_replaces_a_plugin_format_and_extension() -> None:
         pipeline.invoker = Invoker()
         pipeline.processors = ()
         pipeline.force_image_format = "JPEG"
+        pipeline.transform_executor = None
         result = asyncio.run(pipeline.process(object(), artifact, image, manifest, manifest.chapters[0]))
 
     assert result.extension == ".jpeg"

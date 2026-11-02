@@ -114,7 +114,7 @@ def test_inspection_resolves_requests_in_manifest_order_and_records_partial_fail
         async def recover_image_request(self, *_args: object) -> None:
             raise AssertionError("inspection must not recover image requests")
 
-        async def transform_image(self, *_args: object) -> None:
+        def transform_image(self, *_args: object) -> None:
             raise AssertionError("inspection must not transform images")
 
         def cleanup_after_use(self) -> None:
@@ -187,7 +187,7 @@ def test_manifest_only_skips_request_hooks_and_inspection_cookie_changes_are_dis
         async def recover_image_request(self, *_args: object) -> None:
             raise AssertionError("not called")
 
-        async def transform_image(self, *_args: object) -> None:
+        def transform_image(self, *_args: object) -> None:
             raise AssertionError("not called")
 
     class InspectionGateway(RequestGateway):
@@ -276,7 +276,7 @@ def test_inspection_previews_the_effective_request_without_sending_an_image(
         async def recover_image_request(self, *_args: object) -> None:
             raise AssertionError("inspection must not recover image requests")
 
-        async def transform_image(self, *_args: object) -> None:
+        def transform_image(self, *_args: object) -> None:
             raise AssertionError("inspection must not transform images")
 
     class PreviewGateway(RequestGateway):
@@ -368,7 +368,7 @@ def test_inspection_keeps_a_source_request_when_effective_request_preparation_fa
         async def recover_image_request(self, *_args: object) -> None:
             raise AssertionError("inspection must not recover image requests")
 
-        async def transform_image(self, *_args: object) -> None:
+        def transform_image(self, *_args: object) -> None:
             raise AssertionError("inspection must not transform images")
 
     async def scenario() -> None:

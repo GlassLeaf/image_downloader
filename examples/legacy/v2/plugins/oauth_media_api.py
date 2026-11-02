@@ -90,5 +90,5 @@ class OAuthMediaApiPlugin:
     def auth_flow(self, context: PluginExecutionContext) -> _OAuthFlow:
         return _OAuthFlow(context)
 
-    async def transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:
+    def transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:
         return artifact

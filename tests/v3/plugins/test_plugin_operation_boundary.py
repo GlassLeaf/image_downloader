@@ -11,6 +11,7 @@ import pytest
 from image_downloader import DownloadRequest
 from image_downloader.config import AppConfig
 from image_downloader.exceptions import HttpTransportError, PluginError
+from image_downloader.media import TransformExecutor
 from image_downloader.models import (
     Chapter,
     DownloadManifest,
@@ -283,14 +284,15 @@ def test_request_urls_and_referers_remain_absolute_http_urls(request_spec: Reque
 
 def test_site_and_processor_transforms_can_return_an_opaque_source_locator() -> None:
     class OpaqueSiteTransform:
-        async def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
+        def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
             return artifact
 
     class OpaqueProcessorTransform:
-        async def transform(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
+        def transform(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
             return artifact
 
     async def scenario() -> None:
+        executor = TransformExecutor()
         artifact = ImageArtifact(b"image", "image/jpeg", "image:42", image_id="42")
         context = cast(TransformContext, object())
         site_result = await PluginInvoker("com.example.opaque-site").transform_image(
@@ -298,13 +300,16 @@ def test_site_and_processor_transforms_can_return_an_opaque_source_locator() -> 
             artifact,
             context,
             chapter_id="1",
+            executor=executor,
         )
         processor_result = await PluginInvoker("com.example.opaque-processor").transform_processor(
             cast(ImageProcessor, OpaqueProcessorTransform()),
             artifact,
             context,
             chapter_id="1",
+            executor=executor,
         )
+        await executor.close()
         assert site_result.source_url == "image:42"
         assert processor_result.source_url == "image:42"
 
@@ -456,7 +461,7 @@ def test_sync_matching_and_configuration_hooks_use_the_shared_boundary() -> None
 
 def test_transform_and_recovery_hooks_use_the_shared_boundary() -> None:
     class InvalidTransformPlugin:
-        async def transform_image(self, _artifact: object, _context: object) -> object:
+        def transform_image(self, _artifact: object, _context: object) -> object:
             return object()
 
         async def recover_image_request(
@@ -469,23 +474,26 @@ def test_transform_and_recovery_hooks_use_the_shared_boundary() -> None:
             raise RuntimeError("recovery failed")
 
     class BrokenProcessor:
-        async def transform(self, _artifact: object, _context: object) -> ImageArtifact:
+        def transform(self, _artifact: object, _context: object) -> ImageArtifact:
             raise RuntimeError("processor failed")
 
     async def scenario() -> None:
         invoker = PluginInvoker("com.example.transform")
+        executor = TransformExecutor()
         artifact = ImageArtifact(b"image", "image/jpeg", "https://example.test/image.jpg")
         transform_context = cast(TransformContext, object())
         plugin = cast(SitePlugin, InvalidTransformPlugin())
         with pytest.raises(PluginError, match="hook=transform_image"):
-            await invoker.transform_image(plugin, artifact, transform_context, chapter_id="1")
+            await invoker.transform_image(plugin, artifact, transform_context, chapter_id="1", executor=executor)
         with pytest.raises(PluginError, match="hook=transform"):
             await PluginInvoker("com.example.processor").transform_processor(
                 cast(ImageProcessor, BrokenProcessor()),
                 artifact,
                 transform_context,
                 chapter_id="1",
+                executor=executor,
             )
+        await executor.close()
         with pytest.raises(PluginError, match="hook=recover_image_request"):
             await invoker.recover_image_request(
                 plugin,

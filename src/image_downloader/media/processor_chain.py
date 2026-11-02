@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from types import TracebackType
 from typing import Any, Literal
 
@@ -24,7 +23,6 @@ class PreparedProcessor:
     instance: ImageProcessor
     config: Mapping[str, Any]
     app_settings: Mapping[str, Any]
-    lock: asyncio.Lock = field(default_factory=asyncio.Lock, compare=False, repr=False)
 
 
 class OperationProcessorChain:

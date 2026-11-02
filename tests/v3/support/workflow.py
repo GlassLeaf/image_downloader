@@ -54,7 +54,7 @@ class Gallery:
     async def create_image_request(self, image, context):
         return RequestSpec(image.url, auth_required=False)
 
-    async def transform_image(self, artifact, context):
+    def transform_image(self, artifact, context):
         return artifact
 
     async def recover_image_request(self, image, failed, response, context):

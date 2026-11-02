@@ -13,6 +13,7 @@ from ..configuration.models import AppConfig, ImageFormat
 from ..exceptions import ConfigurationError, ImageContentTypeError, ImageDecodeError, ImageMimeMismatchError
 from ..media.image_processor import ImageProcessor
 from ..media.processor_chain import PreparedProcessor
+from ..media.transform_executor import TransformExecutor
 from ..models import (
     Chapter,
     DownloadManifest,
@@ -63,6 +64,7 @@ class ArtifactPipeline:
         processors: tuple[PreparedProcessor | str, ...],
         *,
         force_image_format: ImageFormat | None = None,
+        transform_executor: TransformExecutor,
     ) -> None:
         if force_image_format not in (None, *_IMAGE_FORMATS):
             raise ValueError("force_image_format must be ORIGINAL, JPEG, PNG, WEBP, or None")
@@ -75,6 +77,7 @@ class ArtifactPipeline:
         self.invoker = invoker
         self.processors = processors
         self.force_image_format = force_image_format
+        self.transform_executor = transform_executor
 
     @staticmethod
     def _catalog(record: PluginRecord) -> Mapping[str, object] | None:
@@ -134,6 +137,7 @@ class ArtifactPipeline:
             artifact,
             context,
             chapter_id=chapter_id,
+            executor=self.transform_executor,
         )
         await asyncio.to_thread(self._validate_input, transformed)
         options = self._effective_save_options(image)
@@ -168,16 +172,17 @@ class ArtifactPipeline:
                 transport_metadata=self._processor_transport_metadata(binding.plugin_id, transport_metadata),
             )
             previous = current
-            async with binding.lock:
-                current = await PluginInvoker(binding.plugin_id, self.logger).transform_processor(
-                    binding.instance,
-                    current,
-                    processor_context,
-                    chapter_id=chapter_id,
-                )
-            processor_changed = processor_changed or current != previous
+            current = await PluginInvoker(binding.plugin_id, self.logger).transform_processor(
+                binding.instance,
+                current,
+                processor_context,
+                chapter_id=chapter_id,
+                executor=self.transform_executor,
+            )
+            processor_changed = processor_changed or not self._same_processing_input(current, previous)
         if original:
-            await asyncio.to_thread(self._validate_input, current)
+            if current.data is not transformed.data or current.content_type != transformed.content_type:
+                await asyncio.to_thread(self._validate_input, current)
             final = replace(
                 current,
                 extension=self._original_extension(current),
@@ -201,6 +206,15 @@ class ArtifactPipeline:
             debug=True,
         )
         return final
+
+    @staticmethod
+    def _same_processing_input(current: ImageArtifact, previous: ImageArtifact) -> bool:
+        return (
+            current.data is previous.data
+            and current.content_type == previous.content_type
+            and current.source_url == previous.source_url
+            and current.extension == previous.extension
+        )
 
     def _effective_save_options(self, image: ImageResource) -> ImageSaveOptions:
         """Resolve the force CLI, plugin, and configuration format precedence."""

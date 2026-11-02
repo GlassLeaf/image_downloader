@@ -111,6 +111,6 @@ class SignedCdnGalleryPlugin:
         del context
         return None
 
-    async def transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:
+    def transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:
         del context
         return artifact

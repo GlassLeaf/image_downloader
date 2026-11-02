@@ -3,7 +3,7 @@
     "schema_version": 1,
     "id": "local.image-downloader.resize-processor",
     "publisher": "local.image-downloader",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "kind": "image_processor_plugin",
     "capabilities": [
       "pillow-resize",
@@ -16,14 +16,14 @@
     },
     "config_file": "plugin.yaml",
     "api_version": "3",
-    "public_key": "kEQaaw+aesWwb07ZCfCPsqaf887rV0l5VlL+sskt8y8=",
-    "key_id": "eb9db2fa6d03c5f8143545c8937664ad73388006f5461695f666a0238630b324",
+    "public_key": "nXreC2mAtFSh+eqWrRPeKM4Aps7QLf4UUQ7TE3tCCmQ=",
+    "key_id": "6861a70e3992291678e776ca440f0ced984b1e4d43755551c1ff3f5a2773fb41",
     "file_tree": {
-      "plugin-metadata.json": "690f0f3c3f892dae8080d3cb737b893f7378478834117057f26a4c122455f231",
+      "plugin-metadata.json": "da954ffa40ce24cf415f289b2fe1e06fdbb8afb2179fb36fd5001060a6955252",
       "plugin.yaml": "3e1bd1ed757a43e41d4ad275dba4af28a7ac44925286ca0ec57b76182aae0d4b",
-      "resize_processor.py": "425bea3f64945435ddb9d3b03056de008c43898d98a76287108278034e729d45"
+      "resize_processor.py": "84013dab839f29b90ccf3e26e5b43fcfe832b5eaf496a981a1f1a4ab13102a29"
     },
-    "file_tree_sha256": "c4937ae021fc44283529729b1501306631e714248bc9c4184f6bb3f176900d71"
+    "file_tree_sha256": "07355724ec6476da2e8aee27d277328417bee7772fc1492155fa68d3c573c80e"
   },
-  "signature": "EjdJHsNcj5uNLqhMUaNgbRJa9rn2Admb5mkv0Ey0mb9X9I7G8wl7thP8GSgQfmMv2jw7Oc/E4d3TB7ijCK4DBg=="
+  "signature": "0nkIm5K93OgGYJuvbdO58JJsAhAYlANSMADPY+5IADJtFTyxGYz49kfFwO16HTavcA13Z1DYB53OryCTmaJ5Cg=="
 }

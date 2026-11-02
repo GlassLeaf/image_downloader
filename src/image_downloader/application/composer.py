@@ -17,6 +17,7 @@ from ..configuration.models import AppConfig
 from ..configuration.paths import resolve_paths
 from ..credentials.vault import CredentialVault
 from ..media.image_processor import ImageProcessor
+from ..media.transform_executor import TransformExecutor
 from ..observability.events import EventBus
 from ..output.output_lock import OutputDirectoryLocks
 from ..plugins.builtin import GenericHtmlPlugin
@@ -120,6 +121,8 @@ class RuntimeComposer:
         cookie_baseline = cookie_store.snapshot(gateway.client.cookies.jar)
         image_processor = ImageProcessor()
         guard.callback("image", image_processor.close)
+        transform_executor = TransformExecutor(self.config.media.transform_workers)
+        guard.async_callback("image", transform_executor.close)
         output_locks = OutputDirectoryLocks(
             state.filesystem,
             timeout_seconds=self.config.output.lock_timeout_seconds,
@@ -137,6 +140,7 @@ class RuntimeComposer:
             cookie_baseline=cookie_baseline,
             gateway=gateway,
             image_processor=image_processor,
+            transform_executor=transform_executor,
             output_locks=output_locks,
             persist_cookies_on_close=not planning,
         )

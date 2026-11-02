@@ -16,7 +16,7 @@ class MetadataBridgeProcessor:
         if config:
             raise ValueError("metadata bridge processor does not accept configuration")
 
-    async def transform(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:
+    def transform(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:
         metadata = context.transport_metadata
         if metadata is None:
             return replace(artifact, history=(*artifact.history, "metadata-bridge:no-transport-metadata"))

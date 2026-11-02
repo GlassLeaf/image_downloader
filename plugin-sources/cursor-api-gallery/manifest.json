@@ -3,7 +3,7 @@
     "schema_version": 1,
     "id": "local.image-downloader.cursor-api-gallery",
     "publisher": "local.image-downloader",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "kind": "site_plugin",
     "capabilities": [
       "json-inspection",
@@ -20,11 +20,11 @@
     "public_key": "nXreC2mAtFSh+eqWrRPeKM4Aps7QLf4UUQ7TE3tCCmQ=",
     "key_id": "6861a70e3992291678e776ca440f0ced984b1e4d43755551c1ff3f5a2773fb41",
     "file_tree": {
-      "cursor_api_gallery.py": "6f42baa3bb27b100c1a48497201dcac5b2aa00e57a4b04446636d29788bb7005",
-      "plugin-metadata.json": "387c2f3ab8e1118f02d048dbc221947ba7e7d6d23dde4cdb513bbc69875ed89c",
+      "cursor_api_gallery.py": "30c6019de16541ac55db7b965bc80ec5d2c8f94050912982eee7949444135ee7",
+      "plugin-metadata.json": "db8266b86531106c37fb6ea5467a713e0f7cc0b433150dc45148734e325368d2",
       "plugin.yaml": "009c4672fda30d3313d1e114efe92407bd27fdbf08ca7f85b781afacad87e96a"
     },
-    "file_tree_sha256": "a9cb9e754f229a1c3244c2d4dae0cdf272a9d4392cb26bddf434afbb2041595b"
+    "file_tree_sha256": "da902a4d7938f1d2b1c5682454ac1b9451bbe663c419e46d28d2820edeb77b79"
   },
-  "signature": "GTI286Q8Ej5JrHAPjNobSjD/1z9GZ4519511uhn+a8OdZbul/aQwV9XvTEoptk/Ir6TKrxoxRUwyCBZmPKmvDA=="
+  "signature": "Mp2ucAeB8rw3k3UPauF4XaQYMC+BNskQLprmEyXjeimTgmF9kMIskXyqNHyPSDBzwTB/0yhOnCLqN7StDZlSDg=="
 }

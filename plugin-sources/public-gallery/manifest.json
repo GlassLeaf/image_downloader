@@ -3,7 +3,7 @@
     "schema_version": 1,
     "id": "local.image-downloader.public-gallery",
     "publisher": "local.image-downloader",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "kind": "site_plugin",
     "capabilities": [
       "html-inspection",
@@ -19,11 +19,11 @@
     "public_key": "nXreC2mAtFSh+eqWrRPeKM4Aps7QLf4UUQ7TE3tCCmQ=",
     "key_id": "6861a70e3992291678e776ca440f0ced984b1e4d43755551c1ff3f5a2773fb41",
     "file_tree": {
-      "plugin-metadata.json": "7cec18002e5dd092e1a527e34e7ccd1cb06ae8d6d57d1fd041e0639a5d29f061",
+      "plugin-metadata.json": "8d6a48aecbce89d79083acad65799c6b3874c5dda09cf5ada4ec27196cc99669",
       "plugin.yaml": "009c4672fda30d3313d1e114efe92407bd27fdbf08ca7f85b781afacad87e96a",
-      "public_gallery.py": "14dc74ece11423a4faab7c224997ea3b65dff6e6ac73c54587ddb89211f8647d"
+      "public_gallery.py": "b738511563a991ca099a0f07ea080f2b3a9b78c57af05af5aad03628c8103b4f"
     },
-    "file_tree_sha256": "be8238f9def5becf45b59fc951ab7c69e4461ed558875b0b9365738f571e78c8"
+    "file_tree_sha256": "411333d952bae72c7493ebdcbc2e9fde2d0379d0922ac9fb9ac5c275280786ba"
   },
-  "signature": "yIpzfJzi+VpmnfECuuUdJYHXgmSIS6T+ByiVtUZwKXPJmb7fmvFfPAkeJrwZvkQKKRFGIXS3MtkpkmJ6YQ3LBg=="
+  "signature": "er7/+LqcdGGs5/bBfrx99jjna61pn/4vvR5iq/tUodUCTv4JwpfR592Vu2nJptgrFA07Ak7DPCTQWv8oWemcAQ=="
 }

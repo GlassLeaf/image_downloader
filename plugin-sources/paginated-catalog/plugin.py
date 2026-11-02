@@ -118,7 +118,11 @@ class PaginatedCatalogSitePlugin:
 
     def matches(self, url: str) -> bool:
         parsed = urlparse(url)
-        return parsed.scheme in {"http", "https"} and parsed.hostname == CATALOG_HOST and parsed.path.startswith("/collections/")
+        return (
+            parsed.scheme in {"http", "https"}
+            and parsed.hostname == CATALOG_HOST
+            and parsed.path.startswith("/collections/")
+        )
 
     async def inspect(self, url: str, context: PluginExecutionContext) -> DownloadManifest:
         max_pages = int(context.config["max_pages"])
@@ -161,7 +165,9 @@ class PaginatedCatalogSitePlugin:
                     for index, (source, image_id) in enumerate(parsed.images, start=1)
                 )
                 title = parsed.title.strip() or detail.work_title.strip() or detail.work_id
-                chapters.append(Chapter(len(chapters) + 1, title, images=images, chapter_id=f"{detail.work_id}:{parsed.chapter_id}"))
+                chapters.append(
+                    Chapter(len(chapters) + 1, title, images=images, chapter_id=f"{detail.work_id}:{parsed.chapter_id}")
+                )
         title = collection_title or "Catalog collection"
         return DownloadManifest(title, tuple(chapters), metadata={"pattern": "paginated-html-catalog"})
 
@@ -179,6 +185,6 @@ class PaginatedCatalogSitePlugin:
         del context
         return None
 
-    async def transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:
+    def transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:
         del context
         return artifact

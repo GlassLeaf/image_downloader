@@ -97,7 +97,7 @@ def test_site_and_processor_values_are_collected_once_before_inspection_and_reus
             def auth_flow(self, _context: object) -> None:
                 return None
 
-            async def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
+            def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
                 return artifact
 
         class Processor:
@@ -112,7 +112,7 @@ def test_site_and_processor_values_are_collected_once_before_inspection_and_reus
                 seen["processor"] = context
                 return {"FILTER_NAME": "_grayscale"}
 
-            async def transform(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
+            def transform(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
                 return artifact
 
         service.registry.loader.register_class(service.registry.records[SITE_ID], Site)
@@ -176,7 +176,7 @@ def test_output_format_value_exception_fails_before_inspection(tmp_path: Path) -
             def auth_flow(self, _context: object) -> None:
                 return None
 
-            async def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
+            def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
                 return artifact
 
         service.registry.loader.register_class(service.registry.records[SITE_ID], Site)
@@ -217,7 +217,7 @@ def test_missing_plugin_hook_or_key_keeps_the_safe_literal_token(tmp_path: Path)
             def auth_flow(self, _context: object) -> None:
                 return None
 
-            async def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
+            def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
                 return artifact
 
         service.registry.loader.register_class(service.registry.records[SITE_ID], Site)
@@ -271,7 +271,7 @@ def test_invalid_output_format_values_fail_before_inspection(tmp_path: Path, val
             def auth_flow(self, _context: object) -> None:
                 return None
 
-            async def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
+            def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
                 return artifact
 
         service.registry.loader.register_class(service.registry.records[SITE_ID], Site)

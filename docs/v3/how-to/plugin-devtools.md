@@ -79,6 +79,11 @@ OAuth認可画面の操作・認可コード取得は含みません。
 公式フックの `context`、`config`、`app_settings`、`url` には既定の構築補助があります。
 必要な画像、応答、artifactなどは明示指定します。
 
+公式の画像変換フック `transform_image`／`transform` は、単体実行でも専用TransformExecutorで
+同期関数として実行します。旧async宣言やawaitableの返却は許可せず、汎用メソッド呼び出しの
+await処理で代替しません。変換内で非同期関数が必要な場合は
+[FAQの制限](faq.md#faq-transform-async-dependencies)を確認してください。
+
 ```yaml
 # create_image_request用のinput.yaml
 args:

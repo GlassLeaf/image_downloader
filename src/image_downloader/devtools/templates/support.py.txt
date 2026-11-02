@@ -240,7 +240,7 @@ class GeneratedSupport:
     def auth_flow(self, context):
         return GeneratedAuth(context, self.features) if {"api-key", "bearer", "oauth", "csrf"} & self.features else None
 
-    async def transform(self, artifact, context):
+    def transform(self, artifact, context):
         result = artifact
         if "transform" in self.features:
             with Image.open(io.BytesIO(artifact.data)) as image:

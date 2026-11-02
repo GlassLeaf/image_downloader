@@ -10,6 +10,7 @@ from typing import TypeVar
 from urllib.parse import urlparse
 
 from ..exceptions import ImageDownloaderError, PluginError
+from ..media.transform_executor import TransformExecutor
 from ..models import (
     Chapter,
     DownloadManifest,
@@ -235,10 +236,13 @@ class PluginInvoker:
         context: TransformContext,
         *,
         chapter_id: str,
+        executor: TransformExecutor,
     ) -> ImageArtifact:
         hook = "transform_image"
         await self._start(hook, url=artifact.source_url, chapter_id=chapter_id, url_is_locator=True)
-        value = await self._invoke_async(hook, lambda: plugin.transform_image(artifact, context))
+        value = await executor.run(
+            lambda: self._invoke_transform(hook, lambda: plugin.transform_image(artifact, context))
+        )
         self._validate_artifact(hook, value)
         await self._finish(
             hook,
@@ -256,6 +260,7 @@ class PluginInvoker:
         context: TransformContext,
         *,
         chapter_id: str,
+        executor: TransformExecutor,
     ) -> ImageArtifact:
         hook = "transform"
         await self._start(
@@ -265,7 +270,7 @@ class PluginInvoker:
             chapter_id=chapter_id,
             url_is_locator=True,
         )
-        value = await self._invoke_async(hook, lambda: processor.transform(artifact, context))
+        value = await executor.run(lambda: self._invoke_transform(hook, lambda: processor.transform(artifact, context)))
         self._validate_artifact(hook, value)
         await self._finish(
             hook,
@@ -275,6 +280,14 @@ class PluginInvoker:
             bytes_count=len(value.data),
             url_is_locator=True,
         )
+        return value
+
+    def _invoke_transform(self, hook: str, callback: Callable[[], _T]) -> _T:
+        value = self._invoke_sync(hook, callback)
+        if inspect.isawaitable(value):
+            if inspect.iscoroutine(value):
+                value.close()
+            raise self._error(hook, "image transforms must be synchronous; replace async def with def")
         return value
 
     async def cleanup_after_use(self, plugin: object) -> None:

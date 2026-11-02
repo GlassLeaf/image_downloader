@@ -142,7 +142,7 @@ def test_transport_metadata_reaches_site_and_only_authorized_processors(tmp_path
             def auth_flow(self, _context: object) -> None:
                 return None
 
-            async def transform_image(self, artifact: ImageArtifact, context: object) -> ImageArtifact:
+            def transform_image(self, artifact: ImageArtifact, context: object) -> ImageArtifact:
                 observed["site"] = context.transport_metadata  # type: ignore[attr-defined]
                 return artifact
 
@@ -150,12 +150,12 @@ def test_transport_metadata_reaches_site_and_only_authorized_processors(tmp_path
             def validate_config(self, _config: object, _app_settings: object) -> None:
                 return None
 
-            async def transform(self, artifact: ImageArtifact, context: object) -> ImageArtifact:
+            def transform(self, artifact: ImageArtifact, context: object) -> ImageArtifact:
                 observed["allowed"] = context.transport_metadata  # type: ignore[attr-defined]
                 return artifact
 
         class BlockedProcessor(AllowedProcessor):
-            async def transform(self, artifact: ImageArtifact, context: object) -> ImageArtifact:
+            def transform(self, artifact: ImageArtifact, context: object) -> ImageArtifact:
                 observed["blocked"] = context.transport_metadata  # type: ignore[attr-defined]
                 return artifact
 
@@ -229,7 +229,7 @@ def test_site_cleanup_after_use_is_optional_and_preserves_primary_failure(tmp_pa
             def auth_flow(self, _context: object) -> None:
                 return None
 
-            async def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
+            def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
                 return artifact
 
             async def cleanup_after_use(self) -> None:
@@ -288,7 +288,7 @@ def test_site_cleanup_failure_is_plugin_error_on_normal_completion(tmp_path: Pat
             def auth_flow(self, _context: object) -> None:
                 return None
 
-            async def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
+            def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
                 return artifact
 
             async def cleanup_after_use(self) -> None:
@@ -328,7 +328,7 @@ def test_site_cleanup_runs_after_update_check(tmp_path: Path) -> None:
             def auth_flow(self, _context: object) -> None:
                 return None
 
-            async def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
+            def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
                 return artifact
 
             async def check_updates(self, url: str, _context: object) -> UpdateSnapshot:
@@ -382,7 +382,7 @@ def test_site_cleanup_after_use_runs_after_auth_failure(tmp_path: Path) -> None:
             def auth_flow(self, _context: object) -> Flow:
                 return Flow()
 
-            async def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
+            def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
                 return artifact
 
             def cleanup_after_use(self) -> None:
@@ -423,7 +423,7 @@ def test_site_cleanup_after_use_runs_after_image_transform_failure(tmp_path: Pat
             def auth_flow(self, _context: object) -> None:
                 return None
 
-            async def transform_image(self, _artifact: ImageArtifact, _context: object) -> ImageArtifact:
+            def transform_image(self, _artifact: ImageArtifact, _context: object) -> ImageArtifact:
                 raise RuntimeError("transform failed")
 
             async def cleanup_after_use(self) -> None:
@@ -478,7 +478,7 @@ def test_site_cleanup_after_use_runs_on_cancellation(tmp_path: Path) -> None:
             def auth_flow(self, _context: object) -> None:
                 return None
 
-            async def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
+            def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
                 return artifact
 
             def cleanup_after_use(self) -> None:
@@ -523,7 +523,7 @@ def test_site_cleanup_after_use_skips_unselected_matcher_instances(tmp_path: Pat
             def auth_flow(self, _context: object) -> None:
                 return None
 
-            async def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
+            def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
                 return artifact
 
             def cleanup_after_use(self) -> None:
@@ -593,7 +593,7 @@ def test_transport_metadata_tracks_auth_retry_redirect_and_duplicate_response_he
             def auth_flow(self, _context: object) -> Flow:
                 return Flow()
 
-            async def transform_image(self, artifact: ImageArtifact, context: object) -> ImageArtifact:
+            def transform_image(self, artifact: ImageArtifact, context: object) -> ImageArtifact:
                 observed["metadata"] = context.transport_metadata  # type: ignore[attr-defined]
                 return artifact
 
@@ -680,7 +680,7 @@ def test_recovery_bare_request_keeps_plugin_data_and_dto_replaces_it(tmp_path: P
             def auth_flow(self, _context: object) -> None:
                 return None
 
-            async def transform_image(self, artifact: ImageArtifact, context: object) -> ImageArtifact:
+            def transform_image(self, artifact: ImageArtifact, context: object) -> ImageArtifact:
                 observed[artifact.source_url] = context.transport_metadata  # type: ignore[attr-defined]
                 return artifact
 
@@ -731,7 +731,7 @@ def test_manifest_original_filename_survives_an_artifact_replacement(tmp_path: P
             def auth_flow(self, _context: object) -> None:
                 return None
 
-            async def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
+            def transform_image(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
                 return ImageArtifact(artifact.data, artifact.content_type, artifact.source_url)
 
         service.registry.loader.register_class(service.registry.records[SITE_ID], Site)

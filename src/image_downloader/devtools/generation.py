@@ -39,9 +39,8 @@ SIGNATURES = {
     "response: RequestResponse, context: PluginExecutionContext) "
     "-> RequestSpec | ImageFetchRequest | None",
     "auth_flow": "def auth_flow(self, context: PluginExecutionContext) -> AuthFlow | None",
-    "transform_image": "async def transform_image(self, artifact: ImageArtifact, "
-    "context: TransformContext) -> ImageArtifact",
-    "transform": "async def transform(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact",
+    "transform_image": "def transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact",
+    "transform": "def transform(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact",
     "check_updates": "async def check_updates(self, url: str, context: PluginExecutionContext) -> UpdateSnapshot",
     "additional_file_hook_points": "def additional_file_hook_points(self, context: PluginExecutionContext) "
     "-> tuple[AdditionalFileHookPoint, ...]",

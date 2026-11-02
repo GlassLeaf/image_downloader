@@ -1,0 +1,706 @@
+--- a/plugin.py
++++ b/plugin.py
+@@ -1,23 +1,25 @@
+ """Site plugin for A."""
+ 
+-
+ from __future__ import annotations
+-
+-from collections.abc import Mapping
+-from urllib.parse import urlsplit
+ 
+ import dataclasses
+ import io
+ import json
+ import re
++import threading
++from collections import OrderedDict
++from collections.abc import Mapping
++from contextlib import ExitStack
++from typing import Any
++from urllib.parse import urlsplit
+ 
+ from bs4 import BeautifulSoup
+ from PIL import Image
+ 
+ from image_downloader import (
+     AuthFlow,
++    Chapter,
+     DownloadManifest,
+-    Chapter,
+     ImageArtifact,
+     ImageResource,
+     PluginExecutionContext,
+@@ -25,9 +27,9 @@
+     RequestSpec,
+     TransformContext,
+ )
+-
+-from .wat_module import WatModule
+-
++from image_downloader.exceptions import ImageDimensionLimitError, PluginError
++
++from .wat_module import build_transform_table, decode_placeholder
+ 
+ # Replace these exact host names when adapting the template. Subdomains are
+ # intentionally excluded unless explicitly listed here.
+@@ -35,15 +37,40 @@
+ 
+ 
+ class ADownloadPlugin:
+-    domain: str = 'https://www.example.com'
+-    api_path: str = '/manga/official/viewer.json'
++    domain: str = "https://www.example.com"
++    api_path: str = "/manga/official/viewer.json"
++
++    _CACHE_ENTRIES = 4
++    _CACHE_BYTES = 16 * 1024 * 1024
+ 
+     def __init__(self):
+-        self.workId = None
+-        self.chapterId = None
+-        self.xsrf_token = None
+-        self.wats = {}
+-        self.data_arrays = {}
++        self._cache_lock = threading.Lock()
++        self._placeholder_cache = OrderedDict()
++        self._cached_bytes = 0
++
++    def _records(self, chapter_id, placeholder):
++        key = (chapter_id, placeholder)
++        with self._cache_lock:
++            cached = self._placeholder_cache.get(key)
++            if cached is not None:
++                self._placeholder_cache.move_to_end(key)
++                return cached
++            groups = decode_placeholder(placeholder)
++            size = sum(len(group) for group in groups if group is not None)
++            if size <= self._CACHE_BYTES:
++                while self._placeholder_cache and (
++                    len(self._placeholder_cache) >= self._CACHE_ENTRIES or self._cached_bytes + size > self._CACHE_BYTES
++                ):
++                    _, evicted = self._placeholder_cache.popitem(last=False)
++                    self._cached_bytes -= sum(len(group) for group in evicted if group is not None)
++                self._placeholder_cache[key] = groups
++                self._cached_bytes += size
++            return groups
++
++    def cleanup_after_use(self):
++        with self._cache_lock:
++            self._placeholder_cache.clear()
++            self._cached_bytes = 0
+ 
+     def validate_config(self, config: Mapping[str, object], app_settings: Mapping[str, object]) -> None:
+         return None
+@@ -55,84 +82,110 @@
+         except ValueError:
+             return False
+ 
+-    async def get_chapter_infos(self,url: str, context: PluginExecutionContext) -> List[Dict]:
++    async def get_chapter_infos(self, url: str, context: PluginExecutionContext) -> list[dict[str, Any]]:
+         import logging
++
+         chapter_infos = []
+-        m = re.search('/manga/([^/]+)/(\d+)(/(\d+)/?)?', url)
++        m = re.search("/manga/([^/]+)/(\d+)(/(\d+)/?)?", url)
+         if m and m[1] and m[2]:
+             tag = m[1]
+             workId = m[2]
+-            response = await context.requests.execute(RequestSpec(f'{ADownloadPlugin.domain}/manga/{tag}/{workId}/'))
+-            soup = BeautifulSoup(response.body,'html.parser')
++            response = await context.requests.execute(RequestSpec(f"{ADownloadPlugin.domain}/manga/{tag}/{workId}/"))
++            soup = BeautifulSoup(response.body, "html.parser")
+             try:
+-                chapter_infos = json.loads(soup.select('#app-official-manga-toc script[type="application/json"]')[0].text)['episodes']
++                chapter_infos = json.loads(
++                    soup.select('#app-official-manga-toc script[type="application/json"]')[0].text
++                )["episodes"]
+                 if m[4]:
+                     found = False
+                     for chapter in chapter_infos:
+-                        if str(chapter['episodeNo']) == m[4]:
++                        if str(chapter["episodeNo"]) == m[4]:
+                             found = True
+                             chapter_infos = [chapter]
+                             break
+                     if not found:
+                         chapter_infos = []
+             except Exception:
+-                logging.getLogger(__name__).info('no chapter found')
++                logging.getLogger(__name__).info("no chapter found")
+         return chapter_infos
+ 
+-    async def get_chapter_page_info(self,url: str,context: PluginExecutionContext) -> Dict:
+-        m = re.search('/manga/[^/]+/(\d+)(/(\d+)/?)?', url)
+-        self.workId = m[1]
+-        self.chapterId = m[3]
++    async def get_chapter_page_info(self, url: str, context: PluginExecutionContext) -> dict[str, Any]:
++        m = re.search("/manga/[^/]+/(\d+)(/(\d+)/?)?", url)
++        workId = m[1]
++        chapterId = m[3]
+         response = await context.requests.execute(RequestSpec(url))
+         cookies = response.set_cookies()
+-        self.xsrf_token = cookies.get('XSRF-TOKEN')
++        xsrf_token = cookies.get("XSRF-TOKEN")
+         infos = []
+-        title = ''
+-        subtitle = ''
+-        if self.xsrf_token and self.chapterId and self.workId:
+-            self.xsrf_token = self.xsrf_token.replace('%3D','=')
+-            api_endpoint = '/manga/official/viewer.json'
++        if xsrf_token and chapterId and workId:
++            xsrf_token = xsrf_token.replace("%3D", "=")
+             post_params = {
+-                'episode_no': int(self.chapterId),
+-                'manga_sele_id': int(self.workId),
+-                'preview': False,
+-                'hide_page': False,
+-                'resolution': 'full_hd' # 'standard' or 'full_hd'
+-                }
+-            headers = {'X-Requested-With': 'XMLHttpRequest' , 'X-XSRF-TOKEN': self.xsrf_token}
+-            response = await context.requests.execute(RequestSpec(method='POST',url=ADownloadPlugin.domain + ADownloadPlugin.api_path,json=post_params,headers=headers))
++                "episode_no": int(chapterId),
++                "manga_sele_id": int(workId),
++                "preview": False,
++                "hide_page": False,
++                "resolution": "full_hd",  # 'standard' or 'full_hd'
++            }
++            headers = {"X-Requested-With": "XMLHttpRequest", "X-XSRF-TOKEN": xsrf_token}
++            response = await context.requests.execute(
++                RequestSpec(
++                    method="POST",
++                    url=ADownloadPlugin.domain + ADownloadPlugin.api_path,
++                    json=post_params,
++                    headers=headers,
++                )
++            )
+             try:
+                 chapter_info = json.loads(response.body)
+-                infos = ({'title': chapter_info['manga']['title'],'subtitle': chapter_info['episode']['title'],'page': chapter_info['page']})
++                infos = {
++                    "title": chapter_info["manga"]["title"],
++                    "subtitle": chapter_info["episode"]["title"],
++                    "page": chapter_info["page"],
++                }
+             except Exception:
+                 pass
+         return infos
+ 
+     async def inspect(self, url: str, context: PluginExecutionContext) -> DownloadManifest:
+-        m = re.search('/manga/[^/]+/(\d+)(/(\d+)/?)?', url)
+-        self.workId = m[1]
+-        self.chapterId = m[3]
+-        response = await context.requests.execute(RequestSpec(url))
+-        cookies = response.set_cookies()
+-        self.xsrf_token = cookies.get('XSRF-TOKEN')
+-        chapter_infos = await self.get_chapter_infos(url,context)
++        await context.requests.execute(RequestSpec(url))
++        chapter_infos = await self.get_chapter_infos(url, context)
+         chapters = []
+         chapter_num = 1
+-        content_title = ''
++        content_title = ""
+         for chapter_info in chapter_infos:
+-            if chapter_info['rental']['isFree'] or chapter_info['rental']['isOnRental']:
+-                page_info = await self.get_chapter_page_info(ADownloadPlugin.domain + chapter_info['url'],context)
++            if chapter_info["rental"]["isFree"] or chapter_info["rental"]["isOnRental"]:
++                page_info = await self.get_chapter_page_info(ADownloadPlugin.domain + chapter_info["url"], context)
+                 import logging
+-                logging.getLogger(__name__).info(page_info)
+-                content_title = page_info['title']
++
++                logging.getLogger(__name__).info(
++                    "chapter=%s images=%s", chapter_info["episodeNo"], len(page_info["page"]["images"])
++                )
++                content_title = page_info["title"]
+                 images = []
+                 image_index = 1
+-                for info in page_info['page']['images']:
+-                    images.append(ImageResource(info['url'],index=image_index,metadata={'iv': info.get('iv') or '','salt': info.get('salt') or '','placeholder': page_info['page']['placeholder']}))
++                for info in page_info["page"]["images"]:
++                    images.append(
++                        ImageResource(
++                            info["url"],
++                            index=image_index,
++                            metadata={
++                                "iv": info.get("iv") or "",
++                                "salt": info.get("salt") or "",
++                                "placeholder": page_info["page"]["placeholder"],
++                            },
++                        )
++                    )
+                     image_index += 1
+-                chapters.append(Chapter(chapter_num,chapter_id=str(chapter_info['episodeNo']),title=page_info['subtitle'],images=tuple(images)))
++                chapters.append(
++                    Chapter(
++                        chapter_num,
++                        chapter_id=str(chapter_info["episodeNo"]),
++                        title=page_info["subtitle"],
++                        images=tuple(images),
++                    )
++                )
+                 chapter_num += 1
+-        return DownloadManifest(title=content_title,chapters=tuple(chapters))
++        return DownloadManifest(title=content_title, chapters=tuple(chapters))
+ 
+     async def create_image_request(self, image: ImageResource, context: PluginExecutionContext) -> RequestSpec:
+         return RequestSpec(image.url)
+@@ -149,61 +202,78 @@
+     def auth_flow(self, context: PluginExecutionContext) -> AuthFlow | None:
+         return None
+ 
+-    async def transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:
+-#       import logging
+-#       logger = logging.getLogger(__name__)
+-#       logger.info(f'image meta: iv = {context.image_metadata["iv"]} , salt = {context.image_metadata["salt"]}')
+-        iv = context.image_metadata['iv']
+-        salt = context.image_metadata['salt']
+-        if iv or salt:
+-            wat = self.wats.get(context.chapter.chapter_id)
+-            data_array = self.data_arrays.get(context.chapter.chapter_id)
+-            if not wat:
+-                wat = WatModule()
+-                self.wats[context.chapter.chapter_id] = wat
+-            if not data_array:
+-                data_array = wat.get_array(context.image_metadata['placeholder'],len(context.image_metadata['placeholder']))
+-                self.data_arrays[context.chapter.chapter_id] = data_array
+-            original = Image.open(io.BytesIO(artifact.data))
+-            descrambled = original.copy()
+-            idx,numElem = wat.create_data(data_array[context.index - 1], len(data_array[context.index - 1]), original.width, original.height, iv, len(iv), salt, len(salt))
+-            tableArray = wat.subarray(idx, numElem)
+-            transformTable = tableArray
+-            originalWidth = tableArray[0]
+-            originalHeight = tableArray[1]
+-            adjust = tableArray[2]
+-            coeff = tableArray[3]
+-            margin = tableArray[4]
+-            decode_data = lambda x,adj,coef: (x - adj) // coef
+-            data = {tableArray[i + 8]: {'dx': decode_data(tableArray[i],adjust,coeff),
+-                                        'dy': decode_data(tableArray[i + 1],adjust,coeff),
+-                                        'sx': decode_data(tableArray[i + 2],adjust,coeff),
+-                                        'sy': decode_data(tableArray[i + 3],adjust,coeff),
+-                                        'rotation': decode_data(tableArray[i + 4],adjust,coeff),
+-                                        'xScaling': 1 - decode_data(tableArray[i + 5],adjust,coeff)*2,
+-                                        'cellWidth': tableArray[i + 6],
+-                                        'cellHeight': tableArray[i + 7]} for i in range(5,len(tableArray),9)}
+-            for _,mappingInfo in {k:data[k] for k in sorted(data,reverse=True)}.items():
+-                cropped = original.crop((mappingInfo['sx'] + margin,
+-                                         mappingInfo['sy'] + margin,
+-                                         mappingInfo['sx'] + mappingInfo['cellWidth'] - margin,
+-                                         mappingInfo['sy'] + mappingInfo['cellHeight'] - margin))
+-                if mappingInfo['xScaling'] == -1:
+-#                   cropped = cropped.transform(size=(mappingInfo['cellWidth'],mappingInfo['cellHeight']),
+-#                                               method=Image.Transform.AFFINE,
+-#                                               data=[mappingInfo['xScaling'],0,mappingInfo['cellWidth'],0,1,0])
+-                    cropped = cropped.transpose(method=Image.Transpose.FLIP_LEFT_RIGHT)
+-                if mappingInfo['rotation'] == 1:
+-                    cropped = cropped.transpose(method=Image.Transpose.ROTATE_90)
+-                elif mappingInfo['rotation'] == 2:
+-                    cropped = cropped.transpose(method=Image.Transpose.ROTATE_180)
+-                elif mappingInfo['rotation'] == 3:
+-                    cropped = cropped.transpose(method=Image.Transpose.ROTATE_270)    
+-                descrambled.paste(cropped,(mappingInfo['dx'] + margin,mappingInfo['dy'] + margin))
+-
+-            descrambled = descrambled.crop((0,0,originalWidth,originalHeight))
+-            byteArr = io.BytesIO()
+-            descrambled.save(byteArr, format='webp', lossless=True)
+-            artifact = dataclasses.replace(artifact,data=byteArr.getvalue())
+-        return artifact
+-
++    def transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:
++        iv = context.image_metadata["iv"]
++        salt = context.image_metadata["salt"]
++        if not (iv or salt):
++            return artifact
++        try:
++            groups = self._records(
++                context.chapter.chapter_id or str(context.chapter.number), context.image_metadata["placeholder"]
++            )
++            if not 1 <= context.index <= len(groups) or groups[context.index - 1] is None:
++                raise ValueError("image index has no transform records")
++            records = groups[context.index - 1]
++            with ExitStack() as resources:
++                original = resources.enter_context(Image.open(io.BytesIO(artifact.data)))
++                limit = context.app_settings.get("media", {}).get("max_image_pixels")
++                if limit is not None and original.width * original.height > limit:
++                    raise ImageDimensionLimitError("image exceeds configured pixel limit")
++                tableArray = build_transform_table(records, original.width, original.height, iv, salt)
++                originalWidth, originalHeight, adjust, coeff, margin = tableArray[:5]
++                descrambled = resources.enter_context(original.copy())
++
++                def decode_data(x, adj, coef):
++                    return (x - adj) // coef
++
++                data = {
++                    tableArray[i + 8]: {
++                        "dx": decode_data(tableArray[i], adjust, coeff),
++                        "dy": decode_data(tableArray[i + 1], adjust, coeff),
++                        "sx": decode_data(tableArray[i + 2], adjust, coeff),
++                        "sy": decode_data(tableArray[i + 3], adjust, coeff),
++                        "rotation": decode_data(tableArray[i + 4], adjust, coeff),
++                        "xScaling": 1 - decode_data(tableArray[i + 5], adjust, coeff) * 2,
++                        "cellWidth": tableArray[i + 6],
++                        "cellHeight": tableArray[i + 7],
++                    }
++                    for i in range(5, len(tableArray), 9)
++                }
++                for _, mappingInfo in sorted(data.items(), reverse=True):
++                    with ExitStack() as tiles:
++                        cropped = tiles.enter_context(
++                            original.crop(
++                                (
++                                    mappingInfo["sx"] + margin,
++                                    mappingInfo["sy"] + margin,
++                                    mappingInfo["sx"] + mappingInfo["cellWidth"] - margin,
++                                    mappingInfo["sy"] + mappingInfo["cellHeight"] - margin,
++                                )
++                            )
++                        )
++                        if mappingInfo["xScaling"] == -1:
++                            cropped = tiles.enter_context(cropped.transpose(Image.Transpose.FLIP_LEFT_RIGHT))
++                        rotation = mappingInfo["rotation"]
++                        if rotation in (1, 2, 3):
++                            cropped = tiles.enter_context(
++                                cropped.transpose(
++                                    {
++                                        1: Image.Transpose.ROTATE_90,
++                                        2: Image.Transpose.ROTATE_180,
++                                        3: Image.Transpose.ROTATE_270,
++                                    }[rotation]
++                                )
++                            )
++                        descrambled.paste(cropped, (mappingInfo["dx"] + margin, mappingInfo["dy"] + margin))
++                final = resources.enter_context(descrambled.crop((0, 0, originalWidth, originalHeight)))
++                with io.BytesIO() as output:
++                    final.save(output, format="webp", lossless=True)
++                    return dataclasses.replace(
++                        artifact,
++                        data=output.getvalue(),
++                        content_type="image/webp",
++                        extension=".webp",
++                        history=(*artifact.history, "plugin-a.descramble"),
++                    )
++        except ValueError as exc:
++            raise PluginError("invalid plugin-a transform metadata") from exc
+--- a/wat_module.py
++++ b/wat_module.py
+@@ -1,214 +1,124 @@
+-"""``test.wat`` の公開 API を Python で扱える形にした移植版。
++"""Stateless Python implementation of the plugin's WAT record format."""
+ 
+-WAT は wasm-bindgen が生成した低レベル表現なので、局所変数名は ``a`` や
+-``j`` になっている。このモジュールでは、外部 API の引数順は保持しながら、
+-内部ではデータ形式から推定できる用途名を使う。
+-"""
++from __future__ import annotations
+ 
+ import base64
+ import math
+ import struct
+-from typing import Any, List, Optional, Sequence, Tuple, Union
+ 
+ 
+-ByteInput = Union[str, bytes, bytearray, Sequence[int]]
++def decode_placeholder(source: str) -> tuple[bytes | None, ...]:
++    """Decode complete immutable record groups; reject truncated data."""
++    if not isinstance(source, str):
++        raise ValueError("placeholder must be a string")
++    raw = source.encode("utf-8")
++    if len(raw) < 67:
++        raise ValueError("placeholder header or Base64 data is missing")
++    try:
++        decoded = base64.b64decode(raw[66:], validate=True)
++    except (ValueError, TypeError) as exc:
++        raise ValueError("invalid placeholder Base64") from exc
++    groups: list[bytes | None] = []
++    offset = 0
++    while offset < len(decoded):
++        if offset + 2 > len(decoded):
++            raise ValueError("truncated placeholder group header")
++        (count,) = struct.unpack_from("<H", decoded, offset)
++        offset += 2
++        size = count * 8
++        if offset + size > len(decoded):
++            raise ValueError("truncated placeholder records")
++        groups.append(decoded[offset : offset + size] if count else None)
++        offset += size
++    return tuple(groups)
+ 
+ 
+-def _as_bytes(value: ByteInput, length: Optional[int] = None) -> bytes:
+-    """Wasm 側のポインタと長さの組を Python の bytes に対応付ける。"""
+-    if isinstance(value, str):
+-        raw_bytes = value.encode("utf-8")
+-    elif isinstance(value, (bytes, bytearray)):
+-        raw_bytes = bytes(value)
+-    else:
+-        raw_bytes = bytes(value)
+-    return raw_bytes if length is None else raw_bytes[:length]
++def build_transform_table(records: bytes, width: int, height: int, iv: str, salt: str) -> tuple[int, ...]:
++    """Return the original WAT integer table without emulated linear memory."""
++    record_bytes = records
++    if not isinstance(records, bytes) or len(records) % 8:
++        raise ValueError("records must contain complete 8-byte records")
++    if width <= 0 or height <= 0:
++        raise ValueError("image dimensions must be positive")
++    if len(record_bytes) < 8:
++        raise ValueError("invalid transform header or empty records")
+ 
++    first_key_bytes = iv.encode("utf-8")
++    first_key_hash = 100
++    for key_byte in first_key_bytes:
++        # WAT: (hash * 31 + byte) & 4095
++        first_key_hash = (first_key_hash * 31 + key_byte) & 0xFFF
+ 
++    second_key_bytes = salt.encode("utf-8")
++    second_key_hash = 2
++    for key_byte in second_key_bytes:
++        # WAT: (hash ^ byte) % 10; 0 は 2 に正規化する。
++        second_key_hash = (second_key_hash ^ key_byte) % 10
++    multiplier = second_key_hash or 2
+ 
++    header_word, header_metadata = struct.unpack_from("<II", record_bytes)
++    grid_span = (header_metadata >> 24) & 0xFF
++    type_code = (header_word >> 27) & 0x7
++    border_width = type_code * 2
++    inner_span = grid_span - border_width
++    if grid_span == 0 or inner_span <= 0:
++        raise ValueError("invalid transform header or empty records")
+ 
+-class WatModule:
+-    """WAT の線形メモリと公開関数を保持する小さな Python 実行コンテキスト。"""
++    horizontal_tile_count = math.ceil(width / grid_span)
++    vertical_tile_count = math.ceil(height / grid_span)
++    horizontal_remainder = int(width) - horizontal_tile_count * border_width
++    vertical_remainder = int(height) - vertical_tile_count * border_width
+ 
+-    def __init__(self, initial_memory: Optional[Union[bytes, bytearray]] = None) -> None:
+-        self.memory = bytearray(initial_memory or b"")
++    # 最初の 5 要素は、展開済みレコード群に共通するヘッダ。
++    int32_values = [
++        horizontal_remainder,
++        vertical_remainder,
++        first_key_hash,
++        multiplier,
++        type_code,
++    ]
++    metadata_scale = grid_span * multiplier
++    last_horizontal_tile = horizontal_tile_count - 1
++    last_vertical_tile = vertical_tile_count - 1
+ 
+-    # wasm-bindgen の公開メモリ API。Python では解放済みブロックを再利用せず、
+-    # 呼び出し側がポインタを観測できる点だけを再現する。
+-    def wbindgen_malloc(self, byte_count: int, alignment: int = 1) -> int:
+-        if byte_count < 0 or alignment <= 0:
+-            raise ValueError("byte_count must be non-negative and alignment must be positive")
+-        allocation_start = (len(self.memory) + alignment - 1) // alignment * alignment
+-        self.memory.extend(b"\x00" * (allocation_start + byte_count - len(self.memory)))
+-        return allocation_start
++    for record_offset in range(0, len(record_bytes) // 8 * 8, 8):
++        packed_word, packed_metadata = struct.unpack_from("<II", record_bytes, record_offset)
++        horizontal_position = (packed_word >> 15) & 0xFFF
++        vertical_position = (packed_word >> 3) & 0xFFF
++        horizontal_tile = horizontal_position // inner_span
++        vertical_tile = vertical_position // inner_span
+ 
+-    def wbindgen_realloc(
+-        self, pointer: int, old_byte_count: int, new_byte_count: int, alignment: int = 1
+-    ) -> int:
+-        if pointer < 0 or old_byte_count < 0 or pointer + old_byte_count > len(self.memory):
+-            raise ValueError("invalid source allocation")
+-        replacement_pointer = self.wbindgen_malloc(new_byte_count, alignment)
+-        copied_byte_count = min(old_byte_count, new_byte_count)
+-        self.memory[replacement_pointer:replacement_pointer + copied_byte_count] = self.memory[
+-            pointer:pointer + copied_byte_count
+-        ]
+-        return replacement_pointer
++        # select_if(value_if_true, value_if_false, condition) をそのまま移植。
++        horizontal_size = (
++            horizontal_remainder - horizontal_position if horizontal_tile == last_horizontal_tile else inner_span
++        ) + border_width
++        vertical_size = (
++            vertical_remainder - vertical_position if vertical_tile == last_vertical_tile else inner_span
++        ) + border_width
+ 
+-    def wbindgen_free(self, pointer: int, byte_count: int, alignment: int = 1) -> None:
+-        """WAT の free に対応する API。Python の bytearray では解放不要。"""
+-        if pointer < 0 or byte_count < 0 or alignment <= 0:
+-            raise ValueError("invalid allocation")
++        orientation = (packed_word >> 1) & 0x3
++        # br_table の結果は ca=1,3 で (vertical, horizontal)、
++        # ca=0,2 で (horizontal, vertical) となる。
++        if orientation in (1, 3):
++            output_width, output_height = vertical_size, horizontal_size
++        else:
++            output_width, output_height = horizontal_size, vertical_size
+ 
+-    def create_data(
+-        self,
+-        encoded_records: ByteInput,
+-        record_byte_length: int,
+-        horizontal_extent: float,
+-        vertical_extent: float,
+-        first_key: ByteInput,
+-        first_key_length: int,
+-        second_key: ByteInput,
+-        second_key_length: int,
+-    ) -> Tuple[int,int]:
+-        """WAT の ``createData`` を移植し、``(byte_offset, int32_count)`` を返す。
++        metadata_byte_2 = (packed_metadata >> 16) & 0xFF
++        metadata_byte_1 = (packed_metadata >> 8) & 0xFF
++        has_flag = packed_word & 1
++        int32_values.extend(
++            (
++                (horizontal_position - type_code) * multiplier + first_key_hash,
++                (vertical_position - type_code) * multiplier + first_key_hash,
++                metadata_byte_2 * metadata_scale + first_key_hash,
++                metadata_byte_1 * metadata_scale + first_key_hash,
++                multiplier * orientation + first_key_hash,
++                (multiplier if has_flag else 0) + first_key_hash,
++                output_width,
++                output_height,
++                horizontal_tile_count * vertical_tile + horizontal_tile,
++            )
++        )
+ 
+-        レコードは 8 バイト単位。先頭レコードの bit 27..29 と第 2 word の
+-        最上位バイトをヘッダとして読み、以降のレコードを Int32 9 要素へ展開する。
+-        戻り値の領域は :meth:`subarray` で JavaScript と同様に読める。
+-        """
+-        record_bytes = _as_bytes(encoded_records, record_byte_length)
+-        if len(record_bytes) < 8:
+-            return (0, 0)
+-
+-        first_key_bytes = _as_bytes(first_key, first_key_length)
+-        first_key_hash = 100
+-        for key_byte in first_key_bytes:
+-            # WAT: (hash * 31 + byte) & 4095
+-            first_key_hash = (first_key_hash * 31 + key_byte) & 0xFFF
+-
+-        second_key_bytes = _as_bytes(second_key, second_key_length)
+-        second_key_hash = 2
+-        for key_byte in second_key_bytes:
+-            # WAT: (hash ^ byte) % 10; 0 は 2 に正規化する。
+-            second_key_hash = (second_key_hash ^ key_byte) % 10
+-        multiplier = second_key_hash or 2
+-
+-        header_word, header_metadata = struct.unpack_from("<II", record_bytes)
+-        grid_span = (header_metadata >> 24) & 0xFF
+-        type_code = (header_word >> 27) & 0x7
+-        border_width = type_code * 2
+-        inner_span = grid_span - border_width
+-        if grid_span == 0 or inner_span <= 0:
+-            return (0, 0)
+-
+-        horizontal_tile_count = math.ceil(horizontal_extent / grid_span)
+-        vertical_tile_count = math.ceil(vertical_extent / grid_span)
+-        horizontal_remainder = int(horizontal_extent) - horizontal_tile_count * border_width
+-        vertical_remainder = int(vertical_extent) - vertical_tile_count * border_width
+-
+-        # 最初の 5 要素は、展開済みレコード群に共通するヘッダ。
+-        int32_values = [
+-            horizontal_remainder,
+-            vertical_remainder,
+-            first_key_hash,
+-            multiplier,
+-            type_code,
+-        ]
+-        metadata_scale = grid_span * multiplier
+-        last_horizontal_tile = horizontal_tile_count - 1
+-        last_vertical_tile = vertical_tile_count - 1
+-
+-        for record_offset in range(0, len(record_bytes) // 8 * 8, 8):
+-            packed_word, packed_metadata = struct.unpack_from("<II", record_bytes, record_offset)
+-            horizontal_position = (packed_word >> 15) & 0xFFF
+-            vertical_position = (packed_word >> 3) & 0xFFF
+-            horizontal_tile = horizontal_position // inner_span
+-            vertical_tile = vertical_position // inner_span
+-
+-            # select_if(value_if_true, value_if_false, condition) をそのまま移植。
+-            horizontal_size = (
+-                horizontal_remainder - horizontal_position
+-                if horizontal_tile == last_horizontal_tile
+-                else inner_span
+-            ) + border_width
+-            vertical_size = (
+-                vertical_remainder - vertical_position
+-                if vertical_tile == last_vertical_tile
+-                else inner_span
+-            ) + border_width
+-
+-            orientation = (packed_word >> 1) & 0x3
+-            # br_table の結果は ca=1,3 で (vertical, horizontal)、
+-            # ca=0,2 で (horizontal, vertical) となる。
+-            if orientation in (1, 3):
+-                output_width, output_height = vertical_size, horizontal_size
+-            else:
+-                output_width, output_height = horizontal_size, vertical_size
+-
+-            metadata_byte_2 = (packed_metadata >> 16) & 0xFF
+-            metadata_byte_1 = (packed_metadata >> 8) & 0xFF
+-            has_flag = packed_word & 1
+-            int32_values.extend(
+-                (
+-                    (horizontal_position - type_code) * multiplier + first_key_hash,
+-                    (vertical_position - type_code) * multiplier + first_key_hash,
+-                    metadata_byte_2 * metadata_scale + first_key_hash,
+-                    metadata_byte_1 * metadata_scale + first_key_hash,
+-                    multiplier * orientation + first_key_hash,
+-                    (multiplier if has_flag else 0) + first_key_hash,
+-                    output_width,
+-                    output_height,
+-                    horizontal_tile_count * vertical_tile + horizontal_tile,
+-                )
+-            )
+-
+-        memory_padding = (-len(self.memory)) % 4
+-        self.memory.extend(b"\x00" * memory_padding)
+-        result_byte_offset = len(self.memory)
+-        self.memory.extend(struct.pack(f"<{len(int32_values)}i", *int32_values))
+-        return result_byte_offset, len(int32_values)
+-
+-    def get_array(self,source: Union[str, bytes, bytearray], length: Optional[int] = None) -> List[Any]:
+-        """WAT の ``getArray(a, b)`` を移植する。
+-
+-        入力の先頭 66 バイトは識別子であり、残りは Base64 である。復号結果は
+-        ``uint16 little-endian の要素数 + その個数の 8-byte レコード`` の繰り返し。
+-        要素数 0 は WAT が JavaScript の ``null`` として返すため ``None`` にする。
+-        """
+-        if source is None:
+-            return []
+-
+-        input_bytes = _as_bytes(source, length)
+-        base64_offset = 66
+-        if len(input_bytes) < base64_offset + 1:
+-            return []
+-
+-        # WAT の ``aa[66] < -64``: UTF-8 継続バイトなら Base64 の開始位置として無効。
+-        if 0x80 <= input_bytes[base64_offset] <= 0xBF:
+-            return []
+-
+-        try:
+-            decoded_bytes = base64.b64decode(input_bytes[base64_offset:], validate=True)
+-        except Exception:
+-            return []
+-
+-        records_per_group: List[Any] = []
+-        read_offset = 0
+-        while read_offset + 2 <= len(decoded_bytes):
+-            (record_count,) = struct.unpack_from("<H", decoded_bytes, read_offset)
+-            read_offset += 2
+-            record_byte_length = record_count * 8
+-            if record_count == 0:
+-                records_per_group.append(None)
+-            elif read_offset + record_byte_length > len(decoded_bytes):
+-                break
+-            else:
+-                records_per_group.append(list(decoded_bytes[read_offset:read_offset + record_byte_length]))
+-                read_offset += record_byte_length
+-        return records_per_group
+-
+-    def subarray(self, byte_offset: int, int32_count: int) -> List[int]:
+-        """JS の ``Int32Array(memory).subarray(offset / 4, offset / 4 + count)``。"""
+-        if byte_offset < 0 or int32_count <= 0 or byte_offset + int32_count * 4 > len(self.memory):
+-            return []
+-        return list(struct.unpack_from(f"<{int32_count}i", self.memory, byte_offset))
++    return tuple(int32_values)

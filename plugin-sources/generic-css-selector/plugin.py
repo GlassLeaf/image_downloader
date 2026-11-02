@@ -56,7 +56,9 @@ class GenericCssSelector:
                 continue
             seen.add(resolved)
             images.append(ImageResource(resolved, index=len(images) + 1, referer=url))
-        return DownloadManifest(title, (Chapter(1, title, images=tuple(images)),), metadata={"pattern": "generic-css-selector"})
+        return DownloadManifest(
+            title, (Chapter(1, title, images=tuple(images)),), metadata={"pattern": "generic-css-selector"}
+        )
 
     async def create_image_request(self, image: ImageResource, context: PluginExecutionContext) -> RequestSpec:
         del context
@@ -72,6 +74,6 @@ class GenericCssSelector:
         del context
         return None
 
-    async def transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:
+    def transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:
         del context
         return artifact

@@ -117,9 +117,7 @@ class MetadataBridgeGalleryPlugin:
             content_id=_text(payload.get("id"), "metadata bridge work ID is missing"),
         )
 
-    async def create_image_request(
-        self, image: ImageResource, context: PluginExecutionContext
-    ) -> ImageFetchRequest:
+    async def create_image_request(self, image: ImageResource, context: PluginExecutionContext) -> ImageFetchRequest:
         del context
         image_id = _text(image.image_id, "metadata bridge image ID is missing")
         variant = _variant(image.metadata.get("variant"))
@@ -150,7 +148,7 @@ class MetadataBridgeGalleryPlugin:
         del context
         return None
 
-    async def transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:
+    def transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:
         orientation = _orientation(context.image_metadata.get("orientation"))
         rotation = _ORIENTATION_TO_ROTATION[orientation]
         if rotation == 0:

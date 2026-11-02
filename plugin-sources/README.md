@@ -37,7 +37,7 @@ image-downloader URL --plugin-config 'local.image-downloader.generic-css-selecto
 
 ```powershell
 python tools/sign_local_site_plugin.py `
-  --key "$env:LOCALAPPDATA\image-downloader\keys\local-processors-ed25519.pem" `
+  --key "$env:LOCALAPPDATA\image-downloader\keys\local-site-plugins-ed25519.pem" `
   plugin-sources/artifact-history-processor plugin-sources/resize-processor
 
 $env:PYTHONPATH = 'src'
@@ -132,3 +132,7 @@ image-downloader download 'https://csrf-login.example.test/works/1' --config $co
 
 プラグインの`context.secrets.get(name)`契約と署名形式は変わりません。この保存方式の切替だけでプラグインの再署名は不要です。
 OAuth例で更新したaccess tokenはAuthFlowのメモリー内だけに保持し、access token・refresh tokenを保管庫へ自動保存しません。
+
+## 同期画像変換への移行
+
+ベータv3の画像変換契約を同期メソッドへ改訂しました。全変換は同一インスタンスへのスレッド並行呼出しに対応してください。[移行手順](../docs/v3/maintenance/synchronous-image-transforms.md)を参照してください。画像プロセッサー2個も既存サイト用ローカル鍵で再署名したため、再インストール時は鍵IDとカタログpinの変更を確認してください。

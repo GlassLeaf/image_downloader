@@ -45,6 +45,7 @@ class DownloadService:
         self._persist_cookies_on_close = dependencies.persist_cookies_on_close
         self.gateway = dependencies.gateway
         self.image_processor = dependencies.image_processor
+        self.transform_executor = dependencies.transform_executor
         self.output_locks = dependencies.output_locks
         self._operation_lock = asyncio.Lock()
         self._closed = False
@@ -159,6 +160,7 @@ class DownloadService:
                 persist_cookies=self._persist_cookies if self._persist_cookies_on_close else None,
                 gateway=self.gateway,
                 image_processor=self.image_processor,
+                transform_executor=self.transform_executor,
                 registry=self.registry,
                 logger=self.logger,
             )

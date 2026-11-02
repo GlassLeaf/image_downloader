@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from support.vault import MemoryKeys
@@ -42,6 +42,7 @@ def _dependencies() -> _RuntimeDependencies:
         cookie_baseline={},
         gateway=MagicMock(),
         image_processor=MagicMock(),
+        transform_executor=MagicMock(close=AsyncMock()),
         output_locks=MagicMock(),
     )
 

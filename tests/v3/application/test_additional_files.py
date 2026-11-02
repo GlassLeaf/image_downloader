@@ -100,7 +100,7 @@ def test_received_key_used_for_request_and_transform(tmp_path, monkeypatch):
         key = self.keys[image.url]
         return ImageFetchRequest(RequestSpec(image.url, headers={"X-Key": key}), {"key": key})
 
-    async def transform(self, artifact, context):
+    def transform(self, artifact, context):
         assert context.transport_metadata.plugin_data["key"] == "private-test-key"
         return artifact
 
@@ -458,7 +458,7 @@ def test_after_request_data_is_available_to_parallel_transforms(tmp_path, monkey
         self.extra[(result.hook.chapter.number, result.hook.image.index)] = result.data
         await asyncio.sleep(0)
 
-    async def transform(self, artifact, context):
+    def transform(self, artifact, context):
         assert self.extra[(context.chapter.number, context.index)] == str(context.index).encode()
         return artifact
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import inspect
 import re
 import sys
 import types
@@ -394,6 +395,7 @@ class PluginClassLoader:
         value = self.construct(record)
         if not is_site_plugin(value):
             raise PluginError("plugin class does not implement the v3 contract")
+        self._require_sync_transform(value, "transform_image")
         return value
 
     def processor_instance(self, record: PluginRecord) -> ImageProcessor:
@@ -402,7 +404,15 @@ class PluginClassLoader:
         value = self.construct(record)
         if not is_image_processor(value):
             raise PluginError("plugin class does not implement the v3 contract")
+        self._require_sync_transform(value, "transform")
         return value
+
+    @staticmethod
+    def _require_sync_transform(value: object, hook: str) -> None:
+        callback = getattr(value, hook)
+        call = inspect.getattr_static(callback, "__call__", None)
+        if any(inspect.iscoroutinefunction(item) or inspect.isasyncgenfunction(item) for item in (callback, call)):
+            raise PluginError(f"{hook} must be synchronous in revised v3; replace async def with def")
 
     def typed_instance(self, record: PluginRecord) -> SitePlugin | ImageProcessor:
         if record.kind == "site_plugin":

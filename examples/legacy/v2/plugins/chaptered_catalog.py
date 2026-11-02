@@ -87,7 +87,7 @@ class ChapteredCatalogPlugin:
     def auth_flow(self, context: PluginExecutionContext):
         return None
 
-    async def transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:
+    def transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:
         return artifact
 
     async def check_updates(self, url: str, context: PluginExecutionContext) -> UpdateSnapshot:

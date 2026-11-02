@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from ..credentials.profile_store import ProfileCredentialStore
 from ..media.image_processor import ImageProcessor
+from ..media.transform_executor import TransformExecutor
 from ..observability.events import EventBus
 from ..observability.logging import (
     DownloadLogger,
@@ -35,5 +36,6 @@ class _RuntimeDependencies:
     cookie_baseline: CookieSnapshot
     gateway: RequestGateway
     image_processor: ImageProcessor
+    transform_executor: TransformExecutor
     output_locks: OutputDirectoryLocks
     persist_cookies_on_close: bool = True

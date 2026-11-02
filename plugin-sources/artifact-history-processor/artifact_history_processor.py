@@ -17,7 +17,7 @@ class ArtifactHistoryProcessor:
         if not isinstance(label, str) or not label.strip():
             raise ValueError("artifact history processor requires non-empty config.label")
 
-    async def transform(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:
+    def transform(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:
         label = context.config["label"]
         assert isinstance(label, str)  # validated before this hook is invoked
         return replace(artifact, history=(*artifact.history, label))

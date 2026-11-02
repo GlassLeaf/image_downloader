@@ -13,6 +13,11 @@
 
 テンプレートは最小限の雛形であり、カーソルによるページ分割、CSRF・OAuth、短命URL、プロセッサーの画像変換の完成例ではありません。これらは[プラグインの実装例](../reference/plugin-hooks.md#plugin-examples)と比較してください。ソースを更新したら、[署名手順](../reference/plugin-package.md#plugin-signing-workflow)に従ってmanifestのツリーと署名を再生成します。
 
+画像変換の `transform_image()` とprocessorの `transform()` は、`ImageArtifact` を直接返す
+同期関数として実装します。同じインスタンスへ専用スレッドから並行して呼ばれるため、共有状態を保護します。
+変換内の直接のawaitやawaitableの返却はサポートしません。非同期関数が必要な場合は、実装前に
+[現在の制限と対応方法](../how-to/faq.md#faq-transform-async-dependencies)を確認してください。
+
 作品タイトル・作者は `DownloadManifest`、章タイトル・サブタイトルは `Chapter` に設定します。
 公開日時・発行日や出版社などを章ログに残す例は、
 [作品・章情報](../reference/plugin-hooks.md)と[ログヘッダー](../reference/logging.md#chapter-publication-header)

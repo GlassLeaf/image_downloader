@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from io import BytesIO
 from pathlib import Path
 
@@ -76,7 +75,7 @@ def test_processor_source_units_are_signed_strictly_loaded_and_transform_artifac
         manifest=history_context.manifest,
         chapter=history_context.chapter,
     )
-    labeled = asyncio.run(history.transform(artifact, history_context))
+    labeled = history.transform(artifact, history_context)
     assert labeled.history == ("source", "reviewed")
     assert artifact.history == ("source",)
 
@@ -92,7 +91,7 @@ def test_processor_source_units_are_signed_strictly_loaded_and_transform_artifac
         manifest=resize_context.manifest,
         chapter=resize_context.chapter,
     )
-    resized = asyncio.run(resize.transform(labeled, resize_context))
+    resized = resize.transform(labeled, resize_context)
     with Image.open(BytesIO(resized.data)) as output:
         assert output.format == "PNG"
         assert output.size == (80, 40)

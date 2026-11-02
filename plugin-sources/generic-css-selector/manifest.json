@@ -24,7 +24,7 @@
       "licenses/LICENSE": "55b4d8d4b1e5bc86d10efac91b74c87bcb77526b0f5b9edaf8b9cd2adc7397b2",
       "licenses/LICENSE.md": "ceb7b9053b88addffa3102a457302bd840d123925ee9ed9c2ac90cf6548b33bf",
       "plugin-metadata.json": "918cc3d77f2023fd6d95743c11e83d37657f5308531b3a5d4412be7319e018dd",
-      "plugin.py": "7d3cb6e03453e5692e6c8814cbd1efee535b002a7ece0c884355c67e9d529b5b",
+      "plugin.py": "5655692951592a20e734d8c3b8d535db1bab3ed32d4f8ff0b3305bacaf9be0f0",
       "plugin.yaml": "4533f5c417973181b86864f3e0287208d1e0cf7da1587c650de502c1a229bd0e",
       "vendor/__init__.py": "6211ef874b6a9af81d70293e8cf17a027fe809c9cbb22b37424091896d12a508",
       "vendor/bs4/__init__.py": "92adf6702b5088d8e353d5f08c3d1bd637573795840bcee726a4925b73e15643",
@@ -44,7 +44,7 @@
       "vendor/soupsieve/pretty.py": "f33f5937291be7b611fa6654ad8e0ef586570cfe818462d2abdf8303963caf0c",
       "vendor/soupsieve/util.py": "4343151fbedc5015ccb4a5740f67fc4b27fdd2b7a63ded047cba9eebe9ac01e2"
     },
-    "file_tree_sha256": "b92464ac8b33bf442fd65543c5f71acd9dcab7a7f2c8a4daa0cd35b0f3a35c22"
+    "file_tree_sha256": "52c1f1fe836b5b7b886d4defbd1717f3995b090b21e4a853237dcf315393ef36"
   },
-  "signature": "OhCV9TDqtqkCDHL76Zsxs+GM9q81ncqsPsOCQf3pwkChHdOkT+ZP3ExVVMhxzNH4ZlAmDEmwQsJalpxynufQDg=="
+  "signature": "k2qDyDmQqRYeAsMMvVZRKbZtqEi8eK1Fa1iP7UOxzC0Qjj89Gpf6qsGXMQB+6E8RbgBISL0pHWD127TWM4f3CA=="
 }

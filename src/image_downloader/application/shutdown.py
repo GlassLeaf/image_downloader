@@ -9,6 +9,7 @@ from functools import partial
 from typing import Protocol
 
 from ..media.image_processor import ImageProcessor
+from ..media.transform_executor import TransformExecutor
 from ..observability.diagnostic_safety import warn_diagnostic_failure
 from ..observability.logging import DownloadLogger
 from ..plugins.runtime import PluginRuntime
@@ -50,6 +51,7 @@ async def shutdown_resources(
     persist_cookies: Callable[[], Awaitable[None]] | None,
     gateway: RequestGateway,
     image_processor: ImageProcessor,
+    transform_executor: TransformExecutor,
     registry: PluginRuntime,
     logger: DownloadLogger,
 ) -> BaseException | None:
@@ -58,6 +60,7 @@ async def shutdown_resources(
     Every started close finishes before the next resource closes. The owning
     service shields this whole sequence, including the worker's shutdown thread.
     """
+
     async def close_image_processor() -> None:
         await asyncio.to_thread(image_processor.close)
 
@@ -65,6 +68,7 @@ async def shutdown_resources(
         registry.close()
 
     callbacks = ([persist_cookies] if persist_cookies is not None else []) + [
+        transform_executor.close,
         gateway.close,
         close_image_processor,
         close_registry,

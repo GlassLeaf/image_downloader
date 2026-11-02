@@ -87,7 +87,7 @@ def test_site_metadata_drives_request_transform_and_authorized_processor() -> No
         assert image_request.plugin_data == {"variant": "full", "orientation": "6"}
 
         context = TransformContext(image, {}, {}, {}, None, manifest, manifest.chapters[0])
-        rotated = await site.transform_image(
+        rotated = site.transform_image(
             ImageArtifact(_png(2, 3), "image/png", image.url, image_id=image.image_id, extension="png"), context
         )
         with Image.open(BytesIO(rotated.data)) as output:
@@ -113,7 +113,7 @@ def test_site_metadata_drives_request_transform_and_authorized_processor() -> No
             site_manifest={"id": "local.image-downloader.metadata-bridge-gallery"},
             transport_metadata=transport_metadata,
         )
-        processed = await processor_module.MetadataBridgeProcessor().transform(rotated, processor_context)
+        processed = processor_module.MetadataBridgeProcessor().transform(rotated, processor_context)
         assert processed.history == ("site-orientation-normalized", "metadata-bridge:profile-applied")
 
         redacted_context = TransformContext(
@@ -133,7 +133,7 @@ def test_site_metadata_drives_request_transform_and_authorized_processor() -> No
                 is_redacted=True,
             ),
         )
-        redacted = await processor_module.MetadataBridgeProcessor().transform(rotated, redacted_context)
+        redacted = processor_module.MetadataBridgeProcessor().transform(rotated, redacted_context)
         assert redacted.history == ("site-orientation-normalized", "metadata-bridge:transport-metadata-redacted")
 
     asyncio.run(scenario())

@@ -54,8 +54,9 @@ def test_unsigned_template_is_rejected_in_strict_mode() -> None:
 
 @pytest.mark.parametrize(("host", "matched"), [("example.test", True), ("other.test", False)])
 def test_doctor_reports_host_match(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str], host: str, matched: bool
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], host: str, matched: bool, monkeypatch
 ) -> None:
+    monkeypatch.setattr("image_downloader.commands.setup._user_config_path", lambda: tmp_path / "absent.yaml")
     root = (tmp_path / "plugins").resolve()
     install_plugin(root, SOURCE, mode="bypass-all")
     args = build_parser().parse_args(

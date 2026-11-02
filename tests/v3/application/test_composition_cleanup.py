@@ -51,7 +51,7 @@ def _composer(tmp_path: Path) -> RuntimeComposer:
         "    async def create_image_request(self, image, context): pass\n"
         "    async def recover_image_request(self, image, failed, response, context): pass\n"
         "    def auth_flow(self, context): pass\n"
-        "    async def transform_image(self, artifact, context): return artifact\n"
+        "    def transform_image(self, artifact, context): return artifact\n"
         "    @staticmethod\n"
         "    def lazy():\n"
         "        from . import helper\n"

@@ -20,7 +20,7 @@ from image_downloader.exceptions import (
     ImageDimensionLimitError,
     ImageMimeMismatchError,
 )
-from image_downloader.media import ImageProcessor
+from image_downloader.media import ImageProcessor, TransformExecutor
 from image_downloader.media.artifact_pipeline import ArtifactPipeline
 from image_downloader.media.processor_chain import PreparedProcessor
 from image_downloader.models import Chapter, DownloadManifest, ImageArtifact, ImageResource
@@ -67,7 +67,15 @@ def _pipeline(core, config=None, processors=()):
     record = SimpleNamespace(id="core.generic-html", manifest=SimpleNamespace(value={}), catalog=None)
     registry = SimpleNamespace(effective_config=lambda *args: {})
     return ArtifactPipeline(
-        config or AppConfig(), registry, record, None, core, logger, PluginInvoker(record.id, logger), processors
+        config or AppConfig(),
+        registry,
+        record,
+        None,
+        core,
+        logger,
+        PluginInvoker(record.id, logger),
+        processors,
+        transform_executor=TransformExecutor(),
     )
 
 
@@ -75,9 +83,14 @@ def _process(pipeline, data, mime, plugin=None):
     image = ImageResource("https://example.test/image.png")
     chapter = Chapter(1, "Demo", images=(image,))
     manifest = DownloadManifest("Demo", (chapter,))
-    return asyncio.run(
-        pipeline.process(plugin or GenericHtmlPlugin(), ImageArtifact(data, mime, image.url), image, manifest, chapter)
-    )
+
+    async def scenario():
+        async with pipeline.transform_executor:
+            return await pipeline.process(
+                plugin or GenericHtmlPlugin(), ImageArtifact(data, mime, image.url), image, manifest, chapter
+            )
+
+    return asyncio.run(scenario())
 
 
 @pytest.mark.parametrize("mime", ["image/png", "image/svg+xml", "image/avif", "", "application/octet-stream"])
@@ -187,18 +200,63 @@ def test_site_transform_can_decode_before_validation(core):
     data = _image_bytes()
 
     class DecryptingSite(GenericHtmlPlugin):
-        async def transform_image(self, artifact, context):
+        def transform_image(self, artifact, context):
             assert artifact.data == b"encrypted"
             return replace(artifact, data=data)
 
     assert _process(_pipeline(core), b"encrypted", "image/png", DecryptingSite()).data == data
 
 
+@pytest.mark.parametrize("changed", ["history", "mime", "bytes"])
+def test_original_revalidates_only_when_bytes_or_mime_change(core, monkeypatch, changed):
+    class Processor:
+        def transform(self, artifact, context):
+            if changed == "history":
+                return replace(artifact, history=("label",))
+            if changed == "mime":
+                return replace(artifact, content_type="application/octet-stream")
+            return replace(artifact, data=memoryview(artifact.data).tobytes())
+
+    record = SimpleNamespace(manifest=SimpleNamespace(value={}), catalog=None)
+    binding = PreparedProcessor("example.change", record, Processor(), {}, {})
+    pipeline = _pipeline(core, processors=(binding,))
+    original = pipeline._validate_input
+    calls = []
+
+    def validate(artifact):
+        calls.append(artifact)
+        original(artifact)
+
+    monkeypatch.setattr(pipeline, "_validate_input", validate)
+    _process(pipeline, _image_bytes(), "image/png")
+    assert len(calls) == (1 if changed == "history" else 2)
+
+
+def test_history_only_processor_does_not_reencode_normalized_image(core, monkeypatch):
+    class Processor:
+        def transform(self, artifact, context):
+            return replace(artifact, history=(*artifact.history, "label"))
+
+    record = SimpleNamespace(manifest=SimpleNamespace(value={}), catalog=None)
+    binding = PreparedProcessor("example.label", record, Processor(), {}, {})
+    pipeline = _pipeline(core, AppConfig.model_validate({"output": {"image_format": "PNG"}}), (binding,))
+    original = pipeline._normalize
+    calls = []
+
+    async def normalize(*args):
+        calls.append(True)
+        return await original(*args)
+
+    monkeypatch.setattr(pipeline, "_normalize", normalize)
+    _process(pipeline, _image_bytes(), "image/png")
+    assert len(calls) == 1
+
+
 @pytest.mark.parametrize("output_format", ["ORIGINAL", "PNG"])
 @pytest.mark.parametrize("corrupt_data", [b"not image data", _animation()[:-8]])
 def test_processor_corruption_is_detected_before_save(core, output_format, corrupt_data):
     class CorruptingProcessor:
-        async def transform(self, artifact, context):
+        def transform(self, artifact, context):
             return replace(artifact, data=corrupt_data, content_type="image/gif")
 
     record = SimpleNamespace(manifest=SimpleNamespace(value={}), catalog=None)

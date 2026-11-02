@@ -103,7 +103,7 @@
 
 | コンストラクター・メソッド・プロパティ | シグネチャ |
 | --- | --- |
-| `ArtifactPipeline` <!-- api-contract: image_downloader.runtime.ArtifactPipeline --> | `ArtifactPipeline(config: AppConfig, registry: PluginRuntime, site_record: PluginRecord, overrides: PluginConfigOverrides | None, image_processor: ImageProcessor, logger: DownloadLogger, invoker: PluginInvoker, processors: tuple[PreparedProcessor | str, ...], *, force_image_format: ImageFormat | None = None)` |
+| `ArtifactPipeline` <!-- api-contract: image_downloader.runtime.ArtifactPipeline --> | `ArtifactPipeline(config: 'AppConfig', registry: 'PluginRuntime', site_record: 'PluginRecord', overrides: 'PluginConfigOverrides | None', image_processor: 'ImageProcessor', logger: 'DownloadLogger', invoker: 'PluginInvoker', processors: 'tuple[PreparedProcessor | str, ...]', *, force_image_format: 'ImageFormat | None' = None, transform_executor: 'TransformExecutor') -> 'None'` |
 | `ArtifactPipeline.process` <!-- api-contract: image_downloader.runtime.ArtifactPipeline.process --> | `async process(self, plugin: SitePlugin, artifact: ImageArtifact, image: ImageResource, manifest: DownloadManifest, chapter: Chapter, *, transport_metadata: ImageTransportMetadata | None = None) -> ImageArtifact` |
 | `ChapterReporter` <!-- api-contract: image_downloader.runtime.ChapterReporter --> | `ChapterReporter(filesystem: FileSystem, chapter_directory: Path, manifest: DownloadManifest, chapter: Chapter, logger: DownloadLogger, reporter_id: str)` |
 | `ChapterReporter.start` <!-- api-contract: image_downloader.runtime.ChapterReporter.start --> | `async start(self) -> None` |
@@ -143,7 +143,7 @@
 | `UpdateState.apply_snapshot` <!-- api-contract: image_downloader.runtime.UpdateState.apply_snapshot --> | `apply_snapshot(self, plugin_id: str, source_url: str, snapshot: UpdateSnapshot) -> tuple[UpdateChange, ...]` |
 | `UpdateState.apply_snapshot_async` <!-- api-contract: image_downloader.runtime.UpdateState.apply_snapshot_async --> | `async apply_snapshot_async(self, plugin_id: str, source_url: str, snapshot: UpdateSnapshot) -> tuple[UpdateChange, ...]` |
 
-`_RuntimeDependencies`は独自の公開メソッド・プロパティを持たないdataclass DTOです。コンストラクターは`_RuntimeDependencies(outputs, logs, state, events, logger, notifications, cookie_store, credentials, cookie_baseline, gateway, image_processor, output_locks, persist_cookies_on_close=True)`です。
+`_RuntimeDependencies`は独自の公開メソッド・プロパティを持たないdataclass DTOです。コンストラクターは`_RuntimeDependencies(outputs, logs, state, events, logger, notifications, cookie_store, credentials, cookie_baseline, gateway, image_processor, transform_executor, output_locks, persist_cookies_on_close=True)`です。
 
 <a id="plugin-security-api"></a>
 
@@ -339,3 +339,11 @@
 `RuntimeComposer`とプラグインの`get(name)`契約は維持します。CRUD・backup/restore・鍵更新の同期APIは
 [資格情報保管庫](credential-vault.md#直接利用するapi)を参照してください。
 `VaultError(kind: str)`は`AuthenticationError`の派生型で、秘密を含まない固定診断を返します。
+
+## 画像変換ワーカー
+
+| API | Signature |
+| --- | --- |
+| `TransformExecutor` <!-- api-contract: image_downloader.media.TransformExecutor --> | `TransformExecutor(max_workers: 'int' = 2) -> 'None'` |
+| `TransformExecutor.run` <!-- api-contract: image_downloader.media.TransformExecutor.run --> | `async run(self, callback: 'Callable[[], _T]') -> '_T'` |
+| `TransformExecutor.close` <!-- api-contract: image_downloader.media.TransformExecutor.close --> | `async close(self) -> 'None'` |

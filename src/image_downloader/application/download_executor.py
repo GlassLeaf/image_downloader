@@ -63,6 +63,7 @@ class DownloadExecutor:
         self.outputs = dependencies.outputs
         self.events, self.logger = dependencies.events, dependencies.logger
         self.image_processor, self.output_locks = dependencies.image_processor, dependencies.output_locks
+        self.transform_executor = dependencies.transform_executor
         self.chapters = ChapterExecutor(config, self.events, self.logger, self.output_locks)
 
     async def execute(
@@ -206,6 +207,7 @@ class DownloadExecutor:
                 site.invoker,
                 processors.bindings,
                 force_image_format=request.force_image_format,
+                transform_executor=self.transform_executor,
             )
             results = await self.chapters.execute(
                 DownloadContext(

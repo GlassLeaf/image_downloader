@@ -88,6 +88,7 @@ class Output(StrictModel):
 
 
 class Media(StrictModel):
+    transform_workers: StrictInt = Field(2, ge=1, le=4)
     input_validation: Literal["content_type", "decode", "both"] = "both"
     content_type_mismatch: Literal["accept", "error"] = "accept"
     # Opt-in only: arbitrary image dimensions remain accepted by default.

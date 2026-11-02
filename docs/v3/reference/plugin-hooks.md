@@ -19,9 +19,9 @@
 | 画像要求 | `async create_image_request(self, image: ImageResource, context: PluginExecutionContext) -> RequestSpec | ImageFetchRequest` | image fetch 直前に一回。`image.url` の locator（canonical URL、ID、placeholder のいずれでもよい）と `image_id` から header/referer/直前 API 解決を行い、実際に送信する absolute HTTP(S) `RequestSpec.url` を返す。request-time の transform data が必要なら `ImageFetchRequest(request, plugin_data)` を返せる。locator 自体は transport に送られない。 |
 | 回復 | `async recover_image_request(self, image: ImageResource, failed: RequestSpec, response: RequestResponse, context: PluginExecutionContext) -> RequestSpec | ImageFetchRequest | None` | AuthFlow refresh 後にも HTTP `status >=400` が残るときだけ最大一回。transport failure には呼ばれない。short-lived URL を再発行するか `None`。bare `RequestSpec` は直前の `plugin_data` を維持し、`ImageFetchRequest` はそれを置換する。 |
 | 認証 | `auth_flow(self, context: PluginExecutionContext) -> AuthFlow | None` | `is_auth_failure(request: RequestSpec, response: RequestResponse) -> bool`、async `apply(request: RequestSpec) -> RequestSpec`、async `refresh(failed: RequestSpec, response: RequestResponse) -> RequestSpec | None` を実装する。secret 欠落は `SecretNotFoundError`、login failure は `AuthenticationError`。display-only inspection でも送信直前 request を組み立てるため `apply()` は呼ばれる。 |
-| サイト側の画像変換 | `async transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact` | 通信・秘密情報へのアクセス権限なし。 |
+| サイト側の画像変換 | `transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact` | 通信・秘密情報へのアクセス権限なし。 |
 | 更新確認 | `async check_updates(self, url: str, context: PluginExecutionContext) -> UpdateSnapshot` | 任意。部分的な差分ではなく、完全なスナップショットを返す。 |
-| プロセッサーの画像変換 | `async transform(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact` | 設定済みの処理チェーンの順に実行する。 |
+| プロセッサーの画像変換 | `transform(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact` | 設定済みの処理チェーンの順に実行する。 |
 | 任意の出力書式値 | `output_format_values(self, context: PluginFormatContext) -> Mapping[str, str]` | selected site plugin と enabled processor に任意で実装できる同期 hook。operation 構成後に一度だけ呼ばれ、同一 operation 内では時点によらず同じ、大文字スネークケース key の非秘密 string mapping を返す。未実装は空 mapping。 |
 | 実行時利用後の任意の後始末 | `cleanup_after_use() -> Awaitable[None] | None` | selected site instance と configured processor instance に任意で実装する。runtime がその instance の利用を終えると一回だけ呼び、awaitable は await する。最終戻り値は `None`。 |
 
@@ -359,3 +359,33 @@ class WatermarkProcessor:
 | Cookie認証のプラグインと、実ブラウザ確認の分離 | [Cookie認証例](../../../examples/plugin-v3-feature-lab/cookie-gallery/plugin.py)、[隔離環境の手動試験](../../../manual-tests/browser-cookies/README.md) |
 
 HTTP(S) 以外、SSE/WebSocket、JavaScript/DOM/headless browser、CAPTCHA、interactive MFA/WebAuthn、multipart/streaming body は contract 外である。必要な site は `UnsupportedSiteFeatureError` または明示的な plugin/authentication error で失敗させる。
+
+<a id="synchronous-image-transforms"></a>
+
+## 同期変換と移行
+
+サイトの `transform_image` とprocessorの `transform` は、`ImageArtifact` を直接返す同期フックである。
+`async def` は読み込み時に `PluginError` とし、同期関数からcoroutineやFuture等のawaitableを返しても
+実行時に `PluginError` とする。コアによる自動awaitや非同期版へのフォールバックはない。
+`transform_image_async` 等の非同期変換フックは現行APIに存在せず、追加の採否は保留である。
+
+変換はサービス所有の専用ワーカースレッドで実行する。コアはワーカー用のasyncioイベントループを
+用意しないため、変換内で直接 `await` は書けず、`asyncio.get_running_loop()` や `create_task()` が
+利用できるとも仮定してはならない。呼び出し側がコア経由で変換をawaitできることと、
+プラグインの変換内部でawaitできることは別である。
+
+HTTP・認証・秘密情報の取得は既存のinspect/request/authフックで行う。非秘密な補助情報は
+`ImageResource.metadata`、要求時に得た変換専用の値は `ImageFetchRequest.plugin_data` で渡す。
+`TransformContext` はnetwork/secret capabilityを持たず、別フックのcontextやraw HTTP clientを
+変換へ持ち込んでこの境界を迂回してはならない。
+
+非同期専用ライブラリを変換内部で使う場合の `asyncio.run()` は、プラグインが所有するアダプターであり、
+コアが非同期フックをサポートすることを意味しない。処理と非同期リソースをその呼び出し内で完結させ、
+別のループに属するTask/Future/client等を共有しない。ループの所有・終了、例外、待機の上限は
+プラグイン側で管理する。`wait()` 等の同期ヘルパーに包んでもこれらの制約は変わらない。
+
+同じインスタンスへ複数スレッドから並行して呼ばれるため、画像・バッファは呼び出しごとのローカル値とし、
+共有可変状態はスレッド間で保護する。`asyncio.Lock` はスレッド間の排他には使わない。
+変換から戻った後にstateを書き換える未回収のtaskや独自スレッドを残してはならない。
+実行中の変換は、呼び出し側のキャンセル後も終了まで回収してからcleanupする。
+詳細と移行手順は[同期画像変換への移行](../maintenance/synchronous-image-transforms.md)を参照する。

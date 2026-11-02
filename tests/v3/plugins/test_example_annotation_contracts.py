@@ -29,7 +29,7 @@ SITE_HOOKS: dict[str, tuple[bool, tuple[tuple[str, str], ...], str]] = {
     ),
     "auth_flow": (False, (("context", "PluginExecutionContext"),), "AuthFlow | None"),
     "transform_image": (
-        True,
+        False,
         (("artifact", "ImageArtifact"), ("context", "TransformContext")),
         "ImageArtifact",
     ),
@@ -37,7 +37,7 @@ SITE_HOOKS: dict[str, tuple[bool, tuple[tuple[str, str], ...], str]] = {
 }
 
 PROCESSOR_HOOKS: dict[str, tuple[bool, tuple[tuple[str, str], ...], str]] = {
-    "transform": (True, (("artifact", "ImageArtifact"), ("context", "TransformContext")), "ImageArtifact"),
+    "transform": (False, (("artifact", "ImageArtifact"), ("context", "TransformContext")), "ImageArtifact"),
 }
 
 AUTH_FLOW_HOOKS: dict[str, tuple[bool, tuple[tuple[str, str], ...], str]] = {

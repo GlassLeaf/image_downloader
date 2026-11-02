@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import threading
+import time
 from io import BytesIO
 from pathlib import Path
 
@@ -58,7 +60,7 @@ async def _mock_gallery(service: DownloadService, *, images: int = 2) -> list[st
     return requests
 
 
-def test_processor_is_constructed_and_validated_once_per_operation_and_serialized(tmp_path: Path) -> None:
+def test_processor_is_constructed_and_validated_once_per_operation_and_parallel(tmp_path: Path) -> None:
     async def scenario() -> None:
         plugin_id = "com.example.stateful"
         service = _service(tmp_path, plugin_id)
@@ -72,17 +74,22 @@ def test_processor_is_constructed_and_validated_once_per_operation_and_serialize
                 self.cleanups = 0
                 self.active = 0
                 self.max_active = 0
+                self.lock = threading.Lock()
+                self.barrier = threading.Barrier(2, timeout=5)
                 instances.append(self)
 
             def validate_config(self, _config: object, _app_settings: object) -> None:
                 self.validations += 1
 
-            async def transform(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
-                self.active += 1
-                self.max_active = max(self.max_active, self.active)
-                await asyncio.sleep(0.01)
-                self.active -= 1
-                self.transforms += 1
+            def transform(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
+                with self.lock:
+                    self.active += 1
+                    self.max_active = max(self.max_active, self.active)
+                self.barrier.wait()
+                time.sleep(0.01)
+                with self.lock:
+                    self.active -= 1
+                    self.transforms += 1
                 return artifact
 
             def cleanup_after_use(self) -> None:
@@ -94,7 +101,7 @@ def test_processor_is_constructed_and_validated_once_per_operation_and_serialize
             assert len(first.saved_files) == 2
             assert len(instances) == 1
             assert (instances[0].validations, instances[0].transforms, instances[0].cleanups) == (1, 2, 1)
-            assert instances[0].max_active == 1
+            assert instances[0].max_active == 2
 
             second = await service.download(DownloadRequest(url="https://example.test/gallery"))
             assert len(second.saved_files) == 2
@@ -118,7 +125,7 @@ def test_processor_validation_fails_before_any_request_and_cleans_up_instance(tm
             def validate_config(self, _config: object, _app_settings: object) -> None:
                 raise ValueError("bad configuration")
 
-            async def transform(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
+            def transform(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
                 return artifact
 
             def cleanup_after_use(self) -> None:
@@ -147,7 +154,7 @@ def test_partial_chain_initialization_cleans_up_every_constructed_instance_in_re
             def validate_config(self, _config: object, _app_settings: object) -> None:
                 return None
 
-            async def transform(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
+            def transform(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
                 return artifact
 
             def cleanup_after_use(self) -> None:
@@ -184,7 +191,7 @@ def test_async_cleanup_after_use_failure_becomes_plugin_error_after_successful_p
             def validate_config(self, _config: object, _app_settings: object) -> None:
                 return None
 
-            async def transform(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
+            def transform(self, artifact: ImageArtifact, _context: object) -> ImageArtifact:
                 return artifact
 
             async def cleanup_after_use(self) -> None:
@@ -213,7 +220,7 @@ def test_cleanup_failure_does_not_replace_transform_failure(tmp_path: Path) -> N
             def validate_config(self, _config: object, _app_settings: object) -> None:
                 return None
 
-            async def transform(self, _artifact: ImageArtifact, _context: object) -> ImageArtifact:
+            def transform(self, _artifact: ImageArtifact, _context: object) -> ImageArtifact:
                 raise RuntimeError("transform failed")
 
             def cleanup_after_use(self) -> None:
@@ -237,16 +244,18 @@ def test_cancelled_operation_cleans_up_prepared_processor(tmp_path: Path) -> Non
         service = _service(tmp_path, plugin_id)
         await _mock_gallery(service, images=1)
         transforming = asyncio.Event()
+        release = threading.Event()
+        loop = asyncio.get_running_loop()
         closed: list[bool] = []
 
         class WaitingProcessor:
             def validate_config(self, _config: object, _app_settings: object) -> None:
                 return None
 
-            async def transform(self, _artifact: ImageArtifact, _context: object) -> ImageArtifact:
-                transforming.set()
-                await asyncio.Future()
-                raise AssertionError("unreachable")
+            def transform(self, _artifact: ImageArtifact, _context: object) -> ImageArtifact:
+                loop.call_soon_threadsafe(transforming.set)
+                assert release.wait(5)
+                return _artifact
 
             def cleanup_after_use(self) -> None:
                 closed.append(True)
@@ -256,10 +265,14 @@ def test_cancelled_operation_cleans_up_prepared_processor(tmp_path: Path) -> Non
             task = asyncio.create_task(service.download(DownloadRequest(url="https://example.test/gallery")))
             await asyncio.wait_for(transforming.wait(), timeout=5)
             task.cancel()
+            await asyncio.sleep(0)
+            assert closed == []
+            release.set()
             with pytest.raises(asyncio.CancelledError):
                 await task
             assert closed == [True]
         finally:
+            release.set()
             await service.close()
 
     asyncio.run(scenario())

@@ -50,7 +50,7 @@ def make_plugin(
             + "    async def create_image_request(self, image, context): raise AssertionError('not used')\n"
             "    async def recover_image_request(self, image, failed, response, context): return None\n"
             "    def auth_flow(self, context): return None\n"
-            "    async def transform_image(self, artifact, context): return artifact\n"
+            "    def transform_image(self, artifact, context): return artifact\n"
         )
         if configured_match:
             source += (
@@ -58,7 +58,7 @@ def make_plugin(
                 "        return str(config.get('alternate_host', '')) in url\n"
             )
     else:
-        source += "    async def transform(self, artifact, context): return artifact\n"
+        source += "    def transform(self, artifact, context): return artifact\n"
     author_name = "entry.yaml"
     files = {source_name: source.encode(), author_name: b"config:\n  author: true\n  nested:\n    one: 1\n"}
     for name, content in files.items():

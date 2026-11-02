@@ -385,7 +385,7 @@ def test_retry_feed_uses_fresh_instances_after_cleanup(tmp_path):
                 assert not self.closed
                 return await gallery.create_image_request(image, context)
 
-            async def transform_image(self, artifact, context):
+            def transform_image(self, artifact, context):
                 return artifact
 
             async def recover_image_request(self, image, failed, response, context):
@@ -768,15 +768,14 @@ def test_concurrent_configuration_error_stops_workflow_and_keeps_success(tmp_pat
             else (Chapter(1, "chapter", images=images),)
         )
         gallery.manifests[1, A.url] = DownloadManifest("gallery", chapters)
-        decode_failed = asyncio.Event()
+        decode_failed = threading.Event()
 
-        async def transform(artifact, context):
+        def transform(artifact, context):
             if context.index == 2:
                 decode_failed.set()
                 raise ImageDecodeError()
             if context.index == 3:
-                await decode_failed.wait()
-                await asyncio.sleep(0)
+                assert decode_failed.wait(5)
                 raise ConfigurationError("fatal configuration")
             return artifact
 

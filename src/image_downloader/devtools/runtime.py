@@ -21,6 +21,7 @@ from ..credentials.profile_store import ProfileCredentialStore
 from ..credentials.vault import CredentialVault
 from ..exceptions import SecretNotFoundError
 from ..media.image_processor import ImageProcessor
+from ..media.transform_executor import TransformExecutor
 from ..models import (
     AdditionalFileHookPoint,
     AdditionalFileSpec,
@@ -260,6 +261,7 @@ class DevelopmentSession:
             cookie_baseline={},
             gateway=self.gateway,
             image_processor=ImageProcessor(),
+            transform_executor=TransformExecutor(self.config.media.transform_workers),
             output_locks=OutputDirectoryLocks(
                 FileSystem(paths["state"]), timeout_seconds=self.config.output.lock_timeout_seconds, logger=self.logger
             ),
@@ -385,7 +387,7 @@ class DevelopmentSession:
             raise DevelopmentInputError(str(exc)) from exc
         self.output.event("method_started", method=method, args=args, kwargs=kwargs)
         try:
-            value = callback(*args, **kwargs)
+            value = await self._call_callback(target, method, callback, args, kwargs)
             if inspect.isawaitable(value):
                 if (
                     target is instance
@@ -398,6 +400,8 @@ class DevelopmentSession:
                         "auth_flow",
                         "output_format_values",
                         "additional_file_hook_points",
+                        "transform_image",
+                        "transform",
                     }
                 ):
                     if inspect.iscoroutine(value):
@@ -408,8 +412,6 @@ class DevelopmentSession:
                 "inspect",
                 "create_image_request",
                 "recover_image_request",
-                "transform_image",
-                "transform",
                 "check_updates",
                 "additional_files",
                 "additional_file_received",
@@ -425,6 +427,12 @@ class DevelopmentSession:
         except BaseException as exc:
             self.output.event("method_failed", method=method, error=exc)
             raise
+
+    async def _call_callback(self, target: Any, method: str, callback: Any, args: Any, kwargs: Any) -> Any:
+        if target is self.instance and method in {"transform_image", "transform"}:
+            assert self.service is not None
+            return await self.service.transform_executor.run(lambda: callback(*args, **kwargs))
+        return callback(*args, **kwargs)
 
     async def simulate(self, url: str, mode: str) -> Any:
         if mode == "replay" and self.fixture is None:
