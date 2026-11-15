@@ -20,11 +20,11 @@
     "public_key": "nXreC2mAtFSh+eqWrRPeKM4Aps7QLf4UUQ7TE3tCCmQ=",
     "key_id": "6861a70e3992291678e776ca440f0ced984b1e4d43755551c1ff3f5a2773fb41",
     "file_tree": {
-      "oauth_media_api.py": "1222801d8fbfbd5b8d69331203bfcc7e10c31c59926e785b56d40dc69437c5fa",
+      "oauth_media_api.py": "3050894a4650c172d205c8c89c950021bec484021d8f5e07c0601bf6befd2d56",
       "plugin-metadata.json": "35f1eedb1a7a719339406fe9e4ccfdaab080cf27b960d7e6531e782b99ba637c",
       "plugin.yaml": "009c4672fda30d3313d1e114efe92407bd27fdbf08ca7f85b781afacad87e96a"
     },
-    "file_tree_sha256": "06328149060874f6f8e3b31525e68fa43f64c681bf492ce49428da2ac958e502"
+    "file_tree_sha256": "4be82723e90a485c55df6892dd6a00e307deb1c6e85950469489eddb11fcd6e1"
   },
-  "signature": "cv3OMwE9eftXweZdEh4xJy0VFLZnjq/G9YLwOWMORPmEhHWQwKsylLvdx7rvSbgYnjmlr/T70sheksoqw7QKBg=="
+  "signature": "o5JC13tVcC+3iZ3VOgnsAobq1RVgrADaiQnjTq8XdBBaz+zopi7bYctI6/RJ2+zX0uwD4NQlWMh2xO1hiddlCw=="
 }
