@@ -150,9 +150,9 @@ URL results: success=0 partial=0 failed=0 unprocessed=0 removed=0
 | --- | --- | --- |
 | `--config PATH` | download、inspect、doctor、config explain/profile init、plugin、cookie | config path/initでは拒否 |
 | `--profile NAME` | download、inspect、doctor、config explain、plugin、cookie | config path/init/profile initでは拒否 |
-| `--data-root PATH`、`--plugin-root PATH` | download、inspect、doctor、config explain/init、plugin、cookie | config pathとprofile initでは拒否 |
+| `--data-root PATH`、`--plugin-root PATH` | download、inspect、doctor、config explain/init、plugin、cookie、credential（plugin・smtp）、vault | config pathとprofile initでは拒否 |
 | `--yes` | plugin install/trust/revoke/uninstallの確認 | config init/profile initは受理するが確認には使わない。他の解析済み指定も状態変更の承認にはならない |
-| `--plugin-verification-override MODE` | download、inspect、doctor、plugin | configは解析値を表示できるが検証を行わない。cookieでも検証への効果はない |
+| `--plugin-verification-override MODE` | download、inspect、doctor、plugin | configは解析値を表示できるが検証を行わない。cookie、credential（plugin・smtp）、vaultでも受理するが検証への効果はない |
 | `--plugin-config ID=JSON`、`--plugin-config-file PATH`、`--fallback-generic` | download、inspect、doctor | config、plugin、cookieでは拒否 |
 | `--plugin ID`、`--force-plugin ID` | download（`--list-updated-urls`を含む）、inspect | doctor、config、plugin、cookieでは拒否 |
 | `--plugin-download-policy ID=JSON`、`--plugin-download-policy-file PATH` | download（`--list-updated-urls`を含む） | 検査を含む他のコマンドでは拒否 |
@@ -172,6 +172,15 @@ URL results: success=0 partial=0 failed=0 unprocessed=0 removed=0
 `--plugin-download-policy`は繰り返し指定できる`ID=<JSON-object>`です。`--plugin-download-policy-file`は、絶対パスの既存の通常JSONファイルを繰り返し指定する形式で、リンクは不可です。オブジェクトは正確に`{"plugin_id": "…", "download_policy": {…}}`の形にします。選択したサイトプラグインだけを対象にフィールドごとに合成し、コアが所有する`download_policy`スキーマで検証します。永続化はしません。`request_concurrency`、`chapter_concurrency`、`image_concurrency_per_chapter`、`preserve_image_start_order`は[設定](configuration.md#config-plugin-settings)を参照してください。
 
 `--plugin-verification-override`の値は`bypass-all`、`bypass-catalog`、`bypass-signature`です。一時的な上書きであり、永続設定`security.plugin_verification`の値ではありません。永続設定の選択肢は`strict`・`warn`・`off`です。`plugin list`でも、`diagnostics`のためのソース発見・検証には上書きを**適用します**。カタログの登録内容である`plugins`一覧は変更せず、永続設定・カタログも書き込みません。
+
+ユーザー設定を自動読込みした場合、設定値とCLI上書き値を標準エラーへ分けて表示します。
+
+```text
+Plugin verification (configured): strict
+Plugin verification override: bypass-all
+```
+
+上書き未指定時は`Plugin verification override: none`と表示します。この診断は検証を実施したことを意味しません。credential・vaultなど検証しない操作でも同じ形式です。`--json`の標準出力には混入しません。明示的な`--config`指定時と既定値使用時は、この診断を表示しません。
 
 `--plugin ID`では、有効かつ非組み込みのサイトプラグインが、通常のmatcherでURLを受理する必要があります。`--force-plugin ID`は、有効な非組み込みサイトプラグインであることを確認した後でだけmatcherを省略します。両者は排他的で、明示的な`--fallback-generic=enabled|disabled`とも併用できません。`--fallback-generic`は、パーサーの既定値`auto`、`enabled`、`disabled`を受理し、`auto`は解決済み設定を維持します。`--existing-file`の値は`overwrite`・`skip`・`rename`・`error`です。
 

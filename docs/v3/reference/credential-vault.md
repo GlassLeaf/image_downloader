@@ -15,6 +15,8 @@ image-downloader credential smtp delete MAIL --profile default --yes
 
 `--config`、`--data-root`、`--profile`で対象を選びます。プロファイルの設定解決は既存のCLIと共通です。プラグインの設定ではlogical nameから参照名への対応だけを書きます。
 
+credential（plugin・smtp）のset/list/deleteとvaultの全操作では、`--plugin-root PATH`と`--plugin-verification-override MODE`も受理します。`--plugin-root`は絶対パスで指定し、その実行の`plugins.root`を上書きします。資格情報の保存先は`--data-root`とプロファイルで決まります。これらの操作はプラグインの存在確認・読み込み・検証を行わないため、検証上書きは効果がありません。MODEは`bypass-all`、`bypass-catalog`、`bypass-signature`です。どちらの指定も永続設定には保存しません。
+
 ```yaml
 plugin_settings:
   com.example.gallery:

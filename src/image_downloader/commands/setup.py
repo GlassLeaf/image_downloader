@@ -307,5 +307,6 @@ def _resolved_config_for(
         print(f"Using user configuration: {resolved.main_config_path}", file=sys.stderr)
         print(f"Downloads: {paths['downloads']}", file=sys.stderr)
         print(f"Plugin root: {effective_plugin_root}", file=sys.stderr)
-        print(f"Plugin verification: {resolved.config.security.plugin_verification}", file=sys.stderr)
+        print(f"Plugin verification (configured): {resolved.config.security.plugin_verification}", file=sys.stderr)
+        print(f"Plugin verification override: {args.plugin_verification_override or 'none'}", file=sys.stderr)
     return resolved

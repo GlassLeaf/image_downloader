@@ -68,7 +68,7 @@ OPTIONS = (
         "config", _RUNTIME | _STATE | _VERIFY_WORKFLOW | {"config explain", "config profile init"} | _MANAGED, Path
     ),
     OptionDefinition("profile", _RUNTIME | _STATE | _VERIFY_WORKFLOW | {"config explain"} | _CREDENTIAL),
-    OptionDefinition("plugin-root", _RUNTIME | {"config explain", "config init"}, Path),
+    OptionDefinition("plugin-root", _RUNTIME | {"config explain", "config init"} | _MANAGED, Path),
     OptionDefinition(
         "data-root", _RUNTIME | _STATE | _VERIFY_WORKFLOW | {"config explain", "config init"} | _MANAGED, Path
     ),
@@ -81,10 +81,10 @@ OPTIONS = (
     ),
     OptionDefinition(
         "plugin-verification-override",
-        _RUNTIME | _CONFIG,
+        _RUNTIME | _CONFIG | _MANAGED,
         choices=("bypass-all", "bypass-catalog", "bypass-signature"),
         metavar="MODE",
-        no_effect=_CONFIG | {"cookie"},
+        no_effect=_CONFIG | {"cookie"} | _MANAGED,
     ),
     OptionDefinition("json", _ALL, default=False, dest="json_output", flag=True),
     OptionDefinition(

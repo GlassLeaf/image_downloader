@@ -7,13 +7,16 @@ import sys
 import pytest
 from support.vault import MemoryKeys
 
-from image_downloader.cli import main
+from image_downloader.cli import build_parser, main
+from image_downloader.commands.setup import _config_for
+from image_downloader.commands.validation import _option_has_effect, validate_arguments
 from image_downloader.credentials.keyring import MasterKeyStore
 from image_downloader.credentials.vault import CredentialVault
+from image_downloader.plugins.runtime import PluginRuntime
 
 
-@pytest.fixture
-def cli_vault(tmp_path, monkeypatch):
+@pytest.fixture(params=[False, True], ids=["plain", "plugin-options"])
+def cli_vault(tmp_path, monkeypatch, request):
     keys = MemoryKeys()
     monkeypatch.setattr(MasterKeyStore, "get", lambda self, v, k: keys.get(v, k))
     monkeypatch.setattr(MasterKeyStore, "create", lambda self, v, k, value: keys.create(v, k, value))
@@ -25,7 +28,15 @@ def cli_vault(tmp_path, monkeypatch):
         profile = tmp_path / "profiles" / name
         profile.mkdir(parents=True)
         (profile / "app.yaml").write_text("{}", encoding="utf-8")
-    return ["--config", str(config), "--json"], data, keys
+    options = ["--config", str(config)]
+    if request.param:
+        options += ["--plugin-root", str(tmp_path / "plugins"), "--plugin-verification-override", "bypass-all"]
+
+        def unexpected(*args, **kwargs):
+            pytest.fail("credential and vault operations must not initialize the plugin runtime")
+
+        monkeypatch.setattr(PluginRuntime, "__init__", unexpected)
+    return [*options, "--json"], data, keys
 
 
 def test_cli_profile_crud_and_safe_output(cli_vault, monkeypatch, capsys):
@@ -56,6 +67,8 @@ def test_cli_smtp_and_environment_is_unused(cli_vault, monkeypatch, capsys):
 
 def test_cli_backup_restore_and_rotation(cli_vault, tmp_path, monkeypatch, capsys):
     options, data, keys = cli_vault
+    assert main(["vault", "status", *options]) == 0
+    assert main(["vault", "init", *options]) == 0
     monkeypatch.setattr(sys, "stdin", io.StringIO("secret-canary"))
     assert main(["credential", "plugin", "set", "a.b", "TOKEN", "--stdin", *options]) == 0
     backup = tmp_path / "vault.backup"
@@ -70,6 +83,73 @@ def test_cli_backup_restore_and_rotation(cli_vault, tmp_path, monkeypatch, capsy
     output = capsys.readouterr()
     assert "secret-canary" not in output.out + output.err
     assert "passphrase" not in output.out + output.err
+
+
+def test_cli_smtp_delete(cli_vault, monkeypatch, capsys):
+    options, data, _ = cli_vault
+    monkeypatch.setattr(sys, "stdin", io.StringIO('{"username":"user","password":"password-canary"}'))
+    assert main(["credential", "smtp", "set", "MAIL", "--stdin", *options]) == 0
+    assert main(["credential", "smtp", "delete", "MAIL", "--yes", *options]) == 0
+    assert CredentialVault(data).profile("default").list_entries("smtp") == []
+    output = capsys.readouterr()
+    assert "password-canary" not in output.out + output.err
+
+
+_MANAGED_COMMANDS = [
+    ["credential", kind, action] + ([] if action == "list" else (["a.b", "TOKEN"] if kind == "plugin" else ["MAIL"]))
+    for kind in ("plugin", "smtp")
+    for action in ("set", "list", "delete")
+] + [
+    ["vault", action] + (["backup.enc"] if action in {"backup", "restore"} else [])
+    for action in ("init", "status", "backup", "restore", "rotate-key")
+]
+
+
+@pytest.mark.parametrize("words", _MANAGED_COMMANDS)
+@pytest.mark.parametrize("position", ["before", "within", "after"])
+@pytest.mark.parametrize("mode", [None, "bypass-all", "bypass-catalog", "bypass-signature"])
+@pytest.mark.parametrize("with_root", [False, True])
+def test_managed_plugin_options_are_prepared(tmp_path, words, position, mode, with_root):
+    options = ["--plugin-root", str(tmp_path / "plugins")] if with_root else []
+    if mode is not None:
+        options += ["--plugin-verification-override", mode]
+    split = {"before": 0, "within": 1, "after": len(words)}[position]
+    args = build_parser().parse_args([*words[:split], *options, *words[split:]])
+    command = validate_arguments(args)
+    assert command.arguments.plugin_root == (tmp_path / "plugins" if with_root else None)
+    assert command.arguments.plugin_verification_override == mode
+    path = " ".join(words[:3] if words[0] == "credential" else words[:2])
+    assert not _option_has_effect("plugin-verification-override", args, path)
+
+
+@pytest.mark.parametrize("words", _MANAGED_COMMANDS)
+@pytest.mark.parametrize("invalid", ["mode", "relative-root", "file-root"])
+def test_invalid_plugin_options_fail_before_vault_access(tmp_path, monkeypatch, capsys, words, invalid):
+    def unexpected(*args, **kwargs):
+        pytest.fail("invalid options must not access the vault")
+
+    monkeypatch.setattr(CredentialVault, "from_config", unexpected)
+    root_file = tmp_path / "plugins-file"
+    root_file.write_text("not a directory", encoding="utf-8")
+    option = "--plugin-verification-override" if invalid == "mode" else "--plugin-root"
+    value = {"mode": "invalid", "relative-root": "relative/plugins", "file-root": str(root_file)}[invalid]
+    assert main([*words, option, value, "--json"]) == 2
+    error = json.loads(capsys.readouterr().out)["execution"]["error"]
+    assert error["details"]["kind"] == "invalid_value"
+    assert error["details"]["option"] == option
+
+
+def test_managed_plugin_root_overrides_config_without_persistence(cli_vault, tmp_path):
+    options, _, _ = cli_vault
+    config_path = tmp_path / "app.yaml"
+    original = config_path.read_bytes()
+    root = tmp_path / "selected-plugins"
+    args = validate_arguments(build_parser().parse_args(["vault", "status", *options, "--plugin-root", str(root)]))
+    config, _, _, _ = _config_for(args.arguments, None)
+    assert config.plugins.root == str(root)
+    assert config.security.plugin_verification == "strict"
+    assert config_path.read_bytes() == original
+    assert not root.exists()
 
 
 def test_status_and_help_do_not_initialize(cli_vault, capsys):

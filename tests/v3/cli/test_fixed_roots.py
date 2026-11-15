@@ -16,10 +16,13 @@ import image_downloader.commands.plugin as cli_plugin
 import image_downloader.commands.setup as cli_setup
 import image_downloader.configuration.paths as configuration_paths
 from image_downloader.cli import EXIT_CONFIGURATION, EXIT_SUCCESS, build_parser, doctor
+from image_downloader.commands.validation import validate_arguments
 from image_downloader.config import AppConfig, apply_overrides, load_application_config, resolve_application_config
 from image_downloader.diagnostics import diagnostic_for
 from image_downloader.exceptions import ConfigurationError, StorageSafetyError
 from image_downloader.immutable import thaw_json
+from image_downloader.plugins.plugin_manifest import effective_verification_mode
+from image_downloader.plugins.runtime import PluginRuntime
 from image_downloader.storage import FileSystem
 
 
@@ -40,6 +43,65 @@ def _user_config(path: Path, *, verification: str = "strict") -> None:
         content,
         encoding="utf-8",
     )
+
+
+@pytest.mark.parametrize("configured", ["strict", "warn", "off"])
+@pytest.mark.parametrize("override", [None, "bypass-all", "bypass-catalog", "bypass-signature"])
+@pytest.mark.parametrize(
+    "words", [["plugin", "list"], ["doctor"], ["credential", "plugin", "list"], ["vault", "status"]]
+)
+def test_user_config_verification_diagnostics_separate_policy_and_override(
+    tmp_path, monkeypatch, capsys, configured, override, words
+):
+    config = tmp_path / "app.yaml"
+    _user_config(config, verification=configured)
+    original = config.read_bytes()
+    monkeypatch.setattr(cli_setup, "_user_config_path", lambda: config)
+    observed = []
+    original_init = PluginRuntime.__init__
+
+    def record_mode(self, *args, **kwargs):
+        observed.append(kwargs["mode"])
+        original_init(self, *args, **kwargs)
+
+    monkeypatch.setattr(PluginRuntime, "__init__", record_mode)
+    options = ["--plugin-verification-override", override] if override else []
+    assert cli.main([*words, *options, "--json"]) == EXIT_SUCCESS
+    output = capsys.readouterr()
+    payload = json.loads(output.out)
+    assert payload["execution"]["status"] == "success"
+    assert f"Plugin verification (configured): {configured}\n" in output.err
+    assert f"Plugin verification override: {override or 'none'}\n" in output.err
+    assert "Plugin verification: " not in output.err
+    assert "Plugin verification" not in output.out
+    if words[0] in {"plugin", "doctor"}:
+        assert observed == [effective_verification_mode(configured, override)]
+    else:
+        assert observed == []
+    if words[0] == "doctor":
+        result = payload["execution"]["result"]
+        assert result["verification"] == observed[0]
+        assert result["configuration"]["effective"]["security"]["plugin_verification"] == configured
+    assert config.read_bytes() == original
+
+
+@pytest.mark.parametrize("source", ["explicit", "defaults"])
+def test_verification_diagnostics_are_only_printed_for_automatic_user_config(tmp_path, monkeypatch, capsys, source):
+    config = tmp_path / "app.yaml"
+    _user_config(config)
+    monkeypatch.setattr(cli_setup, "_user_config_path", lambda: tmp_path / "missing.yaml")
+    options = (
+        ["--config", str(config)]
+        if source == "explicit"
+        else ["--data-root", str(tmp_path / "data"), "--plugin-root", str(tmp_path / "plugins")]
+    )
+    args = validate_arguments(
+        build_parser().parse_args(["doctor", *options, "--plugin-verification-override", "bypass-all"])
+    )
+    resolved = cli_setup._resolved_config_for(args.arguments, None)
+    assert resolved.source == source
+    output = capsys.readouterr()
+    assert output.out == output.err == ""
 
 
 class _InteractiveInput(io.StringIO):
