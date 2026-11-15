@@ -11,6 +11,7 @@ from http.cookies import CookieError, SimpleCookie
 from types import MappingProxyType
 from typing import Literal, TypeVar
 
+from ._numeric import _is_finite
 from .exceptions import ErrorInfo
 from .immutable import freeze_json as freeze_json
 from .immutable import thaw_json as thaw_json
@@ -52,6 +53,56 @@ def _validate_publication_fields(value: Chapter | DownloadManifest) -> Mapping[s
     return fields
 
 
+class AuthMode(StrEnum):
+    AUTO = "auto"
+    NONE = "none"
+    REQUIRED = "required"
+
+
+class AuthDecision(StrEnum):
+    AUTH_FAILURE = "auth_failure"
+    NOT_AUTH_FAILURE = "not_auth_failure"
+    UNKNOWN = "unknown"
+
+
+class AuthStatus(StrEnum):
+    VALID = "valid"
+    INVALID = "invalid"
+    UNKNOWN = "unknown"
+
+
+@dataclass(frozen=True, slots=True)
+class AuthLease:
+    expires_in_seconds: float | None = None
+
+    def __post_init__(self) -> None:
+        value = self.expires_in_seconds
+        if value is not None and (
+            isinstance(value, bool) or not isinstance(value, (int, float)) or not _is_finite(value) or value <= 0
+        ):
+            raise ValueError("expires_in_seconds must be a positive finite number or None")
+
+
+@dataclass(frozen=True, slots=True)
+class AuthVerification:
+    status: AuthStatus
+    lease: AuthLease | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.status, AuthStatus):
+            raise TypeError("status must be AuthStatus")
+        if self.lease is not None and (not isinstance(self.lease, AuthLease) or self.status is not AuthStatus.VALID):
+            raise ValueError("only VALID verification may contain an AuthLease")
+
+
+@dataclass(frozen=True, slots=True)
+class AuthReceipt:
+    """Opaque, operation-local evidence of the credentials used for a response."""
+
+    operation_id: str
+    generation: int
+
+
 @dataclass(frozen=True, slots=True)
 class RequestSpec:
     url: str
@@ -62,10 +113,12 @@ class RequestSpec:
     query: Mapping[str, str] = field(default_factory=freeze_mapping)
     form: Mapping[str, str] = field(default_factory=freeze_mapping)
     json: object | None = None
-    auth_required: bool = True
+    auth: AuthMode = AuthMode.AUTO
     retry_non_idempotent: bool = False
 
     def __post_init__(self) -> None:
+        if not isinstance(self.auth, AuthMode):
+            raise TypeError("RequestSpec.auth must be AuthMode; auth_required was removed")
         if self.form and self.json is not None:
             raise ValueError("RequestSpec.form and RequestSpec.json are mutually exclusive")
         object.__setattr__(self, "headers", freeze_mapping(self.headers))
@@ -82,6 +135,7 @@ class RequestResponse:
     headers: Mapping[str, str]
     body: bytes
     set_cookie_headers: tuple[str, ...] | None = field(default=None, kw_only=True, repr=False)
+    auth_receipt: AuthReceipt | None = field(default=None, kw_only=True, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "headers", freeze_mapping(self.headers))

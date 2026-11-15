@@ -13,12 +13,21 @@ import pytest
 from PIL import Image
 from support.operations import build_site
 
-from image_downloader import DownloadRequest, OriginScopedAuthFlow, UpdateCheckRequest
+from image_downloader import (
+    AuthContext,
+    AuthLease,
+    AuthMode,
+    BaseAuthFlow,
+    DownloadRequest,
+    UpdateCheckRequest,
+)
 from image_downloader.application.concurrency import bounded
 from image_downloader.application.site_operation import _effective_download_policy
 from image_downloader.config import AppConfig, PluginDownloadPolicy
+from image_downloader.configuration.models import PluginSettings
 from image_downloader.exceptions import (
     AuthenticationError,
+    AuthScopeError,
     ImageDimensionLimitError,
     ImageProcessorClosedError,
     ImageWorkerError,
@@ -92,7 +101,7 @@ def test_response_byte_limit_checks_declared_and_streamed_lengths() -> None:
         )
         try:
             with pytest.raises(ResponseSizeLimitError, match="byte limit"):
-                await gateway.execute(RequestSpec("https://example.test/image.png", auth_required=False))
+                await gateway.execute(RequestSpec("https://example.test/image.png", auth=AuthMode.NONE))
         finally:
             await gateway.close()
 
@@ -114,7 +123,7 @@ def test_non_idempotent_requests_retry_only_when_explicitly_enabled() -> None:
 
         gateway._once = unavailable  # type: ignore[method-assign]
         response = await gateway._transport(
-            RequestSpec("https://example.test/action", method="POST", auth_required=False)
+            RequestSpec("https://example.test/action", method="POST", auth=AuthMode.NONE)
         )
         assert response.status == 503
         assert calls == 1
@@ -124,7 +133,7 @@ def test_non_idempotent_requests_retry_only_when_explicitly_enabled() -> None:
             RequestSpec(
                 "https://example.test/action",
                 method="POST",
-                auth_required=False,
+                auth=AuthMode.NONE,
                 retry_non_idempotent=True,
             )
         )
@@ -136,17 +145,16 @@ def test_non_idempotent_requests_retry_only_when_explicitly_enabled() -> None:
 
 
 def test_authentication_is_scoped_to_the_operation_origin() -> None:
-    class Flow:
-        allowed_origins = ("https://cdn.example.test",)
+    class Flow(BaseAuthFlow):
+        async def initialize(self, auth_context: AuthContext) -> AuthLease:
+            return AuthLease()
 
-        async def apply(self, request: RequestSpec) -> RequestSpec:
+        def apply(self, request: RequestSpec) -> RequestSpec:
             return request
 
-        async def refresh(self, request: RequestSpec, response: RequestResponse) -> RequestSpec | None:
-            return request
+        async def refresh(self, auth_context: AuthContext) -> AuthLease:
 
-        def is_auth_failure(self, request: RequestSpec, response: RequestResponse) -> bool:
-            return False
+            return AuthLease()
 
     async def scenario() -> None:
         gateway = RequestGateway(AppConfig())
@@ -155,15 +163,17 @@ def test_authentication_is_scoped_to_the_operation_origin() -> None:
             transport=httpx.MockTransport(lambda request: httpx.Response(200, content=b"ok", request=request))
         )
         flow = Flow()
-        assert isinstance(flow, OriginScopedAuthFlow)
         session = gateway.operation(
             plugin_id="com.example.gallery",
             operation_url="https://example.test/gallery",
             auth_flow_factory=lambda _: flow,
+            settings=PluginSettings.model_validate(
+                {"endpoints": {"assets": {"origin": "https://cdn.example.test", "auth": "session"}}}
+            ),
         )
         try:
             assert (await session.execute(RequestSpec("https://cdn.example.test/image.png"))).body == b"ok"
-            with pytest.raises(AuthenticationError, match="outside the configured origins"):
+            with pytest.raises(AuthScopeError, match="undeclared"):
                 await session.execute(RequestSpec("https://attacker.test/image.png"))
         finally:
             await gateway.close()
@@ -171,21 +181,21 @@ def test_authentication_is_scoped_to_the_operation_origin() -> None:
     asyncio.run(scenario())
 
 
-def test_auth_flow_without_allowed_origins_remains_compatible() -> None:
-    class Flow:
-        async def apply(self, request: RequestSpec) -> RequestSpec:
+def test_base_auth_flow_uses_implicit_operation_origin() -> None:
+    class Flow(BaseAuthFlow):
+        async def initialize(self, auth_context: AuthContext) -> AuthLease:
+            return AuthLease()
+
+        def apply(self, request: RequestSpec) -> RequestSpec:
             return request
 
-        async def refresh(self, request: RequestSpec, response: RequestResponse) -> RequestSpec | None:
-            return request
+        async def refresh(self, auth_context: AuthContext) -> AuthLease:
 
-        def is_auth_failure(self, request: RequestSpec, response: RequestResponse) -> bool:
-            return False
+            return AuthLease()
 
     async def scenario() -> None:
         gateway = RequestGateway(AppConfig())
         flow = Flow()
-        assert not isinstance(flow, OriginScopedAuthFlow)
         gateway.operation(
             plugin_id="com.example.gallery",
             operation_url="https://example.test/gallery",
@@ -200,7 +210,7 @@ def test_auth_flow_boundary_rejects_an_incomplete_implementation() -> None:
     async def scenario() -> None:
         gateway = RequestGateway(AppConfig())
         try:
-            with pytest.raises(PluginError, match="must return AuthFlow"):
+            with pytest.raises(PluginError, match="AuthFlow"):
                 gateway.operation(
                     plugin_id="com.example.gallery",
                     operation_url="https://example.test/gallery",
@@ -220,8 +230,8 @@ def test_host_and_registrable_site_limiters_use_distinct_keys() -> None:
             transport=httpx.MockTransport(lambda request: httpx.Response(200, content=b"ok", request=request))
         )
         try:
-            await gateway.execute(RequestSpec("https://a.example.com/one", auth_required=False))
-            await gateway.execute(RequestSpec("https://b.example.com/two", auth_required=False))
+            await gateway.execute(RequestSpec("https://a.example.com/one", auth=AuthMode.NONE))
+            await gateway.execute(RequestSpec("https://b.example.com/two", auth=AuthMode.NONE))
             assert set(gateway._hosts) == {"https://a.example.com:443", "https://b.example.com:443"}
             assert set(gateway._sites) == {"example.com"}
         finally:
@@ -450,25 +460,23 @@ def test_update_snapshots_report_added_changed_and_removed_entries(tmp_path: Pat
 
 
 def test_concurrent_auth_refresh_applies_credentials_once_per_retry() -> None:
-    class Flow:
-        allowed_origins: tuple[str, ...] = ()
+    class Flow(BaseAuthFlow):
+        async def initialize(self, auth_context: AuthContext) -> AuthLease:
+            return AuthLease()
 
         def __init__(self) -> None:
             self.token = 0
             self.apply_calls = 0
             self.refresh_calls = 0
 
-        async def apply(self, request: RequestSpec) -> RequestSpec:
+        def apply(self, request: RequestSpec) -> RequestSpec:
             self.apply_calls += 1
             return replace(request, headers={**request.headers, "Authorization": f"Bearer {self.token}"})
 
-        async def refresh(self, request: RequestSpec, response: RequestResponse) -> RequestSpec:
+        async def refresh(self, auth_context: AuthContext) -> AuthLease:
             self.refresh_calls += 1
             self.token += 1
-            return request
-
-        def is_auth_failure(self, request: RequestSpec, response: RequestResponse) -> bool:
-            return False
+            return AuthLease()
 
     async def scenario() -> None:
         gateway = RequestGateway(AppConfig())
@@ -511,18 +519,19 @@ def test_concurrent_auth_refresh_applies_credentials_once_per_retry() -> None:
 
 
 def test_concurrent_operation_sessions_do_not_share_auth_or_plugin_identity() -> None:
-    class Flow:
+    class Flow(BaseAuthFlow):
+        async def initialize(self, auth_context: AuthContext) -> AuthLease:
+            return AuthLease()
+
         def __init__(self, token: str) -> None:
             self.token = token
 
-        async def apply(self, request: RequestSpec) -> RequestSpec:
+        def apply(self, request: RequestSpec) -> RequestSpec:
             return replace(request, headers={**request.headers, "Authorization": self.token})
 
-        async def refresh(self, request: RequestSpec, response: RequestResponse) -> RequestSpec | None:
-            return None
+        async def refresh(self, auth_context: AuthContext) -> AuthLease:
 
-        def is_auth_failure(self, request: RequestSpec, response: RequestResponse) -> bool:
-            return False
+            return AuthLease()
 
     async def scenario() -> None:
         gateway = RequestGateway(AppConfig())

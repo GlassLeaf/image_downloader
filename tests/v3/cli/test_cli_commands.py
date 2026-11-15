@@ -12,6 +12,7 @@ import image_downloader.commands.dispatch as cli_dispatch
 import image_downloader.commands.download as cli_download
 import image_downloader.commands.inspect as cli_inspect
 import image_downloader.commands.setup as cli_setup
+from image_downloader import AuthMode
 from image_downloader.cli import build_parser
 from image_downloader.config import AppConfig, apply_overrides
 from image_downloader.exceptions import ConfigurationError
@@ -325,7 +326,7 @@ def test_inspection_cli_selects_request_data_and_aliases_download(monkeypatch, t
                     referer="https://example.test/source?token=raw",
                     query={"token": "raw"},
                     json={"nested": "raw"},
-                    auth_required=False,
+                    auth=AuthMode.NONE,
                     retry_non_idempotent=True,
                 ),
                 {"plugin": "raw"},

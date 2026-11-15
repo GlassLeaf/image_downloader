@@ -12,6 +12,7 @@ import re
 import uuid
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import yaml
 
@@ -254,11 +255,27 @@ def test_generated_contract():
             '                 "--mode", "replay", "--fixture", str(project / "fixtures/replay.yaml"),\n'
             '                 "--json"]) == 0\n'
         )
+    endpoints = dict(spec.get("endpoints", {}))
+    for index, origin in enumerate(spec["config"].pop("endpoint_origins", [])):
+        endpoints[f"authenticated_{index}"] = {"origin": origin, "auth": "session"}
+    if AUTH.intersection(spec["features"]):
+        for name in ("login", "token"):
+            value = spec["config"].get(name + "_url")
+            if value:
+                parsed = urlsplit(value)
+                origin = f"{parsed.scheme}://{parsed.netloc}"
+                sample = urlsplit(spec["sample_url"])
+                main_origin = f"{sample.scheme}://{sample.netloc}"
+                mode = "session" if origin == main_origin else "none"
+                mode = next((item["auth"] for item in endpoints.values() if item["origin"] == origin), mode)
+                endpoints.setdefault(name, {"origin": origin, "auth": mode})
+    spec["endpoints"] = endpoints
+    author = {"config": spec["config"], "endpoints": endpoints, "authentication": spec.get("authentication", {})}
     return {
         "plugin/plugin.py": entry,
         "plugin/_generated_support.py": support,
         "plugin/_generated_config.py": "DEFAULT_CONFIG = " + repr(spec["config"]) + "\n",
-        "plugin/plugin.yaml": yaml.safe_dump({"config": spec["config"]}, allow_unicode=True, sort_keys=False),
+        "plugin/plugin.yaml": yaml.safe_dump(author, allow_unicode=True, sort_keys=False),
         "plugin/plugin-metadata.json": json.dumps(metadata, ensure_ascii=False, indent=2) + "\n",
         "plugin/manifest.json": json.dumps({"manifest": metadata}, ensure_ascii=False, indent=2) + "\n",
         "plugin-dev.yaml": yaml.safe_dump(spec, allow_unicode=True, sort_keys=False),
@@ -452,6 +469,7 @@ def extend_project(target: Path, updates: dict[str, Any], *, apply: bool = False
             "class": record.manifest.value["entry"]["class"],
             "features": [],
             "config": dict(record.author_defaults),
+            **record.connection_defaults,
             "target": str(record.manifest.directory),
         }
     )
@@ -503,10 +521,18 @@ def extend_project(target: Path, updates: dict[str, Any], *, apply: bool = False
             conflicts.append(name)
         else:
             candidates[path] = desired.encode()
-    config = read_document(config_path).get("config", {}) if config_path.exists() else {}
+    existing_author = read_document(config_path) if config_path.exists() else {}
+    config = existing_author.get("config", {})
     merged = deep_merge(spec["config"], config)
     merged = deep_merge(merged, updates.get("config", {}))
-    candidates[config_path] = yaml.safe_dump({"config": merged}, allow_unicode=True, sort_keys=False).encode()
+    desired_author = yaml.safe_load(str(files["plugin/plugin.yaml"]))
+    merged_author = deep_merge(desired_author, existing_author)
+    merged_author = deep_merge(
+        merged_author,
+        {key: value for key, value in updates.items() if key in {"endpoints", "authentication"}},
+    )
+    merged_author["config"] = merged
+    candidates[config_path] = yaml.safe_dump(merged_author, allow_unicode=True, sort_keys=False).encode()
     candidates[spec_path] = str(files["plugin-dev.yaml"]).encode()
     metadata_path = record.manifest.directory / "plugin-metadata.json"
     if metadata_path.exists():

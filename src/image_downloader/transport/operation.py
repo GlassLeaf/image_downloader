@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from contextlib import nullcontext
+from dataclasses import replace
 from typing import TYPE_CHECKING, Unpack
 
+from ..configuration.models import PluginConnections, PluginSettings
 from ..exceptions import (
     AuthenticationError,
+    AuthScopeError,
     HttpStatusError,
-    PluginError,
+    SecretNotFoundError,
 )
 from ..models import (
+    AuthReceipt,
     EffectiveRequestPreview,
     ImageResource,
     RequestResponse,
@@ -20,12 +24,11 @@ from ..models import (
 )
 from ..plugins.plugin_invoker import PluginInvoker
 from ..ports import (
-    AuthFlow,
     PluginExecutionContext,
+    SecretProvider,
     SitePlugin,
-    is_auth_flow,
-    is_origin_scoped_auth_flow,
 )
+from .auth import OperationAuthSession
 from .image_requests import fetch_image
 from .metadata import (
     ImageFetchResult,
@@ -50,29 +53,24 @@ class OperationRequestGateway:
         operation_url: str,
         invoker: PluginInvoker | None = None,
         request_concurrency: int | None = None,
+        settings: PluginSettings | PluginConnections | None = None,
     ) -> None:
         self._shared = shared
         self.plugin_id = plugin_id
         self._invoker = invoker or PluginInvoker(plugin_id or "core.request", shared._logger)
-        self._auth_flow: AuthFlow | None = None
-        self._auth_origins = frozenset((_request_origin(operation_url),))
-        self._auth_lock = asyncio.Lock()
-        self._auth_generation = 0
+        self.auth = OperationAuthSession(operation_url, settings or PluginSettings(), self._invoker)
+        self.endpoints = self.auth.endpoints
         self._request_limit = asyncio.Semaphore(request_concurrency) if request_concurrency is not None else None
+        self.bind_auth_context({}, _UnavailableSecrets())
+
+    def bind_auth_context(self, config: Mapping[str, object], secrets: SecretProvider) -> None:
+        self.auth.bind(config, secrets, _AuthenticationRequests(self))
 
     def _configure_auth_flow(self, flow: object | None) -> None:
-        if flow is not None and not is_auth_flow(flow):
-            raise PluginError("auth_flow must return AuthFlow or None")
-        origins = set(self._auth_origins)
-        if flow is not None and is_origin_scoped_auth_flow(flow):
-            declared = flow.allowed_origins
-            if not isinstance(declared, (tuple, list, set, frozenset)) or any(
-                not isinstance(value, str) for value in declared
-            ):
-                raise PluginError("AuthFlow.allowed_origins must be a sequence of HTTP(S) origins")
-            origins.update(_request_origin(value) for value in declared)
-        self._auth_flow = flow
-        self._auth_origins = frozenset(origins)
+        self.auth.configure(flow)
+
+    async def close(self) -> None:
+        await self.auth.close()
 
     async def execute(self, spec: RequestSpec) -> RequestResponse:
         return await self._execute(spec)
@@ -84,7 +82,7 @@ class OperationRequestGateway:
         application path, but does not acquire request limits or send a hop.
         """
         self._shared._validate_protocol(spec)
-        current = await self._apply_auth(spec)
+        current, _receipt = await self._prepare(spec)
         return _effective_request_preview(self._shared._build_request(current))
 
     async def execute_image(
@@ -112,38 +110,30 @@ class OperationRequestGateway:
     ) -> RequestResponse:
         self._shared._validate_protocol(spec)
         await self._log("request_started", module="http", url=spec.url, method=spec.method)
-        current = await self._apply_auth(spec)
+        base = spec
         auth_attempts = 0
         recovered = False
         while True:
-            observed_generation = self._auth_generation
-            redirect_origins = self._auth_origins if current.auth_required and self._auth_flow is not None else None
+            current, receipt = await self._prepare(base)
+            redirect_origins = self.auth.authenticated_origins if receipt is not None else None
             async with self._request_limit if self._request_limit is not None else nullcontext():
                 response = await self._send(current, redirect_origins, trace)
-            if current.auth_required and self._is_auth_failure(current, response):
+            response = replace(response, auth_receipt=receipt)
+            if receipt is not None and await self.auth.response_failed(current, response):
                 if auth_attempts >= self._shared.config.network.auth_refresh_attempts:
                     raise AuthenticationError("authentication failed after configured refresh attempts")
-                async with self._auth_lock:
-                    if observed_generation == self._auth_generation:
-                        if self._auth_flow is None:
-                            raise AuthenticationError("authentication is required")
-                        await self._log("auth_refresh_started", module="auth", url=current.url)
-                        replacement = await self._invoker.refresh_auth(self._auth_flow, current, response)
-                        if replacement is None:
-                            raise AuthenticationError("authentication refresh was declined")
-                        self._auth_generation += 1
-                        current = replacement
-                        await self._log("auth_refresh_finished", module="auth", url=current.url)
-                    else:
-                        current = spec
+                if (
+                    current.method.upper() not in {"GET", "HEAD", "OPTIONS", "TRACE"}
+                    and not current.retry_non_idempotent
+                ):
+                    raise AuthenticationError("authentication retry requires retry_non_idempotent=True for this method")
                 auth_attempts += 1
-                current = await self._apply_auth(current)
                 continue
             if response.status >= 400 and recover is not None and not recovered:
                 replacement = await recover(current, response)
                 recovered = True
                 if replacement is not None:
-                    current = await self._apply_auth(replacement)
+                    base = replacement
                     continue
             if response.status >= 400:
                 raise HttpStatusError(response.status, response_url=response.url)
@@ -168,22 +158,41 @@ class OperationRequestGateway:
             trace=trace,
         )
 
-    async def _apply_auth(self, spec: RequestSpec) -> RequestSpec:
-        if spec.auth_required and self._auth_flow is not None:
-            if _request_origin(spec.url) not in self._auth_origins:
-                raise AuthenticationError("authentication cannot be applied outside the configured origins")
-            await self._log("auth_apply_started", module="auth", url=spec.url, action="apply")
-            result = await self._invoker.apply_auth(self._auth_flow, spec)
-            if _request_origin(result.url) not in self._auth_origins:
-                raise AuthenticationError("AuthFlow.apply changed the request to a disallowed origin")
-            await self._log("auth_apply_finished", module="auth", url=result.url, action="apply")
-            return result
-        return spec
-
-    def _is_auth_failure(self, request: RequestSpec, response: RequestResponse) -> bool:
-        if response.status in {401, 403}:
-            return True
-        return bool(self._auth_flow and self._invoker.is_auth_failure(self._auth_flow, request, response))
+    async def _prepare(self, spec: RequestSpec) -> tuple[RequestSpec, AuthReceipt | None]:
+        endpoint = self.auth.resolve(spec)
+        if endpoint is None:
+            return spec, None
+        await self.auth.prepare(endpoint)
+        await self._log("auth_apply_started", module="auth", url=spec.url, action="apply")
+        result, receipt = self.auth.apply(spec)
+        await self._log("auth_apply_finished", module="auth", url=result.url, action="apply")
+        return result, receipt
 
     async def _log(self, event: str, *, module: str, **fields: Unpack[_GatewayLogFields]) -> None:
         await self._shared._log(event, module=module, plugin_id=self.plugin_id, **fields)
+
+
+class _UnavailableSecrets:
+    def get(self, name: str) -> str:
+        raise SecretNotFoundError("no secret provider is bound to this operation")
+
+
+class _AuthenticationRequests:
+    """The non-reentrant HTTP port passed exclusively to authentication hooks."""
+
+    def __init__(self, gateway: OperationRequestGateway) -> None:
+        self._gateway = gateway
+
+    async def execute(self, spec: RequestSpec) -> RequestResponse:
+        gateway = self._gateway
+        if gateway.auth._closed:
+            raise AuthScopeError("authentication operation is closed")
+        gateway._shared._validate_protocol(spec)
+        if _request_origin(spec.url) not in gateway.auth.origins:
+            raise AuthScopeError("authentication request origin is undeclared; add an endpoints declaration")
+        async with gateway._request_limit if gateway._request_limit is not None else nullcontext():
+            return await gateway._shared._transport(
+                spec,
+                plugin_id=gateway.plugin_id,
+                allowed_endpoint_origins=frozenset(gateway.auth.origins),
+            )

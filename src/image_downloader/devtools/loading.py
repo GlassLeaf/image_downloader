@@ -13,7 +13,7 @@ from typing import Any, cast
 from ..immutable import freeze_json
 from ..plugins.lifecycle import PluginClassLoader, PluginRecord
 from ..plugins.plugin_files import canonical_jcs
-from ..plugins.plugin_manifest import PluginManifest, author_config, read_manifest
+from ..plugins.plugin_manifest import PluginManifest, author_settings, read_manifest
 from ..ports import is_auth_flow
 from .output import RawOutput, read_document
 
@@ -49,6 +49,7 @@ def workspace_for(target: Path) -> Path:
 
 
 def resolve_target(target: Path, *, class_name: str | None = None, kind: str | None = None) -> PluginRecord:
+    connections = {}
     target = target.resolve(strict=True)
     if target.is_dir() and (target / "plugin").is_dir() and (target / "plugin-dev.yaml").exists():
         target /= "plugin"
@@ -60,7 +61,9 @@ def resolve_target(target: Path, *, class_name: str | None = None, kind: str | N
         directory = target if target.is_dir() else target.parent
         manifest = read_manifest(directory, mode="bypass-all")
         value = dict(manifest.value)
-        defaults = author_config(manifest)
+        settings = author_settings(manifest)
+        defaults = settings["config"]
+        connections = {key: item for key, item in settings.items() if key != "config"}
     else:
         directory = target.parent
         classes = [
@@ -94,7 +97,9 @@ def resolve_target(target: Path, *, class_name: str | None = None, kind: str | N
         }
         defaults = {}
         if (directory / "plugin.yaml").is_file():
-            defaults = read_document(directory / "plugin.yaml").get("config", {})
+            settings = read_document(directory / "plugin.yaml")
+            defaults = settings.get("config", {})
+            connections = {key: item for key, item in settings.items() if key in {"authentication", "endpoints"}}
     if class_name:
         value["entry"] = {**value["entry"], "class": class_name}
     if kind:
@@ -103,7 +108,12 @@ def resolve_target(target: Path, *, class_name: str | None = None, kind: str | N
     value = {key: item for key, item in value.items() if key not in {"file_tree", "file_tree_sha256"}}
     digest = hashlib.sha256(canonical_jcs(value)).hexdigest()
     dev_manifest = PluginManifest(cast(Mapping[str, Any], freeze_json(value)), None, digest, directory)
-    return PluginRecord(dev_manifest, defaults, None)
+    return PluginRecord(
+        dev_manifest,
+        defaults,
+        None,
+        connection_defaults=cast(Mapping[str, Any], freeze_json(connections)),
+    )
 
 
 def _trace_method(callback: Callable[..., Any], name: str, output: RawOutput) -> Callable[..., Any]:
@@ -143,21 +153,25 @@ def _trace_method(callback: Callable[..., Any], name: str, output: RawOutput) ->
 
 def traced_flow(flow: Any, output: RawOutput) -> Any:
     class Flow:
-        def is_auth_failure(self, request: Any, response: Any) -> Any:
-            return flow.is_auth_failure(request, response)
+        async def initialize(self, auth_context: Any) -> Any:
+            return await flow.initialize(auth_context)
 
-        async def apply(self, request: Any) -> Any:
-            return await flow.apply(request)
+        def apply(self, request: Any) -> Any:
+            return flow.apply(request)
 
-        async def refresh(self, failed: Any, response: Any) -> Any:
-            return await flow.refresh(failed, response)
+        def classify_response(self, request: Any, response: Any) -> Any:
+            return flow.classify_response(request, response)
+
+        async def verify(self, auth_context: Any) -> Any:
+            return await flow.verify(auth_context)
+
+        async def refresh(self, auth_context: Any) -> Any:
+            return await flow.refresh(auth_context)
 
     attributes = {
         name: _trace_method(getattr(Flow, name), "auth." + name, output)
-        for name in ("is_auth_failure", "apply", "refresh")
+        for name in ("initialize", "apply", "classify_response", "verify", "refresh")
     }
-    if hasattr(flow, "allowed_origins"):
-        attributes["allowed_origins"] = flow.allowed_origins
     return type("TracedAuthFlow", (Flow,), attributes)()
 
 

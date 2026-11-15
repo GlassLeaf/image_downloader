@@ -1,3 +1,8 @@
 config:
   origin: http://127.0.0.1:8765
   asset_origin: http://127.0.0.1:8766
+
+endpoints:
+  assets:
+    origin: http://127.0.0.1:8766
+    auth: session

@@ -103,7 +103,7 @@ plugin_settings:
 
 ### Q10. `auth_flow()` は何をするべきで、何をするべきでないか？
 
-`auth_flow()` は operation ごとに一度、`AuthFlow` または `None` を返す同期 factory である。返した flow の `apply()` は credential を request に適用し、`is_auth_failure()` は独自の認証失敗を判定し、`refresh()` は失敗後に token 更新・ログインを行い再試行 request を返す。credential を追加 origin に送る必要があるときだけ `allowed_origins` を明示する。
+`auth_flow()` はoperationごとの同期factory。初回準備を `initialize()`、通信なしの資格情報付与を同期 `apply()`、三値分類を `classify_response()`、追加確認を `verify()`、更新を `refresh()` が担当する。追加ホストと確認頻度は共通設定で宣言する。[認証移行手順](authentication-migration.md)を参照する。
 
 `auth_flow()` 自体で画像取得、manifest 生成、変換、raw HTTP、credential の永続書込みをしてはならない。ネットワークを伴う更新は `refresh()` から `context.requests` を通して行う。[authentication hook](../reference/plugin-hooks.md#plugin-hooks) を参照する。
 
@@ -433,7 +433,7 @@ manifest には解決可能な locator と必要なら識別子を置く。canon
 
 ### 4. 認証はどのように実装するか？
 
-`auth_flow()` は `AuthFlow` を構築する。`apply()` で request に認証を適用し、401/403 または独自失敗応答で `refresh()` が呼ばれて更新・再試行を行う。missing secret は `SecretNotFoundError`、ログイン・refresh の拒否は `AuthenticationError` にする。認証 endpoint を呼ぶ場合も `context.requests` を使い、再帰認証を避ける必要がある request は `auth_required=False` にする。[フックの契約](../reference/plugin-hooks.md#plugin-hooks) を参照する。
+認証endpointへの通信は `AuthContext.requests` を使う。認証へ再入せずHTTPエラー応答の本文も確認できる。認証フックで通常の `context.requests` を使うと `AuthReentryError` となる。[契約](../reference/plugin-hooks.md#plugin-hooks)を参照する。
 
 ### 5. plugin が利用できる network と secret の境界は？
 
@@ -469,7 +469,7 @@ selected site plugin instance は一回の `download()` または `check_updates
 
 ### 13. display-only inspection で `create_image_request()` はどう呼ばれるか？
 
-`service.inspect(InspectRequest(url=url, resolve_image_requests=True))` と CLI `inspect` は、manifest の chapter/images 配列順に一画像ずつ `create_image_request()` を呼び、`auth_required=True` の request には `AuthFlow.apply()` も適用して送信直前 `EffectiveRequestPreview` を組み立てる。core は request を画像 transport に送らず、redirect、response 判定、refresh、recovery、transform、save を実行しない。source request は得られても auth／組立てが失敗した画像は `partially_resolved` となり、後続画像の inspection は続く。`create_image_request()` や `apply()` が `context.requests.execute()` を使えば token 発行などのサーバー側副作用は起こり得る。plugin は画像 URL を raw client で直接 fetch して inspection を迂回してはならない。CLI の公開範囲は `--inspection-data` で選び、library result 自体は完全な raw diagnostic data を保持する。[動的URLの実装手順](dynamic-urls-and-auth.md) を参照する。
+`service.inspect(InspectRequest(url=url, resolve_image_requests=True))` と CLI `inspect` は、manifest の chapter/images 配列順に一画像ずつ `create_image_request()` を呼び、`auth=AuthMode.AUTO` の request には `AuthFlow.apply()` も適用して送信直前 `EffectiveRequestPreview` を組み立てる。core は request を画像 transport に送らず、redirect、response 判定、画像応答によるrefresh、recovery、transform、save を実行しない。source request は得られても auth／組立てが失敗した画像は `partially_resolved` となり、後続画像の inspection は続く。`create_image_request()` の補助通信や認証準備・検証・更新が `AuthContext.requests` を使えば token 発行などのサーバー側副作用は起こり得る。plugin は画像 URL を raw client で直接 fetch して inspection を迂回してはならない。CLI の公開範囲は `--inspection-data` で選び、library result 自体は完全な raw diagnostic data を保持する。[動的URLの実装手順](dynamic-urls-and-auth.md) を参照する。
 ## workflowの結果や未完了状態をあとから確認したい
 
 ### 変更がない2回目の実行で`success=0`になるのはなぜか？

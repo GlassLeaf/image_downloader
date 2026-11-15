@@ -8,7 +8,7 @@ from typing import cast
 
 import pytest
 
-from image_downloader import DownloadRequest
+from image_downloader import AuthContext, AuthLease, BaseAuthFlow, DownloadRequest
 from image_downloader.config import AppConfig
 from image_downloader.exceptions import HttpTransportError, PluginError
 from image_downloader.media import TransformExecutor
@@ -401,15 +401,17 @@ def test_request_and_auth_hooks_use_the_shared_invocation_boundary() -> None:
         async def create_image_request(self, _image: object, _context: object) -> RequestSpec:
             raise LookupError("request callback failed")
 
-    class BrokenFlow:
-        async def apply(self, _request: RequestSpec) -> RequestSpec:
+    class BrokenFlow(BaseAuthFlow):
+        async def initialize(self, auth_context: AuthContext) -> AuthLease:
+            return AuthLease()
+
+        def apply(self, _request: RequestSpec) -> RequestSpec:
             raise RuntimeError("auth callback failed")
 
-        async def refresh(self, request: RequestSpec, _response: RequestResponse) -> RequestSpec:
-            return request
+        async def refresh(self, auth_context: AuthContext) -> AuthLease:
 
-        def is_auth_failure(self, _request: RequestSpec, _response: RequestResponse) -> bool:
-            return False
+            return AuthLease()
+
 
     async def scenario() -> None:
         gateway = RequestGateway(AppConfig())

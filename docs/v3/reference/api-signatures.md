@@ -77,8 +77,8 @@
 | `ImageResource` | `ImageResource(url: str, index: int = 1, referer: str | None = None, headers: Mapping[str, str] = <factory: freeze_mapping>, save_options: ImageSaveOptions = <factory: ImageSaveOptions>, image_id: str | None = None, metadata: Mapping[str, str] = <factory: freeze_mapping>, original_filename: str | None = None)` |
 | `ImageSaveOptions` | `ImageSaveOptions(format: str | None = None, extension: str | None = None, quality: int | None = None, optimize: bool | None = None, progressive: bool | None = None, lossless: bool | None = None, compress_level: int | None = None, exif: bool = False)` |
 | `ImageTransportMetadata` | `ImageTransportMetadata(initial_request: TransportRequestMetadata, final_request: TransportRequestMetadata, response_url: str, response_headers: Mapping[str, tuple[str, ...]], plugin_data: Mapping[str, str] = <factory: freeze_mapping>, is_redacted: bool = False)` |
-| `RequestSpec` | `RequestSpec(url: str, method: str = "GET", headers: Mapping[str, str] = <factory: freeze_mapping>, cookies: Mapping[str, str] = <factory: freeze_mapping>, referer: str | None = None, query: Mapping[str, str] = <factory: freeze_mapping>, form: Mapping[str, str] = <factory: freeze_mapping>, json: object | None = None, auth_required: bool = True, retry_non_idempotent: bool = False)` |
-| `RequestResponse` | `RequestResponse(url: str, status: int, headers: Mapping[str, str], body: bytes, *, set_cookie_headers: tuple[str, ...] | None = None)`。`set_cookies() -> dict[str, str]` はこの応答のCookie値を同期取得する。 |
+| `RequestSpec` | `RequestSpec(url: str, method: str = "GET", headers: Mapping[str, str] = <factory: freeze_mapping>, cookies: Mapping[str, str] = <factory: freeze_mapping>, referer: str | None = None, query: Mapping[str, str] = <factory: freeze_mapping>, form: Mapping[str, str] = <factory: freeze_mapping>, json: object | None = None, auth: AuthMode = AuthMode.AUTO, retry_non_idempotent: bool = False)` |
+| `RequestResponse` | `RequestResponse(url: str, status: int, headers: Mapping[str, str], body: bytes, *, set_cookie_headers: tuple[str, ...] | None = None, auth_receipt: AuthReceipt | None = None)`。`set_cookies() -> dict[str, str]` はこの応答のCookie値を同期取得する。 |
 | `TransportCookie` | `TransportCookie(name: str, value: str)` |
 | `TransportHeader` | `TransportHeader(name: str, value: str)` |
 | `TransportRequestMetadata` | `TransportRequestMetadata(url: str, headers: Mapping[str, tuple[str, ...]], cookies: tuple[TransportCookie, ...] = ())` |
@@ -95,7 +95,7 @@
 | `WorkflowResult` | `WorkflowResult(source_url: str, download_scope: Literal['all', 'updated'], snapshot: UpdateSnapshot | None, changes: tuple[UpdateChange, ...], items: tuple[WorkflowItemResult, ...], stop_error: ErrorInfo | None = None, cancelled: bool = False, workflow_retries: int = 1, workflow_retry_delay: float = 600.0, workflow_retry_timeout: float | None = None, rounds: tuple[WorkflowRoundResult, ...] = (), timed_out: bool = False, run_id: str | None = None, history_saved: bool | None = None, history_warning: str | None = None, workflow_log: WorkflowLogResult | None = None)`  `selected_urls -> tuple[str, ...]` プロパティ |
 | `WorkflowLogResult` | `WorkflowLogResult(plan_files: tuple[str, ...] = (), progress_enabled: bool = True, jsonl_path: str | None = None, text_path: str | None = None, jsonl_saved: bool | None = None, text_saved: bool | None = None, warnings: tuple[str, ...] = (), event_sequence: int = 0)` |
 
-`<factory: name>`はdataclassの既定値生成関数を表します。構築ごとに新しい値を生成し、変更可能な既定値を共有しません。`RequestPort`、`SecretProvider`、`AuthFlow`、`OriginScopedAuthFlow`、`SitePlugin`、`ConfigurableSitePlugin`、`ImageProcessor`、`OutputFormatValueProvider`、`UpdateProvider`はProtocolです。正確なシグネチャと利用可能な機能の境界は[プラグインフック](plugin-hooks.md)を参照してください。サイト・画像処理プラグインの任意のライフサイクル拡張は、`output_format_values(context) -> Mapping[str, str]`と`cleanup_after_use() -> Awaitable[None] | None`です。実行環境は、後始末の完了後に同じインスタンスのフックを呼びません。`FailureKind`、`ImageOutcomeKind`、`UpdateChangeKind`の列挙値は[ライブラリAPI](library-api.md#api-download-result)で定義します。
+`<factory: name>`はdataclassの既定値生成関数を表します。構築ごとに新しい値を生成し、変更可能な既定値を共有しません。`RequestPort`、`SecretProvider`、`AuthFlow`、`SitePlugin`、`ConfigurableSitePlugin`、`ImageProcessor`、`OutputFormatValueProvider`、`UpdateProvider`はProtocolです。正確なシグネチャと利用可能な機能の境界は[プラグインフック](plugin-hooks.md)を参照してください。サイト・画像処理プラグインの任意のライフサイクル拡張は、`output_format_values(context) -> Mapping[str, str]`と`cleanup_after_use() -> Awaitable[None] | None`です。実行環境は、後始末の完了後に同じインスタンスのフックを呼びません。`FailureKind`、`ImageOutcomeKind`、`UpdateChangeKind`の列挙値は[ライブラリAPI](library-api.md#api-download-result)で定義します。
 
 <a id="runtime-concrete-classes"></a>
 
@@ -127,7 +127,7 @@
 | `OutputAllocator.allocate` <!-- api-contract: image_downloader.runtime.OutputAllocator.allocate --> | `async allocate(self, chapter_directory: Path, context: OutputFormatContext) -> OutputAllocation` |
 | `OutputAllocator.allocate_relative` <!-- api-contract: image_downloader.runtime.OutputAllocator.allocate_relative --> | `async allocate_relative(self, base: Path) -> OutputAllocation` |
 | `RequestGateway` <!-- api-contract: image_downloader.runtime.RequestGateway --> | `RequestGateway(config: AppConfig, cookie_jar: CookieJar | None = None, *, logger: DownloadLogger | None = None, transport_factory: Callable[[], httpx.AsyncBaseTransport] | None = None)` |
-| `RequestGateway.operation` <!-- api-contract: image_downloader.runtime.RequestGateway.operation --> | `operation(self, *, plugin_id: str | None, operation_url: str, auth_flow_factory: Callable[[OperationRequestGateway], object | None] | None = None, invoker: PluginInvoker | None = None, request_concurrency: int | None = None) -> OperationRequestGateway` |
+| `RequestGateway.operation` <!-- api-contract: image_downloader.runtime.RequestGateway.operation --> | `operation(self, *, plugin_id: str | None, operation_url: str, auth_flow_factory: Callable[[OperationRequestGateway], object | None] | None = None, invoker: PluginInvoker | None = None, request_concurrency: int | None = None, settings: PluginSettings | PluginConnections | None = None) -> OperationRequestGateway` |
 | `RequestGateway.execute` <!-- api-contract: image_downloader.runtime.RequestGateway.execute --> | `async execute(self, spec: RequestSpec) -> RequestResponse` |
 | `RequestGateway.get_cookie_snapshot` <!-- api-contract: image_downloader.runtime.RequestGateway.get_cookie_snapshot --> | `get_cookie_snapshot(self) -> dict[str, dict[str, dict[str, str]]]`。有効なCookieをdomain/path/name別にコピーする。 |
 | `RequestGateway.close` <!-- api-contract: image_downloader.runtime.RequestGateway.close --> | `async close(self) -> None` |
@@ -157,7 +157,7 @@
 | `PluginManifest` | `PluginManifest(value: Mapping[str, Any], signature: str | None, digest: str, directory: Path)` |
 | `PluginDiagnostic` | `PluginDiagnostic(name: str, source: str, loaded: bool, detail: str = "", warning: bool = False)` |
 | `PluginDiscoveryResult` | `PluginDiscoveryResult(candidates: tuple[DiscoveredPlugin, ...], diagnostics: tuple[PluginDiagnostic, ...])` |
-| `PluginRecord` | `PluginRecord(manifest: PluginManifest, author_defaults: Mapping[str, Any], catalog: CatalogEntry | None, builtin: bool = False)` |
+| `PluginRecord` | `PluginRecord(manifest: PluginManifest, author_defaults: Mapping[str, Any], catalog: CatalogEntry | None, builtin: bool = False, connection_defaults: Mapping[str, Any] = <factory: dict>)` |
 | `PluginVerificationResult` | `PluginVerificationResult(records: tuple[PluginRecord, ...], catalog: PluginCatalog | None, diagnostics: tuple[PluginDiagnostic, ...])` |
 | `PluginUninstallResult` | `PluginUninstallResult(id: str, removed_directory: bool, removed_catalog_entry: bool)` |
 
@@ -199,6 +199,7 @@
 | `PluginRuntime.enabled` <!-- api-contract: image_downloader.security.PluginRuntime.enabled --> | `enabled(self, record: PluginRecord) -> bool` |
 | `PluginRuntime.effective_config` <!-- api-contract: image_downloader.security.PluginRuntime.effective_config --> | `effective_config(self, record: PluginRecord, overrides: PluginConfigOverrides | None = None) -> Mapping[str, Any]` |
 | `PluginRuntime.effective_download_policy` <!-- api-contract: image_downloader.security.PluginRuntime.effective_download_policy --> | `effective_download_policy(self, record: PluginRecord, overrides: PluginDownloadPolicyOverrides | None = None) -> PluginDownloadPolicy` |
+| `PluginRuntime.effective_connections` <!-- api-contract: image_downloader.security.PluginRuntime.effective_connections --> | `effective_connections(self, record: PluginRecord) -> PluginConnections` |
 | `PluginRuntime.validate_operation_overrides` <!-- api-contract: image_downloader.security.PluginRuntime.validate_operation_overrides --> | `validate_operation_overrides(self, site_record: PluginRecord, overrides: PluginConfigOverrides | None) -> None` |
 | `PluginRuntime.validate_download_policy_overrides` <!-- api-contract: image_downloader.security.PluginRuntime.validate_download_policy_overrides --> | `validate_download_policy_overrides(self, site_record: PluginRecord, overrides: PluginDownloadPolicyOverrides | None) -> None` |
 | `PluginRuntime.validate_candidate_overrides` <!-- api-contract: image_downloader.security.PluginRuntime.validate_candidate_overrides --> | `validate_candidate_overrides(self, overrides: PluginConfigOverrides | None) -> None` |
@@ -347,3 +348,18 @@
 | `TransformExecutor` <!-- api-contract: image_downloader.media.TransformExecutor --> | `TransformExecutor(max_workers: 'int' = 2) -> 'None'` |
 | `TransformExecutor.run` <!-- api-contract: image_downloader.media.TransformExecutor.run --> | `async run(self, callback: 'Callable[[], _T]') -> '_T'` |
 | `TransformExecutor.close` <!-- api-contract: image_downloader.media.TransformExecutor.close --> | `async close(self) -> 'None'` |
+
+## 認証状態と接続先
+
+| 型 | シグネチャ・値 |
+| --- | --- |
+| `AuthLease` | `AuthLease(expires_in_seconds: float | None = None)` |
+| `AuthVerification` | `AuthVerification(status: AuthStatus, lease: AuthLease | None = None)` |
+| `AuthReceipt` | `AuthReceipt(operation_id: str, generation: int)` |
+| `AuthContext` | `AuthContext(config: Mapping[str, object], secrets: SecretProvider, endpoints: Mapping[str, Endpoint], requests: RequestPort)` |
+| `Endpoint` | `Endpoint(origin: str)`、`request(self, path: str, **kwargs: Any) -> RequestSpec` |
+| `AuthMode` | `AUTO="auto"`, `NONE="none"`, `REQUIRED="required"` |
+| `AuthDecision` | `AUTH_FAILURE="auth_failure"`, `NOT_AUTH_FAILURE="not_auth_failure"`, `UNKNOWN="unknown"` |
+| `AuthStatus` | `VALID="valid"`, `INVALID="invalid"`, `UNKNOWN="unknown"` |
+
+`PluginExecutionContext` の追加keyword引数は `auth: AuthPort | None = None` と `endpoints: Mapping[str, Endpoint] | None = None`。`context.auth` は `async ensure_ready(*, check: bool = False) -> None` と `invalidate(response: RequestResponse) -> bool`、`context.endpoints` は読み取り専用mappingを提供する。`AuthFlow` と `BaseAuthFlow` のフックは[認証契約](plugin-hooks.md)を参照する。

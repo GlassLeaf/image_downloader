@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 import image_downloader.application.inspection as service_module
-from image_downloader import InspectRequest
+from image_downloader import AuthContext, AuthLease, BaseAuthFlow, InspectRequest
 from image_downloader.config import AppConfig, resolve_paths
 from image_downloader.models import (
     Chapter,
@@ -61,20 +61,21 @@ def test_inspection_composition_does_not_create_a_debug_log(tmp_path: Path) -> N
 
 
 def test_inspection_resolves_requests_in_manifest_order_and_records_partial_failures(tmp_path: Path) -> None:  # noqa: C901
-    class Flow:
-        allowed_origins = ("https://cdn.example.test",)
+    class Flow(BaseAuthFlow):
+        async def initialize(self, auth_context: AuthContext) -> AuthLease:
+            return AuthLease()
 
         def __init__(self) -> None:
             self.apply_calls: list[str] = []
 
-        def is_auth_failure(self, _request: RequestSpec, _response: RequestResponse) -> bool:
+        def classify_response(self, request, response):
             raise AssertionError("inspection must not classify an image response")
 
-        async def apply(self, request: RequestSpec) -> RequestSpec:
+        def apply(self, request: RequestSpec) -> RequestSpec:
             self.apply_calls.append(request.url)
             return replace(request, headers={**request.headers, "Authorization": "Bearer inspection"})
 
-        async def refresh(self, _failed: RequestSpec, _response: RequestResponse) -> RequestSpec | None:
+        async def refresh(self, auth_context: AuthContext) -> AuthLease:
             raise AssertionError("inspection must not refresh authentication")
 
     class Plugin:
@@ -123,7 +124,10 @@ def test_inspection_resolves_requests_in_manifest_order_and_records_partial_fail
     async def scenario() -> None:
         service = _service(tmp_path)
         plugin = Plugin()
-        record = service.registry.records["core.generic-html"]
+        record = replace(
+            service.registry.records["core.generic-html"],
+            connection_defaults={"endpoints": {"assets": {"origin": "https://cdn.example.test", "auth": "session"}}},
+        )
         service.registry.resolve = lambda *_args, **_kwargs: (record, plugin)  # type: ignore[method-assign]
         observed_events: list[object] = []
         for event in service.events._handlers:
@@ -235,14 +239,17 @@ def test_inspection_previews_the_effective_request_without_sending_an_image(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    class Flow:
-        def is_auth_failure(self, _request: RequestSpec, _response: RequestResponse) -> bool:
+    class Flow(BaseAuthFlow):
+        async def initialize(self, auth_context: AuthContext) -> AuthLease:
+            return AuthLease()
+
+        def classify_response(self, request, response):
             raise AssertionError("inspection must not classify an image response")
 
-        async def apply(self, request: RequestSpec) -> RequestSpec:
+        def apply(self, request: RequestSpec) -> RequestSpec:
             return replace(request, headers={**request.headers, "Authorization": "Bearer inspection"})
 
-        async def refresh(self, _failed: RequestSpec, _response: RequestResponse) -> RequestSpec | None:
+        async def refresh(self, auth_context: AuthContext) -> AuthLease:
             raise AssertionError("inspection must not refresh authentication")
 
     class Plugin:
@@ -340,16 +347,19 @@ def test_inspection_previews_the_effective_request_without_sending_an_image(
 
 
 def test_inspection_keeps_a_source_request_when_effective_request_preparation_fails(tmp_path: Path) -> None:
-    class Flow:
-        def is_auth_failure(self, _request: RequestSpec, _response: RequestResponse) -> bool:
+    class Flow(BaseAuthFlow):
+        async def initialize(self, auth_context: AuthContext) -> AuthLease:
+            return AuthLease()
+
+        def classify_response(self, request, response):
             raise AssertionError("inspection must not classify an image response")
 
-        async def apply(self, request: RequestSpec) -> RequestSpec:
+        def apply(self, request: RequestSpec) -> RequestSpec:
             if request.url.endswith("bad"):
                 raise ValueError("token unavailable")
             return request
 
-        async def refresh(self, _failed: RequestSpec, _response: RequestResponse) -> RequestSpec | None:
+        async def refresh(self, auth_context: AuthContext) -> AuthLease:
             raise AssertionError("inspection must not refresh authentication")
 
     class Plugin:

@@ -138,7 +138,10 @@ def _mock_transport(monkeypatch):
                 "csrf": ["csrf-canary"],
             }
             return httpx.Response(200)
-        return httpx.Response(200, text="login-required" if calls[host, path] == 1 else "<title>CSRF</title>")
+        return httpx.Response(
+            200,
+            text="<title>CSRF</title>" if calls.get((host, "/session"), 0) else "login-required",
+        )
 
     def client(*args, **kwargs):
         return client_class(*args, **dict(kwargs, transport=httpx.MockTransport(respond)))
@@ -185,7 +188,7 @@ def test_signed_auth_plugins_resolve_secrets_in_runtime_contexts_and_multiple_ru
 
     asyncio.run(scenario())
     assert len(observed) == sum(
-        {"cursor-api-gallery": 1, "oauth-media-api": 3, "csrf-login-gallery": 4}[u] for u in units
+        {"cursor-api-gallery": 1, "oauth-media-api": 3, "csrf-login-gallery": 3}[u] for u in units
     )
     logs = "\n".join(path.read_text(encoding="utf-8") for path in tmp_path.rglob("*.log"))
     assert logs.count("operation_started") == len(units)

@@ -11,7 +11,15 @@ from inspect import signature
 import httpx
 import pytest
 
-from image_downloader import CookieProvider, PluginExecutionContext, RequestResponse, RequestSpec
+from image_downloader import (
+    AuthContext,
+    AuthLease,
+    BaseAuthFlow,
+    CookieProvider,
+    PluginExecutionContext,
+    RequestResponse,
+    RequestSpec,
+)
 from image_downloader.config import AppConfig
 from image_downloader.exceptions import (
     HttpStatusError,
@@ -229,17 +237,16 @@ def test_auth_refresh_can_read_cookies_from_failed_response():
         gateway = RequestGateway(AppConfig(), transport_factory=lambda: httpx.MockTransport(handler))
         context = _context(gateway)
 
-        class Flow:
-            async def apply(self, request):
+        class Flow(BaseAuthFlow):
+            async def initialize(self, auth_context: AuthContext) -> AuthLease:
+                return AuthLease()
+
+            def apply(self, request):
                 return request
 
-            def is_auth_failure(self, request, response):
-                return False
-
-            async def refresh(self, request, response):
-                assert response.set_cookies() == {"session": "challenge"}
+            async def refresh(self, auth_context: AuthContext) -> AuthLease:
                 assert context.get_cookies(domain="example.test", path="/") == {"session": "challenge"}
-                return request
+                return AuthLease()
 
         session = gateway.operation(
             plugin_id="example.plugin", operation_url="https://example.test/", auth_flow_factory=lambda _: Flow()

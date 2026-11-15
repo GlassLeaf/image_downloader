@@ -79,6 +79,21 @@ class AuthenticationError(ImageDownloaderError):
     reason = "authentication failed"
 
 
+class AuthScopeError(ConfigurationError):
+    code = "auth_scope_error"
+    reason = "request origin has no compatible authentication declaration"
+
+
+class AuthReentryError(PluginError):
+    code = "auth_reentry_error"
+    reason = "authentication hooks must use AuthContext.requests"
+
+
+class AuthStateUnknownError(AuthenticationError):
+    code = "auth_state_unknown"
+    reason = "authentication state could not be verified"
+
+
 class SecretNotFoundError(AuthenticationError):
     code = "secret_not_found"
     reason = "required secret was not found"
@@ -352,6 +367,9 @@ ERROR_CATALOG: Final[tuple[ErrorCatalogEntry, ...]] = (
     ErrorCatalogEntry(UpdateCheckUnsupportedError),
     ErrorCatalogEntry(UnsupportedSiteFeatureError),
     ErrorCatalogEntry(AuthenticationError),
+    ErrorCatalogEntry(AuthScopeError),
+    ErrorCatalogEntry(AuthReentryError),
+    ErrorCatalogEntry(AuthStateUnknownError),
     ErrorCatalogEntry(SecretNotFoundError),
     ErrorCatalogEntry(VaultError),
     ErrorCatalogEntry(RequestError),

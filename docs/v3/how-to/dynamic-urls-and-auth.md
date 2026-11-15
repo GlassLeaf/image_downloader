@@ -6,7 +6,7 @@
 
 CLI の `image-downloader inspect URL` と library の `DownloadService.inspect()` は、manifest だけでなく request 組立ても検査する表示専用 operation である。既定では manifest 配列順に `create_image_request()` を一画像ずつ呼び、続けて `AuthFlow.apply()`、cookie jar／既定 header／query／form・JSON body の合成を行い、画像 body を送信せずに HTTP client の送信直前 snapshot を得る。`--manifest-only` または `resolve_image_requests=False` は request hook を一度も呼ばない。redirect 後 URL、response header、`recover_image_request()` の結果は response を必要とするため含まれない。短命 URL は表示した時点で失効し得る診断値であり、後続 download に再利用してはならない。
 
-CLI は `--inspection-data url|http|all` で stdout の露出範囲を選ぶ。既定の `url` は送信直前 URL と位置・状態だけ、`http` は source `RequestSpec` と送信直前 method/header/cookie/body、`all` はさらに locator、manifest/image metadata、save option、`plugin_data` を raw で出す。`url` でも署名 query は秘密値になり得、`http`／`all` は credential や body を含み得るため stdout/stderr をログ、CI artifact、telemetry、共有端末、チケット、第三者サービスへ渡してはならない。core は image fetch、transform、processor、save、report、update state、event、notification を実行せず、cookie 変更と debug log を永続化しない。ただし plugin の `inspect()` / `create_image_request()` / `AuthFlow.apply()` が行う補助 HTTP、ならびにサーバー側の token 発行・session 変更・アクセス記録までは取り消せない。plugin は画像 URL を raw client で直接 fetch してはならない。
+CLI は `--inspection-data url|http|all` で stdout の露出範囲を選ぶ。既定の `url` は送信直前 URL と位置・状態だけ、`http` は source `RequestSpec` と送信直前 method/header/cookie/body、`all` はさらに locator、manifest/image metadata、save option、`plugin_data` を raw で出す。`url` でも署名 query は秘密値になり得、`http`／`all` は credential や body を含み得るため stdout/stderr をログ、CI artifact、telemetry、共有端末、チケット、第三者サービスへ渡してはならない。core は image fetch、transform、processor、save、report、update state、event、notification を実行せず、cookie 変更と debug log を永続化しない。ただし plugin の `inspect()` / `create_image_request()` / 認証の初期化・検証・更新が行う補助 HTTP、ならびにサーバー側の token 発行・session 変更・アクセス記録までは取り消せない。plugin は画像 URL を raw client で直接 fetch してはならない。
 
 1. cursor/page API は `inspect` 内で停止条件、重複排除、上限を持って完結させる。
 2. `ImageResource.url` には、画像を一意に解決する non-empty string locator を置く。canonical URL、`image:42` のような ID、`/placeholder/42` のような placeholder を使えるが、`create_image_request` が実 request を組み立てるのに十分に安定していなければならない。`ImageResource.metadata` には inspection-time の非秘密補助情報を置け、request hook と transform context から読める。locator、`image_id`、image/manifest metadata に token、cookie、署名 URL、鍵などの秘密値を置かない。
@@ -19,3 +19,5 @@ CLI は `--inspection-data url|http|all` で stdout の露出範囲を選ぶ。�
 認証付きサンプルの`context.secrets.get(name)`には、利用者が対象プロファイルの保管庫へ登録した値を渡す。
 YAMLの参照名・`credential plugin set`・実行先の対応は[サンプルの登録手順](../../../plugin-sources/README.md#migrated-v2-pattern-samples)を参照する。
 登録と実行でデータルート・プロファイルを揃える。OAuth更新結果の自動保存は行わない。
+
+認証の状態管理・接続先宣言・確認頻度は[認証APIの移行手順](authentication-migration.md)を参照する。`apply()` は同期・通信なしとし、ログイン等は `AuthContext.requests` を利用する。

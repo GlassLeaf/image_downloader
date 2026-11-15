@@ -12,6 +12,9 @@ from support.synchronization import managed_task, wait_until_started
 from support.workflow import FEED, A, B, Gallery, attach_transport, compose, snapshot
 
 from image_downloader import (
+    AuthContext,
+    AuthLease,
+    BaseAuthFlow,
     PluginError,
     RequestSpec,
     RuntimeComposer,
@@ -228,18 +231,18 @@ def test_plan_auth_refresh_uses_detached_cookie_session(tmp_path, monkeypatch):
                 await super().close()
                 await self.original_client.aclose()
 
-        class Flow:
+        class Flow(BaseAuthFlow):
+            async def initialize(self, auth_context: AuthContext) -> AuthLease:
+                return AuthLease()
+
             token = "old"
 
-            async def apply(self, request):
+            def apply(self, request):
                 return replace(request, headers={"Authorization": self.token})
 
-            def is_auth_failure(self, request, response):
-                return response.status == 401
-
-            async def refresh(self, failed, response):
+            async def refresh(self, auth_context: AuthContext) -> AuthLease:
                 self.token = "new"
-                return replace(failed, headers={"Authorization": self.token})
+                return AuthLease()
 
         gallery = Gallery()
         gallery.auth_flow = lambda context: Flow()

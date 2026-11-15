@@ -38,36 +38,38 @@ EXPECTED_EXPORTS = {
         """
         DownloadRequest InspectRequest UpdateCheckRequest WorkflowPlanRequest WorkflowRequest
         WorkflowExecutionError WorkflowPlanError WorkflowCancelledError WorkflowPlanCancelledError
-        AdditionalFileProvider AdditionalFileReceiver AdditionalFileSaveObserver
-        AdditionalFileHookContext AdditionalFileHookPoint AdditionalFileOutcome
-        AdditionalFileReceiveResult AdditionalFileSaveResult AdditionalFileSpec
-        WorkflowRetryTimeoutError WorkflowImageResult WorkflowAttemptResult WorkflowRoundResult
-        WorkflowItemResult WorkflowResult WorkflowLogResult WorkflowPlanLogError WorkflowPlanItem WorkflowPlanResult
-        WorkflowRunRecord WorkflowStateItem WorkflowStateView WorkflowPruneResult WorkflowStateService
-        AppConfig apply_overrides AuthFlow AuthenticationError Chapter ChapterResult ConfigurableSitePlugin
-        CookieProvider
-        ConfigurationError ArgumentError DownloadManifest DownloadResult DownloadService EffectiveRequestPreview
-        ExistingFileConflictError FailureKind
+        AdditionalFileProvider AdditionalFileReceiver AdditionalFileSaveObserver AdditionalFileHookContext
+        AdditionalFileHookPoint AdditionalFileOutcome AdditionalFileReceiveResult AdditionalFileSaveResult
+        AdditionalFileSpec WorkflowRetryTimeoutError WorkflowImageResult WorkflowAttemptResult
+        WorkflowRoundResult WorkflowItemResult WorkflowResult WorkflowLogResult WorkflowPlanLogError
+        WorkflowPlanItem WorkflowPlanResult WorkflowRunRecord WorkflowStateItem WorkflowStateView
+        WorkflowPruneResult WorkflowStateService AppConfig apply_overrides AuthFlow AuthContext AuthPort
+        BaseAuthFlow Endpoint AuthMode AuthDecision AuthStatus AuthLease AuthVerification AuthReceipt
+        AuthScopeError AuthReentryError AuthStateUnknownError AuthenticationError Chapter ChapterResult
+        ConfigurableSitePlugin CookieProvider ConfigurationError ArgumentError DownloadManifest
+        DownloadResult DownloadService EffectiveRequestPreview ExistingFileConflictError FailureKind
         HttpStatusError HttpTransportError ImageArtifact ImageFetchRequest ImageRequestResolution
         ImageRequestResolutionFailure ImageRequestResolutionStatus ImageContentTypeError ImageDecodeError
         ImageDimensionLimitError ImageDownloaderError ImageFailure ImageMimeMismatchError ImageOutcome
         ImageOutcomeKind ImageProcessingError ImageProcessorClosedError ImageProcessor ImageResource
         ImageSaveOptions ImageTransportMetadata ImageWorkerError InterProcessLockError
-        load_application_config ManifestInspectionResult OutputAllocationError
-        resolve_application_config RedirectPolicyError ResolvedApplicationConfig OriginScopedAuthFlow PluginError
-        PluginExecutionContext PluginFormatContext OutputFormatValueProvider RequestPort RequestError
-        RequestResponse RequestSpec ResponseSizeLimitError
-        RuntimeComposer SecretNotFoundError SecretProvider SitePlugin StorageError StorageSafetyError VaultError
-        TransformContext TransportCookie TransportHeader TransportRequestMetadata
-        UnsupportedImageFormatError UnsupportedSiteFeatureError UpdateCandidate UpdateChange UpdateChangeKind
-        UpdateProvider UpdateResult UpdateSnapshot UpdateStateError UpdateCheckUnsupportedError
+        load_application_config ManifestInspectionResult OutputAllocationError resolve_application_config
+        RedirectPolicyError ResolvedApplicationConfig PluginError PluginExecutionContext PluginFormatContext
+        OutputFormatValueProvider RequestPort RequestError RequestResponse RequestSpec
+        ResponseSizeLimitError RuntimeComposer SecretNotFoundError SecretProvider SitePlugin StorageError
+        StorageSafetyError VaultError TransformContext TransportCookie TransportHeader
+        TransportRequestMetadata UnsupportedImageFormatError UnsupportedSiteFeatureError UpdateCandidate
+        UpdateChange UpdateChangeKind UpdateProvider UpdateResult UpdateSnapshot UpdateStateError
+        UpdateCheckUnsupportedError
+
         """.split()
     ),
     "image_downloader.config": tuple(
         """
         AppConfig DEFAULT_CONFIG Profile Output ImageFormat Media ConsoleLogging Download Logging Network
         Email Notification
-        NotificationMethod NotificationCategory PluginSettings Security Storage Plugins PluginDownloadPolicy
+        NotificationMethod NotificationCategory PluginSettings AuthenticationPolicy EndpointSettings
+        EndpointVerification PluginConnections Security Storage Plugins PluginDownloadPolicy
         ImageProcessors
         GenericHtmlFallback Fallback WorkflowHistory WorkflowLogging StrictModel validate_config deep_merge
         ConfigurationLayer

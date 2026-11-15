@@ -18,6 +18,7 @@ from image_downloader import (
     AdditionalFileHookPoint,
     AppConfig,
     AuthenticationError,
+    AuthScopeError,
     DownloadRequest,
     InspectRequest,
     RuntimeComposer,
@@ -117,7 +118,7 @@ def test_local_end_to_end(lab, tmp_path, artificial_stores, monkeypatch, slug):
         with lab.LabSite() as site:
             lab.prepare(tmp_path, site.origin, site.asset_origin)
             for unit in lab.SECRET_UNITS:
-                artificial_stores.set_plugin(lab.plugin_id(unit), "LAB_TOKEN", 'lab-token')
+                artificial_stores.set_plugin(lab.plugin_id(unit), "LAB_TOKEN", "lab-token")
             config = configuration(tmp_path)
             async with RuntimeComposer(
                 config, config_root=tmp_path, plugin_root=tmp_path / "plugins"
@@ -192,25 +193,25 @@ def test_origin_allowlist_and_denied_redirect(lab, tmp_path, artificial_stores):
     async def scenario():
         with lab.LabSite() as site:
             lab.prepare(tmp_path, site.origin, site.asset_origin)
-            artificial_stores.set_plugin(lab.plugin_id('origin-auth-gallery'), "LAB_TOKEN", 'lab-token')
+            artificial_stores.set_plugin(lab.plugin_id("origin-auth-gallery"), "LAB_TOKEN", "lab-token")
             config = configuration(tmp_path)
             async with RuntimeComposer(
                 config, config_root=tmp_path, plugin_root=tmp_path / "plugins"
             ).compose() as service:
-                with pytest.raises(AuthenticationError, match="outside the configured origins"):
+                with pytest.raises(AuthScopeError, match="outside the configured origins"):
                     await service.inspect(
                         InspectRequest(url=f"{site.origin}/samples/origin-auth-gallery/redirect-denied")
                     )
                 assert not any(path == "/sink" for path, _ in site.authorization_seen)
             values = yaml.safe_load((tmp_path / "app.yaml").read_text(encoding="utf-8"))
-            values["plugin_settings"][lab.plugin_id("origin-auth-gallery")]["config"]["asset_origin"] = (
+            values["plugin_settings"][lab.plugin_id("origin-auth-gallery")]["endpoints"]["assets"]["origin"] = (
                 "http://127.0.0.1:1"
             )
             config = AppConfig.model_validate(values)
             async with RuntimeComposer(
                 config, config_root=tmp_path, plugin_root=tmp_path / "plugins"
             ).compose() as service:
-                with pytest.raises(AuthenticationError):
+                with pytest.raises(AuthScopeError):
                     await service.download(DownloadRequest(url=f"{site.origin}/samples/origin-auth-gallery/work"))
                 assert not any("/image/" in path for path, _ in site.authorization_seen)
 
@@ -350,7 +351,7 @@ def test_secret_lookup_ignores_environment(lab, tmp_path, artificial_stores, mon
                 url = f"{site.origin}/samples/credential-gallery/work"
                 with pytest.raises(SecretNotFoundError):
                     await service.inspect(InspectRequest(url=url))
-                artificial_stores.set_plugin(lab.plugin_id('credential-gallery'), "LAB_TOKEN", 'wrong')
+                artificial_stores.set_plugin(lab.plugin_id("credential-gallery"), "LAB_TOKEN", "wrong")
                 monkeypatch.setenv("IMAGE_DOWNLOADER_PLUGIN_UNUSED", "unused-environment-canary")
                 artificial_stores.set_plugin(lab.plugin_id("credential-gallery"), "LAB_TOKEN", "lab-token")
                 result = await service.inspect(InspectRequest(url=url))

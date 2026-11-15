@@ -13,7 +13,6 @@ from support.errors import expect_workflow_error
 
 from image_downloader import (
     AppConfig,
-    AuthenticationError,
     DownloadManifest,
     DownloadRequest,
     ImageResource,
@@ -556,8 +555,10 @@ def test_cdn_requiring_full_referer_fails_without_an_unsafe_fallback(tmp_path, m
 
     async def scenario():
         async with compose(tmp_path) as service:
-            with pytest.raises(AuthenticationError, match="authentication is required"):
-                await service.download(DownloadRequest(url=SECRET_PAGE))
+            result = await service.download(DownloadRequest(url=SECRET_PAGE))
+            assert len(result.failures) == 1
+            assert result.failures[0].code == "http_status_error"
+            assert result.failures[0].http_status == 403
 
     asyncio.run(scenario())
     assert seen == ["https://gallery.test/"]

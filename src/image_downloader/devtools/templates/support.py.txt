@@ -13,7 +13,7 @@ from PIL import Image
 from image_downloader import (
     AdditionalFileHookPoint, AdditionalFileSpec, AuthenticationError, Chapter,
     DownloadManifest, ImageFetchRequest, ImageResource, ImageSaveOptions,
-    RequestSpec, UpdateCandidate, UpdateSnapshot,
+    AuthLease, AuthMode, BaseAuthFlow, RequestSpec, UpdateCandidate, UpdateSnapshot,
 )
 
 
@@ -38,55 +38,60 @@ def request(url, config, **extra):
     )
 
 
-class GeneratedAuth:
+class GeneratedAuth(BaseAuthFlow):
     def __init__(self, context, features):
         self.context, self.features = context, features
         self.config = context.config
         self.token = None
         self.logged_in = False
-        self.allowed_origins = tuple(self.config.get("allowed_origins", ()))
 
-    def is_auth_failure(self, request, response):
-        return response.status in (401, 403)
-
-    async def apply(self, spec):
-        if "csrf" in self.features and not self.logged_in:
+    async def initialize(self, auth_context):
+        self.auth_context = auth_context
+        if "csrf" in self.features:
             await self.login()
+        if {"bearer", "oauth"} & self.features:
+            self.token = auth_context.secrets.get("access_token")
+        if "api-key" in self.features:
+            self.token = auth_context.secrets.get("api_token")
+        return AuthLease()
+
+    def apply(self, spec):
         headers = dict(spec.headers)
         if "api-key" in self.features:
-            headers[self.config.get("api_key_header", "X-Api-Key")] = self.context.secrets.get("api_token")
+            headers[self.config.get("api_key_header", "X-Api-Key")] = self.token
         if {"bearer", "oauth"} & self.features:
-            token = self.token or self.context.secrets.get("access_token")
+            token = self.token
             headers["Authorization"] = "Bearer " + token
         return replace(spec, headers=headers)
 
-    async def refresh(self, failed, response):
+    async def refresh(self, auth_context):
+        self.auth_context = auth_context
         if "oauth" in self.features:
-            response = await self.context.requests.execute(RequestSpec(
-                self.config["token_url"], method="POST", auth_required=False,
-                form={"grant_type": "refresh_token", "refresh_token": self.context.secrets.get("refresh_token")},
+            response = await self.auth_context.requests.execute(RequestSpec(
+                self.config["token_url"], method="POST",
+                form={"grant_type": "refresh_token", "refresh_token": auth_context.secrets.get("refresh_token")},
             ))
             if response.status >= 400:
                 raise AuthenticationError("token refresh failed")
             self.token = json.loads(response.body)["access_token"]
-            return await self.apply(failed)
+            return AuthLease(json.loads(response.body).get("expires_in"))
         if "csrf" in self.features:
             self.logged_in = False
             await self.login()
-            return failed
-        return None
+            return AuthLease()
+        raise AuthenticationError("authentication refresh is not supported")
 
     async def login(self):
         url = self.config["login_url"]
-        page = await self.context.requests.execute(RequestSpec(url, auth_required=False))
+        page = await self.auth_context.requests.execute(RequestSpec(url))
         node = html_tree(page.body).css_first(self.config["csrf_selector"])
         if node is None:
             raise AuthenticationError("CSRF input is missing")
-        response = await self.context.requests.execute(RequestSpec(
-            url, method="POST", auth_required=False, form={
+        response = await self.auth_context.requests.execute(RequestSpec(
+            url, method="POST", form={
                 self.config["csrf_field"]: node.attributes.get("value", ""),
-                self.config["username_field"]: self.context.secrets.get("username"),
-                self.config["password_field"]: self.context.secrets.get("password"),
+                self.config["username_field"]: self.auth_context.secrets.get("username"),
+                self.config["password_field"]: self.auth_context.secrets.get("password"),
             },
         ))
         if response.status >= 400:
@@ -231,7 +236,7 @@ class GeneratedSupport:
             url = image.url
         spec = RequestSpec(url, headers={**config.get("headers", {}), **dict(image.headers)},
                            referer=image.referer or config.get("referer") or None,
-                           auth_required=config.get("image_auth_required", "short-lived" not in self.features))
+                           auth=AuthMode(config.get("image_auth_mode", "none" if "short-lived" in self.features else "auto")))
         return ImageFetchRequest(spec, data) if "metadata" in self.features else spec
 
     async def recover_image_request(self, image, failed, response, context):

@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from dataclasses import replace
 from urllib.parse import urlparse
 
 from image_downloader import (
+    AuthContext,
+    AuthDecision,
     AuthenticationError,
     AuthFlow,
+    AuthLease,
+    BaseAuthFlow,
     Chapter,
     DownloadManifest,
     ImageArtifact,
@@ -21,38 +24,35 @@ from image_downloader import (
 )
 
 
-class _CsrfFlow:
-    def __init__(self, context: PluginExecutionContext) -> None:
-        self.context = context
+class _CsrfFlow(BaseAuthFlow):
+    async def initialize(self, auth_context: AuthContext) -> AuthLease:
+        return await self.refresh(auth_context)
 
-    def is_auth_failure(self, request: RequestSpec, response: RequestResponse) -> bool:
-        return response.status == 200 and b"login-required" in response.body.lower()
+    def classify_response(self, request: RequestSpec, response: RequestResponse) -> AuthDecision:
+        if response.status == 200 and b"login-required" in response.body.lower():
+            return AuthDecision.AUTH_FAILURE
+        return super().classify_response(request, response)
 
-    async def apply(self, request: RequestSpec) -> RequestSpec:
-        return request
-
-    async def refresh(self, failed: RequestSpec, response: RequestResponse) -> RequestSpec | None:
-        p = urlparse(failed.url)
-        origin = f"{p.scheme}://{p.netloc}"
-        page = await self.context.requests.execute(RequestSpec(f"{origin}/login", auth_required=False))
+    async def refresh(self, auth_context: AuthContext) -> AuthLease:
+        origin = auth_context.endpoints["operation"].origin
+        page = await auth_context.requests.execute(RequestSpec(f"{origin}/login"))
         match = re.search(r"name=['\"]csrf['\"]\s+value=['\"]([^'\"]+)['\"]", page.body.decode("utf-8", "replace"))
         if match is None:
             raise AuthenticationError("login form did not contain a CSRF token")
-        session = await self.context.requests.execute(
+        session = await auth_context.requests.execute(
             RequestSpec(
                 f"{origin}/session",
                 method="POST",
                 form={
-                    "username": self.context.secrets.get("username"),
-                    "password": self.context.secrets.get("password"),
+                    "username": auth_context.secrets.get("username"),
+                    "password": auth_context.secrets.get("password"),
                     "csrf": match.group(1),
                 },
-                auth_required=False,
             )
         )
         if session.status >= 400:
             raise AuthenticationError("login session request failed")
-        return replace(failed)
+        return AuthLease()
 
 
 class CsrfLoginGalleryPlugin:
@@ -96,7 +96,7 @@ class CsrfLoginGalleryPlugin:
         return None
 
     def auth_flow(self, context: PluginExecutionContext) -> AuthFlow | None:
-        return _CsrfFlow(context)
+        return _CsrfFlow()
 
     def transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:
         del context

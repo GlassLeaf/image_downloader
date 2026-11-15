@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping
 from pathlib import Path
+from types import MappingProxyType
 from typing import Annotated, Any, Literal, cast
 
 from pydantic import (
@@ -15,12 +16,13 @@ from pydantic import (
     StrictBool,
     StrictInt,
     StrictStr,
+    field_serializer,
     field_validator,
     model_validator,
 )
 
 from .._numeric import _is_finite
-from ..immutable import freeze_json
+from ..immutable import freeze_json, thaw_json
 from ..output.format_tokens import has_invalid_plugin_token
 from ..privacy.sensitive_values import is_sensitive_field_name
 
@@ -232,11 +234,84 @@ class PluginDownloadPolicy(StrictModel):
     preserve_image_start_order: StrictBool = False
 
 
+class AuthenticationPolicy(StrictModel):
+    verify_on_start: StrictBool = False
+    verify_before_request: StrictBool = False
+    verify_interval_seconds: FiniteNumber | None = Field(None, gt=0)
+    refresh_skew_seconds: FiniteNumber = Field(0, ge=0)
+
+
+class EndpointVerification(StrictModel):
+    before_request: StrictBool = False
+    interval_seconds: FiniteNumber | None = Field(None, gt=0)
+
+
+class EndpointSettings(StrictModel):
+    origin: StrictStr
+    auth: Literal["session", "none"]
+    verification: EndpointVerification = Field(default_factory=EndpointVerification)
+
+    @field_validator("origin")
+    @classmethod
+    def valid_origin(cls, value: str) -> str:
+        from urllib.parse import urlsplit
+
+        from ..configuration.hosts import normalize_host
+
+        parsed = urlsplit(value)
+        if (
+            parsed.scheme not in {"http", "https"}
+            or not parsed.hostname
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.path not in {"", "/"}
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise ValueError("endpoint origin must be an HTTP(S) origin without userinfo, path, query or fragment")
+        host, _ = normalize_host(parsed.hostname)
+        host = f"[{host}]" if ":" in host else host
+        port = parsed.port if parsed.port is not None else (443 if parsed.scheme == "https" else 80)
+        return f"{parsed.scheme}://{host}:{port}"
+
+
+class PluginConnections(StrictModel):
+    authentication: AuthenticationPolicy = Field(default_factory=AuthenticationPolicy)
+    endpoints: Mapping[StrictStr, EndpointSettings] = Field(default_factory=dict)
+
+    @field_serializer("endpoints")
+    def serialize_endpoints(self, value: Mapping[str, EndpointSettings]) -> dict[str, EndpointSettings]:
+        return dict(value)
+
+    @model_validator(mode="after")
+    def consistent_origins(self) -> PluginConnections:
+        seen: dict[str, tuple[str, object, object]] = {}
+        for item in self.endpoints.values():
+            overrides = item.verification.model_dump(exclude_unset=True)
+            value = (
+                item.auth,
+                overrides.get("before_request", self.authentication.verify_before_request),
+                overrides.get("interval_seconds", self.authentication.verify_interval_seconds),
+            )
+            if item.origin in seen and seen[item.origin] != value:
+                raise ValueError(f"conflicting authentication declarations for {item.origin}")
+            seen[item.origin] = value
+        object.__setattr__(self, "endpoints", MappingProxyType(dict(self.endpoints)))
+        return self
+
+
 class PluginSettings(StrictModel):
     enabled: StrictBool = True
     config: Mapping[str, Any] = Field(default_factory=dict)
     secrets: Mapping[StrictStr, StrictStr] = Field(default_factory=dict)
     download_policy: PluginDownloadPolicy = Field(default_factory=PluginDownloadPolicy)
+    authentication: AuthenticationPolicy = Field(default_factory=AuthenticationPolicy)
+    # Profile values are partial overrides: validate the complete declaration after merging author defaults.
+    endpoints: Mapping[StrictStr, Mapping[str, Any]] = Field(default_factory=dict)
+
+    @field_serializer("endpoints")
+    def serialize_endpoints(self, value: Mapping[str, Mapping[str, Any]]) -> dict[str, dict[str, Any]]:
+        return cast(dict[str, dict[str, Any]], thaw_json(value))
 
     @field_validator("secrets")
     @classmethod
@@ -251,6 +326,7 @@ class PluginSettings(StrictModel):
     def model_post_init(self, __context: Any) -> None:
         object.__setattr__(self, "config", freeze_json(self.config))
         object.__setattr__(self, "secrets", freeze_json(self.secrets))
+        object.__setattr__(self, "endpoints", freeze_json(self.endpoints))
 
 
 class Security(StrictModel):

@@ -12,7 +12,15 @@ import pytest
 from PIL import Image
 from support.plugins import make_plugin
 
-from image_downloader import DownloadRequest, UpdateCheckRequest
+from image_downloader import (
+    AuthContext,
+    AuthDecision,
+    AuthLease,
+    AuthMode,
+    BaseAuthFlow,
+    DownloadRequest,
+    UpdateCheckRequest,
+)
 from image_downloader.config import AppConfig
 from image_downloader.exceptions import AuthenticationError, ConfigurationError, PluginError
 from image_downloader.models import (
@@ -352,15 +360,19 @@ def test_site_cleanup_after_use_runs_after_auth_failure(tmp_path: Path) -> None:
         service = _service(tmp_path)
         calls: list[str] = []
 
-        class Flow:
-            async def apply(self, _request: RequestSpec) -> RequestSpec:
+        class Flow(BaseAuthFlow):
+            async def initialize(self, auth_context: AuthContext) -> AuthLease:
+                return AuthLease()
+
+            def apply(self, _request: RequestSpec) -> RequestSpec:
                 raise AuthenticationError("authentication failed")
 
-            async def refresh(self, _failed: RequestSpec, _response: object) -> None:
-                return None
+            async def refresh(self, auth_context: AuthContext) -> AuthLease:
 
-            def is_auth_failure(self, _request: RequestSpec, _response: object) -> bool:
-                return True
+                return AuthLease()
+
+            def classify_response(self, request, response):
+                return AuthDecision.AUTH_FAILURE
 
         class Site:
             def validate_config(self, _config: object, _app_settings: object) -> None:
@@ -415,7 +427,7 @@ def test_site_cleanup_after_use_runs_after_image_transform_failure(tmp_path: Pat
                 return DownloadManifest("Book", (Chapter(1, "One", images=(ImageResource("image:1"),)),))
 
             async def create_image_request(self, *_args: object) -> RequestSpec:
-                return RequestSpec("https://example.test/image", auth_required=False)
+                return RequestSpec("https://example.test/image", auth=AuthMode.NONE)
 
             async def recover_image_request(self, *_args: object) -> None:
                 return None
@@ -557,15 +569,16 @@ def test_transport_metadata_tracks_auth_retry_redirect_and_duplicate_response_he
         observed: dict[str, object] = {}
         starts = 0
 
-        class Flow:
-            async def apply(self, request: RequestSpec) -> RequestSpec:
+        class Flow(BaseAuthFlow):
+            async def initialize(self, auth_context: AuthContext) -> AuthLease:
+                return AuthLease()
+
+            def apply(self, request: RequestSpec) -> RequestSpec:
                 return replace(request, headers={**request.headers, "Authorization": "Bearer transport-secret"})
 
-            async def refresh(self, _failed: RequestSpec, _response: object) -> None:
-                return None
+            async def refresh(self, auth_context: AuthContext) -> AuthLease:
 
-            def is_auth_failure(self, _request: RequestSpec, _response: object) -> bool:
-                return False
+                return AuthLease()
 
         class Site:
             def validate_config(self, _config: object, _app_settings: object) -> None:
@@ -663,7 +676,7 @@ def test_recovery_bare_request_keeps_plugin_data_and_dto_replaces_it(tmp_path: P
 
             async def create_image_request(self, image: ImageResource, _context: object) -> ImageFetchRequest:
                 return ImageFetchRequest(
-                    RequestSpec(f"https://example.test/initial/{image.index}", auth_required=False),
+                    RequestSpec(f"https://example.test/initial/{image.index}", auth=AuthMode.NONE),
                     {"phase": "initial"},
                 )
 
@@ -671,9 +684,9 @@ def test_recovery_bare_request_keeps_plugin_data_and_dto_replaces_it(tmp_path: P
                 self, image: ImageResource, _failed: RequestSpec, _response: object, _context: object
             ) -> RequestSpec | ImageFetchRequest:
                 if image.index == 1:
-                    return RequestSpec("https://example.test/recovered/inherit", auth_required=False)
+                    return RequestSpec("https://example.test/recovered/inherit", auth=AuthMode.NONE)
                 return ImageFetchRequest(
-                    RequestSpec("https://example.test/recovered/replace", auth_required=False),
+                    RequestSpec("https://example.test/recovered/replace", auth=AuthMode.NONE),
                     {"phase": "replacement"},
                 )
 
@@ -723,7 +736,7 @@ def test_manifest_original_filename_survives_an_artifact_replacement(tmp_path: P
                 )
 
             async def create_image_request(self, _image: ImageResource, _context: object) -> RequestSpec:
-                return RequestSpec("https://example.test/server-name.webp", auth_required=False)
+                return RequestSpec("https://example.test/server-name.webp", auth=AuthMode.NONE)
 
             async def recover_image_request(self, *_args: object) -> None:
                 return None

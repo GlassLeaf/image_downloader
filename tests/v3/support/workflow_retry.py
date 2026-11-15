@@ -6,6 +6,7 @@ import httpx
 from PIL import Image
 
 from image_downloader import (
+    AuthMode,
     Chapter,
     DownloadManifest,
     ImageResource,
@@ -31,7 +32,7 @@ class RetryGallery(Gallery):
 
     async def create_image_request(self, image, context):
         self.requested.append((self.checks, image.url))
-        return RequestSpec(image.url, auth_required=False)
+        return RequestSpec(image.url, auth=AuthMode.NONE)
 
 
 def manifest(*images):

@@ -41,9 +41,11 @@ PROCESSOR_HOOKS: dict[str, tuple[bool, tuple[tuple[str, str], ...], str]] = {
 }
 
 AUTH_FLOW_HOOKS: dict[str, tuple[bool, tuple[tuple[str, str], ...], str]] = {
-    "is_auth_failure": (False, (("request", "RequestSpec"), ("response", "RequestResponse")), "bool"),
-    "apply": (True, (("request", "RequestSpec"),), "RequestSpec"),
-    "refresh": (True, (("failed", "RequestSpec"), ("response", "RequestResponse")), "RequestSpec | None"),
+    "initialize": (True, (("auth_context", "AuthContext"),), "AuthLease"),
+    "apply": (False, (("request", "RequestSpec"),), "RequestSpec"),
+    "classify_response": (False, (("request", "RequestSpec"), ("response", "RequestResponse")), "AuthDecision"),
+    "verify": (True, (("auth_context", "AuthContext"),), "AuthVerification"),
+    "refresh": (True, (("auth_context", "AuthContext"),), "AuthLease"),
 }
 
 TUTORIAL_SIGNATURES: dict[str, tuple[tuple[tuple[str, str], ...], str]] = {

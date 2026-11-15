@@ -92,8 +92,8 @@ FEATURES = (
     Feature(
         "origins",
         "追加originへの認証許可",
-        defaults={"allowed_origins": []},
-        questions=(("allowed_origins", "認証を許可する追加origin（カンマ区切り）"),),
+        defaults={"endpoint_origins": []},
+        questions=(("endpoint_origins", "認証を許可する追加origin（カンマ区切り）"),),
     ),
     Feature(
         "request",

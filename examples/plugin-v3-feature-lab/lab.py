@@ -62,6 +62,9 @@ def prepare(work: Path, origin: str, asset_origin: str) -> Path:
     }
     for slug in SECRET_UNITS:
         config["plugin_settings"][plugin_id(slug)]["secrets"] = {"api_token": "LAB_TOKEN"}
+    config["plugin_settings"][plugin_id("origin-auth-gallery")]["endpoints"] = {
+        "assets": {"origin": asset_origin},
+    }
     config["plugin_settings"][plugin_id("short-lived-gallery")]["download_policy"] = {
         "preserve_image_start_order": True
     }

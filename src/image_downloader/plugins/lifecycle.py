@@ -9,11 +9,11 @@ import sys
 import types
 import uuid
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from threading import RLock
 from types import MappingProxyType
-from typing import Any
+from typing import Any, cast
 
 from image_downloader.plugins.plugin_catalog import PluginCatalog, catalog_path
 from image_downloader.plugins.plugin_files import _is_link, _require_regular
@@ -22,12 +22,13 @@ from image_downloader.plugins.plugin_manifest import (
     PluginKind,
     PluginManifest,
     PluginVerificationMode,
-    author_config,
+    author_settings,
     read_manifest,
 )
 from image_downloader.plugins.plugin_verification import _verified_plugin_tree, _verify_manifest_with_tree
 
 from ..exceptions import ConfigurationError, PluginError
+from ..immutable import freeze_json
 from ..ports import ImageProcessor, SitePlugin, is_image_processor, is_site_plugin
 from ..storage.path_safety import existing_directory
 from .source_loader import _NAMESPACE_FINDER, _SourceContext, _SourceLoader
@@ -63,6 +64,7 @@ class PluginRecord(_RecordSourceBinding):
     author_defaults: Mapping[str, Any]
     catalog: CatalogEntry | None
     builtin: bool = False
+    connection_defaults: Mapping[str, Any] = field(default_factory=dict)
 
     @property
     def id(self) -> str:
@@ -71,6 +73,19 @@ class PluginRecord(_RecordSourceBinding):
     @property
     def kind(self) -> PluginKind:
         return self.manifest.kind
+
+
+def _record_with_settings(manifest: PluginManifest, catalog: CatalogEntry | None) -> PluginRecord:
+    settings = author_settings(manifest)
+    return PluginRecord(
+        manifest,
+        settings["config"],
+        catalog,
+        connection_defaults=cast(
+            Mapping[str, Any],
+            freeze_json({key: value for key, value in settings.items() if key != "config"}),
+        ),
+    )
 
 
 def _bind_record_sources(record: PluginRecord, hashes: Mapping[str, str] | None) -> PluginRecord:
@@ -184,15 +199,13 @@ class PluginManifestVerifier:
             manifest = candidate.manifest
             try:
                 pin, hashes = _verify_manifest_with_tree(manifest, catalog, mode=self.mode)
-                records.append(_bind_record_sources(PluginRecord(manifest, author_config(manifest), pin), hashes))
+                records.append(_bind_record_sources(_record_with_settings(manifest, pin), hashes))
                 diagnostics.append(PluginDiagnostic(manifest.id, str(candidate.directory), True))
             except Exception as exc:
                 if self.mode == "warn" and isinstance(exc, PluginError):
                     try:
                         hashes = _verified_plugin_tree(manifest)
-                        records.append(
-                            _bind_record_sources(PluginRecord(manifest, author_config(manifest), None), hashes)
-                        )
+                        records.append(_bind_record_sources(_record_with_settings(manifest, None), hashes))
                         diagnostics.append(
                             PluginDiagnostic(manifest.id, str(candidate.directory), True, str(exc), True)
                         )

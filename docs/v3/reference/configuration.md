@@ -346,3 +346,7 @@ workflow_history:
 ## 画像変換のワーカー数
 
 `media.transform_workers` は厳密な整数1〜4、既定2。サービス所有の専用スレッド数で、サイトとprocessorの変換が共有する。通信並列数やコア画像検証プロセス数を変更しない。画素数制限の既定値Noneは維持する。[移行と終了待ち](../maintenance/synchronous-image-transforms.md)を参照する。
+
+### 接続先と認証方針
+
+`plugin_settings.<id>.authentication` と `endpoints` は作者YAMLの共通設定を上書きする。`verify_on_start=false`、`verify_before_request=false`、`verify_interval_seconds=null`（正数で定期確認）、`refresh_skew_seconds=0`（非負数で期限前更新）が既定。`endpoints.<name>` はHTTP(S)の `origin` と必須の `auth: session|none` を持ち、`verification.before_request/interval_seconds` で確認方針を上書きできる。同一originに矛盾する方針は設定エラー。[利用例と移行手順](../how-to/authentication-migration.md)を参照する。

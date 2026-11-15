@@ -271,10 +271,10 @@ def read_manifest(directory: Path, *, mode: PluginVerificationMode = "strict") -
     )
 
 
-def author_config(manifest: PluginManifest) -> Mapping[str, Any]:
+def author_settings(manifest: PluginManifest) -> Mapping[str, Any]:
     config_file = manifest.value.get("config_file")
     if config_file is None:
-        return cast(Mapping[str, Any], freeze_json({}))
+        return cast(Mapping[str, Any], freeze_json({"config": {}}))
     if not isinstance(config_file, str):
         raise PluginError("plugin author config must be a regular non-link file")
     path = manifest.directory / config_file
@@ -283,6 +283,14 @@ def author_config(manifest: PluginManifest) -> Mapping[str, Any]:
         value = yaml.safe_load(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
         raise PluginError("plugin author YAML is invalid") from exc
-    if not isinstance(value, dict) or set(value) != {"config"} or not isinstance(value["config"], dict):
-        raise PluginError("plugin author YAML must contain only config mapping")
-    return cast(Mapping[str, Any], freeze_json(value["config"]))
+    if (
+        not isinstance(value, dict)
+        or not {"config"} <= set(value) <= {"config", "authentication", "endpoints"}
+        or any(not isinstance(item, dict) for item in value.values())
+    ):
+        raise PluginError("plugin author YAML must contain config and optional authentication/endpoints mappings")
+    return cast(Mapping[str, Any], freeze_json(value))
+
+
+def author_config(manifest: PluginManifest) -> Mapping[str, Any]:
+    return cast(Mapping[str, Any], author_settings(manifest)["config"])

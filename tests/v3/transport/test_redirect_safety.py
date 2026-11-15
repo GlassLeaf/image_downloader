@@ -6,24 +6,24 @@ from dataclasses import replace
 import httpx
 import pytest
 
+from image_downloader import AuthContext, AuthLease, AuthMode, BaseAuthFlow
 from image_downloader.config import AppConfig
-from image_downloader.exceptions import AuthenticationError, RedirectPolicyError, ResponseSizeLimitError
-from image_downloader.models import RequestResponse, RequestSpec
+from image_downloader.configuration.models import PluginSettings
+from image_downloader.exceptions import AuthScopeError, RedirectPolicyError, ResponseSizeLimitError
+from image_downloader.models import RequestSpec
 from image_downloader.transport.gateway import RequestGateway
 
 
-class _HeaderFlow:
-    def __init__(self, *origins: str) -> None:
-        self.allowed_origins = origins
+class _HeaderFlow(BaseAuthFlow):
+    async def initialize(self, auth_context: AuthContext) -> AuthLease:
+        return AuthLease()
 
-    async def apply(self, request: RequestSpec) -> RequestSpec:
+    def apply(self, request: RequestSpec) -> RequestSpec:
         return replace(request, headers={**request.headers, "X-Secret": "credential"})
 
-    async def refresh(self, request: RequestSpec, response: RequestResponse) -> RequestSpec | None:
-        return None
+    async def refresh(self, auth_context: AuthContext) -> AuthLease:
 
-    def is_auth_failure(self, request: RequestSpec, response: RequestResponse) -> bool:
-        return False
+        return AuthLease()
 
 
 async def _gateway(config: AppConfig, handler) -> RequestGateway:
@@ -48,7 +48,7 @@ def test_authenticated_redirect_to_unlisted_origin_never_sends_secret() -> None:
             auth_flow_factory=lambda _: _HeaderFlow(),
         )
         try:
-            with pytest.raises(AuthenticationError, match="outside the configured origins"):
+            with pytest.raises(AuthScopeError, match="outside the configured origins"):
                 await session.execute(RequestSpec("https://origin.test/start"))
             assert seen == [("https://origin.test/start", "credential")]
         finally:
@@ -73,7 +73,10 @@ def test_allowlisted_authenticated_redirect_and_same_origin_hops_keep_auth() -> 
         session = gateway.operation(
             plugin_id="com.example.site",
             operation_url="https://origin.test/gallery",
-            auth_flow_factory=lambda _: _HeaderFlow("https://cdn.test"),
+            auth_flow_factory=lambda _: _HeaderFlow(),
+            settings=PluginSettings.model_validate(
+                {"endpoints": {"assets": {"origin": "https://cdn.test", "auth": "session"}}}
+            ),
         )
         try:
             response = await session.execute(RequestSpec("https://origin.test/start"))
@@ -102,10 +105,13 @@ def test_authenticated_https_to_http_downgrade_is_rejected_even_if_allowlisted()
         session = gateway.operation(
             plugin_id="com.example.site",
             operation_url="https://origin.test/gallery",
-            auth_flow_factory=lambda _: _HeaderFlow("http://cdn.test"),
+            auth_flow_factory=lambda _: _HeaderFlow(),
+            settings=PluginSettings.model_validate(
+                {"endpoints": {"assets": {"origin": "http://cdn.test", "auth": "session"}}}
+            ),
         )
         try:
-            with pytest.raises(AuthenticationError, match="downgrade"):
+            with pytest.raises(AuthScopeError, match="downgrade"):
                 await session.execute(RequestSpec("https://origin.test/start"))
             assert seen == ["https://origin.test/start"]
         finally:
@@ -134,7 +140,7 @@ def test_anonymous_cross_origin_redirect_strips_all_caller_and_client_headers() 
                     headers={"X-Secret": "manual"},
                     cookies={"session": "cookie-secret"},
                     referer="https://origin.test/private?token=secret",
-                    auth_required=False,
+                    auth=AuthMode.NONE,
                 )
             )
             assert response.body == b"image"
@@ -205,7 +211,7 @@ def test_follow_redirects_false_returns_initial_response() -> None:
 
         gateway = await _gateway(AppConfig.model_validate({"network": {"follow_redirects": False}}), handler)
         try:
-            response = await gateway.execute(RequestSpec("https://origin.test/start", auth_required=False))
+            response = await gateway.execute(RequestSpec("https://origin.test/start", auth=AuthMode.NONE))
             assert response.status == 302
             assert seen == ["https://origin.test/start"]
         finally:
@@ -247,10 +253,13 @@ def test_each_redirect_hop_checks_the_auth_origin() -> None:
         session = gateway.operation(
             plugin_id="com.example.site",
             operation_url="https://origin.test/gallery",
-            auth_flow_factory=lambda _: _HeaderFlow("https://cdn.test"),
+            auth_flow_factory=lambda _: _HeaderFlow(),
+            settings=PluginSettings.model_validate(
+                {"endpoints": {"assets": {"origin": "https://cdn.test", "auth": "session"}}}
+            ),
         )
         try:
-            with pytest.raises(AuthenticationError, match="outside the configured origins"):
+            with pytest.raises(AuthScopeError, match="outside the configured origins"):
                 await session.execute(RequestSpec("https://origin.test/start"))
             assert seen == ["https://origin.test/start", "https://cdn.test/middle"]
         finally:
@@ -269,7 +278,7 @@ def test_redirected_response_still_obeys_the_byte_limit() -> None:
         gateway = await _gateway(AppConfig.model_validate({"network": {"max_response_bytes": 4}}), handler)
         try:
             with pytest.raises(ResponseSizeLimitError, match="byte limit") as raised:
-                await gateway.execute(RequestSpec("https://origin.test/start", auth_required=False))
+                await gateway.execute(RequestSpec("https://origin.test/start", auth=AuthMode.NONE))
             assert raised.value.response_url == "https://cdn.test/image"
             assert raised.value.http_status == 200
             assert raised.value.limit_bytes == 4
@@ -297,8 +306,8 @@ def test_redirected_host_uses_its_own_concurrency_limit() -> None:
 
         config = AppConfig.model_validate({"network": {"origin_request_concurrency": 1, "request_concurrency": 4}})
         gateway = await _gateway(config, handler)
-        first = asyncio.create_task(gateway.execute(RequestSpec("https://origin.test/one", auth_required=False)))
-        second = asyncio.create_task(gateway.execute(RequestSpec("https://origin.test/two", auth_required=False)))
+        first = asyncio.create_task(gateway.execute(RequestSpec("https://origin.test/one", auth=AuthMode.NONE)))
+        second = asyncio.create_task(gateway.execute(RequestSpec("https://origin.test/two", auth=AuthMode.NONE)))
         try:
             await asyncio.wait_for(entered.wait(), 5)
             await asyncio.sleep(0.05)

@@ -1,6 +1,6 @@
 # 追加originへの認証許可
 
-AuthFlow.allowed_originsへ設定のasset_originだけを追加します。APIと別ポートの画像要求へ認証を付け、未許可originへのredirectは本体が送信前に拒否します。
+plugin.yamlのendpoints.assetsで画像originへのsession認証を宣言します。ホスト変更時はplugin_settingsのendpoints.assets.originも更新してください。APIと別ポートの画像要求へ認証を付け、未許可originへのredirectは本体が送信前に拒否します。
 
 トークンは[総合手順の保管庫への登録と参照](../README.md#保管庫への登録と参照)で、このプラグインIDの`LAB_TOKEN`として登録します。credential-galleryと同じ参照名でも別の登録です。取得には同じ試験用データルート・defaultプロファイルを使います。
 

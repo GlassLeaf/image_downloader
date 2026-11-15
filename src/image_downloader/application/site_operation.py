@@ -64,6 +64,19 @@ class _PluginRequests:
         return await self._gateway.execute(spec)
 
 
+class _PluginAuth:
+    __slots__ = ("_gateway",)
+
+    def __init__(self, gateway: OperationRequestGateway) -> None:
+        self._gateway = gateway
+
+    async def ensure_ready(self, *, check: bool = False) -> None:
+        await self._gateway.auth.ensure_ready(check=check)
+
+    def invalidate(self, response: RequestResponse) -> bool:
+        return self._gateway.auth.invalidate(response)
+
+
 @dataclass(frozen=True, slots=True)
 class SiteOperation:
     """The named, operation-owned capabilities of one selected site plugin."""
@@ -182,9 +195,11 @@ class SiteOperationFactory:
         settings = self.config.plugin_settings.get(record.id)
         secrets = RuntimeSecrets(record.id, settings.secrets if settings else {}, store=self.credentials)
         context: PluginExecutionContext | None = None
+        connections = self.registry.effective_connections(record)
 
         def auth_flow_factory(session: OperationRequestGateway) -> object | None:
             nonlocal context
+            session.bind_auth_context(self.registry.effective_config(record, overrides), secrets)
             context = PluginExecutionContext(
                 self.registry.effective_config(record, overrides),
                 safe_app_settings(self.config),
@@ -193,6 +208,8 @@ class SiteOperationFactory:
                 secrets,
                 _PluginRequests(session),
                 cookie_provider=request_gateway or self.gateway,
+                auth=_PluginAuth(session),
+                endpoints=session.endpoints,
             )
             return invoker.auth_flow(plugin, context)
 
@@ -202,6 +219,7 @@ class SiteOperationFactory:
             auth_flow_factory=auth_flow_factory,
             invoker=invoker,
             request_concurrency=policy.request_concurrency,
+            settings=connections,
         )
         if context is None:
             raise RuntimeError("operation context was not initialized")
@@ -247,6 +265,8 @@ class SiteOperationFactory:
             raise
         else:
             await invoker.cleanup_after_use(plugin)
+        finally:
+            await operation_gateway.close()
 
     async def cleanup_after_failure(
         self,

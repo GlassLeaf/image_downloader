@@ -48,7 +48,7 @@
 | `file_tree` | ソースファイルのパスからSHA-256へのマッピング |
 | `file_tree_sha256` | 正規化したファイルツリーのダイジェスト |
 
-`signature`は内側のmanifestに対するEd25519署名です。`config`は厳密なmanifestのフィールドではありません。作者既定値は、`config_file`が指すYAMLのルートキー`config`にだけ指定します。
+`signature`は内側のmanifestに対するEd25519署名です。`config`は厳密なmanifestのフィールドではありません。プラグイン固有の作者既定値は `config_file` が指すYAMLのルートキー `config` に指定し、接続先・認証の共通項目は同じYAMLの `endpoints` と `authentication` に指定します。
 
 <a id="relaxed-manifest-used-by-bypass-modes"></a>
 
@@ -78,7 +78,7 @@ module の元のファイル位置・package metadata、データファイルの
 署名・content pin 更新を伴う変更を反映する場合は、更新後の検証済み record または新しい runtime を用いる。
 
 finder は active なプラグイン名前空間だけを扱い、import 失敗・unload・close で所有する登録を解放する。
-公開 `PluginRecord` のコンストラクター・dataclass field は変更しない。
+公開 `PluginRecord` は作者の接続先・認証設定を保持する `connection_defaults` を持つ。
 手動作成 record は宣言 tree または content pin がある場合に照合し、最小 manifest は緩和扱いになる。
 署名形式と catalog schema は変わらず、変更していないプラグインの再署名は不要である。
 この保証は本体が管理するプラグイン読込みに適用し、信頼済み Python コードを隔離する sandbox を提供しない。
@@ -134,3 +134,5 @@ image-downloader doctor --json
 ```
 
 署名ツールは`plugin-metadata.json`だけを入力として読み、`manifest.json`を生成します。`file_tree`には`manifest.json`を除く全通常ソースファイルを含めます。署名後のmanifestは手動で編集しないでください。メタデータ、作者既定値のYAML、ソースを先に変更し、署名ツールを再実行します。`plugin install`は既定でソース・ツリー・署名・クラスを厳密に検証し、対応するpinをカタログに作成します。`image-downloader plugin trust SOURCE --yes`は、すでに配置したソースをpinで固定する場合だけに使ってください。テンプレートには手動で同じ操作をする手順と`sample_plugin.yaml`の対応関係、ソースの例には署名済みのサイト用・画像プロセッサー用プラグインがあります。
+
+作者YAMLのトップレベルは必須の `config` と任意の `authentication`・`endpoints`。共通設定はコアが検証し、`validate_config()` には `config` だけを渡す。[認証API移行手順](../how-to/authentication-migration.md)を参照する。

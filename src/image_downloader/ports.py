@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
-from collections.abc import Collection, Mapping
-from typing import Protocol, TypeGuard, cast, overload, runtime_checkable
+import inspect
+from abc import ABC, abstractmethod
+from collections.abc import Mapping
+from dataclasses import dataclass
+from typing import Any, Protocol, TypeGuard, cast, overload, runtime_checkable
+from urllib.parse import urlsplit
 
-from .exceptions import UnsupportedSiteFeatureError
+from .exceptions import AuthenticationError, UnsupportedSiteFeatureError
 from .immutable import freeze_json
 from .models import (
     AdditionalFileHookContext,
@@ -13,6 +17,10 @@ from .models import (
     AdditionalFileReceiveResult,
     AdditionalFileSaveResult,
     AdditionalFileSpec,
+    AuthDecision,
+    AuthLease,
+    AuthStatus,
+    AuthVerification,
     Chapter,
     DownloadManifest,
     ImageArtifact,
@@ -22,12 +30,42 @@ from .models import (
     RequestResponse,
     RequestSpec,
     UpdateSnapshot,
+    freeze_mapping,
 )
 
 
 @runtime_checkable
 class RequestPort(Protocol):
     async def execute(self, spec: RequestSpec) -> RequestResponse: ...
+
+
+@runtime_checkable
+class AuthPort(Protocol):
+    async def ensure_ready(self, *, check: bool = False) -> None: ...
+    def invalidate(self, response: RequestResponse) -> bool: ...
+
+
+@dataclass(frozen=True, slots=True)
+class Endpoint:
+    origin: str
+
+    def request(self, path: str, **kwargs: Any) -> RequestSpec:
+        parsed = urlsplit(path)
+        if parsed.scheme or parsed.netloc or not path.startswith("/") or path.startswith("//") or "\\" in path:
+            raise ValueError("endpoint request path must start with a single slash and stay on the declared origin")
+        return RequestSpec(self.origin + path, **kwargs)
+
+
+@dataclass(frozen=True, slots=True)
+class AuthContext:
+    config: Mapping[str, object]
+    secrets: SecretProvider
+    endpoints: Mapping[str, Endpoint]
+    requests: RequestPort
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "config", freeze_json(self.config))
+        object.__setattr__(self, "endpoints", freeze_mapping(self.endpoints))
 
 
 @runtime_checkable
@@ -45,7 +83,17 @@ class CookieProvider(Protocol):
 class PluginExecutionContext:
     """Capability-reduced v3 context supplied to a selected site plugin."""
 
-    __slots__ = ("_config", "_app_settings", "_manifest", "_catalog", "_secrets", "_requests", "_cookie_provider")
+    __slots__ = (
+        "_config",
+        "_app_settings",
+        "_manifest",
+        "_catalog",
+        "_secrets",
+        "_requests",
+        "_cookie_provider",
+        "_auth",
+        "_endpoints",
+    )
 
     def __init__(
         self,
@@ -57,6 +105,8 @@ class PluginExecutionContext:
         requests: RequestPort,
         *,
         cookie_provider: CookieProvider | None = None,
+        auth: AuthPort | None = None,
+        endpoints: Mapping[str, Endpoint] | None = None,
     ) -> None:
         self._config = _readonly_mapping(config)
         self._app_settings = _readonly_mapping(app_settings)
@@ -65,6 +115,8 @@ class PluginExecutionContext:
         self._secrets = secrets
         self._requests = requests
         self._cookie_provider = cookie_provider
+        self._auth = auth
+        self._endpoints = freeze_mapping(endpoints)
 
     @overload
     def get_cookies(self, *, domain: None = None, path: None = None) -> dict[str, dict[str, dict[str, str]]]: ...
@@ -131,6 +183,16 @@ class PluginExecutionContext:
     @property
     def requests(self) -> RequestPort:
         return self._requests
+
+    @property
+    def auth(self) -> AuthPort:
+        if self._auth is None:
+            raise UnsupportedSiteFeatureError("authentication control is unavailable in this context")
+        return self._auth
+
+    @property
+    def endpoints(self) -> Mapping[str, Endpoint]:
+        return self._endpoints
 
 
 class PluginFormatContext:
@@ -307,16 +369,35 @@ def _readonly_mapping(value: Mapping[str, object]) -> Mapping[str, object]:
 
 @runtime_checkable
 class AuthFlow(Protocol):
-    def is_auth_failure(self, request: RequestSpec, response: RequestResponse) -> bool: ...
-    async def apply(self, request: RequestSpec) -> RequestSpec: ...
-    async def refresh(self, failed: RequestSpec, response: RequestResponse) -> RequestSpec | None: ...
+    async def initialize(self, auth_context: AuthContext) -> AuthLease: ...
+    def apply(self, request: RequestSpec) -> RequestSpec: ...
+    def classify_response(self, request: RequestSpec, response: RequestResponse) -> AuthDecision: ...
+    async def verify(self, auth_context: AuthContext) -> AuthVerification: ...
+    async def refresh(self, auth_context: AuthContext) -> AuthLease: ...
 
 
-@runtime_checkable
-class OriginScopedAuthFlow(AuthFlow, Protocol):
-    """Optional AuthFlow extension permitting credentials on additional origins."""
+class BaseAuthFlow(ABC):
+    """Defaults for API 3 authentication; initialize must establish usable credentials."""
 
-    allowed_origins: Collection[str]
+    @abstractmethod
+    async def initialize(self, auth_context: AuthContext) -> AuthLease:
+        raise NotImplementedError
+
+    def apply(self, request: RequestSpec) -> RequestSpec:
+        return request
+
+    def classify_response(self, request: RequestSpec, response: RequestResponse) -> AuthDecision:
+        if response.status == 401:
+            return AuthDecision.AUTH_FAILURE
+        if response.status == 403:
+            return AuthDecision.UNKNOWN
+        return AuthDecision.NOT_AUTH_FAILURE
+
+    async def verify(self, auth_context: AuthContext) -> AuthVerification:
+        return AuthVerification(AuthStatus.UNKNOWN)
+
+    async def refresh(self, auth_context: AuthContext) -> AuthLease:
+        raise AuthenticationError("authentication refresh is not supported")
 
 
 @runtime_checkable
@@ -394,11 +475,15 @@ class ImageProcessor(Protocol):
 
 
 def is_auth_flow(value: object) -> TypeGuard[AuthFlow]:
-    return isinstance(value, AuthFlow)
-
-
-def is_origin_scoped_auth_flow(value: AuthFlow) -> TypeGuard[OriginScopedAuthFlow]:
-    return isinstance(value, OriginScopedAuthFlow)
+    return (
+        isinstance(value, AuthFlow)
+        and not hasattr(value, "is_auth_failure")
+        and not hasattr(value, "allowed_origins")
+        and not inspect.iscoroutinefunction(value.apply)
+        and not inspect.iscoroutinefunction(value.classify_response)
+        and all(inspect.iscoroutinefunction(getattr(value, name)) for name in ("initialize", "verify", "refresh"))
+        and len(inspect.signature(value.refresh).parameters) == 1
+    )
 
 
 def is_site_plugin(value: object) -> TypeGuard[SitePlugin]:

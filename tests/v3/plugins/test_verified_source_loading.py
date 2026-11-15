@@ -354,8 +354,10 @@ def test_two_runtimes_keep_independent_imports_when_one_is_unloaded(tmp_path: Pa
 def test_manually_constructed_records_keep_public_fields_and_default_policy(tmp_path: Path, minimal: bool) -> None:
     directory = make_minimal_plugin(tmp_path / "plugins") if minimal else _unit(tmp_path / "plugins")
     record = PluginRecord(read_manifest(directory, mode="bypass-all"), {}, None)
-    assert [field.name for field in fields(record)] == ["manifest", "author_defaults", "catalog", "builtin"]
-    assert list(inspect.signature(PluginRecord).parameters) == ["manifest", "author_defaults", "catalog", "builtin"]
+    public_fields = ["manifest", "author_defaults", "catalog", "builtin", "connection_defaults"]
+    assert [field.name for field in fields(record)] == public_fields
+    assert list(inspect.signature(PluginRecord).parameters) == public_fields
+    assert record.connection_defaults == {}
     assert record == PluginRecord(record.manifest, {}, None)
     loader = PluginClassLoader()
     entry = directory / "entry.source"

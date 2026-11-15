@@ -12,6 +12,10 @@ from urllib.parse import urlparse
 from ..exceptions import ImageDownloaderError, PluginError
 from ..media.transform_executor import TransformExecutor
 from ..models import (
+    AuthDecision,
+    AuthLease,
+    AuthMode,
+    AuthVerification,
     Chapter,
     DownloadManifest,
     ImageArtifact,
@@ -26,6 +30,7 @@ from ..models import (
 )
 from ..observability.logging import DownloadLogger
 from ..ports import (
+    AuthContext,
     AuthFlow,
     ConfigurableSitePlugin,
     ImageProcessor,
@@ -192,7 +197,10 @@ class PluginInvoker:
         hook = "auth_flow"
         value = self._invoke_sync(hook, lambda: plugin.auth_flow(context))
         if value is not None and not is_auth_flow(value):
-            raise self._error(hook, "auth_flow must return AuthFlow or None")
+            raise self._error(
+                hook,
+                "auth_flow must return new AuthFlow or None; migrate initialize/apply/classify_response/verify/refresh",
+            )
         return value
 
     async def create_image_request(
@@ -309,29 +317,35 @@ class PluginInvoker:
         if result is not None:
             raise self._error(hook, "cleanup hook must return None")
 
-    async def apply_auth(self, flow: AuthFlow, request: RequestSpec) -> RequestSpec:
+    def apply_auth(self, flow: AuthFlow, request: RequestSpec) -> RequestSpec:
         hook = "auth_apply"
-        value = await self._invoke_async(hook, lambda: flow.apply(request))
+        value = self._invoke_sync(hook, lambda: flow.apply(request))
         self._validate_request(hook, value, allow_none=False)
         assert isinstance(value, RequestSpec)
         return value
 
-    async def refresh_auth(
-        self,
-        flow: AuthFlow,
-        failed: RequestSpec,
-        response: RequestResponse,
-    ) -> RequestSpec | None:
-        hook = "auth_refresh"
-        value = await self._invoke_async(hook, lambda: flow.refresh(failed, response))
-        self._validate_request(hook, value, allow_none=True)
+    async def initialize_auth(self, flow: AuthFlow, context: AuthContext) -> AuthLease:
+        value = await self._invoke_async("auth_initialize", lambda: flow.initialize(context))
+        if not isinstance(value, AuthLease):
+            raise self._error("auth_initialize", "initialize must return AuthLease")
         return value
 
-    def is_auth_failure(self, flow: AuthFlow, request: RequestSpec, response: RequestResponse) -> bool:
-        hook = "is_auth_failure"
-        value = self._invoke_sync(hook, lambda: flow.is_auth_failure(request, response))
-        if not isinstance(value, bool):
-            raise self._error(hook, "AuthFlow.is_auth_failure must return bool")
+    async def refresh_auth(self, flow: AuthFlow, context: AuthContext) -> AuthLease:
+        value = await self._invoke_async("auth_refresh", lambda: flow.refresh(context))
+        if not isinstance(value, AuthLease):
+            raise self._error("auth_refresh", "refresh must return AuthLease; refresh(failed, response) was removed")
+        return value
+
+    async def verify_auth(self, flow: AuthFlow, context: AuthContext) -> AuthVerification:
+        value = await self._invoke_async("auth_verify", lambda: flow.verify(context))
+        if not isinstance(value, AuthVerification):
+            raise self._error("auth_verify", "verify must return AuthVerification")
+        return value
+
+    def classify_auth(self, flow: AuthFlow, request: RequestSpec, response: RequestResponse) -> AuthDecision:
+        value = self._invoke_sync("auth_classify_response", lambda: flow.classify_response(request, response))
+        if not isinstance(value, AuthDecision):
+            raise self._error("auth_classify_response", "classify_response must return AuthDecision")
         return value
 
     def _validate_manifest(self, hook: str, value: object) -> None:
@@ -430,7 +444,7 @@ class PluginInvoker:
         self._validate_string_mapping(hook, value.form, f"{hook} returned invalid request form")
         if value.referer is not None:
             self._validate_http_url(hook, value.referer, f"{hook} returned an invalid referer")
-        if not isinstance(value.auth_required, bool) or not isinstance(value.retry_non_idempotent, bool):
+        if not isinstance(value.auth, AuthMode) or not isinstance(value.retry_non_idempotent, bool):
             raise self._error(hook, f"{hook} returned invalid request flags")
 
     def _validate_image_fetch_request(self, hook: str, value: object, *, allow_none: bool) -> None:

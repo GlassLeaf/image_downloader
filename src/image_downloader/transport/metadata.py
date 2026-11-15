@@ -44,12 +44,13 @@ def _request_origin(url: str) -> str:
     if parsed.scheme not in {"http", "https"} or not parsed.hostname:
         raise ConfigurationError("request URL must be absolute HTTP(S)")
     host, _ = normalize_host(parsed.hostname)
+    host = f"[{host}]" if ":" in host else host
     try:
         port = parsed.port
     except ValueError as exc:
         raise ConfigurationError("request URL contains an invalid port") from exc
     default_port = 443 if parsed.scheme == "https" else 80
-    return f"{parsed.scheme}://{host}:{port or default_port}"
+    return f"{parsed.scheme}://{host}:{default_port if port is None else port}"
 
 
 def _header_values(headers: httpx.Headers) -> dict[str, tuple[str, ...]]:

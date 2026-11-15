@@ -13,6 +13,7 @@
 | パッケージと一般公開 | [リリース](release.md) |
 | 内部構造と非公開の実装境界 | [アーキテクチャ](architecture.md) |
 | アプリケーションのリクエストAPIと型付きワークフロー例外 | [アプリケーションAPIの移行](application-api-migration.md) |
+| 認証API 3の破壊的更新 | [認証状態管理のリリースノート](authentication-redesign-release-notes.md) |
 | 過去の記述の保全 | [旧資料の対応台帳](legacy-coverage.md) |
 | 外部依存と保守担当者の方針に関する課題 | [文書の未決事項](open-documentation-todos.md) |
 

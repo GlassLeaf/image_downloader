@@ -9,6 +9,7 @@ from PIL import Image
 
 from image_downloader import (
     AppConfig,
+    AuthMode,
     Chapter,
     DownloadManifest,
     ImageResource,
@@ -52,7 +53,7 @@ class Gallery:
         return DownloadManifest(url.rsplit("/", 1)[-1], (Chapter(1, "chapter", images=(ImageResource(url + ".png"),)),))
 
     async def create_image_request(self, image, context):
-        return RequestSpec(image.url, auth_required=False)
+        return RequestSpec(image.url, auth=AuthMode.NONE)
 
     def transform_image(self, artifact, context):
         return artifact

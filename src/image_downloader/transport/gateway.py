@@ -14,13 +14,14 @@ from email.utils import parsedate_to_datetime
 from http.cookiejar import CookieJar
 from typing import Any, Unpack
 from urllib.parse import urlparse
+from weakref import WeakSet
 
 import httpx
 
 from ..configuration.hosts import normalize_host, registrable_domain
-from ..configuration.models import AppConfig
+from ..configuration.models import AppConfig, PluginConnections, PluginSettings
 from ..exceptions import (
-    AuthenticationError,
+    AuthScopeError,
     HttpTransportError,
     RedirectPolicyError,
     ResponseSizeLimitError,
@@ -72,6 +73,7 @@ class RequestGateway:
         self._last_request = 0.0
         self._logger = logger
         self.transport_factory = transport_factory
+        self._operations: WeakSet[OperationRequestGateway] = WeakSet()
         transport_options: dict[str, Any] = {"transport": transport_factory()} if transport_factory is not None else {}
         self.client = httpx.AsyncClient(
             http2=network.http2,
@@ -96,6 +98,7 @@ class RequestGateway:
         auth_flow_factory: Callable[[OperationRequestGateway], object | None] | None = None,
         invoker: PluginInvoker | None = None,
         request_concurrency: int | None = None,
+        settings: PluginSettings | PluginConnections | None = None,
     ) -> OperationRequestGateway:
         session = OperationRequestGateway(
             self,
@@ -103,13 +106,19 @@ class RequestGateway:
             operation_url=operation_url,
             invoker=invoker,
             request_concurrency=request_concurrency,
+            settings=settings,
         )
+        self._operations.add(session)
         flow = auth_flow_factory(session) if auth_flow_factory is not None else None
         session._configure_auth_flow(flow)
         return session
 
     async def execute(self, spec: RequestSpec) -> RequestResponse:
-        return await self.operation(plugin_id=None, operation_url=spec.url).execute(spec)
+        session = self.operation(plugin_id=None, operation_url=spec.url)
+        try:
+            return await session.execute(spec)
+        finally:
+            await session.close()
 
     def get_cookie_snapshot(self) -> dict[str, dict[str, dict[str, str]]]:
         """Read the current jar without exposing or mutating its Cookie objects."""
@@ -127,6 +136,7 @@ class RequestGateway:
         plugin_id: str | None = None,
         allowed_redirect_origins: frozenset[str] | None = None,
         trace: _TransportTrace | None = None,
+        allowed_endpoint_origins: frozenset[str] | None = None,
     ) -> RequestResponse:
         retryable_method = spec.method.upper() in {"GET", "HEAD", "OPTIONS", "TRACE"}
         attempts = self.config.network.max_attempts if retryable_method or spec.retry_non_idempotent else 1
@@ -136,7 +146,9 @@ class RequestGateway:
         for attempt in range(attempts):
             retry_after = None
             try:
-                if trace is not None:
+                if allowed_endpoint_origins is not None:
+                    response = await self._once(spec, allowed_endpoint_origins=allowed_endpoint_origins)
+                elif trace is not None:
                     trace.clear()
                     response = await self._once(spec, allowed_redirect_origins=allowed_redirect_origins, trace=trace)
                 else:
@@ -188,11 +200,17 @@ class RequestGateway:
         *,
         allowed_redirect_origins: frozenset[str] | None = None,
         trace: _TransportTrace | None = None,
+        allowed_endpoint_origins: frozenset[str] | None = None,
     ) -> RequestResponse:
         request = self._build_request(spec)
         initial_request = _request_metadata(request)
         redirects = 0
         while True:
+            if (
+                allowed_endpoint_origins is not None
+                and _request_origin(str(request.url)) not in allowed_endpoint_origins
+            ):
+                raise AuthScopeError("authentication redirect targets an undeclared endpoint")
             async with self._send_one_hop(request) as response:
                 next_request = response.next_request if self.config.network.follow_redirects else None
                 if next_request is not None:
@@ -270,9 +288,13 @@ class RequestGateway:
             return next_request
         if allowed_origins is not None:
             if previous.url.scheme == "https" and next_request.url.scheme == "http":
-                raise AuthenticationError("authenticated redirect cannot downgrade to HTTP")
+                raise AuthScopeError("authenticated redirect cannot downgrade to HTTP")
             if next_origin not in allowed_origins:
-                raise AuthenticationError("authenticated redirect is outside the configured origins")
+                raise AuthScopeError("authenticated redirect is outside the configured origins")
+            # HTTPX strips Authorization on cross-origin redirects. The explicit
+            # session declaration permits this credential on the destination too.
+            if "Authorization" in previous.headers:
+                next_request.headers["Authorization"] = previous.headers["Authorization"]
             return next_request
         if next_request.method not in {"GET", "HEAD"} or spec.form or spec.json is not None:
             raise RedirectPolicyError("cross-origin redirect with a request body is not allowed")
@@ -354,6 +376,8 @@ class RequestGateway:
             raise UnsupportedSiteFeatureError("server-sent events are not supported")
 
     async def close(self) -> None:
+        for operation in list(self._operations):
+            await operation.close()
         await self.client.aclose()
 
 

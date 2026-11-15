@@ -80,7 +80,7 @@ def _request_json(request: RequestSpec) -> dict[str, object]:
         "query": dict(request.query),
         "form": dict(request.form),
         "json": thaw_json(request.json),
-        "auth_required": request.auth_required,
+        "auth": request.auth.value,
         "retry_non_idempotent": request.retry_non_idempotent,
     }
 

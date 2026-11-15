@@ -17,7 +17,7 @@ from image_downloader.plugins.plugin_manifest import (
     PluginVerificationMode,
 )
 
-from ..configuration.models import AppConfig, PluginDownloadPolicy, PluginSettings
+from ..configuration.models import AppConfig, PluginConnections, PluginDownloadPolicy, PluginSettings
 from ..exceptions import ConfigurationError, PluginError
 from ..immutable import freeze_json
 from ..ports import ImageProcessor, SitePlugin
@@ -240,6 +240,15 @@ class PluginRuntime:
         except ValueError as exc:
             raise ConfigurationError(f"runtime download policy override for {record.id} is invalid") from exc
 
+    def effective_connections(self, record: PluginRecord) -> PluginConnections:
+        setting = self._setting(record.id)
+        overrides = setting.model_dump(include={"authentication", "endpoints"}, exclude_unset=True) if setting else {}
+        incoming = {key: value for key, value in overrides.items() if key in {"authentication", "endpoints"}}
+        try:
+            return PluginConnections.model_validate(deep_merge(record.connection_defaults, incoming))
+        except ValueError as exc:
+            raise ConfigurationError(f"authentication/endpoints configuration for {record.id} is invalid") from exc
+
     def validate_download_policy_overrides(
         self,
         site_record: PluginRecord,
@@ -347,6 +356,7 @@ class PluginRuntime:
         self.validate_settings()
         for record in list(self.records.values()):
             try:
+                self.effective_connections(record)
                 instance = self._typed_instance(record)
                 _validate_plugin_config(
                     record.id,
@@ -362,6 +372,7 @@ class PluginRuntime:
     def validate_all(self, overrides: PluginConfigOverrides | None = None) -> None:
         self.validate_settings()
         for record in self.records.values():
+            self.effective_connections(record)
             instance = self._typed_instance(record)
             _validate_plugin_config(
                 record.id,
