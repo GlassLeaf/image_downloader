@@ -105,7 +105,39 @@ plugin_settings:
 
 `auth_flow()` はoperationごとの同期factory。初回準備を `initialize()`、通信なしの資格情報付与を同期 `apply()`、三値分類を `classify_response()`、追加確認を `verify()`、更新を `refresh()` が担当する。追加ホストと確認頻度は共通設定で宣言する。[認証移行手順](authentication-migration.md)を参照する。
 
-`auth_flow()` 自体で画像取得、manifest 生成、変換、raw HTTP、credential の永続書込みをしてはならない。ネットワークを伴う更新は `refresh()` から `context.requests` を通して行う。[authentication hook](../reference/plugin-hooks.md#plugin-hooks) を参照する。
+`auth_flow()` 自体で画像取得、manifest 生成、変換、raw HTTP、credential の永続書込みをしてはならない。ネットワークを伴う準備・確認・更新は `initialize()` / `verify()` / `refresh()` の引数の `auth_context.requests` を通して行う。通常の `PluginExecutionContext.requests` / `.auth` に再入すると `AuthReentryError` になる。[authentication hook](../reference/plugin-hooks.md#plugin-authentication) を参照する。
+
+<a id="faq-authentication-settings"></a>
+
+### `authentication` と `endpoints` は省略できるか？
+
+どちらも省略できる。作者YAMLは `config: {}` だけでよい。フローがあればoperation開始URLのoriginを認証対象として補い、初回に `initialize()`、各認証対象要求に `apply()` を実行する。省略するのは方針による追加確認であり、認証自体や必要な更新ではない。フローがなければ `AUTO` は通常のHTTP処理になる。`context.endpoints["operation"]` は自動的に用意するが、`"api"` 等の名前は宣言が必要。[省略時の動作](../reference/configuration.md#config-authentication-defaults)を参照する。
+
+フローがあるサイトの未宣言の追加originへ `AUTO` / `REQUIRED` で送信すると `AuthScopeError` になる。公開の通常要求なら `auth: none` の宣言か `AuthMode.NONE` を使える。認証フック専用の通信は常に宣言済みoriginだけに制限される。
+
+### `verification.before_request` と `verify_before_request` は何が違うか？
+
+同じ `AuthFlow.verify()` を呼び出すための方針で、適用範囲が異なる。`authentication.verify_before_request` は共通の既定値、`endpoints.api.verification.before_request` はapiのoriginだけの上書きである。省略すれば継承し、明示的な `false` は毎要求確認を止める。ただし継承した間隔確認は残るため、両方止めるには `before_request: false` と `interval_seconds: null` を指定する。開始時・明示的な確認・応答UNKNOWNによる確認は別途有効。[値と優先順位](../reference/configuration.md#config-endpoints)を参照する。
+
+`verify_on_start` の開始はアプリ起動時ではなく、operationの初回認証準備時である。間隔確認は次の認証対象要求前に必要性を判定し、待機中に定期通信しない。確認時刻は接続先ごとではなくoperation内で共有する。設定から確認方法を生成することはなく、追加確認を有効にするプラグインは `verify()` を実装する。既定実装のUNKNOWNでは `AuthStateUnknownError` になる。
+
+### 認証方針は通常のページ・API・画像通信にも適用されるか？
+
+認証対象として解決される通常要求には適用する。`auth: session` のoriginへの `AUTO` 要求では、ページ・API・画像のどれでも認証準備・確認・apply・応答分類を行う。`auth: none` と `AuthMode.NONE` は認証フローを通さないが、Cookie jarや明示した資格情報を無効化・除去する設定ではない。
+
+認証フック内の `AuthContext.requests` は再入防止のため自動認証・確認・更新を通さず、通常要求とCookie jar・transportを共有する。`endpoints` はこのoperationの認証範囲の宣言で、アプリ全体の通信先制限ではない。現行の毎要求確認は認証準備時の単位であり、低層transport再試行・redirect各hopでは呼び直さない。[適用範囲](../reference/configuration.md#config-authentication-scope)を参照する。
+
+### `create_image_request()` でも `context.endpoints["api"].request(...)` を使えるか？
+
+使える。`.request("/items")` は宣言済みoriginの `RequestSpec` を構築するだけで通信せず、その要求をフックから返すとコアが認証方針を解決して画像を取得する。未宣言の名前はKeyError。絶対URLで構築した場合も同じoriginの方針が適用され、既存URLを別ホストへ自動的に書き換えることはない。
+
+返す要求の応答は画像本体である必要がある。`/items` がJSONの一覧・署名APIなら、フック内等で `await context.requests.execute(...)` に渡して解析し、画像本体の要求を返す。[要求構築の実装例](dynamic-urls-and-auth.md#endpoint-image-requests)を参照する。
+
+### CSRFサンプルはPOST応答を保持せず、どうやってセッションを更新するのか？
+
+`refresh()` の変数 `session` は `RequestResponse` であり、セッション管理オブジェクトではない。`session.status` でHTTPエラーを検出している。HTTPXは応答の `Set-Cookie` を共有Cookie jarへ自動反映し、後続要求へ適用可能なCookieを送るため、応答本文や応答オブジェクトをフローに保存する必要はない。既存Cookieに対応するサーバー側セッションだけが更新される方式もある。
+
+`AuthLease()` はコアへ準備・更新成功と期限情報を伝え、Cookie保存は行わない。サンプルのHTTPステータス確認だけでは、200で返るログイン失敗等を検出できないので、実サイトでは本文・確認API等も使って成功を判定する。Bearer tokenを本文で返す方式なら解析・保持と `apply()` が必要。[Cookie更新の手順と状態の管理先](authentication-migration.md#cookie-session-refresh)を参照する。
 
 ### Q11. `transform_image()` は並列安全か？　他画像の結果に依存してよいか？
 

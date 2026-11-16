@@ -211,6 +211,8 @@ template は `%CHAPTER_NUMBER%` と `%IMAGE_INDEX%` にその値を四桁ゼロ�
 | `.catalog` | `Mapping[str, object] | None` | 選択したプラグインのカタログのpin。pinなし・組込みの場合は`None`。 |
 | `.secrets` | `SecretProvider` | `get(name: str) -> str`。参照の未構成・未登録は`SecretNotFoundError`、鍵欠損・破損などの保管庫障害は`VaultError`。読取り専用。[登録方法](credential-vault.md#登録一覧削除)。 |
 | `.requests` | `RequestPort` | `await execute(RequestSpec) -> RequestResponse`。提供する通信権限はこれだけです。 |
+| `.auth` | `AuthPort` | `await ensure_ready(check=False)` で必要な初期化・更新、`check=True` で追加確認も要求する。`invalidate(response)` は同一operationの現在世代だけを無効化する。 |
+| `.endpoints` | `Mapping[str, Endpoint]` | 宣言済み接続先の読取り専用mapping。`.request(path, **kwargs)` で `RequestSpec` を構築する。`operation` は自動的に用意する。 |
 | `.get_cookies(*, domain=None, path=None)` | `dict` | 共有Cookie jarの現在値を同期取得する。domain/pathは保存属性との完全一致。返却階層は下記を参照。 |
 | `PluginFormatContext.plugin_id`, `.plugin_kind`, `.operation_url` | `str` | 出力書式値を提供しているプラグインの識別情報と操作URL。マッピングは画像・章・成果物ではなく、操作中に変わらないこのコンテキストだけに依存します。 |
 | `.config`, `.app_settings`, `.manifest`, `.catalog` | 上記と同じマッピング型 | 出力書式値の提供元プラグインの設定、秘密情報を除いたアプリ設定、manifest・カタログのスナップショット。要求・秘密情報・ファイルシステムの権限はありません。 |
@@ -227,9 +229,35 @@ template は `%CHAPTER_NUMBER%` と `%IMAGE_INDEX%` にその値を四桁ゼロ�
 
 `output_format_values()`は任意の同期フックです。本体は、選択したサイトと有効なプロセッサーチェーンを構成した後で一度だけ呼びます。返されたマッピングを不変にし、その操作中のすべての出力名に使います。`PluginFormatContext`と、それが公開するすべてのマッピングも不変です。フックはI/Oを行わず、変化する時刻、画像、成果物、`DownloadManifest`、章の状態に依存しないでください。例えば`com.example.grayscale`が`{"FILTER_NAME": "_grayscale"}`を返すと、本体は`%PLUGIN[com.example.grayscale:FILTER_NAME]%`という名前空間付きのトークンとして扱います。値は秘密情報を含まない出力用テキストです。フック・選択プラグイン・キーの欠落はエラーではありません。対応するトークンは文字列のまま残し、その後にパス構成要素の安全化を適用します。例外、マッピング以外の戻り値、文字列以外の値、`[A-Z][A-Z0-9_]{0,63}`に合わないキーは`PluginError`です。将来のプラグイン種別では、その操作の構成処理が出力書式値の提供元として明示的に登録した場合だけ、この仕組みに参加できます。
 
-認証セッションはoperationごとに一つ。初回要求前に `initialize()` を実行し、資格情報は同期・通信なしの `apply()` で付与する。追加ホストは共通設定 `endpoints.<name>.origin/auth` に宣言する。認証通信は `AuthContext.requests` を使い、通常の `context.requests` / `context.auth` への再入は `AuthReentryError`。検査でも認証準備は実行され得るが画像本体は送信しない。[認証移行手順](../how-to/authentication-migration.md)を参照する。
+<a id="plugin-authentication"></a>
+
+### 認証フローと通信権限
+
+認証セッションはoperationごとに一つ。最初の認証対象要求前に `initialize()` を実行し、資格情報は同期・通信なしの `apply()` で付与する。接続先・確認方針はコアが解決し、通常のページ・API・画像要求にも適用する。`authentication` / `endpoints` は省略でき、フローがあればoperation開始URLのoriginを認証対象として補う。追加ホストと確認頻度は[共通設定](configuration.md#config-plugin-connections)で宣言する。検査でも認証準備は実行され得るが画像本体は送信しない。
+
+| `AuthFlow` のメソッド | 責務と既定実装 |
+| --- | --- |
+| `async initialize(auth_context) -> AuthLease` | 初回のtoken読込み・ログイン等。`BaseAuthFlow` では実装必須。 |
+| `apply(request) -> RequestSpec` | 準備済み資格情報を同期で付与する。通信不可。既定は要求をそのまま返す。origin・authモードは変更不可。 |
+| `classify_response(request, response) -> AuthDecision` | 通信なしで応答を分類する。既定は401がAUTH_FAILURE、403がUNKNOWN、その他はNOT_AUTH_FAILURE。 |
+| `async verify(auth_context) -> AuthVerification` | 必要なら追加通信で状態確認する。既定はUNKNOWN。設定で確認を有効にするサイトは実装が必要。 |
+| `async refresh(auth_context) -> AuthLease` | 再ログイン・token更新を行う。要求ではなくleaseを返す。既定は更新未対応の `AuthenticationError`。 |
+
+`AuthContext` は固有の `config`、`secrets`、`endpoints`、認証用の `requests` を持つ。認証通信は引数の `auth_context.requests` を使い、通常の `PluginExecutionContext.requests` / `.auth` へ再入すると、ロック待ちの前に `AuthReentryError` となる。専用の入口は共有のHTTPクライアント・Cookie jar・プール・タイムアウト・通信制限・transport再試行を使うが、自動apply・応答分類・認証確認・認証更新は行わない。HTTPエラー応答も本文付きで返すため、フロー側で必要な成功判定を行う。
+
+認証用通信の送信先はoperationの既定originを含む宣言済みoriginに限り、リダイレクト先も制限する。`AuthMode.NONE` でもこの制限は外れない。cross-origin redirectでは通常の非認証経路と同じヘッダー除去・本文転送制限を使う。Bearer等が必要なら認証フック側で明示し、Cookieは共有jarから通常どおり送信する。[Cookieログインの更新経路](../how-to/authentication-migration.md#cookie-session-refresh)を参照する。
+
+`AuthLease` の期限はコアが単調時計で管理し、期限不明なら `expires_in_seconds=None` とする。`verify()` がVALIDでleaseを省略した場合は既存期限を維持する。確認時刻と資格情報の世代は接続先ごとに分けず、operationで共有する。`verify_before_request` は要求の認証準備時に作用し、低層transport内部の再試行・redirect各hopでは追加実行しない。
 
 HTTP 401と403の扱いはプラグインが上書きできる。応答分類は `AUTH_FAILURE`、`NOT_AUTH_FAILURE`、`UNKNOWN`。既定の401は認証失敗、403はUNKNOWN、その他は認証更新対象外で、プラグインが上書きできる。UNKNOWNでは `verify()` により追加確認し、INVALIDなら更新、VALIDなら通常処理、不明なら `AuthStateUnknownError`。要求は認証準備、apply、通信、分類、必要なら更新・再試行、その後HTTP status `>=400`なら最大一回の `recover_image_request` の順。認証再試行は `network.auth_refresh_attempts` 回まで。非冪等要求の再送には `retry_non_idempotent=True` が必要。フローがなければ401/403も通常のHTTPエラーとなる。
+
+NOT_AUTH_FAILUREは認証済みの証明ではなく、その応答を認証更新の根拠にしないという分類である。UNKNOWNでは間隔キャッシュだけを理由に確認を省略しない。明示確認には `await context.auth.ensure_ready(check=True)` を使う。後段の解析で認証切れが分かった場合は `context.auth.invalidate(response)` を呼び、次の認証対象要求前に更新させる。古い世代の無効化は無視し、別operation・receiptなしの応答は `AuthScopeError` とする。
+
+### 接続先からの要求構築
+
+`context.endpoints["api"].request("/items", **kwargs)` は `Endpoint.origin` とパスから `RequestSpec` を構築する同期処理で、通信は行わない。パスは単一の `/` で始め、絶対URL・別host指定・バックスラッシュを拒否する。未宣言の名前はKeyErrorになる。`inspect()`、`create_image_request()`、`recover_image_request()` で利用でき、認証フックにも `AuthContext.endpoints` として同じ接続先を渡す。
+
+要求を返す画像フックでは画像本体のURLを構築する。JSON一覧・署名APIの要求なら `context.requests.execute()` に渡して解析し、画像本体の要求を返す。絶対URLで直接構築した要求も同じoriginの認証方針を通し、接続先の名前による別セッションやURLの自動書換えはない。[実装例](../how-to/dynamic-urls-and-auth.md#endpoint-image-requests)を参照する。
 
 invoker は manifest、chapter/image index、plugin-returned `ImageResource.url` と `ImageArtifact.source_url` の **空でない文字列のlocator**、`ImageResource.original_filename` の非空・path separator なし string、`ImageResource.metadata` と `ImageFetchRequest.plugin_data` の string mapping、`RequestSpec.url` と referer の absolute HTTP(S) **構文**、hook return class、nested DTO、cleanup return を検証する。`ImageResource` constructor 自体は URL を検査しない。locator は plugin が `create_image_request` で実 request を組み立てるのに十分に安定していなければならない。`image_id`、image metadata、manifest metadata、`original_filename` は inspection-time の非秘密値だけにし、token、cookie、署名 URL、鍵などを含めてはならない。`plugin_data` は request-time の transform 専用値であり、必要最小限にして artifact/result/event/log へ自分でコピーしてはならない。plugin は `ImageSaveOptions(format="ORIGINAL")` により core の再エンコードを止められる。この指定は extension/encoder field と併用できず、site transform/processor 後の artifact bytes を保存する。core は locator の意味を解釈せず、`RequestSpec(url=image.url)` が HTTP(S) でなければ fetch 前に失敗する。予期しない hook exception と contract violation は plugin ID と hook 名を持つ `PluginError` に変換し、`asyncio.CancelledError` は再送出する。core fetch/process/save failure を plugin 内で握りつぶしてはならない。
 
@@ -273,6 +301,8 @@ pathのみでは `{domain: {name: value}}`、両方では `{name: value}` を返
 呼出時点の共有jarを参照するため、受信したSet-Cookieの適用後の値を取得できる。
 リダイレクト途中、再試行、認証更新、他の並行通信による更新も含み、直前の自分の要求専用の履歴ではない。
 `TransformContext` と `PluginFormatContext` にはこの取得機能を追加しない。
+
+Cookieの保存・後続要求への付与は共有HTTPクライアントが自動的に行う。認証用の `AuthContext.requests` も同じjarを使うため、ログインPOSTの応答オブジェクトを保持しなくても、受信したCookieは後続の通常要求に反映される。`get_cookies()` / `set_cookies()` の呼出しや手動コピーは更新のために不要で、応答がHTTP成功でもログイン成功を保証するものではない。`AuthLease()` はコアの認証世代・期限のための戻り値で、Cookie保存を行わない。[CSRFサンプルの説明](../how-to/authentication-migration.md#cookie-session-refresh)を参照する。
 
 手動で構築する `PluginExecutionContext` は従来の位置引数を維持し、任意のkeyword-only引数
 `cookie_provider: CookieProvider | None = None` を追加する。

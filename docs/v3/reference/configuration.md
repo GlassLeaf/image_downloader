@@ -286,7 +286,7 @@ Pillow非対応形式をORIGINALで保存する必要がある利用者は、こ
 
 <a id="config-secrets"></a>
 
-manifest `config_file` が指す author-default YAML（固定名ではない）、persistent `plugin_settings.<id>.config`、operation override はこの順に deep merge する。author-default file の root key は `config` のみである。disabled site plugin は selection candidate ではない。chain 上の disabled processor は error でなく skip される。processor に `secrets` を置くことは 設定エラー である。
+manifest `config_file` が指す author-default YAML（固定名ではない）、persistent `plugin_settings.<id>.config`、operation override はこの順に deep merge する。author-default file は必須の `config` と、任意の `authentication`・`endpoints` をルートに持つ。プラグイン固有の検証に渡すのは `config` だけで、接続先・認証方針はコアが扱う。[接続先と認証方針](#config-plugin-connections)を参照する。disabled site plugin は selection candidate ではない。chain 上の disabled processor は error でなく skip される。processor に `secrets` を置くことは 設定エラー である。
 
 `core.generic-html` は通常の site plugin ではなく、外部 plugin が一致しないときだけ選ばれる組み込み fallback である。この ID を `plugin_settings`、`--plugin-config`、`--plugin-config-file`、`--plugin`、`--force-plugin` の対象にはできず、指定は 設定エラー になる。generic fallback が自動選択された download operation に限り、core 所有の一回限りの `--plugin-download-policy core.generic-html=<JSON>` または `--plugin-download-policy-file` は利用できる。これは persistent 設定ではなく、画像抽出や request/auth の振る舞いを変更しない。fallback の有効/無効は `fallback.generic_html.enabled` または `--fallback-generic` で制御する。
 
@@ -347,6 +347,143 @@ workflow_history:
 
 `media.transform_workers` は厳密な整数1〜4、既定2。サービス所有の専用スレッド数で、サイトとprocessorの変換が共有する。通信並列数やコア画像検証プロセス数を変更しない。画素数制限の既定値Noneは維持する。[移行と終了待ち](../maintenance/synchronous-image-transforms.md)を参照する。
 
-### 接続先と認証方針
+<a id="config-plugin-connections"></a>
 
-`plugin_settings.<id>.authentication` と `endpoints` は作者YAMLの共通設定を上書きする。`verify_on_start=false`、`verify_before_request=false`、`verify_interval_seconds=null`（正数で定期確認）、`refresh_skew_seconds=0`（非負数で期限前更新）が既定。`endpoints.<name>` はHTTP(S)の `origin` と必須の `auth: session|none` を持ち、`verification.before_request/interval_seconds` で確認方針を上書きできる。同一originに矛盾する方針は設定エラー。[利用例と移行手順](../how-to/authentication-migration.md)を参照する。
+## 接続先と認証方針
+
+`authentication` は選択したサイトプラグインの認証確認・期限更新の共通方針、`endpoints` は接続先originごとの認証利用と確認方針を宣言する。ログイン方法、確認用URL、Bearer tokenの付与方法は設定から自動生成せず、プラグインの `AuthFlow` が実装する。ここでいう確認は `AuthFlow.verify()` の呼出しであり、HTTPの疎通確認や画像検査ではない。
+
+作者はmanifestの `config_file` が指すYAMLに `config` と並べて記述する。利用者はmain/profile/site設定の `plugin_settings.<id>.authentication` と `plugin_settings.<id>.endpoints` で部分的に上書きする。作者設定に利用者設定をdeep mergeしてから、接続先と方針の整合性を検証する。省略項目は作者設定を維持する。`--plugin-config` / `--plugin-config-file` とプラグインの `validate_config()` は固有の `config` だけを扱い、この共通設定の操作には使わない。
+
+<a id="config-authentication-defaults"></a>
+
+### 省略時の動作
+
+`authentication` と `endpoints` はそれぞれ省略できる。作者・利用者の両方が省略した場合の値は次のとおり。作者YAML自体は `config: {}` だけでよい。
+
+```yaml
+authentication:
+  verify_on_start: false
+  verify_before_request: false
+  verify_interval_seconds: null
+  refresh_skew_seconds: 0
+endpoints: {}
+```
+
+`authentication` の省略や `verify_***: false` は認証全体の無効化ではない。フローがあれば最初の認証対象要求前に `initialize()` を実行し、同期 `apply()` で資格情報を付与する。期限切れ・明示的な無効化・応答判定による更新も行う。既定で省略するのは、方針による追加の `verify()` 呼出しである。フローを返さないサイトの `AUTO` 要求では、認証処理を実行しない。
+
+operation開始URLのoriginに宣言がなければ、フローありでは `auth: session`、フローなしでは `auth: none` の既定接続先を補う。`context.endpoints["operation"]` も自動的に用意する。`operation` を明示宣言する場合は、そのoperationのoriginと一致しなければならない。単一originで完結する認証は `endpoints` なしで実装できるが、追加originの扱いは下記の認証モードによる。
+
+<a id="config-authentication-policy"></a>
+
+### 認証確認と期限更新の値
+
+| `authentication` のキー | 値・既定値 | 呼出しのタイミング・役割 |
+| --- | --- | --- |
+| `verify_on_start` | 真偽値。既定 `false` | operationで初めて認証を準備する際、`initialize()` に加えて `verify()` を実行する。アプリ起動時・各ホストへの初回アクセス時という意味ではない。 |
+| `verify_before_request` | 真偽値。既定 `false` | 認証対象要求の認証準備時に `verify()` を要求する。間隔設定より優先する。 |
+| `verify_interval_seconds` | 正の有限数、または `null`。既定 `null` | 最後に `verify()` がVALIDを返してから指定秒数以上経過していれば、次の認証対象要求前に確認する。未確認なら初回要求前に確認する。`null` は間隔による確認を無効にする。 |
+| `refresh_skew_seconds` | 0以上の有限数。既定 `0` | `AuthLease` の期限の何秒前から更新対象にするか。残存600秒・skew 30秒なら、約570秒後以降の認証準備時に更新する。 |
+
+真偽値はYAMLの `true` / `false` を使う。秒数は数値の整数・小数を受け付け、文字列、真偽値、NaN、無限大は拒否する。間隔の0・負数、skewの負数も設定エラーである。無効化は間隔に `null`、skewに `0` を指定する。
+
+間隔確認・期限更新は要求時に必要性を判定し、バックグラウンドの定期通信やタイマー更新は行わない。`AuthLease(expires_in_seconds=None)` のように期限不明なら、skewによる期限前更新は行わない。`initialize()` / `refresh()` の成功だけでは追加確認済み時刻を記録せず、更新後は未確認になる。期限・経過時間はコアの単調時計で管理する。
+
+正常応答・期限切れなしの認証対象3要求を順番に送る場合、既定ではinitialize 1回・verify 0回・apply 3回、開始時確認だけならverify 1回、毎要求確認ならverify 3回となる。開始時確認と毎要求確認を併用しても初回に同じ確認を二重実行しない。同時要求は実行中の確認を共有し得るが、毎要求確認で完了済みの結果を後続要求へ使い回さない。
+
+現行の「毎要求」はoperationの要求経路で認証準備する単位である。認証再試行・画像URL回復後の再送では再び準備するが、低層transport内部の通信再試行やリダイレクト各hopで `verify()` を呼び直すことはない。`inspect` の実効要求プレビューも認証準備を通るため、画像を送信しなくても確認通信が起こり得る。
+
+`verify()` はプラグインが実装する。VALIDなら続行、INVALIDなら更新、不明なら `AuthStateUnknownError` で停止する。`BaseAuthFlow.verify()` の既定値はUNKNOWNなので、追加確認を有効にするサイトでは確認手順を実装する。`await context.auth.ensure_ready(check=True)` と応答分類UNKNOWNによる確認は、間隔内であっても明示的な確認を要求する。各フックとエラーの契約は[認証フロー](plugin-hooks.md#plugin-authentication)を参照する。
+
+<a id="config-endpoints"></a>
+
+### 接続先の値と上書き規則
+
+| `endpoints.<name>` のキー | 値・省略時の動作 |
+| --- | --- |
+| `origin` | 必須のHTTP(S) origin。scheme・host・portを指定する。パスは空または `/` だけで、ユーザー情報・query・fragmentは不可。 |
+| `auth` | 必須の `session` / `none`。`session` はoperationの認証フローを使い、`none` は通常要求で認証フローを通さない。 |
+| `verification.before_request` | 真偽値。省略時は `authentication.verify_before_request` を継承する。 |
+| `verification.interval_seconds` | 正の有限数、または `null`。省略時は `authentication.verify_interval_seconds` を継承する。明示的な `null` はそのoriginの間隔確認を無効にする。 |
+
+`authentication.verify_before_request` と `endpoints.<name>.verification.before_request` は、同じ `AuthFlow.verify()` の呼出しを制御する。前者は共通の既定値、後者はそのoriginだけの上書きである。接続先では `verify_on_start` と `refresh_skew_seconds` を上書きできない。
+
+上書きはキーごとに行う。`before_request: false` だけでは継承した間隔確認を止めない。両方を無効にする場合は次を指定する。開始時・明示的な確認・応答UNKNOWNによる確認や、必要な更新は引き続き行う。
+
+```yaml
+verification:
+  before_request: false
+  interval_seconds: null
+```
+
+認証セッション・資格情報の世代・最後の確認時刻はoperation内で一つである。接続先ごとに別のセッションや確認時計を持たず、あるoriginへの要求前に成功した確認は、別originの間隔判定にも使う。接続先の宣言は、確認用のURLや確認処理そのものを指定するものではない。
+
+originはscheme・正規化したhost・portで比較し、`https://example.test` と `https://example.test:443` は一致する。HTTPとHTTPS、異なるportは別originである。名前やURLパスでは方針を分けない。同一originの別名は実効的な `auth`・確認方針が一致する必要があり、矛盾は設定エラーになる。ワイルドカードやリダイレクト先の自動追加は行わない。
+
+<a id="config-authentication-scope"></a>
+
+### 通常通信・認証用通信への適用範囲
+
+ページ取得、API取得、画像取得、補助ファイル取得は、同じ要求経路を使う範囲で以下の方針を適用する。ログイン要求だけを制御する設定ではない。
+
+| 通信・要求モード | 動作 |
+| --- | --- |
+| 通常要求の `AuthMode.AUTO`、フローあり、`auth: session` のorigin | 初期化・期限更新・方針による確認・apply・応答分類・必要な認証再試行を行う。 |
+| 通常要求の `AUTO`、`auth: none` のorigin | 認証フローを通さず通常のHTTP処理を行う。 |
+| フローがない通常要求の `AUTO` | 通常のHTTP処理。未宣言の追加originも、この認証設定によっては拒否しない。 |
+| 通常要求の `AuthMode.NONE` | 認証フローを通さない。追加originの認証宣言も要求しない。 |
+| 通常要求の `AuthMode.REQUIRED` | フローと認証対象originを必須にする。フローなし・`auth: none` は `AuthScopeError`。 |
+| フローあり、未宣言の追加originへの `AUTO` / `REQUIRED` | `AuthScopeError`。公開の接続先は `auth: none` と宣言するか、通常要求で `NONE` を使う。 |
+| 認証フック内の `AuthContext.requests` | 初期化・確認・apply・応答分類・認証更新を自動実行しない。operationの既定originを含む宣言済みoriginだけに送信でき、リダイレクト先も制限する。`NONE` でもこの制限を迂回できない。 |
+
+`auth: session` の宣言に対して `auth_flow()` がNoneを返す場合は `AuthScopeError` になる。`endpoints` はアプリ全体の通信先を制限するファイアウォールではなく、このoperationの認証利用・認証用通信の範囲を決める。
+
+`auth: none` と `AuthMode.NONE` はCookie jarを無効にせず、要求に明示した資格情報を自動的に削除する指定でもない。認証用クライアントも通常要求とCookie jarを共有する。ただしBearer等のヘッダーは認証フック側が必要に応じて明示する。cross-origin redirectのヘッダー除去・本文転送制限は別途適用する。
+
+<a id="config-authentication-example"></a>
+
+### 作者設定と利用者上書きの例
+
+次は `AuthFlow.verify()` を実装したサイトプラグインの作者YAMLである。
+
+```yaml
+config: {}
+authentication:
+  verify_on_start: true
+  verify_before_request: false
+  verify_interval_seconds: 300
+  refresh_skew_seconds: 30
+endpoints:
+  gallery:
+    origin: https://www.example.test
+    auth: session
+  api:
+    origin: https://api.example.test
+    auth: session
+    verification:
+      before_request: true
+  login:
+    origin: https://accounts.example.test
+    auth: none
+  images:
+    origin: https://cdn.example.test
+    auth: none
+```
+
+galleryは共通の300秒間隔、apiは毎要求確認を使う。loginとimagesへの通常要求では認証フローを通さない。apiの確認が成功すればgalleryの間隔判定にもその時刻を使う。認証開始時の追加確認と期限前30秒の更新はoperation共通である。
+
+利用者がapiの毎要求・間隔確認を無効にし、共通の間隔を600秒へ変える場合は、利用者YAMLへ次を指定する。作者のorigin・auth・他の接続先は維持する。
+
+```yaml
+plugin_settings:
+  com.example.gallery:
+    authentication:
+      verify_interval_seconds: 600
+    endpoints:
+      api:
+        verification:
+          before_request: false
+          interval_seconds: null
+```
+
+要求構築の例は[接続先から画像要求を作る](../how-to/dynamic-urls-and-auth.md#endpoint-image-requests)、Cookie共有と実装の移行は[認証APIの移行手順](../how-to/authentication-migration.md)を参照する。

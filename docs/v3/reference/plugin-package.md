@@ -4,7 +4,7 @@
 
 <a id="plugin-package"></a>
 
-サイト用のプラグインは`<plugin-root>/site_plugins/<unit>/`、画像プロセッサー用は`<plugin-root>/image_processor_plugins/<unit>/`に配置します。実行時に必要なソースは`manifest.json`、manifestの`config_file`が指す作者既定値のYAML、入口のモジュールと相対importする補助モジュールです。作者既定値のファイル名は固定ではありません（テンプレートの`sample_plugin.yaml`も有効です）。このYAMLのルートキーは`config`だけです。パッケージのスキーマと署名の仕様はこの文書で定義します。フックの実装は[プラグインフックリファレンス](plugin-hooks.md)を参照してください。
+サイト用のプラグインは`<plugin-root>/site_plugins/<unit>/`、画像プロセッサー用は`<plugin-root>/image_processor_plugins/<unit>/`に配置します。実行時に必要なソースは`manifest.json`、manifestの`config_file`が指す作者既定値のYAML、入口のモジュールと相対importする補助モジュールです。作者既定値のファイル名は固定ではありません（テンプレートの`sample_plugin.yaml`も有効です）。このYAMLは必須の`config`と、任意の`authentication`・`endpoints`をルートに持ちます。パッケージのスキーマと署名の仕様はこの文書で定義します。フックの実装は[プラグインフックリファレンス](plugin-hooks.md)を参照してください。
 
 <a id="plugin-layout"></a>
 
@@ -49,6 +49,8 @@
 | `file_tree_sha256` | 正規化したファイルツリーのダイジェスト |
 
 `signature`は内側のmanifestに対するEd25519署名です。`config`は厳密なmanifestのフィールドではありません。プラグイン固有の作者既定値は `config_file` が指すYAMLのルートキー `config` に指定し、接続先・認証の共通項目は同じYAMLの `endpoints` と `authentication` に指定します。
+
+作者YAMLの3項目の値はmappingであり、未知のルートキーは拒否します。`authentication` と `endpoints` を省略する場合の最小内容は `config: {}` です。共通設定をプラグインの `validate_config()` へ渡さず、コアが利用者の `plugin_settings.<id>.authentication/endpoints` とマージして検証します。値・既定値・優先順位は[接続先と認証方針](configuration.md#config-plugin-connections)を参照してください。
 
 <a id="relaxed-manifest-used-by-bypass-modes"></a>
 

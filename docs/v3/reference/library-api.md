@@ -88,7 +88,12 @@ result = await service.workflow(WorkflowRequest(url=feed_url, workflow_retries=2
 | `SecretProvider` | `get(name: str) -> str`。未設定/取得不能は `SecretNotFoundError`。 |
 | `CookieProvider` | `get_cookie_snapshot() -> dict[str, dict[str, dict[str, str]]]`。有効なCookieをdomain/path/name別の独立した辞書で返す。 |
 | `AuthFlow` | `async initialize(auth_context) -> AuthLease`、同期 `apply(request) -> RequestSpec`、同期 `classify_response(request, response) -> AuthDecision`、`async verify(auth_context) -> AuthVerification`、`async refresh(auth_context) -> AuthLease`。 |
+| `AuthContext` | `(config, secrets, endpoints, requests)`。認証フックに渡す専用コンテキスト。`requests` は再入せず、通常要求とCookie jar・transportを共有する。宣言済みoriginだけに送信し、自動の認証付与・確認・更新は行わない。 |
+| `AuthPort` | `async ensure_ready(*, check=False) -> None` と `invalidate(response) -> bool`。`PluginExecutionContext.auth` として公開する。明示確認・応答の世代に基づく無効化の契約は[認証フロー](plugin-hooks.md#plugin-authentication)を参照。 |
+| `Endpoint` | `(origin: str)`。`request(path: str, **kwargs) -> RequestSpec` は同期の要求構築で通信しない。`PluginExecutionContext.endpoints` と `AuthContext.endpoints` から参照する。単一の `/` で始まるパスを使い、未宣言名の参照はKeyError。 |
 | `SitePlugin` / `ImageProcessor` / `UpdateProvider` | signature と hook failure は [プラグインフックリファレンス](plugin-hooks.md) が正本。 |
+
+`authentication` / `endpoints` の省略時の値、要求モードと通常通信への適用範囲、共通設定と接続先別設定の優先順位は[設定リファレンス](configuration.md#config-plugin-connections)を参照する。`Endpoint.request()` は画像要求フックでも使えるが、戻した要求は画像本体の取得先になる。Cookie認証の応答を保持しなくても更新が引き継がれる理由は[Cookieログインの移行](../how-to/authentication-migration.md#cookie-session-refresh)を参照する。
 
 DTO は frozen で、JSON-like mapping は read-only mapping、sequence は tuple に freeze される。`<fresh …>` の default は dataclass default factory であり、mutable `{}` を共有する Python default ではない。変更は mutation でなく `dataclasses.replace()` または新しい DTO を使う。core は internal `freeze_json`/`thaw_json` で input と serialization payload を分離するが、それらの internal import は stable API ではない。serialization boundary は独立した mutable collection を生成し、caller collection と共有しない。
 

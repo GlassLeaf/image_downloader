@@ -20,4 +20,39 @@ CLI は `--inspection-data url|http|all` で stdout の露出範囲を選ぶ。�
 YAMLの参照名・`credential plugin set`・実行先の対応は[サンプルの登録手順](../../../plugin-sources/README.md#migrated-v2-pattern-samples)を参照する。
 登録と実行でデータルート・プロファイルを揃える。OAuth更新結果の自動保存は行わない。
 
-認証の状態管理・接続先宣言・確認頻度は[認証APIの移行手順](authentication-migration.md)を参照する。`apply()` は同期・通信なしとし、ログイン等は `AuthContext.requests` を利用する。
+認証の状態管理・接続先宣言・確認頻度は[認証APIの移行手順](authentication-migration.md)を参照する。`apply()` は同期・通信なしとし、ログイン等は `AuthContext.requests` を利用する。設定可能な値と通常通信への適用範囲は[設定リファレンス](../reference/configuration.md#config-plugin-connections)を参照する。
+
+<a id="endpoint-image-requests"></a>
+
+## 接続先から画像要求を作る
+
+`create_image_request()` / `recover_image_request()` の `PluginExecutionContext` でも、`inspect()` と同じ `context.endpoints` を使える。次は認証フローを持つサイトの作者YAMLで、画像本体を返すAPIのoriginを宣言する例である。
+
+```yaml
+config: {}
+endpoints:
+  api:
+    origin: https://api.example.test
+    auth: session
+```
+
+```python
+from image_downloader import ImageResource, PluginExecutionContext, RequestSpec
+
+
+async def create_image_request(
+    self, image: ImageResource, context: PluginExecutionContext
+) -> RequestSpec:
+    return context.endpoints["api"].request(
+        "/images/original.jpg",
+        referer=image.referer,
+    )
+```
+
+`.request()` にawaitは不要で、呼出しだけでは通信しない。上例は `https://api.example.test/images/original.jpg` の `RequestSpec` を返し、コアが認証準備・資格情報付与を経て取得する。固定画像パスは説明用であり、実装では画像を識別するlocator等から組み立てる。公開の接続先なら `auth: none` を使い、認証フローを通さない。
+
+`/items` のようなAPIの応答がJSONなら、その要求を画像本体の要求として返さない。`inspect()` や要求フック内で `await context.requests.execute(context.endpoints["api"].request("/items"))` を呼び、解析後に画像本体の `RequestSpec` を返す。認証フック内部では通常の `context.requests` ではなく、引数の `auth_context.requests` を使う。
+
+パスは単一の `/` で始める。絶対URL、`//other.example.test/...`、バックスラッシュを含むパスは拒否する。未宣言の `"api"` を参照するとKeyErrorになる。設定省略時も `context.endpoints["operation"]` は利用でき、operation開始URLと同じoriginの要求を構築できる。
+
+絶対URLを直接 `RequestSpec` に渡しても、送信時のorigin解決・認証方針は同じである。接続先宣言はURLの自動書換えやパス単位の認証ルーティングをしない。共通 `authentication` の確認方針は `endpoints.<name>.verification` でoriginごとに部分的に上書きする。省略時は継承し、`before_request: false` だけでは継承した間隔確認は止まらない。
