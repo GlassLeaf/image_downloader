@@ -1,0 +1,71 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 530" width="1120" height="530" role="img" aria-labelledby="diagram-title diagram-desc" lang="ja">
+  <title id="diagram-title">図3  検査用Cookieセッションの分離</title>
+  <desc id="diagram-desc">⑨は④からの一方向コピー。元の共有jar・保存ファイルへの書戻しは行わない。</desc>
+  <style>
+        text { font-family: "Yu Gothic", "Meiryo", "Noto Sans CJK JP", sans-serif; fill: #172e42; }
+        .node-title { font-size: 20px; font-weight: 700; }
+        .node-body { font-size: 17px; }
+        .edge-label { font-size: 16px; font-weight: 500; }
+        .message-label { font-size: 16px; }
+        </style>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8.5" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 9 5 L 1 9 Z" fill="#536d82" />
+    </marker>
+  </defs>
+  <rect width="1120" height="530" fill="#ffffff" />
+  <text x="40" y="44" font-size="27" font-weight="700">図3  検査用Cookieセッションの分離</text>
+  <text x="40" y="78" font-size="17" style="fill:#52697b">⑨は④からの一方向コピー。元の共有jar・保存ファイルへの書戻しは行わない。</text>
+  <g id="connections">
+    <path d="M 330 208 H 400" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 5" marker-end="url(#arrow)" />
+    <g>
+      <rect x="334.0" y="176" width="62" height="25" rx="3" fill="#fff" />
+      <text x="365" y="193" text-anchor="middle" class="edge-label">コピー</text>
+    </g>
+    <path d="M 680 208 H 760" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <g>
+      <rect x="697.0" y="176" width="46" height="25" rx="3" fill="#fff" />
+      <text x="720" y="193" text-anchor="middle" class="edge-label">分離</text>
+    </g>
+    <path d="M 920 265 V 355" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 5" marker-end="url(#arrow)" />
+    <g>
+      <rect x="948.0" y="298" width="46" height="25" rx="3" fill="#fff" />
+      <text x="971" y="315" text-anchor="middle" class="edge-label">終了</text>
+    </g>
+  </g>
+  <g id="nodes">
+    <g data-node="④ 通常の共有jar">
+      <rect x="40" y="150" width="290" height="115" rx="9" fill="#eaf8f3" stroke="#84bbaa" stroke-width="1.6" />
+      <text x="57" y="183" class="node-title">④ 通常の共有jar</text>
+      <text x="57" y="212" class="node-body">通常サービスの現在値</text>
+      <text x="57" y="235" class="node-body">保存済み・通信中更新を含む</text>
+    </g>
+    <g data-node="⑨ jarをコピー">
+      <rect x="400" y="150" width="280" height="115" rx="9" fill="#fff6e8" stroke="#d5b984" stroke-width="1.6" />
+      <text x="417" y="183" class="node-title">⑨ jarをコピー</text>
+      <text x="417" y="212" class="node-body">CookieStore.clone_jar()</text>
+      <text x="417" y="235" class="node-body">元と独立したCookie状態</text>
+    </g>
+    <g data-node="独立のHTTPセッション">
+      <rect x="760" y="150" width="320" height="115" rx="9" fill="#fff6e8" stroke="#d5b984" stroke-width="1.6" />
+      <text x="777" y="183" class="node-title">独立のHTTPセッション</text>
+      <text x="777" y="212" class="node-body">認証・補助通信は実行可能</text>
+      <text x="777" y="235" class="node-body">inspectは画像本体を送信しない</text>
+    </g>
+    <g data-node="終了時にコピーを破棄">
+      <rect x="760" y="355" width="320" height="105" rx="9" fill="#fff6e8" stroke="#d5b984" stroke-width="1.6" />
+      <text x="777" y="388" class="node-title">終了時にコピーを破棄</text>
+      <text x="777" y="417" class="node-body">元の④や②へ戻さない</text>
+      <text x="777" y="440" class="node-body">⑧の保存経路へ合流しない</text>
+    </g>
+    <g data-node="② 保存済みCookie">
+      <rect x="40" y="355" width="290" height="105" rx="9" fill="#eef4ff" stroke="#9db8dd" stroke-width="1.6" />
+      <text x="57" y="388" class="node-title">② 保存済みCookie</text>
+      <text x="57" y="417" class="node-body">検査による変更を保存しない</text>
+    </g>
+    <text x="415" y="384" font-size="17">ローカルCookieの分離は、</text>
+    <text x="415" y="411" font-size="17">サーバー側のログイン・</text>
+    <text x="415" y="438" font-size="17">セッション更新の取消しではない。</text>
+  </g>
+</svg>

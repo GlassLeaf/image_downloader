@@ -1,0 +1,942 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Cookieの読込み・ブラウザインポート・認証・更新・保存を①〜⑨の図とAPI対応表で説明するAPI 3のガイド。">
+  <title>Cookieと認証の流れ — API 3 実装ガイド</title>
+  <style>
+:root { color-scheme: light; --ink:#183044; --muted:#52697b; --accent:#1b5879; --line:#d9e3ea; --paper:#fff; }
+* { box-sizing:border-box; }
+html { scroll-behavior:smooth; scroll-padding-top:28px; }
+body { margin:0; color:var(--ink); background:#f3f6f8; font-family:"Yu Gothic","Meiryo","Noto Sans CJK JP",sans-serif; font-size:16px; line-height:1.95; }
+a { color:var(--accent); text-decoration-thickness:1px; text-underline-offset:3px; overflow-wrap:anywhere; }
+a:hover { color:#104066; }
+a:focus-visible, [tabindex]:focus-visible, summary:focus-visible { outline:3px solid #428ab4; outline-offset:4px; }
+.skip { position:absolute; left:16px; top:-80px; background:white; padding:8px 16px; }
+.skip:focus { top:12px; z-index:3; }
+.layout { max-width:1490px; margin:auto; display:grid; grid-template-columns:225px minmax(0,1fr); gap:42px; padding:48px 30px 72px; }
+.sidebar { align-self:start; position:sticky; top:32px; max-height:calc(100vh - 64px); overflow-y:auto; padding:6px 0 24px; }
+.sidebar-title { color:var(--accent); font-size:12px; letter-spacing:.12em; font-weight:700; margin:0 0 17px; }
+nav a { display:block; color:#425c70; text-decoration:none; font-size:13px; line-height:1.6; padding:6px 0; }
+nav a:hover { color:var(--accent); text-decoration:underline; }
+nav .topic { font-weight:700; margin-top:9px; }
+nav .subtopic { font-size:12px; padding-left:13px; border-left:1px solid #cfdae2; margin-left:2px; }
+main { min-width:0; background:var(--paper); padding:48px 48px 34px; border:1px solid #dfe7ec; border-radius:12px; box-shadow:0 6px 30px #1a3e5505; }
+.eyebrow { color:var(--accent); font-size:12px; font-weight:700; letter-spacing:.12em; }
+h1 { font-size:39px; line-height:1.5; letter-spacing:.02em; margin:12px 0 12px; }
+.subtitle { color:var(--muted); font-size:17px; margin:0; }
+.formats { display:flex; flex-wrap:wrap; gap:10px; margin:25px 0 27px; }
+.formats a { font-size:13px; padding:5px 13px; border:1px solid #c9d9e4; border-radius:6px; text-decoration:none; background:#f5f9fc; }
+.formats a:hover { background:#eaf3f9; }
+.hero { border-bottom:1px solid var(--line); padding-bottom:4px; margin-bottom:32px; }
+h2 { color:#154766; font-size:25px; line-height:1.65; margin:58px 0 20px; padding-top:7px; border-top:1px solid var(--line); }
+h3 { color:#235671; font-size:20px; line-height:1.7; margin:33px 0 14px; }
+p { margin:15px 0; overflow-wrap:anywhere; }
+strong { color:#123d56; font-weight:750; }
+li { padding-left:3px; margin:9px 0; overflow-wrap:anywhere; }
+ul,ol { padding-left:1.8em; }
+code { font-family:Consolas,"Cascadia Mono","Yu Gothic",monospace; font-size:.88em; background:#f0f5f8; padding:.12em .3em; border-radius:4px; overflow-wrap:anywhere; }
+pre { background:#f2f6f9; border-left:3px solid #a4becf; padding:20px 22px; border-radius:0 7px 7px 0; line-height:1.8; white-space:pre-wrap; overflow-wrap:anywhere; font-size:14px; }
+pre code { background:none; padding:0; font-size:inherit; }
+.table-wrap { overflow-x:auto; margin:23px 0; }
+table { width:100%; border-collapse:collapse; font-size:14px; line-height:1.85; }
+th { background:#eaf1f6; color:#214a64; text-align:left; font-weight:700; }
+th,td { padding:13px 14px; vertical-align:top; border-bottom:1px solid #dce5eb; min-width:110px; }
+tbody tr:nth-child(even) { background:#fafcfd; }
+td:first-child { min-width:155px; }
+.diagram-figure { margin:28px 0 12px; }
+.diagram-scroll { overflow-x:auto; background:white; border:1px solid #dce6ed; border-radius:8px; padding:10px; }
+.embedded-diagram { display:block; width:100%; height:auto; min-width:870px; }
+figcaption { color:var(--muted); font-size:13px; text-align:center; margin-top:10px; }
+.mobile-toc { display:none; }
+footer { border-top:1px solid var(--line); margin-top:45px; padding-top:20px; color:var(--muted); font-size:12px; }
+@media (min-width:1700px) { .layout { max-width:1640px; gap:50px; } }
+@media (max-width:1190px) { .layout { display:block; max-width:1180px; padding:28px 22px 50px; } .sidebar { display:none; } .mobile-toc { display:block; margin:0 0 25px; padding:10px 16px; border:1px solid #d5e1e9; border-radius:7px; background:white; } .mobile-toc nav { padding-bottom:12px; } summary { cursor:pointer; color:var(--accent); font-size:14px; font-weight:700; } main { padding:36px; } }
+@media (max-width:680px) { body { font-size:15px; line-height:1.95; } .layout { padding:15px 12px 30px; } main { padding:27px 20px; border-radius:8px; } h1 { font-size:30px; } h2 { font-size:22px; margin-top:43px; } h3 { font-size:18px; } .subtitle { font-size:15px; } th,td { padding:11px; } table { font-size:13px; } .formats { gap:8px; } .diagram-scroll { padding:5px; } pre { padding:15px 12px; font-size:12px; } }
+@media (prefers-reduced-motion:reduce) { html { scroll-behavior:auto; } }
+@media print { body { background:white; font-size:10pt; line-height:1.7; } .layout { display:block; padding:0; max-width:none; } .sidebar,.mobile-toc,.formats,.skip { display:none; } main { border:0; padding:0; box-shadow:none; } h1 { font-size:24pt; } h2 { font-size:16pt; break-after:avoid; } h3 { font-size:12pt; break-after:avoid; } .diagram-scroll { overflow:visible; border:0; padding:0; } .embedded-diagram { min-width:0; max-height:240mm; max-width:100%; width:auto; margin:auto; } .diagram-figure { break-inside:avoid; } table { font-size:9pt; } th,td { min-width:0; padding:6pt; } .table-wrap { overflow:visible; } a { color:inherit; } }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">本文へ移動</a>
+<div class="layout">
+  <aside class="sidebar"><p class="sidebar-title">API 3 / CONTENTS</p><nav aria-label="文書の目次"><a class="topic" href="#topic-0">最初に区別する3つの状態</a><a class="topic" href="#topic-1">全体図：保存から利用、更新、保存まで</a><a class="topic" href="#topic-2">①〜⑨の凡例と解説</a><a class="subtopic" href="#topic-3">① ブラウザからのインポート</a><a class="subtopic" href="#topic-4">② 暗号化Cookieファイル</a><a class="subtopic" href="#topic-5">③ 既存Cookieの読込みとbaseline</a><a class="subtopic" href="#topic-6">④ サービス単位の共有Cookie jar</a><a class="subtopic" href="#topic-7">⑤ operation単位の認証処理</a><a class="subtopic" href="#topic-8">⑥ 通常通信と認証用通信</a><a class="subtopic" href="#topic-9">⑦ 応答によるCookie更新と認証判定</a><a class="subtopic" href="#topic-10">⑧ サービス終了時の差分保存</a><a class="subtopic" href="#topic-11">⑨ inspect・workflow計画の分離</a><a class="topic" href="#topic-12">認証対象要求の順序</a><a class="topic" href="#topic-13">検査セッションの分離図</a><a class="topic" href="#topic-14">読込み・利用・保存の優先順位</a><a class="topic" href="#topic-15">CSRFサンプルで既存Cookieはどう使われるか</a><a class="topic" href="#topic-16">今回追加・再設計した公開APIと図の位置</a><a class="topic" href="#topic-21">既存のCookie APIとの接続</a><a class="topic" href="#topic-22">実装・関連ドキュメント</a></nav></aside>
+  <div class="content-column">
+    <details class="mobile-toc"><summary>目次・①〜⑨の処理位置を開く</summary><nav aria-label="文書の目次"><a class="topic" href="#topic-0">最初に区別する3つの状態</a><a class="topic" href="#topic-1">全体図：保存から利用、更新、保存まで</a><a class="topic" href="#topic-2">①〜⑨の凡例と解説</a><a class="subtopic" href="#topic-3">① ブラウザからのインポート</a><a class="subtopic" href="#topic-4">② 暗号化Cookieファイル</a><a class="subtopic" href="#topic-5">③ 既存Cookieの読込みとbaseline</a><a class="subtopic" href="#topic-6">④ サービス単位の共有Cookie jar</a><a class="subtopic" href="#topic-7">⑤ operation単位の認証処理</a><a class="subtopic" href="#topic-8">⑥ 通常通信と認証用通信</a><a class="subtopic" href="#topic-9">⑦ 応答によるCookie更新と認証判定</a><a class="subtopic" href="#topic-10">⑧ サービス終了時の差分保存</a><a class="subtopic" href="#topic-11">⑨ inspect・workflow計画の分離</a><a class="topic" href="#topic-12">認証対象要求の順序</a><a class="topic" href="#topic-13">検査セッションの分離図</a><a class="topic" href="#topic-14">読込み・利用・保存の優先順位</a><a class="topic" href="#topic-15">CSRFサンプルで既存Cookieはどう使われるか</a><a class="topic" href="#topic-16">今回追加・再設計した公開APIと図の位置</a><a class="topic" href="#topic-21">既存のCookie APIとの接続</a><a class="topic" href="#topic-22">実装・関連ドキュメント</a></nav></details>
+    <main id="main">
+      <header class="hero">
+        <div class="eyebrow">IMAGE DOWNLOADER · API 3</div>
+        <h1>Cookieと認証の流れ</h1>
+        <p class="subtitle">読込み・ブラウザインポート・認証・通信・保存の関係を、図とAPI対応表で確認する。</p>
+        <div class="formats"><a href="authentication-and-cookie-flow.md">Markdown版</a><a href="assets/authentication-cookie-lifecycle.svg">図1 SVG</a><a href="assets/authentication-request-sequence.svg">図2 SVG</a><a href="assets/authentication-inspection-isolation.svg">図3 SVG</a></div>
+      </header>
+      <article><p><a id="authentication-and-cookie-flow"></a></p>
+
+<p>既存Cookieの読込み、ブラウザからのインポート、認証、通信中の更新、終了時の保存を、実装上の処理位置①〜⑨で説明する。対象はAPI 3の標準的な <code>RuntimeComposer</code> / <code>DownloadService</code> の経路である。</p>
+<p><a href="authentication-and-cookie-flow.html">HTML版</a>でも同じ内容を読める。図はSVGとPNGで個別に参照できる。設定値・型・例外の正本は<a href="../reference/configuration.md#config-plugin-connections">設定リファレンス</a>と<a href="../reference/plugin-hooks.md#plugin-authentication">フックリファレンス</a>、呼出し順の正本は<a href="execution-lifecycle.md">実行ライフサイクル</a>である。</p>
+<p>図を拡大したい場合はSVG/PNGを個別に開く。HTML版は狭い画面で図・表を横にスクロールできる。</p>
+<h2 id="topic-0">最初に区別する3つの状態</h2>
+<div aria-label="横方向にスクロールできる表" class="table-wrap" role="region" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">状態</th>
+<th scope="col">管理単位・管理する場所</th>
+<th scope="col">主な処理位置</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>保存済みCookie</td>
+<td>データルート・プロファイル単位の暗号化ファイル</td>
+<td>①②③⑧</td>
+</tr>
+<tr>
+<td>通信中のCookie</td>
+<td>サービス単位の共有Cookie jar。メモリ上で更新する</td>
+<td>④⑥⑦</td>
+</tr>
+<tr>
+<td>認証の準備状態・世代・期限</td>
+<td>operation単位のコア認証セッション</td>
+<td>⑤</td>
+</tr>
+</tbody>
+</table></div>
+<p><strong>Cookieを読み込んだこと、サーバーで認証できたこと、Cookieをディスクへ保存したことは別の出来事である。</strong> 保存済みCookieが利用可能かはサーバーの状態にも依存する。認証フローの成功が、直ちにCookieファイルへの保存を意味するわけでもない。</p>
+<p>丸付き数字は処理位置の識別子であり、呼出し回数ではない。⑤⑥⑦は要求や再認証に応じて繰り返し使う。①は任意の事前操作、⑨は通常保存から分離した検査用の経路である。</p>
+<p><a id="cookie-overview"></a></p>
+<h2 id="topic-1">全体図：保存から利用、更新、保存まで</h2>
+<figure class="diagram-figure"><div aria-label="①〜⑨を示すCookieの保存・共有・認証通信・検査の全体図" class="diagram-scroll" role="region" tabindex="0"><svg aria-labelledby="figure-1-diagram-title figure-1-diagram-desc" class="embedded-diagram" height="1300" lang="ja" role="img" viewBox="0 0 1200 1300" width="1200" xmlns="http://www.w3.org/2000/svg">
+  <title id="figure-1-diagram-title">図1  Cookieと認証の全体像</title>
+  <desc id="figure-1-diagram-desc">①〜⑨は処理位置の識別子。⑤⑥⑦は要求ごとに繰り返し使われる。</desc>
+  <style>
+        text { font-family: "Yu Gothic", "Meiryo", "Noto Sans CJK JP", sans-serif; fill: #172e42; }
+        .node-title { font-size: 20px; font-weight: 700; }
+        .node-body { font-size: 17px; }
+        .edge-label { font-size: 16px; font-weight: 500; }
+        .message-label { font-size: 16px; }
+        </style>
+  <defs>
+    <marker id="figure-1-arrow" markerHeight="10" markerUnits="userSpaceOnUse" markerWidth="10" orient="auto" refX="8.5" refY="5">
+      <path d="M 1 1 L 9 5 L 1 9 Z" fill="#536d82"></path>
+    </marker>
+  </defs>
+  <rect fill="#ffffff" height="1300" width="1200"></rect>
+  <text font-size="27" font-weight="700" x="40" y="44">図1  Cookieと認証の全体像</text>
+  <text font-size="17" style="fill:#52697b" x="40" y="78">①〜⑨は処理位置の識別子。⑤⑥⑦は要求ごとに繰り返し使われる。</text>
+  <g id="figure-1-connections">
+    <path d="M 189 216 V 288" fill="none" marker-end="url(#figure-1-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="62" x="215.0" y="243"></rect>
+      <text class="['edge-label']" text-anchor="middle" x="246" y="260">読取り</text>
+    </g>
+    <path d="M 334 344 H 430" fill="none" marker-end="url(#figure-1-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="46" x="359.0" y="312"></rect>
+      <text class="['edge-label']" text-anchor="middle" x="382" y="329">合成</text>
+    </g>
+    <path d="M 595 400 V 488" fill="none" marker-end="url(#figure-1-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="110" x="459.0" y="434"></rect>
+      <text class="['edge-label']" text-anchor="middle" x="514" y="451">復号・読込み</text>
+    </g>
+    <path d="M 595 600 V 716" fill="none" marker-end="url(#figure-1-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="126" x="599.0" y="643"></rect>
+      <text class="['edge-label']" text-anchor="middle" x="662" y="660">読込み済み状態</text>
+    </g>
+    <path d="M 700 488 V 447 H 1002 V 488" fill="none" marker-end="url(#figure-1-arrow)" stroke="#536d82" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="121.60000000000001" x="800.2" y="414"></rect>
+      <text class="['edge-label']" text-anchor="middle" x="861" y="431">operation開始</text>
+    </g>
+    <path d="M 1002 600 V 716" fill="none" marker-end="url(#figure-1-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="46" x="1024.0" y="644"></rect>
+      <text class="['edge-label']" text-anchor="middle" x="1047" y="661">要求</text>
+    </g>
+    <path d="M 760 780 H 850" fill="none" marker-end="url(#figure-1-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="64.4" x="772.8" y="748"></rect>
+      <text class="['edge-label']" text-anchor="middle" x="805" y="765">Cookie</text>
+    </g>
+    <path d="M 430 780 H 334" fill="none" marker-end="url(#figure-1-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="46" x="359.0" y="748"></rect>
+      <text class="['edge-label']" text-anchor="middle" x="382" y="765">差分</text>
+    </g>
+    <path d="M 189 716 V 454 H 385 V 344 H 430" fill="none" marker-end="url(#figure-1-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="184.0" x="116.0" y="474"></rect>
+      <text class="['edge-label']" text-anchor="middle" x="208" y="491">close時に最新②と合成</text>
+    </g>
+    <path d="M 1155 774 H 1180 V 1154 H 1155" fill="none" marker-end="url(#figure-1-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="79.6" x="1075.2" y="864"></rect>
+      <text class="['edge-label']" text-anchor="middle" x="1115" y="881">HTTP要求</text>
+    </g>
+    <path d="M 1002 1110 V 1032" fill="none" marker-end="url(#figure-1-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="79.6" x="1014.2" y="1060"></rect>
+      <text class="['edge-label']" text-anchor="middle" x="1054" y="1077">HTTP応答</text>
+    </g>
+    <path d="M 850 980 H 792 V 886 H 670 V 844" fill="none" marker-end="url(#figure-1-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="110" x="647.0" y="902"></rect>
+      <text class="['edge-label']" text-anchor="middle" x="702" y="919">受信時に反映</text>
+    </g>
+    <path d="M 595 844 V 1050" fill="none" marker-end="url(#figure-1-arrow)" stroke="#536d82" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="62" x="510.0" y="950"></rect>
+      <text class="['edge-label']" text-anchor="middle" x="541" y="967">コピー</text>
+    </g>
+    <path d="M 595 1162 V 1212" fill="none" marker-end="url(#figure-1-arrow)" stroke="#536d82" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+  </g>
+  <g id="figure-1-nodes">
+    <g data-node="ブラウザのCookie">
+      <rect fill="#f4f7fa" height="98" rx="9" stroke="#b3c2ce" stroke-width="1.6" width="290" x="44" y="118"></rect>
+      <text class="['node-title']" x="61" y="151">ブラウザのCookie</text>
+      <text class="['node-body']" x="61" y="180">元のブラウザにある状態</text>
+      <text class="['node-body']" x="61" y="203">アプリからの書戻しはしない</text>
+    </g>
+    <g data-node="① ブラウザインポート">
+      <rect fill="#eef4ff" height="112" rx="9" stroke="#9db8dd" stroke-width="1.6" width="290" x="44" y="288"></rect>
+      <text class="['node-title']" x="61" y="321">① ブラウザインポート</text>
+      <text class="['node-body']" x="61" y="350">既存②へ合成して保存</text>
+      <text class="['node-body']" x="61" y="373">CookieStore.import_browser()</text>
+    </g>
+    <g data-node="② 暗号化Cookieファイル">
+      <rect fill="#eef4ff" height="112" rx="9" stroke="#9db8dd" stroke-width="1.6" width="330" x="430" y="288"></rect>
+      <text class="['node-title']" x="447" y="321">② 暗号化Cookieファイル</text>
+      <text class="['node-body']" x="447" y="350">プロファイル単位で保管</text>
+      <text class="['node-body']" x="447" y="373">cookie/cookies.v2.enc</text>
+    </g>
+    <g data-node="③ サービス構築・読込み">
+      <rect fill="#eef4ff" height="112" rx="9" stroke="#9db8dd" stroke-width="1.6" width="330" x="430" y="488"></rect>
+      <text class="['node-title']" x="447" y="521">③ サービス構築・読込み</text>
+      <text class="['node-body']" x="447" y="550">load() → baselineを取得</text>
+      <text class="['node-body']" x="447" y="573">ファイル読込みは構築時</text>
+    </g>
+    <g data-node="⑤ operationの認証処理">
+      <rect fill="#f2effc" height="112" rx="9" stroke="#b5a5dc" stroke-width="1.6" width="305" x="850" y="488"></rect>
+      <text class="['node-title']" x="867" y="521">⑤ operationの認証処理</text>
+      <text class="['node-body']" x="867" y="550">初期化・確認・付与・更新</text>
+      <text class="['node-body']" x="867" y="573">各operationに一つ</text>
+    </g>
+    <g data-node="④ 共有Cookie jar">
+      <rect fill="#eaf8f3" height="128" rx="9" stroke="#84bbaa" stroke-width="1.6" width="330" x="430" y="716"></rect>
+      <text class="['node-title']" x="447" y="749">④ 共有Cookie jar</text>
+      <text class="['node-body']" x="447" y="778">サービスのメモリ上で保持</text>
+      <text class="['node-body']" x="447" y="801">通常通信・認証用通信で共有</text>
+      <text class="['node-body']" x="447" y="824">要求ごとに再読込みしない</text>
+    </g>
+    <g data-node="⑥ 共有HTTPクライアント">
+      <rect fill="#eaf8f3" height="128" rx="9" stroke="#84bbaa" stroke-width="1.6" width="305" x="850" y="716"></rect>
+      <text class="['node-title']" x="867" y="749">⑥ 共有HTTPクライアント</text>
+      <text class="['node-body']" x="867" y="778">通常要求と認証用要求</text>
+      <text class="['node-body']" x="867" y="801">同じCookie jarを利用</text>
+    </g>
+    <g data-node="⑧ サービス終了時に保存">
+      <rect fill="#eef4ff" height="128" rx="9" stroke="#9db8dd" stroke-width="1.6" width="290" x="44" y="716"></rect>
+      <text class="['node-title']" x="61" y="749">⑧ サービス終了時に保存</text>
+      <text class="['node-body']" x="61" y="778">baselineとの差分だけを反映</text>
+      <text class="['node-body']" x="61" y="801">最新②を読んで合成・保存</text>
+    </g>
+    <g data-node="⑦ Set-Cookieを反映">
+      <rect fill="#eaf8f3" height="104" rx="9" stroke="#84bbaa" stroke-width="1.6" width="305" x="850" y="928"></rect>
+      <text class="['node-title']" x="867" y="961">⑦ Set-Cookieを反映</text>
+      <text class="['node-body']" x="867" y="990">応答の受信時に④を更新</text>
+      <text class="['node-body']" x="867" y="1013">認証分類より先に反映</text>
+    </g>
+    <g data-node="サイトのサーバー">
+      <rect fill="#f4f7fa" height="90" rx="9" stroke="#b3c2ce" stroke-width="1.6" width="305" x="850" y="1110"></rect>
+      <text class="['node-title']" x="867" y="1143">サイトのサーバー</text>
+      <text class="['node-body']" x="867" y="1172">ログイン・通常応答</text>
+    </g>
+    <g data-node="⑨ 検査用にコピー">
+      <rect fill="#fff6e8" height="112" rx="9" stroke="#d5b984" stroke-width="1.6" width="330" x="430" y="1050"></rect>
+      <text class="['node-title']" x="447" y="1083">⑨ 検査用にコピー</text>
+      <text class="['node-body']" x="447" y="1112">inspect・workflow計画</text>
+      <text class="['node-body']" x="447" y="1135">元の④や②へ戻さない</text>
+    </g>
+  </g>
+  <text font-size="18" font-weight="700" style="fill:#815f28" text-anchor="middle" x="595" y="1243">検査終了時に破棄（保存しない）</text>
+</svg></div><figcaption>図1  Cookieと認証の全体像</figcaption></figure>
+<p>図1を個別に開く：<a href="assets/authentication-cookie-lifecycle.svg">SVG</a> / <a href="assets/authentication-cookie-lifecycle.png">PNG</a>。図中の矢印はデータや処理の受渡しを示す。③のサービス構築と、その後の⑤のoperation開始は別のタイミングである。</p>
+<p><a id="phase-legend"></a></p>
+<h2 id="topic-2">①〜⑨の凡例と解説</h2>
+<div aria-label="横方向にスクロールできる表" class="table-wrap" role="region" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">番号</th>
+<th scope="col">図中の位置</th>
+<th scope="col">何をするか・いつ使うか</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>①</td>
+<td>ブラウザインポート</td>
+<td>ブラウザからCookieを読み、②の既存保存内容へ合成する。通常downloadが自動で行う処理ではない。</td>
+</tr>
+<tr>
+<td>②</td>
+<td>プロファイルの暗号化ファイル</td>
+<td>次のサービス構築時に読めるCookieの保管場所。通信中のjarそのものではない。</td>
+</tr>
+<tr>
+<td>③</td>
+<td>サービス構築</td>
+<td>②を読み、④へ渡す。後の差分保存に使う初期状態baselineも取得する。</td>
+</tr>
+<tr>
+<td>④</td>
+<td>共有Cookie jar</td>
+<td>通常要求と認証用要求が共有する、メモリ上のCookie。サービスが所有する。</td>
+</tr>
+<tr>
+<td>⑤</td>
+<td>operationの認証処理</td>
+<td>接続先・要求モード・確認方針を解決し、初期化・確認・資格情報付与・更新を管理する。</td>
+</tr>
+<tr>
+<td>⑥</td>
+<td>HTTPクライアント</td>
+<td>要求を送信し、応答を受信する。④から送信先に適用可能なCookieを付ける。</td>
+</tr>
+<tr>
+<td>⑦</td>
+<td>応答による更新</td>
+<td>HTTPクライアントが <code>Set-Cookie</code> を④へ反映する。認証応答の分類より前に行われる。</td>
+</tr>
+<tr>
+<td>⑧</td>
+<td>サービス終了時の保存</td>
+<td>baselineと現在の④との差分を、保存直前の最新②へ合成して保存する。</td>
+</tr>
+<tr>
+<td>⑨</td>
+<td>検査用セッション</td>
+<td>④をコピーして <code>inspect</code>・workflow計画に使う。そこでのCookie変更は元の④や②へ戻さない。</td>
+</tr>
+</tbody>
+</table></div>
+<p><a id="phase-1"></a></p>
+<h3 id="topic-3">① ブラウザからのインポート</h3>
+<p><code>cookie browser-import</code> / <code>CookieStore.import_browser()</code> は、ブラウザのCookieを取得し、②の既存内容を読み、合成して暗号化保存する独立した操作である。ブラウザ側への書戻しや継続同期は行わない。ブラウザで再ログインした後の変更を使うには、必要に応じて再インポートする。</p>
+<p>明示的なChromeユーザーデータディレクトリを指定した経路は、<code>Default/Network/Cookies</code> と <code>Local State</code> のスナップショットを使う。指定しない経路は <code>browser-cookie3</code> のブラウザ探索を利用する。実ブラウザの対応範囲・実行条件は<a href="../reference/cli.md#cookie%E6%93%8D%E4%BD%9C%E3%81%A8%E3%83%96%E3%83%A9%E3%82%A6%E3%82%B6%E3%83%BC%E5%AF%BE%E5%BF%9C">Cookie操作</a>と<a href="../reference/runtime-behavior.md#runtime-cookies">実行時動作</a>を参照する。</p>
+<p>インポート先と実行時のデータルート・プロファイルを一致させる。別プロファイルのCookieを自動探索・合流する処理ではない。</p>
+<p><a id="phase-2"></a></p>
+<h3 id="topic-4">② 暗号化Cookieファイル</h3>
+<p>標準の保存先は次のとおりである。</p>
+<pre><code class="language-text">&lt;storage.data_root&gt;/profiles/&lt;profile&gt;/cookie/cookies.v2.enc
+</code></pre>
+<p>マスターキーはOSストアで管理し、Cookie本体は保管庫の暗号化形式で保存する。新ファイルがなければ空のjarから開始する。旧 <code>cookies.enc</code> は自動移行・読込みせず、該当時は警告する。壊れた保存内容を、インポートで無条件に上書きして復旧する動作にはしない。</p>
+<p><a id="phase-3"></a></p>
+<h3 id="topic-5">③ 既存Cookieの読込みとbaseline</h3>
+<p>標準のサービス構築では <code>CookieStore.load()</code> で②を読み、期限切れCookieを除いて⑥のHTTPクライアントへ渡す。さらに <code>CookieStore.snapshot()</code> で初期状態baselineを取得する。</p>
+<p>読込みはサービス構築時であり、各URLへのアクセスやoperation開始のたびにディスクを読み直さない。同じサービスで複数operationを行う場合は、更新済みの④を引き続き使う。各operationの⑤は別の認証セッションであり、④の共有期間とは異なる。</p>
+<p><a id="phase-4"></a></p>
+<h3 id="topic-6">④ サービス単位の共有Cookie jar</h3>
+<p>通常のページ・API・画像・補助ファイル要求と、認証フックの専用要求は、同じサービス内では共有jarを使う。⑥は送信先のdomain・path・secure・有効期限等に従ってCookieを選択する。</p>
+<p><code>context.get_cookies()</code> はjarの現在値のコピーを返す読取りAPIで、送信や保存を行わない。<code>auth: none</code> / <code>AuthMode.NONE</code> は認証フローを通さない指定であり、jarを無効にする指定ではない。要求に明示した資格情報を全面的に除去する意味もない。</p>
+<p><a id="phase-5"></a></p>
+<h3 id="topic-7">⑤ operation単位の認証処理</h3>
+<p>コア内部の <code>OperationAuthSession</code> は、準備済みか、無効化済みか、資格情報の世代、leaseの期限、最後の追加確認時刻を保持する。Cookieを別途保管する場所ではない。</p>
+<p>最初の認証対象要求前に <code>initialize()</code> を実行する。既存Cookieが存在しても、この呼出し自体は省略しない。Cookieを再利用するか、状態を確認するか、初回からログインするかはプラグインが決める。<code>authentication</code> と <code>endpoints</code> は省略できるが、省略は認証全体の無効化ではない。</p>
+<p>接続先の <code>auth: session</code> と要求の <code>AuthMode</code> で認証対象を判定する。認証対象では必要な初期化・確認・更新と <code>apply()</code> を行う。フローなしの <code>AUTO</code> は通常のHTTP処理で、④のCookieは利用できる。追加originやREQUIREDの条件は<a href="../reference/configuration.md#config-authentication-scope">適用範囲</a>を参照する。</p>
+<p><a id="phase-6"></a></p>
+<h3 id="topic-8">⑥ 通常通信と認証用通信</h3>
+<p>通常要求は⑤の認証準備・同期 <code>apply()</code> の後、⑥へ進む。認証フックの <code>AuthContext.requests.execute()</code> は⑤へ再入しない専用の入口から⑥へ進み、HTTPエラー応答も本文付きで返す。</p>
+<p>専用の入口でも④のjar、プール、タイムアウト、通信制限、transport再試行を共有する。ただし自動apply・応答分類・認証確認・認証更新は行わない。送信先はoperationの既定originを含む宣言済みoriginに限る。Bearerヘッダー等が必要なら認証フック側が明示する。</p>
+<p><a id="phase-7"></a></p>
+<h3 id="topic-9">⑦ 応答によるCookie更新と認証判定</h3>
+<p>HTTPXは受信した <code>Set-Cookie</code> を④へ反映する。その後、コアは認証対象応答へ <code>auth_receipt</code> を付け、<code>classify_response()</code> を呼ぶ。Cookie反映のために <code>response.set_cookies()</code> を呼んだり、応答オブジェクトをフローへ保持したりする必要はない。</p>
+<p>通常の認証不要応答、認証フックの応答、401/403等の失敗応答、リダイレクト途中の応答でもCookie変更は起こり得る。処理や認証の失敗によってCookie変更を自動ロールバックしない。分類・追加確認後もHTTPエラーが残れば、既存の画像URL回復等の通常処理へ進む。</p>
+<p><a id="phase-8"></a></p>
+<h3 id="topic-10">⑧ サービス終了時の差分保存</h3>
+<p>標準の自動保存タイミングはoperation終了ではなく、<code>DownloadService.close()</code> / 非同期コンテキスト終了時である。baselineと現在の④を比較し、このサービスで追加・変更・削除した分を、保存直前に読み直した最新②へ合成する。プロセス間ロック下で合成・保存し、暗号化ファイルを更新する。</p>
+<p>通常CLIは終了処理で保存する。ライブラリ利用では <code>async with service</code> または <code>await service.close()</code> を使う。後始末に到達しない強制終了等では、メモリ上の変更が保存されるとは限らない。通常経路は失敗時にもcloseするため、要求失敗だけを理由にCookie変更を破棄する処理ではない。</p>
+<p><code>CookieStore.save()</code> は明示的にjar全体を置換する別APIであり、標準の差分保存とは異なる。有効期限なしのセッションCookieも現行実装では保存対象に含まれるが、ブラウザの終了やサーバー側の失効と同期しているわけではない。</p>
+<p><a id="phase-9"></a></p>
+<h3 id="topic-11">⑨ inspect・workflow計画の分離</h3>
+<p>現在の④を <code>clone_jar()</code> でコピーし、独立したHTTPゲートウェイで検査・計画処理を実行する。コピー内でログイン・確認・Cookie更新を行っても、元の④や②へ戻さない。⑨をcloseしても⑧の保存経路へ合流しない。</p>
+<p><code>inspect</code> は画像要求の認証準備・applyとプレビュー構築まで行い、画像本体は送信しない。サイトの検査や認証のための補助HTTPは起こり得る。ローカルCookieの分離は、サーバー側のログイン・token発行・セッション更新の取消しではない。</p>
+<p><a href="#inspection-diagram">検査セッションの分離図</a>は、認証対象要求の図2に続けて掲載する。</p>
+<p><a id="authentication-sequence"></a></p>
+<h2 id="topic-12">認証対象要求の順序</h2>
+<p>図2は⑤⑥⑦を展開している。認証フックの通信は必要な場合だけ行う。保存済みtokenをメモリへ読むだけの <code>initialize()</code> も実装できる。<code>AuthMode.NONE</code> 等の通常要求は、認証フローの部分を通らず⑥⑦へ進む。</p>
+<figure class="diagram-figure"><div aria-label="⑤の認証準備、⑥の認証用・通常通信、⑦のCookie更新と応答分類を示すシーケンス図" class="diagram-scroll" role="region" tabindex="0"><svg aria-labelledby="figure-2-diagram-title figure-2-diagram-desc" class="embedded-diagram" height="1655" lang="ja" role="img" viewBox="0 0 1240 1655" width="1240" xmlns="http://www.w3.org/2000/svg">
+  <title id="figure-2-diagram-title">図2  認証対象要求の順序</title>
+  <desc id="figure-2-diagram-desc">⑤の認証準備、⑥の通信、⑦のCookie更新を展開。④は両方の通信で共有する。</desc>
+  <style>
+        text { font-family: "Yu Gothic", "Meiryo", "Noto Sans CJK JP", sans-serif; fill: #172e42; }
+        .node-title { font-size: 20px; font-weight: 700; }
+        .node-body { font-size: 17px; }
+        .edge-label { font-size: 16px; font-weight: 500; }
+        .message-label { font-size: 16px; }
+        </style>
+  <defs>
+    <marker id="figure-2-arrow" markerHeight="10" markerUnits="userSpaceOnUse" markerWidth="10" orient="auto" refX="8.5" refY="5">
+      <path d="M 1 1 L 9 5 L 1 9 Z" fill="#536d82"></path>
+    </marker>
+  </defs>
+  <rect fill="#ffffff" height="1655" width="1240"></rect>
+  <text font-size="27" font-weight="700" x="40" y="44">図2  認証対象要求の順序</text>
+  <text font-size="17" style="fill:#52697b" x="40" y="78">⑤の認証準備、⑥の通信、⑦のCookie更新を展開。④は両方の通信で共有する。</text>
+  <g id="figure-2-connections">
+    <line stroke="#b8c7d2" stroke-dasharray="4 6" stroke-width="1.3" x1="120" x2="120" y1="183" y2="1506"></line>
+    <line stroke="#b8c7d2" stroke-dasharray="4 6" stroke-width="1.3" x1="370" x2="370" y1="183" y2="1506"></line>
+    <line stroke="#b8c7d2" stroke-dasharray="4 6" stroke-width="1.3" x1="610" x2="610" y1="183" y2="1506"></line>
+    <line stroke="#b8c7d2" stroke-dasharray="4 6" stroke-width="1.3" x1="890" x2="890" y1="183" y2="1506"></line>
+    <line stroke="#b8c7d2" stroke-dasharray="4 6" stroke-width="1.3" x1="1130" x2="1130" y1="183" y2="1506"></line>
+    <rect fill="#f5f2fc" fill-opacity="0.65" height="410" rx="8" stroke="#c6bce3" width="923" x="282" y="328"></rect>
+    <path d="M 120 232 H 370" fill="none" marker-end="url(#figure-2-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="106.40000000000002" x="191.79999999999998" y="204"></rect>
+      <text class="['message-label']" text-anchor="middle" x="245.0" y="221">RequestSpec</text>
+    </g>
+    <path d="M 370 263 H 406 V 290 H 370" fill="none" marker-end="url(#figure-2-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <path d="M 370 395 H 610" fill="none" marker-end="url(#figure-2-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="215.60000000000008" x="382.19999999999993" y="367"></rect>
+      <text class="['message-label']" text-anchor="middle" x="490.0" y="384">initialize() / refresh()</text>
+    </g>
+    <path d="M 610 454 H 890" fill="none" marker-end="url(#figure-2-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="266.0000000000001" x="617.0" y="426"></rect>
+      <text class="['message-label']" text-anchor="middle" x="750.0" y="443">AuthContext.requests.execute()</text>
+    </g>
+    <path d="M 890 510 H 1130" fill="none" marker-end="url(#figure-2-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="169.60000000000005" x="925.1999999999999" y="482"></rect>
+      <text class="['message-label']" text-anchor="middle" x="1010.0" y="499">認証用要求 + Cookie</text>
+    </g>
+    <path d="M 1130 566 H 890" fill="none" marker-end="url(#figure-2-arrow)" stroke="#536d82" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="155.20000000000005" x="932.4" y="538"></rect>
+      <text class="['message-label']" text-anchor="middle" x="1010.0" y="555">応答 + Set-Cookie</text>
+    </g>
+    <path d="M 890 592 H 926 V 619 H 890" fill="none" marker-end="url(#figure-2-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <path d="M 890 659 H 610" fill="none" marker-end="url(#figure-2-arrow)" stroke="#536d82" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="140.00000000000006" x="680.0" y="631"></rect>
+      <text class="['message-label']" text-anchor="middle" x="750.0" y="648">RequestResponse</text>
+    </g>
+    <path d="M 610 710 H 370" fill="none" marker-end="url(#figure-2-arrow)" stroke="#536d82" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="89.60000000000001" x="445.2" y="682"></rect>
+      <text class="['message-label']" text-anchor="middle" x="490.0" y="699">AuthLease</text>
+    </g>
+    <path d="M 370 788 H 610" fill="none" marker-end="url(#figure-2-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="177.2" x="401.4" y="760"></rect>
+      <text class="['message-label']" text-anchor="middle" x="490.0" y="777">verify()：必要時のみ</text>
+    </g>
+    <path d="M 610 833 H 370" fill="none" marker-end="url(#figure-2-arrow)" stroke="#536d82" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="148.40000000000003" x="415.79999999999995" y="805"></rect>
+      <text class="['message-label']" text-anchor="middle" x="490.0" y="822">AuthVerification</text>
+    </g>
+    <path d="M 370 953 H 610" fill="none" marker-end="url(#figure-2-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="165.20000000000005" x="407.4" y="925"></rect>
+      <text class="['message-label']" text-anchor="middle" x="490.0" y="942">apply(RequestSpec)</text>
+    </g>
+    <path d="M 610 999 H 370" fill="none" marker-end="url(#figure-2-arrow)" stroke="#536d82" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="174" x="403.0" y="971"></rect>
+      <text class="['message-label']" text-anchor="middle" x="490.0" y="988">資格情報を付けた要求</text>
+    </g>
+    <path d="M 370 1048 H 890" fill="none" marker-end="url(#figure-2-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="294.4" x="482.8" y="1020"></rect>
+      <text class="['message-label']" text-anchor="middle" x="630.0" y="1037">⑥ 通常要求を送信（使用世代を記録）</text>
+    </g>
+    <path d="M 890 1100 H 1130" fill="none" marker-end="url(#figure-2-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="144.4" x="937.8" y="1072"></rect>
+      <text class="['message-label']" text-anchor="middle" x="1010.0" y="1089">④のCookieを付与</text>
+    </g>
+    <path d="M 1130 1153 H 890" fill="none" marker-end="url(#figure-2-arrow)" stroke="#536d82" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="155.20000000000005" x="932.4" y="1125"></rect>
+      <text class="['message-label']" text-anchor="middle" x="1010.0" y="1142">応答 + Set-Cookie</text>
+    </g>
+    <path d="M 890 1183 H 926 V 1210 H 890" fill="none" marker-end="url(#figure-2-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <path d="M 890 1254 H 370" fill="none" marker-end="url(#figure-2-arrow)" stroke="#536d82" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="140.00000000000006" x="560.0" y="1226"></rect>
+      <text class="['message-label']" text-anchor="middle" x="630.0" y="1243">RequestResponse</text>
+    </g>
+    <path d="M 370 1287 H 406 V 1314 H 370" fill="none" marker-end="url(#figure-2-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <path d="M 370 1360 H 610" fill="none" marker-end="url(#figure-2-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="173.60000000000005" x="403.2" y="1332"></rect>
+      <text class="['message-label']" text-anchor="middle" x="490.0" y="1349">classify_response()</text>
+    </g>
+    <path d="M 610 1408 H 370" fill="none" marker-end="url(#figure-2-arrow)" stroke="#536d82" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="114.80000000000003" x="432.59999999999997" y="1380"></rect>
+      <text class="['message-label']" text-anchor="middle" x="490.0" y="1397">AuthDecision</text>
+    </g>
+    <path d="M 370 1472 H 120" fill="none" marker-end="url(#figure-2-arrow)" stroke="#536d82" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="103.19999999999999" x="193.4" y="1444"></rect>
+      <text class="['message-label']" text-anchor="middle" x="245.0" y="1461">応答 / 例外</text>
+    </g>
+  </g>
+  <g id="figure-2-nodes">
+    <rect fill="#f3f6fa" height="70" rx="7" stroke="#b3c2ce" width="198" x="21" y="113"></rect>
+    <text font-size="18" font-weight="700" text-anchor="middle" x="120" y="142">プラグイン</text>
+    <text font-size="15" style="fill:#52697b" text-anchor="middle" x="120" y="166">要求を作る</text>
+    <rect fill="#f3f6fa" height="70" rx="7" stroke="#b3c2ce" width="198" x="271" y="113"></rect>
+    <text font-size="18" font-weight="700" text-anchor="middle" x="370" y="142">⑤ 認証セッション</text>
+    <text font-size="15" style="fill:#52697b" text-anchor="middle" x="370" y="166">コアが管理</text>
+    <rect fill="#f3f6fa" height="70" rx="7" stroke="#b3c2ce" width="198" x="511" y="113"></rect>
+    <text font-size="18" font-weight="700" text-anchor="middle" x="610" y="142">AuthFlow</text>
+    <text font-size="15" style="fill:#52697b" text-anchor="middle" x="610" y="166">サイト固有の手順</text>
+    <rect fill="#f3f6fa" height="70" rx="7" stroke="#b3c2ce" width="198" x="791" y="113"></rect>
+    <text font-size="18" font-weight="700" text-anchor="middle" x="890" y="142">⑥ HTTP / ④ jar</text>
+    <text font-size="15" style="fill:#52697b" text-anchor="middle" x="890" y="166">共有クライアント</text>
+    <rect fill="#f3f6fa" height="70" rx="7" stroke="#b3c2ce" width="198" x="1031" y="113"></rect>
+    <text font-size="18" font-weight="700" text-anchor="middle" x="1130" y="142">サーバー</text>
+    <text font-size="15" style="fill:#52697b" text-anchor="middle" x="1130" y="166">応答を返す</text>
+    <text font-size="18" font-weight="700" x="300" y="356">初回 initialize() / 更新時 refresh()（認証用通信は必要な場合のみ）</text>
+    <text font-size="16" x="419" y="282">AuthMode・originを解決</text>
+    <text font-size="16" x="939" y="611">⑦ jarを更新</text>
+    <text font-size="17" text-anchor="middle" x="630" y="874">VALID → 続行 / INVALID → refresh()</text>
+    <text font-size="17" text-anchor="middle" x="630" y="900">UNKNOWN → AuthStateUnknownError</text>
+    <text font-size="16" x="939" y="1202">⑦ jarを更新</text>
+    <text font-size="16" x="419" y="1306">auth_receiptを付与</text>
+    <rect fill="#f3f6fa" height="83" rx="7" stroke="#c3cfd8" width="1160" x="40" y="1530"></rect>
+    <text font-size="18" x="60" y="1562">AUTH_FAILURE → 必要なrefresh・回数制限付き再送。再送は元の要求から構築する。</text>
+    <text font-size="18" x="60" y="1591">UNKNOWN → 追加verifyで判断。NOT_AUTH_FAILURE → 通常の応答処理へ進む。</text>
+  </g>
+</svg></div><figcaption>図2  認証対象要求の順序</figcaption></figure>
+<p>図2を個別に開く：<a href="assets/authentication-request-sequence.svg">SVG</a> / <a href="assets/authentication-request-sequence.png">PNG</a>。図中の④は⑥が使う共有jarで、通常通信と認証用通信で分かれていない。</p>
+<ol>
+<li>要求のoriginと <code>AuthMode</code> を解決する。<code>context.endpoints</code> から構築した要求も、絶対URLの要求も同じ解決を通る。</li>
+<li>初回なら <code>initialize()</code>、初期化済みで期限切れ・無効化済みなら <code>refresh()</code> を実行する。</li>
+<li>方針や明示操作で必要なら <code>verify()</code> を実行する。VALIDなら続行、INVALIDなら更新、UNKNOWNなら専用エラーで停止する。</li>
+<li>同期 <code>apply()</code> で資格情報を付け、使用する認証世代を記録する。⑥で適用可能な④のCookieを付けて送信する。</li>
+<li>⑦でCookieを更新した後、応答にreceiptを付けて分類する。AUTH_FAILUREなら必要な更新・回数制限付き再送へ進む。UNKNOWNなら追加verifyで判断する。</li>
+</ol>
+<p><code>NOT_AUTH_FAILURE</code> は認証済みの証明ではなく、その応答を認証更新の根拠にしないという分類である。UNKNOWNの追加確認は、間隔キャッシュだけを理由に省略しない。非冪等要求の認証再送には <code>retry_non_idempotent=True</code> が必要で、自動の認証再試行は要求ごとに <code>network.auth_refresh_attempts</code> 回までとなる。</p>
+<p>初期化・更新・実行中の確認は、同じoperationの並行要求で共有する。一つの待機要求のキャンセルで共有タスクを止めず、operation終了時に残存タスクを回収する。古い世代の失敗応答によって、更新済みの認証を再更新・無効化しない。</p>
+<p><a id="inspection-diagram"></a></p>
+<h2 id="topic-13">検査セッションの分離図</h2>
+<figure class="diagram-figure"><div aria-label="④から⑨へコピーして検査し、元のjarや保存ファイルへ戻さない分離図" class="diagram-scroll" role="region" tabindex="0"><svg aria-labelledby="figure-3-diagram-title figure-3-diagram-desc" class="embedded-diagram" height="530" lang="ja" role="img" viewBox="0 0 1120 530" width="1120" xmlns="http://www.w3.org/2000/svg">
+  <title id="figure-3-diagram-title">図3  検査用Cookieセッションの分離</title>
+  <desc id="figure-3-diagram-desc">⑨は④からの一方向コピー。元の共有jar・保存ファイルへの書戻しは行わない。</desc>
+  <style>
+        text { font-family: "Yu Gothic", "Meiryo", "Noto Sans CJK JP", sans-serif; fill: #172e42; }
+        .node-title { font-size: 20px; font-weight: 700; }
+        .node-body { font-size: 17px; }
+        .edge-label { font-size: 16px; font-weight: 500; }
+        .message-label { font-size: 16px; }
+        </style>
+  <defs>
+    <marker id="figure-3-arrow" markerHeight="10" markerUnits="userSpaceOnUse" markerWidth="10" orient="auto" refX="8.5" refY="5">
+      <path d="M 1 1 L 9 5 L 1 9 Z" fill="#536d82"></path>
+    </marker>
+  </defs>
+  <rect fill="#ffffff" height="530" width="1120"></rect>
+  <text font-size="27" font-weight="700" x="40" y="44">図3  検査用Cookieセッションの分離</text>
+  <text font-size="17" style="fill:#52697b" x="40" y="78">⑨は④からの一方向コピー。元の共有jar・保存ファイルへの書戻しは行わない。</text>
+  <g id="figure-3-connections">
+    <path d="M 330 208 H 400" fill="none" marker-end="url(#figure-3-arrow)" stroke="#536d82" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="62" x="334.0" y="176"></rect>
+      <text class="['edge-label']" text-anchor="middle" x="365" y="193">コピー</text>
+    </g>
+    <path d="M 680 208 H 760" fill="none" marker-end="url(#figure-3-arrow)" stroke="#536d82" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="46" x="697.0" y="176"></rect>
+      <text class="['edge-label']" text-anchor="middle" x="720" y="193">分離</text>
+    </g>
+    <path d="M 920 265 V 355" fill="none" marker-end="url(#figure-3-arrow)" stroke="#536d82" stroke-dasharray="6 5" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2"></path>
+    <g>
+      <rect fill="#fff" height="25" rx="3" width="46" x="948.0" y="298"></rect>
+      <text class="['edge-label']" text-anchor="middle" x="971" y="315">終了</text>
+    </g>
+  </g>
+  <g id="figure-3-nodes">
+    <g data-node="④ 通常の共有jar">
+      <rect fill="#eaf8f3" height="115" rx="9" stroke="#84bbaa" stroke-width="1.6" width="290" x="40" y="150"></rect>
+      <text class="['node-title']" x="57" y="183">④ 通常の共有jar</text>
+      <text class="['node-body']" x="57" y="212">通常サービスの現在値</text>
+      <text class="['node-body']" x="57" y="235">保存済み・通信中更新を含む</text>
+    </g>
+    <g data-node="⑨ jarをコピー">
+      <rect fill="#fff6e8" height="115" rx="9" stroke="#d5b984" stroke-width="1.6" width="280" x="400" y="150"></rect>
+      <text class="['node-title']" x="417" y="183">⑨ jarをコピー</text>
+      <text class="['node-body']" x="417" y="212">CookieStore.clone_jar()</text>
+      <text class="['node-body']" x="417" y="235">元と独立したCookie状態</text>
+    </g>
+    <g data-node="独立のHTTPセッション">
+      <rect fill="#fff6e8" height="115" rx="9" stroke="#d5b984" stroke-width="1.6" width="320" x="760" y="150"></rect>
+      <text class="['node-title']" x="777" y="183">独立のHTTPセッション</text>
+      <text class="['node-body']" x="777" y="212">認証・補助通信は実行可能</text>
+      <text class="['node-body']" x="777" y="235">inspectは画像本体を送信しない</text>
+    </g>
+    <g data-node="終了時にコピーを破棄">
+      <rect fill="#fff6e8" height="105" rx="9" stroke="#d5b984" stroke-width="1.6" width="320" x="760" y="355"></rect>
+      <text class="['node-title']" x="777" y="388">終了時にコピーを破棄</text>
+      <text class="['node-body']" x="777" y="417">元の④や②へ戻さない</text>
+      <text class="['node-body']" x="777" y="440">⑧の保存経路へ合流しない</text>
+    </g>
+    <g data-node="② 保存済みCookie">
+      <rect fill="#eef4ff" height="105" rx="9" stroke="#9db8dd" stroke-width="1.6" width="290" x="40" y="355"></rect>
+      <text class="['node-title']" x="57" y="388">② 保存済みCookie</text>
+      <text class="['node-body']" x="57" y="417">検査による変更を保存しない</text>
+    </g>
+    <text font-size="17" x="415" y="384">ローカルCookieの分離は、</text>
+    <text font-size="17" x="415" y="411">サーバー側のログイン・</text>
+    <text font-size="17" x="415" y="438">セッション更新の取消しではない。</text>
+  </g>
+</svg></div><figcaption>図3  検査用Cookieセッションの分離</figcaption></figure>
+<p>図3を個別に開く：<a href="assets/authentication-inspection-isolation.svg">SVG</a> / <a href="assets/authentication-inspection-isolation.png">PNG</a>。④はコピー元、⑨は独立した状態である。検査による変更はコピー内だけに留め、通常の⑧へ合流しない。</p>
+<p><a id="cookie-precedence"></a></p>
+<h2 id="topic-14">読込み・利用・保存の優先順位</h2>
+<p>「ブラウザ由来」「保存済み」「ログイン由来」という出所による固定の優先順位はない。①で②へ合成し、③で読み込み、⑦で④を更新し、⑧で変更差分を最新②へ合成する。</p>
+<div aria-label="横方向にスクロールできる表" class="table-wrap" role="region" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">場面</th>
+<th scope="col">現行の動作</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>サービス構築前にブラウザインポート</td>
+<td>③がインポート後の②を読み込む。</td>
+</tr>
+<tr>
+<td>サービス構築後に別コマンドでインポート</td>
+<td>②は変わるが、実行中の④へ自動反映しない。次のサービス構築時に読み込む。</td>
+</tr>
+<tr>
+<td>サービスが変更していないCookie</td>
+<td>⑧ではそのCookieを差分として書かず、他操作による保存更新を保持する。</td>
+</tr>
+<tr>
+<td>①や⑧で同じCookieを合成</td>
+<td>識別キーは <code>(domain, path, name)</code>。異なるキーのCookieを保持し、同一キーで値が異なれば合成時の入力側の更新を採用する。同値なら長い有効期限を維持する。</td>
+</tr>
+<tr>
+<td>期限切れのインポートCookie</td>
+<td>取り込まない。自然な期限切れを、別プロセスが更新したCookieの無条件削除としては扱わない。</td>
+</tr>
+<tr>
+<td>HTTP応答による更新</td>
+<td>⑦で直ちに④へ反映し、次の要求が利用できる。②への保存は⑧で行う。</td>
+</tr>
+<tr>
+<td>ファイルのCookie import / export</td>
+<td>保存済み②を合成・読取りする。実行中の④を自動同期せず、未保存の変更をexportへ自動的に含めない。</td>
+</tr>
+</tbody>
+</table></div>
+<p>Cookieキーのdomain/pathは保存属性の文字列を使う。同じ名前でもdomainやpathが異なれば別のCookieである。HTTP要求での送信条件は⑥が判断し、保存時のキー照合とは役割が異なる。</p>
+<p><a id="csrf-cookie-example"></a></p>
+<h2 id="topic-15">CSRFサンプルで既存Cookieはどう使われるか</h2>
+<p><code>csrf_login_gallery</code> の <code>initialize()</code> は <code>refresh()</code> を呼ぶ。そのため、既存Cookieを読み込んでいても初回にログイン用処理を実行する。インポート済みCookieがあることを根拠に、コアが自動的にログインを省略するわけではない。</p>
+<pre><code class="language-text">③ 保存済みCookieを読み、④へ保持
+⑤ initialize() → refresh()
+  ⑥ GET /login       : 適用可能な既存Cookieを送信
+  ⑦ 応答Cookieを保存 : 事前セッションCookie等
+  ⑥ POST /session    : 資格情報・CSRF token・適用可能なCookieを送信
+  ⑦ 応答Cookieを保存 : 認証済みCookie等
+⑤ AuthLease()を受理  : コアの世代・無効状態・期限情報を更新
+⑥ 後続の通常要求     : 更新済み④のCookieを送信
+⑧ サービス終了      : 変更差分を②へ保存
+</code></pre>
+<p><code>session = await auth_context.requests.execute(...)</code> の <code>session</code> は <code>RequestResponse</code> であり、セッション管理オブジェクトではない。サンプルは <code>session.status</code> を確認している。⑦でjarが更新されるため、その応答をフロー内に保持し続ける必要はない。サーバーが既存Cookieに対応するセッションを認証済みにする方式なら、新しいCookieを発行しない場合もある。</p>
+<p><code>AuthLease()</code> はCookieを作成・保存せず、サーバーのログイン成功も自動検証しない。サンプルはPOSTのHTTPステータスだけを確認するため、200の失敗フォーム等は実サイトに合う判定で補う。Bearer tokenをJSON本文で受け取る方式なら、本文解析・token保持・同期 <code>apply()</code> が必要であり、Cookie共有だけでは対応できない。</p>
+<p><strong>CookieのExpiresと <code>AuthLease</code> の期限は別管理である。</strong> コアがCookie期限を自動的にleaseへ転記することはない。プラグインが期限情報を返さなければleaseは期限不明で、必要な応答分類・追加確認によって更新する。</p>
+<p><a id="new-authentication-api"></a></p>
+<h2 id="topic-16">今回追加・再設計した公開APIと図の位置</h2>
+<p>次の表は認証再設計の対象を列挙する。<code>auth_flow()</code> は生成フックを維持し、返すフローの契約を変更した。既存の <code>RequestSpec</code> / <code>RequestResponse</code> / <code>PluginExecutionContext</code> には認証関連の項目を追加・置換している。</p>
+<h3 id="topic-17">フロー・コンテキスト・要求操作</h3>
+<div aria-label="横方向にスクロールできる表" class="table-wrap" role="region" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">API</th>
+<th scope="col">位置</th>
+<th scope="col">役割</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>auth_flow(context) -&gt; AuthFlow または None</code></td>
+<td>⑤の構成時</td>
+<td>operationで使うフローを生成する。Noneなら認証フローを使わない。</td>
+</tr>
+<tr>
+<td><code>AuthFlow</code> / <code>BaseAuthFlow</code></td>
+<td>⑤</td>
+<td>認証手順の契約と既定実装。initializeは実装必須。既定applyは要求をそのまま返す。</td>
+</tr>
+<tr>
+<td><code>initialize(auth_context) -&gt; AuthLease</code></td>
+<td>⑤初回</td>
+<td>保存tokenの読込み、Cookie再利用判断、初回ログイン等。</td>
+</tr>
+<tr>
+<td><code>apply(request) -&gt; RequestSpec</code></td>
+<td>⑤→⑥</td>
+<td>資格情報を同期付与する。通信せず、origin・authモードを変更しない。</td>
+</tr>
+<tr>
+<td><code>classify_response(request, response) -&gt; AuthDecision</code></td>
+<td>⑦の後</td>
+<td>通信なしで応答を分類する。既定は401がAUTH_FAILURE、403がUNKNOWN、その他がNOT_AUTH_FAILURE。</td>
+</tr>
+<tr>
+<td><code>verify(auth_context) -&gt; AuthVerification</code></td>
+<td>⑤・⑦の後</td>
+<td>必要なら追加通信で状態確認する。既定はUNKNOWNなので、確認を有効にするサイトは実装する。</td>
+</tr>
+<tr>
+<td><code>refresh(auth_context) -&gt; AuthLease</code></td>
+<td>⑤・認証再試行前</td>
+<td>再ログイン・token更新を行う。既定は更新未対応のAuthenticationError。</td>
+</tr>
+<tr>
+<td><code>AuthContext</code></td>
+<td>⑤のフック内</td>
+<td>固有config、secrets、endpoints、専用requestsを提供する。</td>
+</tr>
+<tr>
+<td><code>AuthContext.requests.execute()</code></td>
+<td>⑤→⑥</td>
+<td>再入しない認証用通信。④を共有し、自動の認証付与・分類・確認・更新を行わない。</td>
+</tr>
+<tr>
+<td><code>PluginExecutionContext.auth: AuthPort</code></td>
+<td>⑤への入口</td>
+<td>明示的な準備・確認・無効化を提供する。</td>
+</tr>
+<tr>
+<td><code>await context.auth.ensure_ready(check=False)</code></td>
+<td>⑤</td>
+<td>必要な初期化・期限更新・無効化後の更新。check=Trueなら追加確認も要求する。</td>
+</tr>
+<tr>
+<td><code>context.auth.invalidate(response)</code></td>
+<td>⑦の後→次回⑤</td>
+<td>同一operationの現在世代を無効化する。Cookie削除や即時ログインは行わない。古い世代は無視する。</td>
+</tr>
+<tr>
+<td><code>Endpoint</code> / <code>context.endpoints</code></td>
+<td>⑤より前の要求構築</td>
+<td>originを名前で参照する。AuthContextにも提供し、operationを自動的に用意する。</td>
+</tr>
+<tr>
+<td><code>Endpoint.request(path, **kwargs)</code></td>
+<td>⑤より前の要求構築</td>
+<td>通信せずRequestSpecを構築する。画像要求フックでも利用できる。</td>
+</tr>
+<tr>
+<td><code>RequestSpec.auth</code> / <code>AuthMode</code></td>
+<td>⑤入口</td>
+<td>AUTOは接続先に従い、NONEは認証フローを通さず、REQUIREDはフローと認証対象originを必須にする。</td>
+</tr>
+</tbody>
+</table></div>
+<p><code>initialize()</code> / <code>verify()</code> / <code>refresh()</code> / <code>ensure_ready()</code> は非同期、<code>apply()</code> / <code>classify_response()</code> / <code>invalidate()</code> / <code>Endpoint.request()</code> は同期である。<code>.request()</code> を呼んだだけでは⑥へ進まない。通常の実行では <code>context.requests.execute()</code> へ渡すか、画像要求フックから返す。</p>
+<h3 id="topic-18">値型・応答情報</h3>
+<div aria-label="横方向にスクロールできる表" class="table-wrap" role="region" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">API</th>
+<th scope="col">位置</th>
+<th scope="col">意味</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AuthLease(expires_in_seconds=None)</code></td>
+<td>⑤</td>
+<td>利用可能な状態と任意の残存期限。期限は正の有限秒数、Noneなら不明。Cookieそのものは保持しない。</td>
+</tr>
+<tr>
+<td><code>AuthDecision</code></td>
+<td>⑦の後</td>
+<td>AUTH_FAILURE / NOT_AUTH_FAILURE / UNKNOWN。通常応答の分類。</td>
+</tr>
+<tr>
+<td><code>AuthVerification</code> / <code>AuthStatus</code></td>
+<td>⑤・⑦の後</td>
+<td>VALID / INVALID / UNKNOWNと任意のlease。新しいleaseを返せるのはVALIDだけで、省略時は既存期限を維持する。</td>
+</tr>
+<tr>
+<td><code>AuthReceipt</code></td>
+<td>⑤送信準備→⑦</td>
+<td>operationと使用した認証世代を識別する不透明な値。資格情報は含まない。</td>
+</tr>
+<tr>
+<td><code>RequestResponse.auth_receipt</code></td>
+<td>⑦の応答</td>
+<td>invalidateが所属・世代を検証するための情報。別operationやreceiptなしの応答は拒否する。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="topic-19">共通設定型</h3>
+<p>次の型は <code>image_downloader.config</code> から公開する。⑤の対象解決・確認頻度・期限更新に使い、④の読込み頻度や⑧の保存頻度は変更しない。</p>
+<div aria-label="横方向にスクロールできる表" class="table-wrap" role="region" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">型・設定</th>
+<th scope="col">⑤での役割</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AuthenticationPolicy</code> / <code>authentication</code></td>
+<td>共通のverify_on_start・verify_before_request・verify_interval_seconds・refresh_skew_seconds。</td>
+</tr>
+<tr>
+<td><code>EndpointSettings</code> / <code>endpoints</code></td>
+<td>originとauth: session / noneの宣言。</td>
+</tr>
+<tr>
+<td><code>EndpointVerification</code> / <code>verification</code></td>
+<td>originごとのbefore_request・interval_secondsの部分上書き。</td>
+</tr>
+<tr>
+<td><code>PluginConnections</code></td>
+<td>作者設定と利用者設定をマージした接続先・認証方針の検証。</td>
+</tr>
+</tbody>
+</table></div>
+<p>共通の <code>verify_before_request</code> と接続先の <code>verification.before_request</code> は同じverifyの呼出しを制御し、後者をそのoriginの上書きとして使う。省略すれば継承する。before_requestのfalseだけでは継承した間隔は止まらず、間隔を無効にするにはinterval_secondsにnullを明示する。</p>
+<p>確認時刻と認証世代はoperation内で共有する。開始時はoperationの初回認証準備時であり、アプリ起動時ではない。間隔確認と期限前更新は要求時に判定し、バックグラウンドの定期通信をしない。現行の毎要求確認は認証準備時の単位で、低層transport再試行・redirect各hopではverifyを呼び直さない。</p>
+<h3 id="topic-20">追加した例外と内部実装</h3>
+<div aria-label="横方向にスクロールできる表" class="table-wrap" role="region" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">API</th>
+<th scope="col">発生位置・理由</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>AuthScopeError</code></td>
+<td>⑤の対象解決、⑤→⑥の送信先検証、応答receipt検証。未宣言origin・REQUIREDの条件不成立・別operationの応答等。</td>
+</tr>
+<tr>
+<td><code>AuthReentryError</code></td>
+<td>⑤の認証フックから通常のcontext.requests / context.authへ再入した場合。ロック待ちに入る前に拒否する。</td>
+</tr>
+<tr>
+<td><code>AuthStateUnknownError</code></td>
+<td>⑤のverifyでも状態を判断できない場合。</td>
+</tr>
+</tbody>
+</table></div>
+<p>これら3例外はworkflowの自動再試行対象外である。⑤の内部実装が <code>OperationAuthSession</code> で、プラグインが直接構築する公開APIではない。API番号3は維持したが、旧is_auth_failure、refresh(failed, response)、auth_required、allowed_originsとの互換層はない。<a href="../how-to/authentication-migration.md">移行ガイド</a>を参照する。</p>
+<p><a id="existing-cookie-api"></a></p>
+<h2 id="topic-21">既存のCookie APIとの接続</h2>
+<p>この表は今回新設したAPIの一覧ではなく、図の保管・通信側に接続する既存APIを示す。</p>
+<div aria-label="横方向にスクロールできる表" class="table-wrap" role="region" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">API</th>
+<th scope="col">位置・役割</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>CookieStore.import_browser()</code></td>
+<td>①→②。ブラウザCookieを保存内容へ合成する。</td>
+</tr>
+<tr>
+<td><code>CookieStore.load()</code></td>
+<td>②→③。暗号化Cookieを復号してjarを得る。</td>
+</tr>
+<tr>
+<td><code>CookieStore.snapshot()</code></td>
+<td>③。差分比較用baselineを得る。</td>
+</tr>
+<tr>
+<td><code>CookieStore.persist_delta()</code></td>
+<td>⑧→②。実行中の変更分を最新保存内容へ合成する。</td>
+</tr>
+<tr>
+<td><code>CookieStore.save()</code></td>
+<td>明示的にjar全体を置換する。標準終了時の差分保存とは異なる。</td>
+</tr>
+<tr>
+<td><code>CookieStore.clone_jar()</code></td>
+<td>④→⑨。検査用の独立jarを作る。</td>
+</tr>
+<tr>
+<td><code>RequestGateway</code> / <code>RequestPort</code></td>
+<td>⑥。共有HTTPクライアントと要求送信の入口。認証用入口も同じtransportを利用する。</td>
+</tr>
+<tr>
+<td><code>context.get_cookies()</code> / <code>CookieProvider</code></td>
+<td>④の現在値をコピーして読む。更新・保存・送信を行わない。</td>
+</tr>
+<tr>
+<td><code>RequestResponse.set_cookies()</code></td>
+<td>⑦の最終応答自身のSet-Cookieを解析する。jarを更新しない。</td>
+</tr>
+<tr>
+<td><code>DownloadService.close()</code></td>
+<td>⑧。通常構成でCookie差分を保存してリソースを閉じる。</td>
+</tr>
+</tbody>
+</table></div>
+<p>独自に <code>RequestGateway</code> だけを構築した場合、②からの読込み・⑧の自動保存まで付いてくるわけではない。この文書の自動処理は標準のサービス構成を前提にしている。</p>
+<p><a id="implementation-references"></a></p>
+<h2 id="topic-22">実装・関連ドキュメント</h2>
+<div aria-label="横方向にスクロールできる表" class="table-wrap" role="region" tabindex="0"><table>
+<thead>
+<tr>
+<th scope="col">確認対象</th>
+<th scope="col">参照先</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>①②③⑧の保管・合成規則</td>
+<td><a href="../../../src/image_downloader/storage/cookies.py">CookieStore</a>、<a href="../reference/runtime-behavior.md#runtime-cookies">Cookieの実行時仕様</a></td>
+</tr>
+<tr>
+<td>③の構築と⑧の終了時保存</td>
+<td><a href="../../../src/image_downloader/application/composer.py">RuntimeComposer</a>、<a href="../../../src/image_downloader/application/service.py">DownloadService</a></td>
+</tr>
+<tr>
+<td>④⑥⑦の共有HTTPクライアント</td>
+<td><a href="../../../src/image_downloader/transport/gateway.py">RequestGateway</a></td>
+</tr>
+<tr>
+<td>⑤の認証状態と専用通信</td>
+<td><a href="../../../src/image_downloader/transport/auth.py">OperationAuthSession</a>、<a href="../../../src/image_downloader/transport/operation.py">operationの要求経路</a></td>
+</tr>
+<tr>
+<td>⑨の検査・計画</td>
+<td><a href="../../../src/image_downloader/application/inspection.py">InspectionExecutor</a>、<a href="../../../src/image_downloader/application/workflow_plan.py">workflow計画</a></td>
+</tr>
+<tr>
+<td>Cookieログインの例</td>
+<td><a href="../../../plugin-sources/csrf-login-gallery/csrf_login_gallery.py">CSRFサンプル</a>、<a href="../how-to/authentication-migration.md#cookie-session-refresh">移行ガイド</a></td>
+</tr>
+<tr>
+<td>設定とAPI契約</td>
+<td><a href="../reference/configuration.md#config-plugin-connections">設定リファレンス</a>、<a href="../reference/plugin-hooks.md#plugin-authentication">フックリファレンス</a>、<a href="../reference/api-signatures.md">公開シグネチャ</a></td>
+</tr>
+</tbody>
+</table></div>
+<p>HTML版の本文と図は外部通信なしで表示できる。SVG/PNGの個別参照リンクを含めて配布する場合は、この文書とHTMLに加えて同じディレクトリの <code>assets</code> 内の図も同梱する。</p>
+</article>
+      <footer>Markdownを正本として生成。図はSVGを埋込み、外部フォント・CDN・JavaScriptへの依存なし。図の文字が小さい場合は、各図のSVG / PNGリンクで原寸を開いてください。実装確認日：2026-11-16。</footer>
+    </main>
+  </div>
+</div>
+</body>
+</html>

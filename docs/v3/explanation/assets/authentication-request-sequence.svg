@@ -1,0 +1,149 @@
+<?xml version='1.0' encoding='utf-8'?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1240 1655" width="1240" height="1655" role="img" aria-labelledby="diagram-title diagram-desc" lang="ja">
+  <title id="diagram-title">図2  認証対象要求の順序</title>
+  <desc id="diagram-desc">⑤の認証準備、⑥の通信、⑦のCookie更新を展開。④は両方の通信で共有する。</desc>
+  <style>
+        text { font-family: "Yu Gothic", "Meiryo", "Noto Sans CJK JP", sans-serif; fill: #172e42; }
+        .node-title { font-size: 20px; font-weight: 700; }
+        .node-body { font-size: 17px; }
+        .edge-label { font-size: 16px; font-weight: 500; }
+        .message-label { font-size: 16px; }
+        </style>
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8.5" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+      <path d="M 1 1 L 9 5 L 1 9 Z" fill="#536d82" />
+    </marker>
+  </defs>
+  <rect width="1240" height="1655" fill="#ffffff" />
+  <text x="40" y="44" font-size="27" font-weight="700">図2  認証対象要求の順序</text>
+  <text x="40" y="78" font-size="17" style="fill:#52697b">⑤の認証準備、⑥の通信、⑦のCookie更新を展開。④は両方の通信で共有する。</text>
+  <g id="connections">
+    <line x1="120" y1="183" x2="120" y2="1506" stroke="#b8c7d2" stroke-width="1.3" stroke-dasharray="4 6" />
+    <line x1="370" y1="183" x2="370" y2="1506" stroke="#b8c7d2" stroke-width="1.3" stroke-dasharray="4 6" />
+    <line x1="610" y1="183" x2="610" y2="1506" stroke="#b8c7d2" stroke-width="1.3" stroke-dasharray="4 6" />
+    <line x1="890" y1="183" x2="890" y2="1506" stroke="#b8c7d2" stroke-width="1.3" stroke-dasharray="4 6" />
+    <line x1="1130" y1="183" x2="1130" y2="1506" stroke="#b8c7d2" stroke-width="1.3" stroke-dasharray="4 6" />
+    <rect x="282" y="328" width="923" height="410" rx="8" fill="#f5f2fc" fill-opacity="0.65" stroke="#c6bce3" />
+    <path d="M 120 232 H 370" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <g>
+      <rect x="191.79999999999998" y="204" width="106.40000000000002" height="25" rx="3" fill="#fff" />
+      <text x="245.0" y="221" text-anchor="middle" class="message-label">RequestSpec</text>
+    </g>
+    <path d="M 370 263 H 406 V 290 H 370" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <path d="M 370 395 H 610" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <g>
+      <rect x="382.19999999999993" y="367" width="215.60000000000008" height="25" rx="3" fill="#fff" />
+      <text x="490.0" y="384" text-anchor="middle" class="message-label">initialize() / refresh()</text>
+    </g>
+    <path d="M 610 454 H 890" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <g>
+      <rect x="617.0" y="426" width="266.0000000000001" height="25" rx="3" fill="#fff" />
+      <text x="750.0" y="443" text-anchor="middle" class="message-label">AuthContext.requests.execute()</text>
+    </g>
+    <path d="M 890 510 H 1130" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <g>
+      <rect x="925.1999999999999" y="482" width="169.60000000000005" height="25" rx="3" fill="#fff" />
+      <text x="1010.0" y="499" text-anchor="middle" class="message-label">認証用要求 + Cookie</text>
+    </g>
+    <path d="M 1130 566 H 890" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 5" marker-end="url(#arrow)" />
+    <g>
+      <rect x="932.4" y="538" width="155.20000000000005" height="25" rx="3" fill="#fff" />
+      <text x="1010.0" y="555" text-anchor="middle" class="message-label">応答 + Set-Cookie</text>
+    </g>
+    <path d="M 890 592 H 926 V 619 H 890" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <path d="M 890 659 H 610" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 5" marker-end="url(#arrow)" />
+    <g>
+      <rect x="680.0" y="631" width="140.00000000000006" height="25" rx="3" fill="#fff" />
+      <text x="750.0" y="648" text-anchor="middle" class="message-label">RequestResponse</text>
+    </g>
+    <path d="M 610 710 H 370" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 5" marker-end="url(#arrow)" />
+    <g>
+      <rect x="445.2" y="682" width="89.60000000000001" height="25" rx="3" fill="#fff" />
+      <text x="490.0" y="699" text-anchor="middle" class="message-label">AuthLease</text>
+    </g>
+    <path d="M 370 788 H 610" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <g>
+      <rect x="401.4" y="760" width="177.2" height="25" rx="3" fill="#fff" />
+      <text x="490.0" y="777" text-anchor="middle" class="message-label">verify()：必要時のみ</text>
+    </g>
+    <path d="M 610 833 H 370" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 5" marker-end="url(#arrow)" />
+    <g>
+      <rect x="415.79999999999995" y="805" width="148.40000000000003" height="25" rx="3" fill="#fff" />
+      <text x="490.0" y="822" text-anchor="middle" class="message-label">AuthVerification</text>
+    </g>
+    <path d="M 370 953 H 610" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <g>
+      <rect x="407.4" y="925" width="165.20000000000005" height="25" rx="3" fill="#fff" />
+      <text x="490.0" y="942" text-anchor="middle" class="message-label">apply(RequestSpec)</text>
+    </g>
+    <path d="M 610 999 H 370" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 5" marker-end="url(#arrow)" />
+    <g>
+      <rect x="403.0" y="971" width="174" height="25" rx="3" fill="#fff" />
+      <text x="490.0" y="988" text-anchor="middle" class="message-label">資格情報を付けた要求</text>
+    </g>
+    <path d="M 370 1048 H 890" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <g>
+      <rect x="482.8" y="1020" width="294.4" height="25" rx="3" fill="#fff" />
+      <text x="630.0" y="1037" text-anchor="middle" class="message-label">⑥ 通常要求を送信（使用世代を記録）</text>
+    </g>
+    <path d="M 890 1100 H 1130" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <g>
+      <rect x="937.8" y="1072" width="144.4" height="25" rx="3" fill="#fff" />
+      <text x="1010.0" y="1089" text-anchor="middle" class="message-label">④のCookieを付与</text>
+    </g>
+    <path d="M 1130 1153 H 890" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 5" marker-end="url(#arrow)" />
+    <g>
+      <rect x="932.4" y="1125" width="155.20000000000005" height="25" rx="3" fill="#fff" />
+      <text x="1010.0" y="1142" text-anchor="middle" class="message-label">応答 + Set-Cookie</text>
+    </g>
+    <path d="M 890 1183 H 926 V 1210 H 890" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <path d="M 890 1254 H 370" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 5" marker-end="url(#arrow)" />
+    <g>
+      <rect x="560.0" y="1226" width="140.00000000000006" height="25" rx="3" fill="#fff" />
+      <text x="630.0" y="1243" text-anchor="middle" class="message-label">RequestResponse</text>
+    </g>
+    <path d="M 370 1287 H 406 V 1314 H 370" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <path d="M 370 1360 H 610" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrow)" />
+    <g>
+      <rect x="403.2" y="1332" width="173.60000000000005" height="25" rx="3" fill="#fff" />
+      <text x="490.0" y="1349" text-anchor="middle" class="message-label">classify_response()</text>
+    </g>
+    <path d="M 610 1408 H 370" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 5" marker-end="url(#arrow)" />
+    <g>
+      <rect x="432.59999999999997" y="1380" width="114.80000000000003" height="25" rx="3" fill="#fff" />
+      <text x="490.0" y="1397" text-anchor="middle" class="message-label">AuthDecision</text>
+    </g>
+    <path d="M 370 1472 H 120" fill="none" stroke="#536d82" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 5" marker-end="url(#arrow)" />
+    <g>
+      <rect x="193.4" y="1444" width="103.19999999999999" height="25" rx="3" fill="#fff" />
+      <text x="245.0" y="1461" text-anchor="middle" class="message-label">応答 / 例外</text>
+    </g>
+  </g>
+  <g id="nodes">
+    <rect x="21" y="113" width="198" height="70" rx="7" fill="#f3f6fa" stroke="#b3c2ce" />
+    <text x="120" y="142" font-size="18" font-weight="700" text-anchor="middle">プラグイン</text>
+    <text x="120" y="166" font-size="15" text-anchor="middle" style="fill:#52697b">要求を作る</text>
+    <rect x="271" y="113" width="198" height="70" rx="7" fill="#f3f6fa" stroke="#b3c2ce" />
+    <text x="370" y="142" font-size="18" font-weight="700" text-anchor="middle">⑤ 認証セッション</text>
+    <text x="370" y="166" font-size="15" text-anchor="middle" style="fill:#52697b">コアが管理</text>
+    <rect x="511" y="113" width="198" height="70" rx="7" fill="#f3f6fa" stroke="#b3c2ce" />
+    <text x="610" y="142" font-size="18" font-weight="700" text-anchor="middle">AuthFlow</text>
+    <text x="610" y="166" font-size="15" text-anchor="middle" style="fill:#52697b">サイト固有の手順</text>
+    <rect x="791" y="113" width="198" height="70" rx="7" fill="#f3f6fa" stroke="#b3c2ce" />
+    <text x="890" y="142" font-size="18" font-weight="700" text-anchor="middle">⑥ HTTP / ④ jar</text>
+    <text x="890" y="166" font-size="15" text-anchor="middle" style="fill:#52697b">共有クライアント</text>
+    <rect x="1031" y="113" width="198" height="70" rx="7" fill="#f3f6fa" stroke="#b3c2ce" />
+    <text x="1130" y="142" font-size="18" font-weight="700" text-anchor="middle">サーバー</text>
+    <text x="1130" y="166" font-size="15" text-anchor="middle" style="fill:#52697b">応答を返す</text>
+    <text x="300" y="356" font-size="18" font-weight="700">初回 initialize() / 更新時 refresh()（認証用通信は必要な場合のみ）</text>
+    <text x="419" y="282" font-size="16">AuthMode・originを解決</text>
+    <text x="939" y="611" font-size="16">⑦ jarを更新</text>
+    <text x="630" y="874" font-size="17" text-anchor="middle">VALID → 続行 / INVALID → refresh()</text>
+    <text x="630" y="900" font-size="17" text-anchor="middle">UNKNOWN → AuthStateUnknownError</text>
+    <text x="939" y="1202" font-size="16">⑦ jarを更新</text>
+    <text x="419" y="1306" font-size="16">auth_receiptを付与</text>
+    <rect x="40" y="1530" width="1160" height="83" rx="7" fill="#f3f6fa" stroke="#c3cfd8" />
+    <text x="60" y="1562" font-size="18">AUTH_FAILURE → 必要なrefresh・回数制限付き再送。再送は元の要求から構築する。</text>
+    <text x="60" y="1591" font-size="18">UNKNOWN → 追加verifyで判断。NOT_AUTH_FAILURE → 通常の応答処理へ進む。</text>
+  </g>
+</svg>

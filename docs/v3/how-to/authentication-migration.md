@@ -23,6 +23,8 @@ class TokenFlow(BaseAuthFlow):
 
 Cookieログインの実例は[CSRFフォーム認証](../../../plugin-sources/csrf-login-gallery/csrf_login_gallery.py)、token更新は[OAuth](../../../plugin-sources/oauth-media-api/oauth_media_api.py)、追加ホストは[機能ラボ](../../../examples/plugin-v3-feature-lab/origin-auth-gallery/plugin.yaml)を参照する。認証不要のサイトは `auth_flow()` で `None` を返す。
 
+既存Cookieの読込み、ブラウザインポート、通常通信、認証用通信、終了時保存の関係は、[Cookieと認証の流れ](../explanation/authentication-and-cookie-flow.md)（[HTML版](../explanation/authentication-and-cookie-flow.html)）の①〜⑨の図とAPI対応表で確認できる。
+
 `AuthLease(expires_in_seconds=...)` は有限の正数、または期限不明を表す `None` を受け付ける。コアは単調時計で期限を管理する。`refresh()` は元要求ではなく `AuthLease` を返す。新しいtokenの永続保存は行わない。
 
 ## 接続先と確認頻度
