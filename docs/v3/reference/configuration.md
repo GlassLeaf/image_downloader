@@ -148,7 +148,7 @@ mapping は再帰 merge、scalar/list/`null` は高い layer が置換する。I
 | 取得画像と章レポート | `<profile data root>/downloads` | 通常の`download`が書き込み、`--list-updated-urls`は画像出力を割り当てない |
 | 暗号化Cookie jarとlock | `<profile data root>/cookie/cookies.v2.enc`、`cookie/cookies.v2.lock` | Cookie操作と構築済みダウンロードサービス |
 | 更新スナップショットとlock | `<profile data root>/state/updates.json`、`state/updates.lock` | 更新一覧と`DownloadService.check_updates()` |
-| ワークフローの完了状態 | `<profile data root>/state/workflow.json`、`state/workflow.lock` | 通常のワークフロー。オフラインの状態表示では読み取りのみ |
+| ワークフローの対象状態 | `<profile data root>/state/workflow.json`、`state/workflow.lock` | 通常workflowと`state workflow set/reset`が保存。状態表示とdry-runは読み取りのみ |
 | ワークフロー実行履歴とlock | `<profile data root>/state/workflow-history.json`、`state/workflow-history.lock` | 通常のワークフローが自動記録、オフライン表示が読み取り、pruneが整理 |
 | ログ | `<profile data root>/logs` | 構築済みダウンロードサービスとログ処理 |
 | サイト・画像処理のソース単位とカタログ | `<plugins.root or platform data root/plugins>` | プラグインコマンドと実行時の発見処理。カタログはこのルート直下の`catalog.json` |
@@ -337,7 +337,7 @@ workflow_history:
 
 `workflow_history.max_age_days`と`workflow_history.max_size_bytes`は正の整数。既定はprofile全体で90日・100MiB。容量は`state/workflow-history.json`全体のUTF-8保存サイズに適用し、成果物、debug.log、ロック、一時ファイルを含めない。
 
-通常workflowはCLI/APIともに複数回の実行結果を自動保存する。dry-runは記録しない。既存`state/workflow.json`はschema 1の最新候補・URL単位完了管理を維持し、履歴ファイルも別のschema 1とする。履歴は終了日時から保持期間を判定し、境界を含む期限切れを表示から除外するが、表示ではファイルを変更しない。新規記録時と明示的な`state workflow prune`で物理削除する。
+通常workflowはCLI/APIともに複数回の実行結果を自動保存する。dry-runは記録しない。`state/workflow.json`はschema 1でURL単位の`status`を保存し、旧`completed`形式は自動移行しない。状態管理コマンドによる変更は実行履歴へ追記しない。履歴ファイルは独立したschema 1とする。履歴は終了日時から保持期間を判定し、境界を含む期限切れを表示から除外するが、表示ではファイルを変更しない。新規記録時と明示的な`state workflow prune`で物理削除する。
 
 通常保存では期限切れを削除し、その後は古い実行から容量整理する。ただし新しい単一結果だけで容量上限を超える場合、その結果を省略せず保存し、期間内の既存履歴も容量理由では削除しない。上限超過と整理の推奨を警告する。明示的pruneは期限切れを先に削除し、古い順に容量整理するが、期間内の最後の1件は残す。期限切れなら最後の1件も削除できる。
 

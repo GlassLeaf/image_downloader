@@ -7,19 +7,32 @@ from dataclasses import replace
 from functools import partial
 
 from ..exceptions import WorkflowPlanCancelledError, WorkflowPlanError, error_info_for
-from ..models import WorkflowPlanItem, WorkflowPlanResult
+from ..models import (
+    WorkflowPlanItem,
+    WorkflowPlanResult,
+    WorkflowTargetChangePlan,
+    WorkflowTargetSelector,
+    WorkflowTargetStatus,
+)
 from ..storage.workflow import WorkflowState, finish_transaction
+from ..storage.workflow_targets import WorkflowTargetStore
 from ..transport.gateway import RequestGateway, closing_gateway
 from .requests import WorkflowPlanRequest
 from .workflow_runtime import WorkflowRuntime
 
 
-async def plan_workflow(runtime: WorkflowRuntime, request: WorkflowPlanRequest) -> WorkflowPlanResult:
+async def _plan_workflow(
+    runtime: WorkflowRuntime,
+    request: WorkflowPlanRequest,
+    target_selector: WorkflowTargetSelector | None = None,
+    target_status: WorkflowTargetStatus | None = None,
+) -> tuple[WorkflowPlanResult, WorkflowTargetChangePlan | None]:
     url, scope = request.url, request.download_scope
     overrides, fallback = request.plugin_overrides, request.fallback_override
     plugin_id, force_plugin = request.plugin_id, request.force_plugin
     policies = request.plugin_download_policy_overrides
     result = WorkflowPlanResult(url, scope)
+    target_plan = None
     try:
         async with runtime.operations.selection(
             url, overrides, fallback, plugin_id, force_plugin, diagnostics_enabled=False
@@ -63,12 +76,23 @@ async def plan_workflow(runtime: WorkflowRuntime, request: WorkflowPlanRequest) 
                                 for c in snapshot.candidates
                             ),
                         )
+                        if target_selector is not None:
+                            target_plan = await finish_transaction(
+                                partial(
+                                    WorkflowTargetStore(state).plan_changes,
+                                    target_selector,
+                                    target_status,
+                                    snapshot=snapshot,
+                                    plugin_id=record.id,
+                                    download_scope=scope,
+                                )
+                            )
             except BaseException as primary:
                 await runtime.operations.release_selection(selected, primary, diagnostics_enabled=False)
                 raise
             finally:
                 lock.release()
-        return result
+        return result, target_plan
     except (Exception, asyncio.CancelledError) as exc:
         result = replace(
             result,
@@ -80,6 +104,11 @@ async def plan_workflow(runtime: WorkflowRuntime, request: WorkflowPlanRequest) 
         raise WorkflowPlanError(result, exc) from exc
 
 
+async def plan_workflow(runtime: WorkflowRuntime, request: WorkflowPlanRequest) -> WorkflowPlanResult:
+    result, _ = await _plan_workflow(runtime, request)
+    return result
+
+
 class WorkflowPlanner:
     """Preview selection without owning the service's operation lock."""
 
@@ -88,3 +117,10 @@ class WorkflowPlanner:
 
     async def execute(self, request: WorkflowPlanRequest) -> WorkflowPlanResult:
         return await plan_workflow(self.runtime, request)
+
+    async def targets(
+        self, request: WorkflowPlanRequest, selector: WorkflowTargetSelector, status: WorkflowTargetStatus | None
+    ) -> WorkflowTargetChangePlan:
+        _, plan = await _plan_workflow(self.runtime, request, selector, status)
+        assert plan is not None
+        return plan

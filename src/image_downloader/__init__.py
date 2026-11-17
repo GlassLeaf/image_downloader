@@ -53,6 +53,8 @@ from .exceptions import (
     WorkflowPlanError,
     WorkflowPlanLogError,
     WorkflowRetryTimeoutError,
+    WorkflowStateConflictError,
+    WorkflowStateFormatError,
 )
 from .models import (
     AdditionalFileHookContext,
@@ -107,6 +109,12 @@ from .models import (
     WorkflowRunRecord,
     WorkflowStateItem,
     WorkflowStateView,
+    WorkflowTargetChange,
+    WorkflowTargetChangePlan,
+    WorkflowTargetChangeResult,
+    WorkflowTargetRecord,
+    WorkflowTargetSelector,
+    WorkflowTargetStatus,
 )
 from .ports import (
     AdditionalFileProvider,
@@ -132,6 +140,14 @@ from .ports import (
 from .runtime import DownloadService, RuntimeComposer
 
 __all__ = [
+    "WorkflowStateFormatError",
+    "WorkflowStateConflictError",
+    "WorkflowTargetStatus",
+    "WorkflowTargetSelector",
+    "WorkflowTargetRecord",
+    "WorkflowTargetChange",
+    "WorkflowTargetChangePlan",
+    "WorkflowTargetChangeResult",
     "DownloadRequest",
     "InspectRequest",
     "UpdateCheckRequest",

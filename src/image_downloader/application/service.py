@@ -7,7 +7,16 @@ from functools import partial
 from types import TracebackType
 
 from ..configuration.models import AppConfig
-from ..models import DownloadResult, ManifestInspectionResult, UpdateResult, WorkflowPlanResult, WorkflowResult
+from ..models import (
+    DownloadResult,
+    ManifestInspectionResult,
+    UpdateResult,
+    WorkflowPlanResult,
+    WorkflowResult,
+    WorkflowTargetChangePlan,
+    WorkflowTargetSelector,
+    WorkflowTargetStatus,
+)
 from ..observability.events import EventName, EventPayload
 from ..observability.scope import OperationDiagnosticsScope
 from ..plugins.runtime import PluginRuntime
@@ -133,6 +142,17 @@ class DownloadService:
         async with self._operation_lock:
             self._ensure_open()
             return await self._workflows.execute(request)
+
+    async def plan_workflow_targets(
+        self, request: WorkflowPlanRequest, selector: WorkflowTargetSelector, status: WorkflowTargetStatus | None = None
+    ) -> WorkflowTargetChangePlan:
+        if not isinstance(request, WorkflowPlanRequest):
+            raise TypeError("request must be WorkflowPlanRequest")
+        if selector.source_url != request.url:
+            raise ValueError("target selector source must match the workflow plan URL")
+        async with self._operation_lock:
+            self._ensure_open()
+            return await self._plans.targets(request, selector, status)
 
     def _ensure_open(self) -> None:
         if self._closed:

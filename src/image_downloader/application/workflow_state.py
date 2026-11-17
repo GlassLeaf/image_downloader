@@ -2,14 +2,29 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
+
 from ..configuration.models import AppConfig
 from ..configuration.paths import resolve_paths
-from ..models import UpdateCandidate, WorkflowPruneResult, WorkflowRunRecord, WorkflowStateItem, WorkflowStateView
+from ..models import (
+    UpdateCandidate,
+    UpdateSnapshot,
+    WorkflowPruneResult,
+    WorkflowRunRecord,
+    WorkflowStateItem,
+    WorkflowStateView,
+    WorkflowTargetChangePlan,
+    WorkflowTargetChangeResult,
+    WorkflowTargetRecord,
+    WorkflowTargetSelector,
+    WorkflowTargetStatus,
+)
 from ..privacy.log_safety import safe_url
 from ..storage.filesystem import FileSystem
 from ..storage.source_identity import source_key
 from ..storage.workflow import WorkflowState
 from ..storage.workflow_history import WorkflowHistoryStore
+from ..storage.workflow_targets import WorkflowTargetStore
 
 
 class WorkflowStateService:
@@ -18,6 +33,26 @@ class WorkflowStateService:
         filesystem = FileSystem(resolve_paths(config)["state"])
         self._state = WorkflowState(filesystem)
         self._history = WorkflowHistoryStore(filesystem, config.workflow_history)
+        self._targets = WorkflowTargetStore(self._state)
+
+    def list_targets(self, selector: WorkflowTargetSelector) -> tuple[WorkflowTargetRecord, ...]:
+        return self._targets.list_targets(selector)
+
+    def plan_changes(
+        self,
+        selector: WorkflowTargetSelector,
+        status: WorkflowTargetStatus | None,
+        *,
+        snapshot: UpdateSnapshot | None = None,
+        plugin_id: str | None = None,
+        download_scope: str = "updated",
+    ) -> WorkflowTargetChangePlan:
+        return self._targets.plan_changes(
+            selector, status, snapshot=snapshot, plugin_id=plugin_id, download_scope=download_scope
+        )
+
+    def apply_changes(self, plan: WorkflowTargetChangePlan, approved_urls: Iterable[str]) -> WorkflowTargetChangeResult:
+        return self._targets.apply_changes(plan, approved_urls)
 
     def list_workflows(self, *, plugin_id: str | None = None) -> tuple[WorkflowStateView, ...]:
         # Fixed lock order. Readers do not acquire the long-lived feed lock.
@@ -41,6 +76,7 @@ class WorkflowStateService:
                             safe_url(item.candidate.url), item.candidate.content_id, item.candidate.revision
                         ),
                         item.completed,
+                        item.status,
                     )
                     for item in feed.items
                 ),

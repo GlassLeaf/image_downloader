@@ -47,7 +47,7 @@ def _print_feed(view: Mapping[str, Any], *, detailed: bool) -> None:
         print(f"  current state (checked {view['checked_at']}): {counts_text(view['summary'])}")
         if detailed:
             for item in view["items"]:
-                print(f"    {'completed' if item['completed'] else 'unfinished'}: {item['url']}")
+                print(f"    {item['status']}: {item['url']}")
                 identity = item["content_id"] if item["content_id"] is not None else "not provided"
                 revision = item["revision"] if item["revision"] is not None else "not provided"
                 print(f"      content_id: {identity}; revision: {revision}")

@@ -64,6 +64,7 @@ class _WorkflowExecution:
         self.run_id = str(uuid4())
         self.started_at = datetime.now(UTC)
         self.feed_plugin_id: str | None = None
+        self.retry_deadline: asyncio.Timeout | None = None
         self.log = WorkflowLogWriter(
             resolve_paths(runtime.config)["logs"] / "workflow",
             self.run_id,
@@ -125,6 +126,7 @@ class _WorkflowExecution:
             await self.round(0, selected)
             if self.pending() and self.retries:
                 timeout = asyncio.timeout(self.timeout)
+                self.retry_deadline = timeout
                 try:
                     async with timeout:
                         for number in range(1, self.retries + 1):
@@ -304,10 +306,27 @@ class _WorkflowExecution:
         selected = await finish_transaction(partial(self.prepare, update.plugin_id, snapshot, number))
         for url, reasons in selected.items():
             self.reported = True
-            self.items[url] = await self.download(self.items[url], number, reasons)
-            self.reported = False
-            if self.items[url].status == "success":
-                await finish_transaction(partial(self.state.complete, update.plugin_id, self.url, url))
+            try:
+                self.items[url] = await self.download(self.items[url], number, reasons)
+                self.reported = False
+                if self.items[url].status == "success":
+                    await finish_transaction(partial(self.state.complete, update.plugin_id, self.url, url))
+            except asyncio.CancelledError:
+                if self.retry_deadline is None or not self.retry_deadline.expired():
+                    try:
+                        await finish_transaction(
+                            partial(
+                                self.state.set_status,
+                                update.plugin_id,
+                                self.url,
+                                url,
+                                "cancelled",
+                                only_unfinished=True,
+                            )
+                        )
+                    except asyncio.CancelledError:
+                        pass  # A started status write has settled before propagating cancellation.
+                raise
 
     async def download(self, item: WorkflowItemResult, number: int, reasons: tuple[str, ...]) -> WorkflowItemResult:
         runtime = self.runtime

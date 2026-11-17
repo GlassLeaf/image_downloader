@@ -341,10 +341,10 @@ def build_parser() -> argparse.ArgumentParser:
         elif name == "state":
             groups = command.add_subparsers(dest="state_group", required=True, metavar=None)
             actions = groups.add_parser("workflow").add_subparsers(dest="workflow_action", metavar=None)
-            for action in ("list", "show", "run", "history", "prune"):
+            for action in ("list", "show", "run", "history", "prune", "targets", "set", "reset"):
                 operation = actions.add_parser(action)
                 if action in {"show", "run"}:
                     operation.add_argument("target")
-                elif action == "history":
+                elif action in {"history", "targets", "set", "reset"}:
                     operation.add_argument("target", nargs="?")
     return parser

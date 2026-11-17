@@ -48,7 +48,9 @@ _DOWNLOAD = frozenset({"download", "workflow"})
 _INSPECT = frozenset({"inspect", "download --inspect-only"})
 _PLUGIN_MUTATIONS = frozenset({"plugin install", "plugin trust", "plugin revoke", "plugin uninstall"})
 _PLUGIN = _PLUGIN_MUTATIONS | {"plugin list"}
-_STATE = frozenset("state workflow " + action for action in ("list", "show", "run", "history", "prune"))
+_TARGETS = frozenset("state workflow " + action for action in ("targets", "set", "reset"))
+_TARGET_MUTATIONS = frozenset({"state workflow set", "state workflow reset"})
+_STATE = frozenset("state workflow " + action for action in ("list", "show", "run", "history", "prune")) | _TARGETS
 _CONFIG = frozenset({"config path", "config explain", "config init", "config profile init"})
 _CREDENTIAL = frozenset(
     f"credential {kind} {action}" for kind in ("plugin", "smtp") for action in ("set", "list", "delete")
@@ -117,7 +119,7 @@ OPTIONS = (
     ),
     OptionDefinition(
         "plugin",
-        _DOWNLOAD | _INSPECT | {"state workflow list", "state workflow show", "state workflow history"},
+        _DOWNLOAD | _INSPECT | {"state workflow list", "state workflow show", "state workflow history"} | _TARGETS,
         dest="plugin_id",
         metavar="ID",
     ),
@@ -151,12 +153,18 @@ OPTIONS = (
     OptionDefinition("limit", frozenset({"state workflow history"}), int, help="history limit (default: 20)"),
     OptionDefinition(
         "dry-run",
-        frozenset({"workflow", "state workflow prune"}),
+        frozenset({"workflow", "state workflow prune"}) | _TARGET_MUTATIONS,
         default=False,
         flag=True,
-        help="preview workflow URL selection or history pruning",
+        help="preview workflow URL selection, state changes or history pruning",
     ),
-    OptionDefinition("download-scope", frozenset({"workflow"}), choices=("all", "updated")),
+    OptionDefinition("download-scope", frozenset({"workflow"}) | _TARGETS, choices=("all", "updated")),
+    OptionDefinition("url-regex", _TARGETS, metavar="PATTERN"),
+    OptionDefinition("all", _TARGETS, default=False, dest="all_targets", flag=True),
+    OptionDefinition("source", _TARGETS, dest="source_url", metavar="FEED_URL"),
+    OptionDefinition("from-status", _TARGETS, choices=("completed", "pending", "cancelled")),
+    OptionDefinition("status", frozenset({"state workflow set"}), choices=("completed", "pending", "cancelled")),
+    OptionDefinition("refresh", _TARGETS, default=False, flag=True),
     OptionDefinition("workflow-progress-log", frozenset({"workflow"}), choices=("enabled", "disabled")),
     OptionDefinition("workflow-retries", frozenset({"workflow"}), int, help="extra workflow rounds (default: 1)"),
     OptionDefinition(

@@ -36,6 +36,8 @@ INVENTORY = re.compile(
 EXPECTED_EXPORTS = {
     "image_downloader": tuple(
         """
+        WorkflowStateFormatError WorkflowStateConflictError WorkflowTargetStatus WorkflowTargetSelector
+        WorkflowTargetRecord WorkflowTargetChange WorkflowTargetChangePlan WorkflowTargetChangeResult
         DownloadRequest InspectRequest UpdateCheckRequest WorkflowPlanRequest WorkflowRequest
         WorkflowExecutionError WorkflowPlanError WorkflowCancelledError WorkflowPlanCancelledError
         AdditionalFileProvider AdditionalFileReceiver AdditionalFileSaveObserver AdditionalFileHookContext

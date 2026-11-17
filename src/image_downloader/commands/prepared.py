@@ -107,6 +107,13 @@ class StateArguments(ConfigurationArguments):
     plugin_id: str | None = None
     limit: int | None = None
     dry_run: bool = False
+    url_regex: str | None = None
+    all_targets: bool = False
+    source_url: str | None = None
+    from_status: Literal["completed", "pending", "cancelled"] | None = None
+    status: Literal["completed", "pending", "cancelled"] | None = None
+    refresh: bool = False
+    download_scope: Literal["all", "updated"] | None = None
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

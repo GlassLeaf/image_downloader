@@ -23,7 +23,7 @@ image-downloader --workflow-progress-log enabled workflow URL --json
 ```text
 image-downloader download URL [--force-image-format FORMAT] [options]
 image-downloader workflow URL [--download-scope all|updated] [download options]
-image-downloader state workflow [list|show|history|run|prune] [arguments] [options]
+image-downloader state workflow [list|show|history|run|prune|targets|set|reset] [arguments] [options]
 image-downloader verify logs ABSOLUTE_PATH [--json]
 image-downloader verify workflow RUN_ID --output-dir ABSOLUTE_PATH [options]
 image-downloader inspect URL [options]
@@ -51,7 +51,7 @@ config 作成・rewrite の command ごとの副作用は [設定リファレン
 
 ### ワークフロー
 
-`workflow URL --dry-run`は、実際にフィードを一度確認し、初回周回のURL選択を事前表示します。`--download-scope all|updated`と、コマンド前の指定を含む既存のワークフローオプションを受理します。`--dry-run`は`state workflow prune`でも使えますが、他のコマンドとURL単独のダウンロード形式では拒否します。既存の値検証と排他条件は維持し、再試行オプションは検証するものの、待機や追加周回は実行しません。
+`workflow URL --dry-run`は、実際にフィードを一度確認し、初回周回のURL選択を事前表示します。`--download-scope all|updated`と、コマンド前の指定を含む既存のワークフローオプションを受理します。`--dry-run`は`state workflow prune/set/reset`でも使えますが、他のコマンドとURL単独のダウンロード形式では拒否します。既存の値検証と排他条件は維持し、再試行オプションは検証するものの、待機や追加周回は実行しません。
 
 事前表示には、選択・除外された候補と理由（`all`、`added`、`changed`、`unfinished`、完了済みで除外する`completed`）、削除候補、候補数・選択URL数を示します。選択時はフィード順を維持してURLを重複排除し、同じURLを持つ候補は選択結果と理由を共有します。対象manifestの検査、画像の取得・加工・保存、画像件数・出力名・ファイル競合の予測、取得成功の保証は行いません。出力・形式・既存ファイルのオプションは受理しますが、その動作はシミュレーションしません。
 
@@ -382,13 +382,16 @@ image-downloader state workflow show URL [--plugin ID]
 image-downloader state workflow history [URL] [--plugin ID] [--limit N]
 image-downloader state workflow run RUN_ID
 image-downloader state workflow prune [--dry-run]
+image-downloader state workflow targets [TARGET_URL | --url-regex PATTERN | --all] [options]
+image-downloader state workflow set (TARGET_URL | --url-regex PATTERN | --all) --status STATUS [options]
+image-downloader state workflow reset (TARGET_URL | --url-regex PATTERN | --all) [options]
 ```
 
-`--config`、`--profile`、`--data-root`、`--json`はコマンド前後で指定できる。`--limit`はhistory専用の正の整数で、既定20件。`--plugin`はlist/show/historyで保存済みplugin IDを絞り込み、プラグインのインストール・検証・選択をしない。同じURLが複数pluginに属すると、指定なしではそれぞれ表示する。ダウンロード・再試行・inspection・Cookie操作・出力設定などの実行オプションは拒否する。`--dry-run`は通常workflowと`state workflow prune`のみで受理する。
+`--config`、`--profile`、`--data-root`、`--json`はコマンド前後で指定できる。`--limit`はhistory専用の正の整数で、既定20件。`--plugin`はlist/show/history/targets/set/resetで保存済みplugin IDを絞り込む。`--refresh`を指定した場合は更新確認プラグインを選択する。同じURLが複数pluginに属すると、指定なしではそれぞれ表示する。ダウンロード・再試行・inspection・Cookie操作・出力設定などの実行オプションは拒否する。`--dry-run`は通常workflowと`state workflow prune/set/reset`で受理する。
 
-ネットワーク通信・プラグイン読込み・Cookie読込み・設定の初期保存/rewrite・ファイルログ・通知は行わない。ロックファイルと親ディレクトリの作成は許容する。一度だけ保存情報を読み取り、進捗の自動更新、実行中判定、成果物検証は行わない。
+`--refresh`以外はネットワーク通信・プラグイン読込み・Cookie読込みを行わない。設定の初期保存/rewrite・ファイルログ・通知は行わない。ロックファイルと親ディレクトリの作成は許容する。進捗の自動更新、実行中判定、成果物検証は行わない。
 
-現在状態は候補のURL、content ID、revision、完了フラグ、チェック日時と集計を持つ。未完了を失敗・未処理・実行中と推測しない。過去結果は別欄で表示し、過去の成功は現在の完了を保証しない。feedはplugin IDとSHA-256キーで識別する。履歴があれば伏字済み更新元URLを表示するが、既存の完了状態だけからURLを復元・推測しない。
+現在状態は候補のURL、content ID、revision、`status`、互換表示用の完了フラグ、チェック日時と集計を持つ。`pending`は失敗・部分成功を含む未完了を表し、詳細は実行履歴で確認する。過去結果は別欄で表示し、過去の成功は現在の完了を保証しない。feedはplugin IDとSHA-256キーで識別する。履歴があれば伏字済み更新元URLを表示するが、既存の完了状態だけからURLを復元・推測しない。
 
 listはfeedの概要、showは現在候補と最新実行の詳細を別欄で表示する。現在状態が未作成なら`current state: not available`と表示し、存在する空一覧の`candidates=0`と区別する。historyは実行ごとの概要、runはURL別結果・試行・周回・停止原因を整形して表示する。通常表示では辞書やJSONをそのまま出力しない。古い履歴の`plugin_error`から原因を推測せず、保存されたコードと安全な理由を表示する。
 
@@ -396,12 +399,66 @@ listはfeedの概要、showは現在候補と最新実行の詳細を別欄で�
 
 通常表示のlist/historyにも初回周回の候補数・選択URL数と取得／対象0件の理由を簡潔に表示し、show/runでは別行で詳しく表示する。説明は通常workflowと共通で、現在状態から過去の理由を推測せず、保存済みの初回周回・scope・差分・確定できる選択理由のみを使う。初回実行かどうかは記録されていない。再試行で選択理由が混ざった場合、復元できない初回理由は断定しない。既存履歴の書換えやJSON項目の追加は行わない。
 
-JSONは`operation="state"`、`resource="workflow"`、`action`を持つ一文書。list/showは`workflows`、historyは`runs`、runは`run`、pruneは`prune`を返す。pruneは削除予定RUN_ID、期限切れ件数、UTF-8ファイルサイズの整理前後、上限超過の有無を返す。URL・エラー・パスは既存の伏字処理を適用する。
+JSONは`operation="state"`、`resource="workflow"`、`action`を持つ一文書。list/showは`workflows`、historyは`runs`、runは`run`、pruneは`prune`、targetsは`targets`、set/resetは`changes`と`summary`を返す。pruneは削除予定RUN_ID、期限切れ件数、UTF-8ファイルサイズの整理前後、上限超過の有無を返す。URL・エラー・パスは既存の伏字処理を適用する。
 
 list/showの各feedには`state_available`を追加する。falseでも互換性のため`checked_at=null`、空の`items`、0件の`summary`は維持する。この0件は「保存済みの空一覧」を意味しない。
 
 表示・整理の成功は0（過去の失敗を表示しても0）、明示したURL/RUN_IDが存在しない場合は1、設定不正は2、保存情報の破損・ロック・I/O失敗は1、キャンセルは130。空の一覧・履歴一覧は正常終了する。通常workflowの`execution.result`には`run_id`、`history_saved`、`history_warning`を含める。終了後の履歴保存状態は`shutdown.result`を参照する。履歴保存失敗は警告し、元のworkflow終了コードを変更しない。
 
+
+### 対象URLの状態確認・変更・リセット
+
+`targets/set/reset`はRUN_IDに依存せず、workflowがdownloadへ渡す対象URLを操作する。
+URL単位の完全一致、`--url-regex PATTERN`、`--all`は排他的。
+`targets`はURL条件を省略すると全件表示し、`set/reset`ではいずれかのURL条件が必須。
+正規表現は原文URL全体への大文字小文字を区別するPython `re.search`で評価する。
+`--source FEED_URL`、`--plugin ID`、`--from-status STATUS`をAND条件で追加できる。
+同じURLの条件に一致する登録を、複数フィード・プラグインにわたって操作する。
+
+状態は`completed`（完了）、`pending`（未処理・未完了）、`cancelled`（キャンセル）。
+`set --status STATUS`で変更し、`reset`は`set --status pending`と同じ。
+通常workflowの成功はcompleted、失敗・部分成功・時間切れはpending、処理中URLの利用者キャンセルはcancelledになる。
+completedのURLと未着手URLは、他URLのキャンセルで変更しない。
+updated実行ではpendingとcancelledが再び対象になる。完了後もURL・revisionの変更時は対象へ戻り、
+`--download-scope all`は完了済みも取得する。reset後の保存には既存ファイル方針を適用する。
+
+実変更のあるURLごとに、伏字済みURL、変更前後、プラグイン、フィードキー、登録件数をstderrへ表示する。
+確認入力はstdinから`yes`（このURLを承認）、`no`（このURLをスキップ）、
+`all-yes`（このURLと残りを承認）、`all-no`（このURLと残りをスキップ）で回答する。
+空入力や不正入力は再入力を求める。全回答を集めた後、承認分を一括保存する。
+all-noより前に承認した分は保存する。EOF・Ctrl+Cで入力を中断すると全件未保存で130。
+同一URLは一度だけ確認し、変更不要の登録は確認しない。`--yes`による確認省略は受理しない。
+`--dry-run`は予定だけを表示し、確認入力と保存を行わない。
+
+`--refresh --source FEED_URL`では更新確認だけで今回の候補を取得する。
+`--download-scope updated|all`はrefresh時だけ指定でき、既定updated。
+フィード内の全候補を操作する場合は`--download-scope all --all`を使う。
+targetsやdry-runは保存せず、set/resetは承認URLだけを登録・更新する。
+拒否したURL、新規候補、削除候補を自動同期せず、候補全体の同期は次回通常workflowに任せる。
+画像・更新履歴・Cookie・実行履歴・ログは保存せず、通常plannerの独立セッションと後始末を使う。
+更新確認・後始末に失敗した場合は変更確認と保存に進まない。
+
+確認中はロックを保持しない。保存時にフィードロックを固定順で取得し、
+対象集合・状態・revisionを再確認する。計画に関係する状態が変わった場合は全件未変更で1となり、
+再実行と再確認が必要。承認はそのコマンドで提示した計画だけに適用する。
+
+JSONのchangesは安全なbefore/afterとdecision（approved/skipped/unchanged/preview/cancelled）を持つ。
+summaryはmatched_urls、matched_records、planned_records、approved_urls、approved_records、
+skipped_urls、skipped_records、unchanged_records、changed_records、dry_runを返す。
+成功・変更不要・全件拒否は0、変更対象なし・競合・保存失敗は1、引数不正は2、入力中断は130。
+空のtargetsは0。refreshの認証・プラグイン失敗は既存の例外別終了コードを使う。
+
+`workflow.json`のschema_versionは1のまま、レコードのcompletedをstatusへ置き換えた。
+旧形式の自動変換はなく、旧形式を読み込むと再作成を案内するエラーになる。
+既存ファイルを自動削除せず、表示用JSONのcompletedはstatusから算出して維持する。
+
+```powershell
+image-downloader state workflow targets "https://example.test/work/123"
+image-downloader state workflow set "https://example.test/work/123" --status completed
+image-downloader state workflow set --url-regex '/work/2026/' --from-status pending --status completed
+image-downloader state workflow reset --source "https://example.test/feed" --all
+image-downloader state workflow set --source "https://example.test/feed" --refresh --all --status completed --dry-run
+```
 
 ## 保存済みログとworkflow成果物の検証
 

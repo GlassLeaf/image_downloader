@@ -192,6 +192,8 @@ def test_cancelled_workflow_keeps_completed_urls_and_releases_feed_lock(tmp_path
                     await task
                 assert captured.value.result.cancelled
                 assert [item.status for item in captured.value.result.items] == ["success", "unprocessed"]
+                with WorkflowState(service.state.filesystem).read_feeds() as feeds:
+                    assert [item.status for item in feeds[0].items] == ["completed", "cancelled"]
                 monkeypatch.setattr(service._downloads, "execute", original)
                 assert (await service.workflow(WorkflowRequest(url=FEED, workflow_retries=0))).selected_urls == (B.url,)
 
@@ -278,7 +280,7 @@ def test_parallel_processes_preserve_both_workflow_feeds(tmp_path):
             assert process.exitcode == 0
         document = json.loads((tmp_path / "workflow.json").read_text())
         assert len(document["sources"]["p"]) == 2
-        assert all(feed["records"]["id:a"]["completed"] for feed in document["sources"]["p"].values())
+        assert all(feed["records"]["id:a"]["status"] == "completed" for feed in document["sources"]["p"].values())
     finally:
         for process in processes:
             if process.is_alive():

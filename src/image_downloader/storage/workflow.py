@@ -11,8 +11,15 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
-from ..exceptions import PluginError, UpdateStateError
-from ..models import UpdateCandidate, UpdateChange, UpdateChangeKind, UpdateSnapshot, WorkflowStateItem
+from ..exceptions import PluginError, UpdateStateError, WorkflowStateFormatError
+from ..models import (
+    UpdateCandidate,
+    UpdateChange,
+    UpdateChangeKind,
+    UpdateSnapshot,
+    WorkflowStateItem,
+    WorkflowTargetStatus,
+)
 from .filesystem import FileSystem
 from .interprocess_lock import InterProcessFileLock
 from .source_identity import source_key
@@ -41,7 +48,10 @@ class WorkflowState:
         return InterProcessFileLock(self.filesystem.path(relative), timeout_seconds=self.lock_timeout_seconds)
 
     def feed_lock(self, plugin_id: str, url: str) -> InterProcessFileLock:
-        key = sha256(json.dumps([plugin_id, url]).encode()).hexdigest()
+        return self.feed_key_lock(plugin_id, source_key(url))
+
+    def feed_key_lock(self, plugin_id: str, feed_key: str) -> InterProcessFileLock:
+        key = sha256(json.dumps([plugin_id, feed_key]).encode()).hexdigest()
         return self.lock(Path("workflow-locks") / f"{key}.lock")
 
     @contextmanager
@@ -62,7 +72,8 @@ class WorkflowState:
                         tuple(
                             WorkflowStateItem(
                                 UpdateCandidate(record["url"], record["content_id"], record["revision"]),
-                                record["completed"],
+                                record["status"] == "completed",
+                                record["status"],
                             )
                             for record in feed["records"].values()
                         ),
@@ -111,7 +122,13 @@ class WorkflowState:
     def _validate_record(identity: Any, record: Any) -> None:
         if not isinstance(identity, str) or not isinstance(record, dict):
             raise ValueError("invalid record")
-        if not isinstance(record.get("url"), str) or not record["url"] or type(record.get("completed")) is not bool:
+        if "completed" in record:
+            raise WorkflowStateFormatError()
+        if (
+            not isinstance(record.get("url"), str)
+            or not record["url"]
+            or record.get("status") not in ("completed", "pending", "cancelled")
+        ):
             raise ValueError("invalid record fields")
         for field in ("content_id", "revision"):
             if field not in record or record[field] is not None and not isinstance(record[field], str):
@@ -153,12 +170,25 @@ class WorkflowState:
             self._read()
 
     def complete(self, plugin_id: str, source_url: str, target_url: str) -> None:
+        self.set_status(plugin_id, source_url, target_url, "completed")
+
+    def set_status(
+        self,
+        plugin_id: str,
+        source_url: str,
+        target_url: str,
+        status: WorkflowTargetStatus,
+        *,
+        only_unfinished: bool = False,
+    ) -> None:
+        if status not in ("completed", "pending", "cancelled"):
+            raise ValueError("invalid workflow target status")
         with self.lock(Path("workflow.lock")):
             document = self._read()
             records = document["sources"][plugin_id][source_key(source_url)]["records"]
             for record in records.values():
-                if record["url"] == target_url:
-                    record["completed"] = True
+                if record["url"] == target_url and (not only_unfinished or record["status"] != "completed"):
+                    record["status"] = status
             self._write(document)
 
     def _write(self, document: dict[str, Any]) -> None:
@@ -166,7 +196,7 @@ class WorkflowState:
 
 
 def select_candidates(
-    previous: dict[str, Any], snapshot: UpdateSnapshot, scope: str
+    previous: dict[str, Any], snapshot: UpdateSnapshot, scope: str, *, mark_selected_pending: bool = True
 ) -> tuple[dict[str, Any], tuple[UpdateChange, ...], dict[str, tuple[str, ...]]]:
     """Pure initial-round selection, shared by preparation and preview."""
     current: dict[str, Any] = {}
@@ -183,8 +213,8 @@ def select_candidates(
             changes.append(
                 UpdateChange(UpdateChangeKind(reason), candidate.url, candidate.content_id, candidate.revision)
             )
-        completed = not changed and old is not None and old["completed"]
-        if scope == "all" or not completed:
+        status = "pending" if changed or old is None else old["status"]
+        if scope == "all" or status != "completed":
             reasons = selected.get(candidate.url, ())
             chosen_reason = "all" if scope == "all" else reason
             selected[candidate.url] = tuple(dict.fromkeys((*reasons, chosen_reason)))
@@ -192,15 +222,15 @@ def select_candidates(
             "url": candidate.url,
             "content_id": candidate.content_id,
             "revision": candidate.revision,
-            "completed": completed,
+            "status": status,
         }
     for identity, old in previous.items():
         if identity not in current:
             changes.append(UpdateChange(UpdateChangeKind.REMOVED, old["url"], old["content_id"], old["revision"]))
     # Any candidate sharing a selected URL participates in that attempt.
     for record in current.values():
-        if record["url"] in selected:
-            record["completed"] = False
+        if mark_selected_pending and record["url"] in selected:
+            record["status"] = "pending"
     selected = {
         candidate.url: selected[candidate.url] for candidate in snapshot.candidates if candidate.url in selected
     }

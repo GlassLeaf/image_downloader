@@ -232,6 +232,8 @@ service snapshot 後の plugin filesystem 変更は既存 service に再発見�
 | `OutputAllocationError` | `output_allocation_error` | could not allocate a unique output filename | — |
 | `ExistingFileConflictError` | `existing_file_conflict` | output file already exists and existing-file=error prevents overwrite | `relative_path`, `policy` |
 | `UpdateStateError` | `update_state_error` | update state is invalid or cannot be read | — |
+| `WorkflowStateFormatError` | `workflow_state_format_error` | workflow.json uses the obsolete completed format; recreate it with status records | — |
+| `WorkflowStateConflictError` | `workflow_state_conflict_error` | workflow state changed during confirmation; rerun the command and confirm the new plan | — |
 | `StorageSafetyError` | `storage_safety_error` | storage operation would escape its trusted root | — |
 | `InterProcessLockError` | `interprocess_lock_error` | inter-process lock operation failed | — |
 
@@ -276,6 +278,27 @@ runs = state.list_runs(limit=20)
 run = state.get_run(runs[0].run_id) if runs else None
 preview = state.prune_history(dry_run=True)
 ```
+
+対象URLの管理には `WorkflowTargetSelector` を使う。`url`（完全一致）、`url_regex`
+（大文字小文字を区別する `re.search`）、`all_targets` は排他的で、`source_url`、
+`plugin_id`、`from_status` をAND条件で追加できる。`list_targets(selector)` は
+原文URLを含む不変の `WorkflowTargetRecord` のtupleを返す。
+
+`plan_changes(selector, status)` は保存せずに `WorkflowTargetChangePlan` を返す。
+`status` は `completed`、`pending`、`cancelled`。`apply_changes(plan, approved_urls)` は
+承認済みの原文URLだけを一括保存し、`WorkflowTargetChangeResult` の件数を返す。
+確認入力はCLIの責務であり、ライブラリAPIは入力を求めない。計画には変更不要の登録も含まれ、
+`change.requires_write` で判別する。確認対象外のURLを承認すると `ValueError`、
+計画に関係する状態が変わっていれば `WorkflowStateConflictError` で全件未変更になる。
+
+`DownloadService.plan_workflow_targets(request, selector, status=None)` は
+`WorkflowPlanRequest` を使って更新確認だけを実行し、同じ変更計画を返す。
+`selector.source_url` は `request.url` と一致させる。`status=None` は現在候補の表示用で保存できない。
+独立した認証セッションと通常plannerの後始末を使い、画像・更新状態・Cookie・履歴・ログを保存しない。
+返された計画から承認した候補だけを `WorkflowStateService.apply_changes` で登録・更新できる。
+
+`WorkflowStateItem.status` は保存状態を表し、既存の `completed` は完了状態から算出する。
+旧コンストラクタの `WorkflowStateItem(candidate, completed)` も利用できる。
 
 同期APIでruntimeを構築せず、ネットワーク・プラグイン・Cookie・通知を使用しない。設定解決は呼出し側で行う。`list_workflows()`と`get_workflow()`は不変の`WorkflowStateView`のtuple、`list_runs()`は`WorkflowRunRecord`のtuple、`get_run()`は記録またはNone、`prune_history()`は`WorkflowPruneResult`を返す。詳細シグネチャは[API signatures](api-signatures.md)を参照。
 

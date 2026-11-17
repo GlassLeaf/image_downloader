@@ -275,6 +275,16 @@ class UpdateStateError(StorageError):
     reason = "update state is invalid or cannot be read"
 
 
+class WorkflowStateFormatError(UpdateStateError):
+    code = "workflow_state_format_error"
+    reason = "workflow.json uses the obsolete completed format; recreate it with status records"
+
+
+class WorkflowStateConflictError(UpdateStateError):
+    code = "workflow_state_conflict_error"
+    reason = "workflow state changed during confirmation; rerun the command and confirm the new plan"
+
+
 class StorageSafetyError(StorageError):
     """A filesystem operation would leave its configured trusted root."""
 
@@ -390,6 +400,8 @@ ERROR_CATALOG: Final[tuple[ErrorCatalogEntry, ...]] = (
     ErrorCatalogEntry(OutputAllocationError),
     ErrorCatalogEntry(ExistingFileConflictError, ("relative_path", "policy")),
     ErrorCatalogEntry(UpdateStateError),
+    ErrorCatalogEntry(WorkflowStateFormatError),
+    ErrorCatalogEntry(WorkflowStateConflictError),
     ErrorCatalogEntry(StorageSafetyError),
     ErrorCatalogEntry(InterProcessLockError),
 )

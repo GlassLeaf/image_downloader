@@ -1,4 +1,4 @@
-"""Offline workflow state/history display and explicit retention cleanup."""
+"""Workflow state administration, history display and retention cleanup."""
 
 from __future__ import annotations
 
@@ -24,11 +24,13 @@ def state_payload(view: WorkflowStateView) -> dict[str, object]:
         "source_url": view.source_url,
         "state_available": view.checked_at is not None,
         "checked_at": view.checked_at.isoformat() if view.checked_at else None,
-        "items": [{**asdict(i.candidate), "completed": i.completed} for i in view.items],
+        "items": [{**asdict(i.candidate), "completed": i.completed, "status": i.status} for i in view.items],
         "summary": {
             "candidates": len(view.items),
             "completed": sum(i.completed for i in view.items),
             "unfinished": sum(not i.completed for i in view.items),
+            "pending": sum(i.status == "pending" for i in view.items),
+            "cancelled": sum(i.status == "cancelled" for i in view.items),
         },
         "latest_run": run_payload(view.latest_run) if view.latest_run else None,
     }
@@ -40,8 +42,12 @@ class StateCommandHandler:
         assert isinstance(args, StateArguments)
         tokens = args.command_args
         if not tokens or tokens[0] != "workflow":
-            raise ConfigurationError("state requires workflow list|show|history|run|prune")
+            raise ConfigurationError("state requires workflow list|show|history|run|prune|targets|set|reset")
         action = tokens[1] if len(tokens) > 1 else "list"
+        if action in {"targets", "set", "reset"}:
+            from .workflow_targets import workflow_targets_command
+
+            return await workflow_targets_command(args, outcome)
         values = tokens[2:]
         if action not in {"list", "show", "history", "run", "prune"}:
             raise ConfigurationError("unknown workflow state action")

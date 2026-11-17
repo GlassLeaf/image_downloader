@@ -9,6 +9,14 @@
 ## image_downloader
 
 <!-- api-inventory:start image_downloader -->
+WorkflowStateFormatError
+WorkflowStateConflictError
+WorkflowTargetStatus
+WorkflowTargetSelector
+WorkflowTargetRecord
+WorkflowTargetChange
+WorkflowTargetChangePlan
+WorkflowTargetChangeResult
 DownloadRequest
 InspectRequest
 UpdateCheckRequest

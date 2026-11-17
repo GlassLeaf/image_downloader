@@ -115,6 +115,7 @@
 | `DownloadService.check_updates` <!-- api-contract: image_downloader.runtime.DownloadService.check_updates --> | `async check_updates(self, request: UpdateCheckRequest) -> UpdateResult` |
 | `DownloadService.close` <!-- api-contract: image_downloader.runtime.DownloadService.close --> | `async close(self) -> None` |
 | `DownloadService.plan_workflow` <!-- api-contract: image_downloader.runtime.DownloadService.plan_workflow --> | `async plan_workflow(self, request: WorkflowPlanRequest) -> WorkflowPlanResult` |
+| `DownloadService.plan_workflow_targets` <!-- api-contract: image_downloader.runtime.DownloadService.plan_workflow_targets --> | `async plan_workflow_targets(self, request: WorkflowPlanRequest, selector: WorkflowTargetSelector, status: WorkflowTargetStatus | None = None) -> WorkflowTargetChangePlan` |
 | `DownloadService.workflow` <!-- api-contract: image_downloader.runtime.DownloadService.workflow --> | `async workflow(self, request: WorkflowRequest) -> WorkflowResult` |
 | `OutputAllocation` <!-- api-contract: image_downloader.runtime.OutputAllocation --> | `OutputAllocation(relative_path: Path, _allocator: OutputAllocator | None = None, _key: str | None = None, _completion: asyncio.Future[bool] | None = None, _finished: bool = False)` |
 | `OutputFormatContext` <!-- api-contract: image_downloader.runtime.OutputFormatContext --> | `OutputFormatContext(manifest: DownloadManifest, chapter: Chapter, operation_url: str, plugin_id: str, image: ImageResource | None = None, extension: str | None = None, original_filename: str | None = None, plugin_values: Mapping[str, Mapping[str, str]] = <factory>)` (`<factory: dict>`) |
@@ -288,15 +289,23 @@
 | コンストラクター・メソッド | シグネチャ |
 | --- | --- |
 | `WorkflowRunRecord` | `WorkflowRunRecord(run_id: str, plugin_id: str | None, feed_key: str, source_url: str, started_at: datetime, ended_at: datetime, exit_code: int, details: Mapping[str, object]) -> None` |
-| `WorkflowStateItem` | `WorkflowStateItem(candidate: UpdateCandidate, completed: bool) -> None` |
+| `WorkflowStateItem` | `WorkflowStateItem(candidate: UpdateCandidate, completed: bool, status: Literal["completed", "pending", "cancelled"] \| None = None) -> None` |
 | `WorkflowStateView` | `WorkflowStateView(plugin_id: str | None, feed_key: str, source_url: str | None, checked_at: datetime | None, items: tuple[WorkflowStateItem, ...], latest_run: WorkflowRunRecord | None = None) -> None` |
 | `WorkflowPruneResult` | `WorkflowPruneResult(deleted_run_ids: tuple[str, ...], before_bytes: int, after_bytes: int, expired_count: int, over_limit: bool, dry_run: bool) -> None` |
+| `WorkflowTargetSelector` | `WorkflowTargetSelector(*, url: str | None = None, url_regex: str | None = None, all_targets: bool = False, source_url: str | None = None, plugin_id: str | None = None, from_status: WorkflowTargetStatus | None = None)` |
+| `WorkflowTargetRecord` | `WorkflowTargetRecord(plugin_id: str, feed_key: str, identity: str, candidate: UpdateCandidate, status: WorkflowTargetStatus)`; `completed -> bool` |
+| `WorkflowTargetChange` | `WorkflowTargetChange(before: WorkflowTargetRecord | None, after: WorkflowTargetRecord)`; `requires_write -> bool` |
+| `WorkflowTargetChangePlan` | `WorkflowTargetChangePlan(selector: WorkflowTargetSelector, status: WorkflowTargetStatus | None, changes: tuple[WorkflowTargetChange, ...], baseline: str, snapshot: UpdateSnapshot | None = None, plugin_id: str | None = None, download_scope: Literal['all', 'updated'] = 'updated')` |
+| `WorkflowTargetChangeResult` | `WorkflowTargetChangeResult(matched_urls: int, matched_records: int, planned_records: int, approved_urls: int, approved_records: int, skipped_urls: int, skipped_records: int, unchanged_records: int, changed_records: int, dry_run: bool = False)` |
 | `WorkflowStateService` | `WorkflowStateService(config: AppConfig) -> None` |
 | `WorkflowStateService.list_workflows` | `list_workflows(self, *, plugin_id: str | None = None) -> tuple[WorkflowStateView, ...]` |
 | `WorkflowStateService.get_workflow` | `get_workflow(self, url: str, *, plugin_id: str | None = None) -> tuple[WorkflowStateView, ...]` |
 | `WorkflowStateService.list_runs` | `list_runs(self, url: str | None = None, *, plugin_id: str | None = None, limit: int = 20) -> tuple[WorkflowRunRecord, ...]` |
 | `WorkflowStateService.get_run` | `get_run(self, run_id: str) -> WorkflowRunRecord | None` |
 | `WorkflowStateService.prune_history` | `prune_history(self, *, dry_run: bool = False) -> WorkflowPruneResult` |
+| `WorkflowStateService.list_targets` | `list_targets(self, selector: WorkflowTargetSelector) -> tuple[WorkflowTargetRecord, ...]` |
+| `WorkflowStateService.plan_changes` | `plan_changes(self, selector: WorkflowTargetSelector, status: WorkflowTargetStatus \| None, *, snapshot: UpdateSnapshot \| None = None, plugin_id: str \| None = None, download_scope: str = "updated") -> WorkflowTargetChangePlan` |
+| `WorkflowStateService.apply_changes` | `apply_changes(self, plan: WorkflowTargetChangePlan, approved_urls: Iterable[str]) -> WorkflowTargetChangeResult` |
 
 <a id="operation-request-inputs-and-workflow-failures"></a>
 

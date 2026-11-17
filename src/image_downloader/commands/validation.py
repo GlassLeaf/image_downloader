@@ -161,10 +161,35 @@ def _check_verification_path(path: Path, argument: str) -> None:
         raise argument_error("verification requires an absolute path without ..", "invalid_value", argument=argument)
 
 
+def _check_workflow_target_values(args: argparse.Namespace, command: str) -> None:
+    if command not in {"state workflow targets", "state workflow set", "state workflow reset"}:
+        return
+    selected = sum((args.target is not None, args.url_regex is not None, args.all_targets))
+    if selected > 1:
+        raise argument_error("choose TARGET_URL, --url-regex or --all", "option_conflict")
+    if command != "state workflow targets" and selected == 0:
+        raise argument_error("state changes require TARGET_URL, --url-regex or --all", "missing_value")
+    if command == "state workflow set" and args.status is None:
+        raise argument_error("set requires --status", "missing_value", option="--status")
+    for name, value in (("target", args.target), ("--source", args.source_url)):
+        if value is not None and not is_http_url(value):
+            raise argument_error("target and source require absolute HTTP(S) URLs", "invalid_value", argument=name)
+    if args.url_regex is not None:
+        try:
+            re.compile(args.url_regex)
+        except re.error:
+            raise argument_error("invalid URL regular expression", "invalid_value", option="--url-regex") from None
+    if args.refresh and args.source_url is None:
+        raise argument_error("--refresh requires --source", "missing_value", option="--source")
+    if args.download_scope is not None and not args.refresh:
+        raise argument_error("--download-scope requires --refresh for state commands", "option_scope")
+
+
 def _check_values(
     args: argparse.Namespace, command: str
 ) -> tuple[PluginConfigOverrides, PluginDownloadPolicyOverrides]:
     _check_verification_values(args, command)
+    _check_workflow_target_values(args, command)
     if hasattr(args, "url") and not is_http_url(args.url):
         raise argument_error("URL must be an absolute HTTP(S) URL with a host", "invalid_value", argument="url")
     _check_empty_values(args, command)

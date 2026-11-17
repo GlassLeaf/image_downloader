@@ -757,6 +757,88 @@ class WorkflowRunRecord:
 class WorkflowStateItem:
     candidate: UpdateCandidate
     completed: bool
+    status: Literal["completed", "pending", "cancelled"] | None = None
+
+    def __post_init__(self) -> None:
+        status = self.status if self.status is not None else ("completed" if self.completed else "pending")
+        if status not in {"completed", "pending", "cancelled"} or self.completed != (status == "completed"):
+            raise ValueError("inconsistent workflow state")
+        object.__setattr__(self, "status", status)
+
+
+WorkflowTargetStatus = Literal["completed", "pending", "cancelled"]
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class WorkflowTargetSelector:
+    url: str | None = None
+    url_regex: str | None = None
+    all_targets: bool = False
+    source_url: str | None = None
+    plugin_id: str | None = None
+    from_status: WorkflowTargetStatus | None = None
+
+    def __post_init__(self) -> None:
+        if sum((self.url is not None, self.url_regex is not None, self.all_targets)) > 1:
+            raise ValueError("choose one URL selector")
+        if self.from_status not in (None, "completed", "pending", "cancelled"):
+            raise ValueError("invalid workflow target status")
+        if self.url_regex is not None:
+            try:
+                re.compile(self.url_regex)
+            except re.error:
+                raise ValueError("invalid URL regular expression") from None
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowTargetRecord:
+    plugin_id: str
+    feed_key: str
+    identity: str
+    candidate: UpdateCandidate
+    status: WorkflowTargetStatus
+
+    @property
+    def completed(self) -> bool:
+        return self.status == "completed"
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowTargetChange:
+    before: WorkflowTargetRecord | None
+    after: WorkflowTargetRecord
+
+    @property
+    def requires_write(self) -> bool:
+        return self.before != self.after
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowTargetChangePlan:
+    selector: WorkflowTargetSelector
+    status: WorkflowTargetStatus | None
+    changes: tuple[WorkflowTargetChange, ...]
+    baseline: str
+    snapshot: UpdateSnapshot | None = None
+    plugin_id: str | None = None
+    download_scope: Literal["all", "updated"] = "updated"
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "changes", tuple(self.changes))
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowTargetChangeResult:
+    matched_urls: int
+    matched_records: int
+    planned_records: int
+    approved_urls: int
+    approved_records: int
+    skipped_urls: int
+    skipped_records: int
+    unchanged_records: int
+    changed_records: int
+    dry_run: bool = False
 
 
 @dataclass(frozen=True, slots=True)
