@@ -535,8 +535,11 @@ UTF-8の既存結果を保つ優先順位であり、ブラウザの宣言優先
 
 この処理はコア提供のクラス本体だけに適用する。独自プラグインとGenericHtmlPluginを継承した別クラスは
 従来の復号方法を維持し、HTTP層の本文bytes・headersやプラグイン選択は変更しない。
-download・inspect・workflowも、独自プラグインを選択した場合は新しい復号処理を使わない。
-doctor・config・plugin・cookie・state workflow・verify・helpはHTMLを復号しない。
+download・inspect・workflowと、`--query-targets-from-workflow-url`を指定した
+`state workflow targets/set/reset`は、`core.generic-html`を選択した場合にこの復号処理を使う。
+独自プラグインを選択した場合は適用しない。stateの問い合わせでは画像取得を行わず、
+保存条件は[対象URLの状態管理](../reference/cli.md)を参照する。
+問い合わせ指定のないstate workflowと、doctor・config・plugin・cookie・verify・helpはHTMLを復号しない。
 webencodingsの必須依存追加は全利用者のインストール環境に関係する。
 
 旧文字コードを正しく読めるようになると、作品名・保存先名、画像URL・IDが変わり得る。

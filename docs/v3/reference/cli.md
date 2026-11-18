@@ -148,20 +148,22 @@ URL results: success=0 partial=0 failed=0 unprocessed=0 removed=0
 
 | オプション | 受理され効果があるコマンド | 受理しても効果がない場合・拒否する場合 |
 | --- | --- | --- |
-| `--config PATH` | download、inspect、doctor、config explain/profile init、plugin、cookie | config path/initでは拒否 |
-| `--profile NAME` | download、inspect、doctor、config explain、plugin、cookie | config path/init/profile initでは拒否 |
+| `--config PATH` | download、workflow、inspect、doctor、config explain/profile init、plugin、cookie、credential（plugin・smtp）、vault、state workflow、verify workflow | config path/init、verify logsでは拒否 |
+| `--profile NAME` | download、workflow、inspect、doctor、config explain、plugin、cookie、credential（plugin・smtp）、state workflow、verify workflow | config path/init/profile init、vault、verify logsでは拒否 |
 | `--data-root PATH` | download、workflow、inspect、doctor、config explain/init、plugin、cookie、credential（plugin・smtp）、vault、state workflow、verify workflow | config pathとprofile initでは拒否 |
 | `--plugin-root PATH` | download、workflow、inspect、doctor、config explain/init、plugin、cookie、credential（plugin・smtp）、vault、state workflow targets/set/resetの問い合わせ操作 | stateでは`--query-targets-from-workflow-url`指定時だけ受理。verify、config path、profile initでは拒否 |
 | `--yes` | plugin install/trust/revoke/uninstallの確認 | config init/profile initは受理するが確認には使わない。他の解析済み指定も状態変更の承認にはならない |
 | `--plugin-verification-override MODE` | download、workflow、inspect、doctor、plugin list/install/trust、state workflow targets/set/resetの問い合わせ操作 | stateでは`--query-targets-from-workflow-url`指定時だけ受理。config、cookie、credential（plugin・smtp）、vault、plugin revoke/uninstallでは効果なし。その他のstate操作とverifyでは拒否 |
 | `--filter-workflow-url WORKFLOW_INPUT_URL` | state workflow targets/set/reset | 保存済み登録をworkflowの入力URLで絞り込む。プラグインは起動しない |
 | `--query-targets-from-workflow-url WORKFLOW_INPUT_URL` | state workflow targets/set/reset | workflowの入力URLを使ってプラグインの更新確認を実行し、今回の対象候補を取得する。filter側とは相互排他 |
-| `--plugin-config ID=JSON`、`--plugin-config-file PATH`、`--fallback-generic` | download、inspect、doctor | config、plugin、cookieでは拒否 |
-| `--plugin ID`、`--force-plugin ID` | download（`--list-updated-urls`を含む）、inspect | doctor、config、plugin、cookieでは拒否 |
-| `--plugin-download-policy ID=JSON`、`--plugin-download-policy-file PATH` | download（`--list-updated-urls`を含む） | 検査を含む他のコマンドでは拒否 |
-| `--no-console-log`、`--existing-file`、`--image-format` | download、doctor、config explainの許可範囲 | 検査、cookie、その他のconfig・plugin操作では拒否 |
-| `--force-image-format FORMAT` | 通常のdownloadとURL単独形式 | `--image-format`と排他的。inspect、doctor、config、plugin、cookie、更新一覧では拒否 |
-| `--output-dir ABSOLUTE_PATH`、`--directory-format FORMAT` | 通常のdownloadとURL単独形式 | `download --inspect-only`と`--list-updated-urls`では受理するが効果なし。inspect、doctor、config、plugin、cookieでは拒否 |
+| `--plugin-config ID=JSON`、`--plugin-config-file PATH`、`--fallback-generic` | download、workflow、inspect、doctor | state、verify、config、plugin、cookieでは拒否 |
+| `--plugin ID` | download（`--list-updated-urls`を含む）、workflow、inspect、state workflow list/show/history/targets/set/reset | stateでは保存済みplugin IDを絞り込み、問い合わせ時は更新確認プラグインを選択する。その他では拒否 |
+| `--force-plugin ID` | download（`--list-updated-urls`を含む）、workflow、inspect | stateを含むその他のコマンドでは拒否 |
+| `--plugin-download-policy ID=JSON`、`--plugin-download-policy-file PATH` | download（`--list-updated-urls`を含む）、workflow | 検査を含む他のコマンドでは拒否 |
+| `--no-console-log`、`--existing-file`、`--image-format` | download、workflow、doctor、config explainの許可範囲 | 検査、cookie、その他のconfig・plugin操作では拒否 |
+| `--force-image-format FORMAT` | 通常のdownload、URL単独形式、workflow | `--image-format`と排他的。inspect、doctor、config、plugin、cookie、更新一覧では拒否 |
+| `--output-dir ABSOLUTE_PATH` | 通常のdownload、URL単独形式、workflow、verify workflow | `download --inspect-only`と`--list-updated-urls`では受理するが効果なし。verify workflowでは成果物を検証する出力先を指定。その他では拒否 |
+| `--directory-format FORMAT` | 通常のdownload、URL単独形式、workflow | `download --inspect-only`と`--list-updated-urls`では受理するが効果なし。その他では拒否 |
 | `--list-updated-urls` | download | その他では拒否 |
 | `--inspect-only` | `download URL`の検査用の別形式 | `--list-updated-urls`と排他的 |
 | `--manifest-only` | inspect、`download URL --inspect-only` | 通常downloadでは拒否。`create_image_request()`を呼ばない |
@@ -187,7 +189,7 @@ Plugin verification override: bypass-all
 
 上書き未指定時は`Plugin verification override: none`と表示します。この診断は検証を実施したことを意味しません。credential・vaultなど検証しない操作でも同じ形式です。`--json`の標準出力には混入しません。明示的な`--config`指定時と既定値使用時は、この診断を表示しません。
 
-`--plugin ID`では、有効かつ非組み込みのサイトプラグインが、通常のmatcherでURLを受理する必要があります。`--force-plugin ID`は、有効な非組み込みサイトプラグインであることを確認した後でだけmatcherを省略します。両者は排他的で、明示的な`--fallback-generic=enabled|disabled`とも併用できません。`--fallback-generic`は、パーサーの既定値`auto`、`enabled`、`disabled`を受理し、`auto`は解決済み設定を維持します。`--existing-file`の値は`overwrite`・`skip`・`rename`・`error`です。
+download・inspect・workflowとstateの問い合わせ操作で`--plugin ID`を使う場合、有効かつ非組み込みのサイトプラグインが、通常のmatcherで入力URLを受理する必要があります。問い合わせ指定のないstate操作では保存済みplugin IDの絞り込みだけを行い、プラグインの存在・有効性は検査しません。`--force-plugin ID`は、有効な非組み込みサイトプラグインであることを確認した後でだけmatcherを省略します。両者は排他的で、明示的な`--fallback-generic=enabled|disabled`とも併用できません。`--fallback-generic`は、パーサーの既定値`auto`、`enabled`、`disabled`を受理し、`auto`は解決済み設定を維持します。`--existing-file`の値は`overwrite`・`skip`・`rename`・`error`です。
 
 `--image-format`は`ORIGINAL`・`JPEG`・`PNG`・`WEBP`を受理し、その操作だけ`output.image_format`を上書きします。プラグインが`ImageResource.save_options.format`を指定した画像は、プラグインの形式を保ちます。`--force-image-format`も同じ値を受理しますが、`--image-format`と排他的で、プラグイン指定より優先します。`--force-image-format ORIGINAL`は、プラグインが生成した最終バイト列をコアで再エンコードせず保存します。HTTP応答をそのまま保存するモードではありません。強制的なエンコード形式を指定すると、プラグインの拡張子指定を解除し、出力拡張子を形式に合わせます。出力トークンは明示的な`%CONTENT_TITLE%`・`%CHAPTER_TITLE%`・`%CHAPTER_SUBTITLE%`・`%CHAPTER_NUMBER%`・`%IMAGE_INDEX%`を使い、`%NUM%`・`%TITLE%`・`%SUBTITLE%`は拒否します。[設定](configuration.md#config-storage-layout)を参照してください。
 
