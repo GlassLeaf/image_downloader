@@ -25,6 +25,7 @@ def make_plugin(
     priority: int = 1,
     configured_match: bool = False,
     runnable: bool = False,
+    update_provider: bool = False,
 ) -> Path:
     folder = "site_plugins" if kind == "site_plugin" else "image_processor_plugins"
     directory = root / folder / plugin_id.rsplit(".", 1)[-1]
@@ -56,6 +57,15 @@ def make_plugin(
             source += (
                 "    def matches_with_config(self, url, config, app_settings):\n"
                 "        return str(config.get('alternate_host', '')) in url\n"
+            )
+        if update_provider:
+            source += (
+                "    async def check_updates(self, url, context):\n"
+                "        from datetime import UTC, datetime\n"
+                "        from image_downloader import UpdateCandidate, UpdateSnapshot\n"
+                "        candidates = tuple(UpdateCandidate('https://example.test/' + name, name, '1') "
+                "for name in ('a', 'b'))\n"
+                "        return UpdateSnapshot(url, candidates, datetime.now(UTC))\n"
             )
     else:
         source += "    def transform(self, artifact, context): return artifact\n"

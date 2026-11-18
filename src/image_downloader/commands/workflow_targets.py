@@ -109,7 +109,7 @@ def _print_payload(payload: dict[str, Any]) -> None:
         print("no matching workflow targets found", file=sys.stderr)
 
 
-async def _refresh_plan(
+async def _query_targets_plan(
     args: StateArguments,
     config: AppConfig,
     config_root: Path,
@@ -117,16 +117,21 @@ async def _refresh_plan(
     status: WorkflowTargetStatus | None,
     outcome: CommandOutcome,
 ) -> WorkflowTargetChangePlan | None:
-    assert args.source_url is not None
+    assert args.query_targets_from_workflow_url is not None
     outcome.expect_shutdown()
     service = RuntimeComposer(
-        config, config_root=config_root, plugin_root=_plugin_root(args, config)
+        config,
+        config_root=config_root,
+        plugin_root=_plugin_root(args, config),
+        plugin_verification_override=args.plugin_verification_override,
     )._compose_for_workflow_plan()
     plan = None
     async with outcome.closing(service.close, handled=True):
         plan = await service.plan_workflow_targets(
             WorkflowPlanRequest(
-                url=args.source_url, plugin_id=args.plugin_id, download_scope=args.download_scope or "updated"
+                url=args.query_targets_from_workflow_url,
+                plugin_id=args.plugin_id,
+                download_scope=args.download_scope or "updated",
             ),
             selector,
             status,
@@ -168,20 +173,22 @@ async def workflow_targets_command(args: StateArguments, outcome: CommandOutcome
         url=args.command_args[2] if len(args.command_args) > 2 else None,
         url_regex=args.url_regex,
         all_targets=args.all_targets,
-        source_url=args.source_url,
+        source_url=args.query_targets_from_workflow_url or args.filter_workflow_url,
         plugin_id=args.plugin_id,
         from_status=args.from_status,
     )
     config, config_root, _, _ = _config_for(
         args,
-        urlparse(args.source_url).hostname if args.refresh and args.source_url is not None else None,
+        urlparse(args.query_targets_from_workflow_url).hostname
+        if args.query_targets_from_workflow_url is not None
+        else None,
         rewrite_user_layers=False,
     )
     state = WorkflowStateService(config)
     payload: dict = {"operation": "state", "resource": "workflow", "action": action}
     status: WorkflowTargetStatus | None = "pending" if action == "reset" else args.status
-    if args.refresh:
-        plan = await _refresh_plan(args, config, config_root, selector, status, outcome)
+    if args.query_targets_from_workflow_url is not None:
+        plan = await _query_targets_plan(args, config, config_root, selector, status, outcome)
         if plan is None:
             return outcome.exit_code
         rows = tuple(change.after for change in plan.changes)

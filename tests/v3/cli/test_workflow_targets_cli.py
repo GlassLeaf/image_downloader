@@ -138,9 +138,9 @@ def test_regex_matches_raw_urls_but_output_and_prompts_mask_secrets(tmp_path, mo
         ["set", "--all"],
         ["reset", A.url, "--all"],
         ["reset", "--url-regex", "["],
-        ["reset", "--all", "--refresh"],
+        ["reset", "--all", "--query-targets-from-workflow-url"],
         ["targets", "--download-scope", "all"],
-        ["targets", "--source", "invalid"],
+        ["targets", "--filter-workflow-url", "invalid"],
         ["set", "--all", "--status", "completed", "--yes"],
         ["reset", "--all", "--status", "pending"],
         ["targets", "--dry-run"],
@@ -166,7 +166,7 @@ def test_empty_targets_missing_mutation_and_normal_text_rendering(tmp_path, caps
 
 
 @pytest.mark.parametrize("mode", ["list", "dry-run", "apply", "check-error", "close-error"])
-def test_refresh_cli_without_image_downloads_and_only_approved_writes(tmp_path, monkeypatch, capsys, mode):
+def test_query_cli_without_image_downloads_and_only_approved_writes(tmp_path, monkeypatch, capsys, mode):
     path, config, state = setup_cli(tmp_path)
     gallery = Gallery()
 
@@ -198,7 +198,7 @@ def test_refresh_cli_without_image_downloads_and_only_approved_writes(tmp_path, 
     monkeypatch.setattr(command, "RuntimeComposer", composer)
     monkeypatch.setattr(sys, "stdin", io.StringIO("yes\nno\n"))
     args = ["targets"] if mode == "list" else ["set", "--all", "--status", "completed"]
-    args += ["--source", FEED, "--refresh"]
+    args += ["--query-targets-from-workflow-url", FEED]
     if mode == "dry-run":
         args += ["--dry-run"]
     status = run(path, *args)
@@ -270,3 +270,139 @@ def test_cancellation_after_save_starts_waits_and_reports_committed_changes(tmp_
 
     asyncio.run(scenario())
     assert WorkflowStateService(config).list_targets(WorkflowTargetSelector(url=A.url))[0].completed
+
+
+@pytest.fixture
+def no_target_execution(monkeypatch):
+    def forbidden(*args, **kwargs):
+        pytest.fail("invalid arguments and help must not resolve config, load plugins or prompt")
+
+    monkeypatch.setattr(command, "_config_for", forbidden)
+    monkeypatch.setattr(command, "RuntimeComposer", forbidden)
+    monkeypatch.setattr("builtins.input", forbidden)
+
+
+@pytest.mark.parametrize("action", ["targets", "set", "reset"])
+@pytest.mark.parametrize("placement", [0, 2, -1])
+@pytest.mark.parametrize(
+    "old_options",
+    [
+        ["--source", FEED + "?token=private-value"],
+        ["--source=" + FEED + "?token=private-value"],
+        ["--refresh"],
+    ],
+)
+def test_removed_options_are_normal_unknown_options(no_target_execution, capsys, action, placement, old_options):
+    words = ["state", "workflow", action, "--all", *(["--status", "completed"] if action == "set" else [])]
+    split = len(words) if placement == -1 else placement
+    assert main([*words[:split], *old_options, *words[split:], "--json"]) == 2
+    output = capsys.readouterr()
+    error = json.loads(output.out)["execution"]["error"]
+    option = old_options[0].partition("=")[0]
+    assert error["code"] == "argument_error"
+    assert error["details"] == {"kind": "unknown_option", "option": option}
+    assert error["message"] == f"unrecognized option: {option}"
+    assert "private-value" not in output.out + output.err
+
+
+@pytest.mark.parametrize("action", ["targets", "set", "reset"])
+def test_workflow_url_modes_are_mutually_exclusive(no_target_execution, capsys, action):
+    assert (
+        main(
+            [
+                "state",
+                "workflow",
+                action,
+                "--all",
+                *(["--status", "completed"] if action == "set" else []),
+                "--filter-workflow-url",
+                FEED,
+                "--query-targets-from-workflow-url",
+                FEED,
+                "--json",
+            ]
+        )
+        == 2
+    )
+    error = json.loads(capsys.readouterr().out)["execution"]["error"]
+    assert error["details"] == {
+        "kind": "option_conflict",
+        "options": ["--filter-workflow-url", "--query-targets-from-workflow-url"],
+    }
+
+
+@pytest.mark.parametrize("option", ["--filter-workflow-url", "--query-targets-from-workflow-url"])
+@pytest.mark.parametrize("invalid", ["", "relative", "file:///tmp/input", "https://example.test:0/feed"])
+def test_workflow_input_urls_must_be_http_urls(no_target_execution, capsys, option, invalid):
+    assert main(["state", "workflow", "targets", option, invalid, "--json"]) == 2
+    error = json.loads(capsys.readouterr().out)["execution"]["error"]
+    assert error["details"]["kind"] == "invalid_value" and error["details"]["option"] == option
+
+
+@pytest.mark.parametrize("action", ["set", "reset"])
+def test_query_does_not_implicitly_select_every_target(no_target_execution, capsys, action):
+    assert (
+        main(
+            [
+                "state",
+                "workflow",
+                action,
+                *(["--status", "completed"] if action == "set" else []),
+                "--query-targets-from-workflow-url",
+                FEED,
+                "--json",
+            ]
+        )
+        == 2
+    )
+    error = json.loads(capsys.readouterr().out)["execution"]["error"]
+    assert error["details"]["kind"] == "missing_value"
+
+
+def test_workflow_target_help_explains_url_roles(no_target_execution, capsys):
+    with pytest.raises(SystemExit) as stopped:
+        build_parser().parse_args(["state", "workflow", "targets", "--help"])
+    assert stopped.value.code == 0
+    help_text = " ".join(capsys.readouterr().out.split())
+    assert "TARGET_URL" in help_text and "workflow input URL" in help_text
+    assert "filters saved registrations" in help_text and "does not save state" in help_text
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["--help"])
+    help_text = " ".join(capsys.readouterr().out.split())
+    assert "--filter-workflow-url WORKFLOW_INPUT_URL" in help_text
+    assert "--query-targets-from-workflow-url WORKFLOW_INPUT_URL" in help_text
+    assert "--source" not in help_text and "--refresh" not in help_text
+
+
+def test_workflow_filter_uses_original_input_url_while_target_selectors_use_returned_urls(tmp_path, capsys):
+    path, _, state = setup_cli(tmp_path, A, B)
+    other_input = FEED + "?edition=2"
+    state.prepare("p", other_input, snapshot(UpdateCandidate(FEED, "input-as-target", "1")), "updated")
+    for options, expected in [
+        (["--filter-workflow-url", FEED], [A.url, B.url]),
+        (["--filter-workflow-url", FEED + "/"], []),
+        (["--filter-workflow-url", other_input, FEED], [FEED]),
+        (["--filter-workflow-url", FEED, "--url-regex", "/b$"], [B.url]),
+    ]:
+        assert run(path, "targets", *options) == 0
+        targets = json.loads(capsys.readouterr().out)["execution"]["result"]["targets"]
+        assert [row["url"] for row in targets] == expected
+    state.prepare("same-url", A.url, snapshot(A), "updated")
+    assert run(path, "targets", A.url) == 0
+    targets = json.loads(capsys.readouterr().out)["execution"]["result"]["targets"]
+    assert {row["plugin_id"] for row in targets} == {"p", "same-url"}
+    assert run(path, "targets", "--filter-workflow-url", A.url, A.url) == 0
+    targets = json.loads(capsys.readouterr().out)["execution"]["result"]["targets"]
+    assert [row["plugin_id"] for row in targets] == ["same-url"]
+
+
+def test_workflow_filter_limits_mutations_to_matching_registrations(tmp_path, monkeypatch, capsys):
+    path, config, state = setup_cli(tmp_path, A)
+    other_input = FEED + "?edition=2"
+    state.prepare("p", other_input, snapshot(A), "updated")
+    monkeypatch.setattr(sys, "stdin", io.StringIO("yes\n"))
+    assert run(path, "set", A.url, "--filter-workflow-url", FEED, "--status", "completed") == 0
+    assert json.loads(capsys.readouterr().out)["execution"]["result"]["summary"]["changed_records"] == 1
+    service = WorkflowStateService(config)
+    assert service.list_targets(WorkflowTargetSelector(source_url=FEED))[0].status == "completed"
+    assert service.list_targets(WorkflowTargetSelector(source_url=other_input))[0].status == "pending"

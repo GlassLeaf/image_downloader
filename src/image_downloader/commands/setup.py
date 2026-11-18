@@ -301,12 +301,11 @@ def _resolved_config_for(
         rewrite_user_layers=rewrite_user_layers,
     )
     paths = resolve_paths(resolved.config)
-    effective_plugin_root = _plugin_root(args, resolved.config)
     if source == "user":
         assert resolved.main_config_path is not None
         print(f"Using user configuration: {resolved.main_config_path}", file=sys.stderr)
         print(f"Downloads: {paths['downloads']}", file=sys.stderr)
-        print(f"Plugin root: {effective_plugin_root}", file=sys.stderr)
+        print(f"Plugin root: {resolved.config.plugins.root}", file=sys.stderr)
         print(f"Plugin verification (configured): {resolved.config.security.plugin_verification}", file=sys.stderr)
         print(f"Plugin verification override: {args.plugin_verification_override or 'none'}", file=sys.stderr)
     return resolved

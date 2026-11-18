@@ -81,7 +81,7 @@ image-downloader workflow https://example.test/gallery --fallback-generic enable
 ```
 既定の`--download-scope updated`は、追加・変更された候補と、現在も存在する未完了候補を選びます。`--download-scope all`は現在のスナップショット全体を選びます。初回実行は全候補を選びます。削除候補は取得せず、再出現した候補は再度追加として扱います。比較には専用のワークフロー履歴を使い、`--list-updated-urls`の履歴から独立しています。
 
-設定・プロファイル・ルート・セキュリティ、プラグイン設定・選択・フォールバック・取得方針、出力先、ディレクトリ形式、既存ファイル、画像形式・強制画像形式、JSON、コンソールの指定はワークフローにも適用します。既存の優先順位と排他条件、つまりimage-formatとforce-image-format、pluginとforce-plugin、明示的なプラグイン選択と明示的なフォールバックの排他を維持します。明示的なプラグイン選択はフィードと全対象へ適用します。サイト設定はフィードに対して解決し、Cookie・接続を含めて対象間で共有します。`--yes`は受理しますが、新たな確認は追加しません。`--download-scope`は`workflow`の前後で受理し、他のコマンドでは拒否します。更新一覧、検査、Cookie操作、`--host`、`--selection-priority`は、コマンド前に指定した場合も拒否します。
+設定・プロファイル・ルート・セキュリティ、プラグイン設定・選択・フォールバック・取得方針、出力先、ディレクトリ形式、既存ファイル、画像形式・強制画像形式、JSON、コンソールの指定はワークフローにも適用します。既存の優先順位と排他条件、つまりimage-formatとforce-image-format、pluginとforce-plugin、明示的なプラグイン選択と明示的なフォールバックの排他を維持します。明示的なプラグイン選択はフィードと全対象へ適用します。サイト設定はフィードに対して解決し、Cookie・接続を含めて対象間で共有します。`--yes`は受理しますが、新たな確認は追加しません。`--download-scope`は`workflow`の前後で受理し、`state workflow targets/set/reset`でも問い合わせ指定時に受理します。その他の操作では拒否します。更新一覧、検査、Cookie操作、`--host`、`--selection-priority`は、コマンド前に指定した場合も拒否します。
 
 出力や設定を変えただけでは、完了済み候補を更新扱いにしません。新しい出力設定で再取得する場合は`all`を使ってください。`skip`でも取得・加工を先に行う点を含め、既存ファイル方針は維持します。再試行可能な失敗がある未完了URLは、初回周回後に再試行します。各再試行でフィードと対象manifestを取り直し、消えたURLを除外して、残った失敗と追加・変更URLを処理します。同じ呼び出し内では、`all`であっても変更のない成功・skip画像結果を保持します。次の呼び出しではURL単位の未完了状態と通常の既存ファイル方針を使います。
 
@@ -150,9 +150,12 @@ URL results: success=0 partial=0 failed=0 unprocessed=0 removed=0
 | --- | --- | --- |
 | `--config PATH` | download、inspect、doctor、config explain/profile init、plugin、cookie | config path/initでは拒否 |
 | `--profile NAME` | download、inspect、doctor、config explain、plugin、cookie | config path/init/profile initでは拒否 |
-| `--data-root PATH`、`--plugin-root PATH` | download、inspect、doctor、config explain/init、plugin、cookie、credential（plugin・smtp）、vault | config pathとprofile initでは拒否 |
+| `--data-root PATH` | download、workflow、inspect、doctor、config explain/init、plugin、cookie、credential（plugin・smtp）、vault、state workflow、verify workflow | config pathとprofile initでは拒否 |
+| `--plugin-root PATH` | download、workflow、inspect、doctor、config explain/init、plugin、cookie、credential（plugin・smtp）、vault、state workflow targets/set/resetの問い合わせ操作 | stateでは`--query-targets-from-workflow-url`指定時だけ受理。verify、config path、profile initでは拒否 |
 | `--yes` | plugin install/trust/revoke/uninstallの確認 | config init/profile initは受理するが確認には使わない。他の解析済み指定も状態変更の承認にはならない |
-| `--plugin-verification-override MODE` | download、inspect、doctor、plugin | configは解析値を表示できるが検証を行わない。cookie、credential（plugin・smtp）、vaultでも受理するが検証への効果はない |
+| `--plugin-verification-override MODE` | download、workflow、inspect、doctor、plugin list/install/trust、state workflow targets/set/resetの問い合わせ操作 | stateでは`--query-targets-from-workflow-url`指定時だけ受理。config、cookie、credential（plugin・smtp）、vault、plugin revoke/uninstallでは効果なし。その他のstate操作とverifyでは拒否 |
+| `--filter-workflow-url WORKFLOW_INPUT_URL` | state workflow targets/set/reset | 保存済み登録をworkflowの入力URLで絞り込む。プラグインは起動しない |
+| `--query-targets-from-workflow-url WORKFLOW_INPUT_URL` | state workflow targets/set/reset | workflowの入力URLを使ってプラグインの更新確認を実行し、今回の対象候補を取得する。filter側とは相互排他 |
 | `--plugin-config ID=JSON`、`--plugin-config-file PATH`、`--fallback-generic` | download、inspect、doctor | config、plugin、cookieでは拒否 |
 | `--plugin ID`、`--force-plugin ID` | download（`--list-updated-urls`を含む）、inspect | doctor、config、plugin、cookieでは拒否 |
 | `--plugin-download-policy ID=JSON`、`--plugin-download-policy-file PATH` | download（`--list-updated-urls`を含む） | 検査を含む他のコマンドでは拒否 |
@@ -172,6 +175,8 @@ URL results: success=0 partial=0 failed=0 unprocessed=0 removed=0
 `--plugin-download-policy`は繰り返し指定できる`ID=<JSON-object>`です。`--plugin-download-policy-file`は、絶対パスの既存の通常JSONファイルを繰り返し指定する形式で、リンクは不可です。オブジェクトは正確に`{"plugin_id": "…", "download_policy": {…}}`の形にします。選択したサイトプラグインだけを対象にフィールドごとに合成し、コアが所有する`download_policy`スキーマで検証します。永続化はしません。`request_concurrency`、`chapter_concurrency`、`image_concurrency_per_chapter`、`preserve_image_start_order`は[設定](configuration.md#config-plugin-settings)を参照してください。
 
 `--plugin-verification-override`の値は`bypass-all`、`bypass-catalog`、`bypass-signature`です。一時的な上書きであり、永続設定`security.plugin_verification`の値ではありません。永続設定の選択肢は`strict`・`warn`・`off`です。`plugin list`でも、`diagnostics`のためのソース発見・検証には上書きを**適用します**。カタログの登録内容である`plugins`一覧は変更せず、永続設定・カタログも書き込みません。
+
+プラグイン配置を使用しない操作では、設定済み`plugins.root`の実在・ディレクトリ種別・アクセス可否を検査しません。保存済み状態・履歴、Cookie、資格情報、保管庫の操作はプラグイン配置から独立しています。設定の型・絶対パスの検証と、明示した`--plugin-root`の安全性検証は維持します。`config explain`は設定値と由来を表示し、実際のプラグイン配置・検証結果は`doctor`で確認します。
 
 ユーザー設定を自動読込みした場合、設定値とCLI上書き値を標準エラーへ分けて表示します。
 
@@ -387,9 +392,15 @@ image-downloader state workflow set (TARGET_URL | --url-regex PATTERN | --all) -
 image-downloader state workflow reset (TARGET_URL | --url-regex PATTERN | --all) [options]
 ```
 
-`--config`、`--profile`、`--data-root`、`--json`はコマンド前後で指定できる。`--limit`はhistory専用の正の整数で、既定20件。`--plugin`はlist/show/history/targets/set/resetで保存済みplugin IDを絞り込む。`--refresh`を指定した場合は更新確認プラグインを選択する。同じURLが複数pluginに属すると、指定なしではそれぞれ表示する。ダウンロード・再試行・inspection・Cookie操作・出力設定などの実行オプションは拒否する。`--dry-run`は通常workflowと`state workflow prune/set/reset`で受理する。
+`--config`、`--profile`、`--data-root`、`--json`はコマンド前後で指定できる。`--limit`はhistory専用の正の整数で、既定20件。`--plugin`はlist/show/history/targets/set/resetで保存済みplugin IDを絞り込む。`--query-targets-from-workflow-url`を指定した場合は更新確認プラグインを選択する。同じURLが複数pluginに属すると、指定なしではそれぞれ表示する。ダウンロード・再試行・inspection・Cookie操作・出力設定などの実行オプションは拒否する。`--dry-run`は通常workflowと`state workflow prune/set/reset`で受理する。
 
-`--refresh`以外はネットワーク通信・プラグイン読込み・Cookie読込みを行わない。設定の初期保存/rewrite・ファイルログ・通知は行わない。ロックファイルと親ディレクトリの作成は許容する。進捗の自動更新、実行中判定、成果物検証は行わない。
+`targets/set/reset`で`--query-targets-from-workflow-url`を指定すると、`--plugin-root PATH`と`--plugin-verification-override MODE`もコマンド前後で指定できる。両方ともその実行のプラグイン探索・検証に適用し、設定には保存しない。問い合わせ指定なしでこれらや`--download-scope`を明示すると、設定読み込み・確認入力の前に`argument_error`（終了コード2）になる。list/show/history/run/pruneでも両プラグインオプションは拒否する。
+
+```powershell
+py -m image_downloader --plugin-root C:\plugin_devs --plugin-verification-override bypass-all state workflow targets --query-targets-from-workflow-url "https://example.test/feed"
+```
+
+問い合わせ指定のない操作ではネットワーク通信・プラグイン読込み・Cookie読込みを行わない。保存済み状態は操作のたびに読み直すため、別プロセスの更新を反映するための追加指定は不要。設定の初期保存/rewrite・ファイルログ・通知は行わない。ロックファイルと親ディレクトリの作成は許容する。進捗の自動更新、実行中判定、成果物検証は行わない。
 
 現在状態は候補のURL、content ID、revision、`status`、互換表示用の完了フラグ、チェック日時と集計を持つ。`pending`は失敗・部分成功を含む未完了を表し、詳細は実行履歴で確認する。過去結果は別欄で表示し、過去の成功は現在の完了を保証しない。feedはplugin IDとSHA-256キーで識別する。履歴があれば伏字済み更新元URLを表示するが、既存の完了状態だけからURLを復元・推測しない。
 
@@ -412,8 +423,13 @@ list/showの各feedには`state_available`を追加する。falseでも互換性
 URL単位の完全一致、`--url-regex PATTERN`、`--all`は排他的。
 `targets`はURL条件を省略すると全件表示し、`set/reset`ではいずれかのURL条件が必須。
 正規表現は原文URL全体への大文字小文字を区別するPython `re.search`で評価する。
-`--source FEED_URL`、`--plugin ID`、`--from-status STATUS`をAND条件で追加できる。
+`--filter-workflow-url WORKFLOW_INPUT_URL`、`--plugin ID`、`--from-status STATUS`をAND条件で追加できる。
 同じURLの条件に一致する登録を、複数フィード・プラグインにわたって操作する。
+
+`WORKFLOW_INPUT_URL`は通常の`workflow URL`に指定する入力URLで、原文の完全一致で登録を絞り込む。
+位置引数`TARGET_URL`と`--url-regex`は、プラグインが返すダウンロード対象URLに作用する。
+入力URLと対象URLが同じ文字列になる場合もあるが、指定の役割は変わらない。
+絞り込み・問い合わせの両オプションを省略した場合は、保存済み登録を対象にする。
 
 状態は`completed`（完了）、`pending`（未処理・未完了）、`cancelled`（キャンセル）。
 `set --status STATUS`で変更し、`reset`は`set --status pending`と同じ。
@@ -430,10 +446,15 @@ all-noより前に承認した分は保存する。EOF・Ctrl+Cで入力を中�
 同一URLは一度だけ確認し、変更不要の登録は確認しない。`--yes`による確認省略は受理しない。
 `--dry-run`は予定だけを表示し、確認入力と保存を行わない。
 
-`--refresh --source FEED_URL`では更新確認だけで今回の候補を取得する。
-`--download-scope updated|all`はrefresh時だけ指定でき、既定updated。
-フィード内の全候補を操作する場合は`--download-scope all --all`を使う。
+`--query-targets-from-workflow-url WORKFLOW_INPUT_URL`は、入力URLを使ってプラグインの更新確認を実行する。
+認証・通信処理が起こり得るが、画像取得は行わない。問い合わせ先の入力URLに属する候補だけを対象とし、
+`--filter-workflow-url`との併用はできない。通常の`workflow URL`の構文・動作は変わらない。
+`--download-scope updated|all`は問い合わせ時だけ指定でき、既定updated。
+`updated`は新規・変更・未完了の対象URLを選び、`all`はプラグインが返す全候補を選ぶ。
+`--all`はURL条件の全件指定で、scopeを変更しない。全候補を操作する場合は`--download-scope all --all`を使う。
+set/resetでは問い合わせ指定だけで全件変更にはならず、TARGET_URL・正規表現・--allのいずれかが必要。
 targetsやdry-runは保存せず、set/resetは承認URLだけを登録・更新する。
+問い合わせ後に表示するpendingには、新規URLやrevision変更による今回の判定を含む。この表示だけでは保存状態は変わらない。
 拒否したURL、新規候補、削除候補を自動同期せず、候補全体の同期は次回通常workflowに任せる。
 画像・更新履歴・Cookie・実行履歴・ログは保存せず、通常plannerの独立セッションと後始末を使う。
 更新確認・後始末に失敗した場合は変更確認と保存に進まない。
@@ -446,7 +467,7 @@ JSONのchangesは安全なbefore/afterとdecision（approved/skipped/unchanged/p
 summaryはmatched_urls、matched_records、planned_records、approved_urls、approved_records、
 skipped_urls、skipped_records、unchanged_records、changed_records、dry_runを返す。
 成功・変更不要・全件拒否は0、変更対象なし・競合・保存失敗は1、引数不正は2、入力中断は130。
-空のtargetsは0。refreshの認証・プラグイン失敗は既存の例外別終了コードを使う。
+空のtargetsは0。問い合わせの認証・プラグイン失敗は既存の例外別終了コードを使う。
 
 `workflow.json`のschema_versionは1のまま、レコードのcompletedをstatusへ置き換えた。
 旧形式の自動変換はなく、旧形式を読み込むと再作成を案内するエラーになる。
@@ -456,8 +477,10 @@ skipped_urls、skipped_records、unchanged_records、changed_records、dry_run�
 image-downloader state workflow targets "https://example.test/work/123"
 image-downloader state workflow set "https://example.test/work/123" --status completed
 image-downloader state workflow set --url-regex '/work/2026/' --from-status pending --status completed
-image-downloader state workflow reset --source "https://example.test/feed" --all
-image-downloader state workflow set --source "https://example.test/feed" --refresh --all --status completed --dry-run
+image-downloader state workflow targets --filter-workflow-url "https://example.test/feed"
+image-downloader state workflow targets --query-targets-from-workflow-url "https://example.test/feed"
+image-downloader state workflow reset --filter-workflow-url "https://example.test/feed" --all
+image-downloader state workflow set --query-targets-from-workflow-url "https://example.test/feed" --all --status completed --dry-run
 ```
 
 ## 保存済みログとworkflow成果物の検証

@@ -17,7 +17,7 @@ from ..exceptions import ConfigurationError
 from ..plugins.plugin_manifest import PluginConfigOverrides, PluginDownloadPolicyOverrides
 from ..storage.path_safety import canonical_path, existing_directory
 from .argument_rules import _check_conflicts, is_http_url
-from .options import LEGACY_COOKIE_OPTIONS, OPTIONS
+from .options import _TARGETS, LEGACY_COOKIE_OPTIONS, OPTIONS
 from .prepared import PreparedCommand, command_arguments
 
 _OPTION_DEFAULTS: Mapping[str, object] = {
@@ -68,6 +68,20 @@ def _explicit_options(args: argparse.Namespace) -> set[str]:
         for option in OPTIONS
         if getattr(args, option.attribute, _OPTION_DEFAULTS[option.attribute]) != _OPTION_DEFAULTS[option.attribute]
     }
+
+
+def _check_target_query_options(args: argparse.Namespace, command: str, explicit: set[str]) -> None:
+    if command not in _TARGETS or getattr(args, "query_targets_from_workflow_url", None) is not None:
+        return
+    for name in ("plugin-root", "plugin-verification-override", "download-scope"):
+        if name in explicit:
+            option = "--" + name
+            raise argument_error(
+                f"{option} requires --query-targets-from-workflow-url for {command}",
+                "option_scope",
+                option=option,
+                command=command,
+            )
 
 
 def _check_paths(args: argparse.Namespace, command: str) -> None:
@@ -171,18 +185,18 @@ def _check_workflow_target_values(args: argparse.Namespace, command: str) -> Non
         raise argument_error("state changes require TARGET_URL, --url-regex or --all", "missing_value")
     if command == "state workflow set" and args.status is None:
         raise argument_error("set requires --status", "missing_value", option="--status")
-    for name, value in (("target", args.target), ("--source", args.source_url)):
+    for kind, name, value in (
+        ("argument", "target", args.target),
+        ("option", "--filter-workflow-url", args.filter_workflow_url),
+        ("option", "--query-targets-from-workflow-url", args.query_targets_from_workflow_url),
+    ):
         if value is not None and not is_http_url(value):
-            raise argument_error("target and source require absolute HTTP(S) URLs", "invalid_value", argument=name)
+            raise argument_error(f"{name} requires an absolute HTTP(S) URL", "invalid_value", **{kind: name})
     if args.url_regex is not None:
         try:
             re.compile(args.url_regex)
         except re.error:
             raise argument_error("invalid URL regular expression", "invalid_value", option="--url-regex") from None
-    if args.refresh and args.source_url is None:
-        raise argument_error("--refresh requires --source", "missing_value", option="--source")
-    if args.download_scope is not None and not args.refresh:
-        raise argument_error("--download-scope requires --refresh for state commands", "option_scope")
 
 
 def _check_values(
@@ -295,6 +309,7 @@ def validate_arguments(args: argparse.Namespace) -> PreparedCommand:
                 option=option,
                 command=displayed_command,
             )
+    _check_target_query_options(args, command, explicit)
     _check_conflicts(args, explicit)
     value_errors = getattr(args, "_value_errors", ())
     if value_errors:

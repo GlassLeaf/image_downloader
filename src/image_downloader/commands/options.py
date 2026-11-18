@@ -70,7 +70,7 @@ OPTIONS = (
         "config", _RUNTIME | _STATE | _VERIFY_WORKFLOW | {"config explain", "config profile init"} | _MANAGED, Path
     ),
     OptionDefinition("profile", _RUNTIME | _STATE | _VERIFY_WORKFLOW | {"config explain"} | _CREDENTIAL),
-    OptionDefinition("plugin-root", _RUNTIME | {"config explain", "config init"} | _MANAGED, Path),
+    OptionDefinition("plugin-root", _RUNTIME | _TARGETS | {"config explain", "config init"} | _MANAGED, Path),
     OptionDefinition(
         "data-root", _RUNTIME | _STATE | _VERIFY_WORKFLOW | {"config explain", "config init"} | _MANAGED, Path
     ),
@@ -83,10 +83,10 @@ OPTIONS = (
     ),
     OptionDefinition(
         "plugin-verification-override",
-        _RUNTIME | _CONFIG | _MANAGED,
+        _RUNTIME | _TARGETS | _CONFIG | _MANAGED,
         choices=("bypass-all", "bypass-catalog", "bypass-signature"),
         metavar="MODE",
-        no_effect=_CONFIG | {"cookie"} | _MANAGED,
+        no_effect=_CONFIG | {"cookie", "plugin revoke", "plugin uninstall"} | _MANAGED,
     ),
     OptionDefinition("json", _ALL, default=False, dest="json_output", flag=True),
     OptionDefinition(
@@ -159,12 +159,37 @@ OPTIONS = (
         help="preview workflow URL selection, state changes or history pruning",
     ),
     OptionDefinition("download-scope", frozenset({"workflow"}) | _TARGETS, choices=("all", "updated")),
-    OptionDefinition("url-regex", _TARGETS, metavar="PATTERN"),
-    OptionDefinition("all", _TARGETS, default=False, dest="all_targets", flag=True),
-    OptionDefinition("source", _TARGETS, dest="source_url", metavar="FEED_URL"),
+    OptionDefinition(
+        "url-regex",
+        _TARGETS,
+        metavar="PATTERN",
+        help="case-sensitive regex for download target URLs returned by a plugin",
+    ),
+    OptionDefinition(
+        "all",
+        _TARGETS,
+        default=False,
+        dest="all_targets",
+        flag=True,
+        help="select all matching target URLs; does not change the download scope",
+    ),
+    OptionDefinition(
+        "filter-workflow-url",
+        _TARGETS,
+        metavar="WORKFLOW_INPUT_URL",
+        help="filter saved targets by the original workflow input URL; does not execute plugins",
+    ),
+    OptionDefinition(
+        "query-targets-from-workflow-url",
+        _TARGETS,
+        metavar="WORKFLOW_INPUT_URL",
+        help=(
+            "run the plugin's update check using this workflow input URL; no image downloads; "
+            "targets and dry-run do not save state"
+        ),
+    ),
     OptionDefinition("from-status", _TARGETS, choices=("completed", "pending", "cancelled")),
     OptionDefinition("status", frozenset({"state workflow set"}), choices=("completed", "pending", "cancelled")),
-    OptionDefinition("refresh", _TARGETS, default=False, flag=True),
     OptionDefinition("workflow-progress-log", frozenset({"workflow"}), choices=("enabled", "disabled")),
     OptionDefinition("workflow-retries", frozenset({"workflow"}), int, help="extra workflow rounds (default: 1)"),
     OptionDefinition(
@@ -185,6 +210,7 @@ CONFLICT_GROUPS = (
     ("plugin", "force-plugin"),
     ("inspect-only", "list-updated-urls"),
     ("force-image-format", "list-updated-urls"),
+    ("filter-workflow-url", "query-targets-from-workflow-url"),
     ("export-cookies", "import-cookies", "import-browser-cookies"),
 )
 LEGACY_COOKIE_OPTIONS = frozenset(CONFLICT_GROUPS[-1])

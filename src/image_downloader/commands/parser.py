@@ -286,6 +286,24 @@ def _management_grammar(command: argparse.ArgumentParser, name: str) -> None:
                 operation.add_argument("vault_target", type=Path)
 
 
+def _workflow_target_argument(operation: argparse.ArgumentParser, action: str) -> None:
+    if action == "history":
+        operation.add_argument("target", nargs="?")
+        return
+    operation.description = (
+        "Manage download target URLs returned by a plugin. "
+        "--filter-workflow-url filters saved registrations; "
+        "--query-targets-from-workflow-url runs the plugin's update check. "
+        "Querying alone does not save state; reset changes approved statuses to pending."
+    )
+    operation.add_argument(
+        "target",
+        nargs="?",
+        metavar="TARGET_URL",
+        help="exact download target URL returned by a plugin, rather than the workflow input URL",
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = _CliArgumentParser(description="local plugin API v3 image downloader")
     parser.set_defaults(config_explicit=False, command=None)
@@ -346,5 +364,5 @@ def build_parser() -> argparse.ArgumentParser:
                 if action in {"show", "run"}:
                     operation.add_argument("target")
                 elif action in {"history", "targets", "set", "reset"}:
-                    operation.add_argument("target", nargs="?")
+                    _workflow_target_argument(operation, action)
     return parser

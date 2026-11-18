@@ -60,7 +60,11 @@ mapping は再帰 merge、scalar/list/`null` は高い layer が置換する。I
 <!-- claim: TAX-CONFIG-REWRITE -->
 `resolve_application_config(..., rewrite_user_layers=True)` と `load_application_config(..., rewrite_user_layers=True)` は obsolete/unknown static key を user-managed YAML から atomic に削除し得る。default は `False` で read-only である。download、update listing、cookie operation、plugin mutation は initial config の作成と rewrite を試みる。initial config の作成に失敗しても root を解決済みなら主 operation の終了状態は維持し、safe warning を stderr に出す。`doctor`、`config path`、`config explain`、plugin list は file/directory を作成・書換えしない。
 
-既存 config、overlay、data/plugin root、managed output は symlink または Windows reparse point を含められない。不安全な path を「欠落」として無視せず `ConfigurationError` または storage safety failure にする。
+読み込み対象の既存 config、overlay、使用する data/plugin root、managed output は symlink または Windows reparse point を含められない。不安全な path を「欠落」として無視せず `ConfigurationError` または storage safety failure にする。
+
+設定解決は`plugins.root`の型・絶対パスを検証するが、プラグインを使用しない操作ではその配置を検査しない。問い合わせ指定のないstate操作、verify workflow、Cookie、credential、vaultは、プラグインが未配置・検査不能でも保存済み情報を処理できる。`config explain`は設定値と由来を表示し、配置・プラグイン検証の診断は`doctor`で行う。明示的な`--plugin-root`には引き続き安全な絶対ディレクトリパスを要求する。
+
+`state workflow targets/set/reset`で`--query-targets-from-workflow-url WORKFLOW_INPUT_URL`を指定すると、`--plugin-root`と`--plugin-verification-override`を受理し、通常workflowと同じ優先順位でその実行の探索・検証に適用する。サイト設定は問い合わせに使うworkflow入力URLのホストで解決する。設定ファイルは書き換えない。`--filter-workflow-url`による保存済み登録の絞り込みを含む、問い合わせ指定のないstate操作・verifyでは両プラグインオプションを拒否する。
 
 <a id="config-schema"></a>
 
