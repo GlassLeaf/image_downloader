@@ -70,6 +70,8 @@ manifest確定前や更新確認では空、章単位では画像階層が空で
 `PluginExecutionContext.plugin_manifest`はパッケージ情報の別名で、既存の`.manifest`と同じ値です。
 作品DTOは`PluginDataView.work`の元となる`DownloadManifest`で、パッケージmanifestとは別です。
 
+[plugin-a](../../../plugin-implementation-samples/plugin-a/README.md)はplaceholderを章へ、iv・saltを画像へ移しています。
+画像変換アルゴリズムは維持しています。
 [連携サンプル](../../../examples/plugin-v3-metadata-bridge/README.md)では構造化データと要求時データの両方を使います。
 
 ## 認証結果の取得

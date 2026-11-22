@@ -1,0 +1,8 @@
+{
+  "manifest": {
+    "id": "com.example.a",
+    "kind": "site_plugin",
+    "entry": {"file": "plugin.py", "class": "ADownloadPlugin"},
+    "config_file": "plugin.yaml"
+  }
+}

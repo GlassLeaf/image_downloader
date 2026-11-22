@@ -1,0 +1,9 @@
+config: {}
+
+endpoints:
+  site:
+    origin: https://www.example.co.jp
+    auth: session
+  images:
+    origin: https://cdn-image.example.co.jp
+    auth: session
