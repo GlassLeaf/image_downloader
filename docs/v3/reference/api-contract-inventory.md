@@ -9,6 +9,9 @@
 ## image_downloader
 
 <!-- api-inventory:start image_downloader -->
+PLUGIN_API_FEATURES
+PluginDataView
+AuthSnapshot
 WorkflowStateFormatError
 WorkflowStateConflictError
 WorkflowTargetStatus

@@ -67,6 +67,7 @@ from .models import (
     AuthLease,
     AuthMode,
     AuthReceipt,
+    AuthSnapshot,
     AuthStatus,
     AuthVerification,
     Chapter,
@@ -87,6 +88,7 @@ from .models import (
     ImageSaveOptions,
     ImageTransportMetadata,
     ManifestInspectionResult,
+    PluginDataView,
     RequestResponse,
     RequestSpec,
     TransportCookie,
@@ -139,7 +141,12 @@ from .ports import (
 )
 from .runtime import DownloadService, RuntimeComposer
 
+PLUGIN_API_FEATURES: frozenset[str] = frozenset({"structured_plugin_data", "auth_snapshot"})
+
 __all__ = [
+    "PLUGIN_API_FEATURES",
+    "PluginDataView",
+    "AuthSnapshot",
     "WorkflowStateFormatError",
     "WorkflowStateConflictError",
     "WorkflowTargetStatus",

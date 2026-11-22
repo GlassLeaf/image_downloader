@@ -115,6 +115,7 @@ FEATURES = (
     ),
     Feature("save-options", "画像保存形式・品質・元ファイル名", defaults={"save_options": {"format": "ORIGINAL"}}),
     Feature("metadata", "画像metadata・request-time data", kinds=BOTH),
+    Feature("structured-data", "作品・章・画像の構造化データ", ("validate_config",), kinds=BOTH),
     Feature(
         "updates",
         "更新スナップショット",

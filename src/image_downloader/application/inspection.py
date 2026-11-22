@@ -14,6 +14,7 @@ from ..models import (
     ImageRequestResolutionFailure,
     ImageRequestResolutionStatus,
     ManifestInspectionResult,
+    PluginDataView,
 )
 from ..storage.cookies import CookieStore
 from ..transport.gateway import RequestGateway, closing_gateway
@@ -53,7 +54,10 @@ class InspectionExecutor:
                     for chapter_position, chapter in enumerate(manifest.chapters, start=1):
                         for image_position, image in enumerate(chapter.images, start=1):
                             try:
-                                value = await invoker.create_image_request(plugin, image, context)
+                                image_context = context._with_plugin_data(
+                                    PluginDataView.from_resources(manifest, chapter, image)
+                                )
+                                value = await invoker.create_image_request(plugin, image, image_context)
                             except asyncio.CancelledError:
                                 raise
                             except Exception as exc:

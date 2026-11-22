@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 
 from PIL import Image
 
+import image_downloader as plugin_api
 from image_downloader import (
     AuthFlow,
     Chapter,
@@ -74,6 +75,8 @@ class MetadataBridgeGalleryPlugin:
 
     def validate_config(self, config: Mapping[str, object], app_settings: Mapping[str, object]) -> None:
         del app_settings
+        if "structured_plugin_data" not in getattr(plugin_api, "PLUGIN_API_FEATURES", ()):
+            raise ValueError("metadata bridge requires a runtime with structured_plugin_data")
         if config:
             raise ValueError("metadata bridge gallery does not accept configuration")
 
@@ -97,8 +100,7 @@ class MetadataBridgeGalleryPlugin:
                 raise PluginError("metadata bridge image is invalid")
             image_id = _text(raw_image.get("id"), "metadata bridge image ID is missing")
             variant = _variant(raw_image.get("variant"))
-            # The API provides this numeric value, so convert it to the string-only
-            # ImageResource.metadata contract before publishing the manifest.
+            # Validate the API value, then preserve its numeric shape in structured data.
             orientation = _orientation(str(raw_image.get("orientation")))
             images.append(
                 ImageResource(
@@ -106,22 +108,22 @@ class MetadataBridgeGalleryPlugin:
                     index=index,
                     referer=url,
                     image_id=image_id,
-                    metadata={"variant": variant, "orientation": orientation},
+                    plugin_data={"variant": variant, "orientation": int(orientation)},
                 )
             )
 
         title = _text(payload.get("title"), "metadata bridge title is missing")
         return DownloadManifest(
             title,
-            (Chapter(1, title, images=tuple(images)),),
+            (Chapter(1, title, images=tuple(images), plugin_data={"edition": {"name": "standard"}}),),
             content_id=_text(payload.get("id"), "metadata bridge work ID is missing"),
+            plugin_data={"work_id": payload["id"]},
         )
 
     async def create_image_request(self, image: ImageResource, context: PluginExecutionContext) -> ImageFetchRequest:
-        del context
         image_id = _text(image.image_id, "metadata bridge image ID is missing")
-        variant = _variant(image.metadata.get("variant"))
-        orientation = _orientation(image.metadata.get("orientation"))
+        variant = _variant(context.plugin_data.image.get("variant"))
+        orientation = _orientation(str(context.plugin_data.image.get("orientation")))
         origin = _origin(image.referer or image.url)
         return ImageFetchRequest(
             RequestSpec(
@@ -149,7 +151,7 @@ class MetadataBridgeGalleryPlugin:
         return None
 
     def transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:
-        orientation = _orientation(context.image_metadata.get("orientation"))
+        orientation = _orientation(str(context.plugin_data.image.get("orientation")))
         rotation = _ORIENTATION_TO_ROTATION[orientation]
         if rotation == 0:
             return ImageArtifact(

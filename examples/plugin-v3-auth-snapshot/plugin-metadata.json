@@ -1,0 +1,10 @@
+{
+  "id": "local.image-downloader.auth-snapshot-gallery",
+  "publisher": "local.image-downloader",
+  "version": "1.0.0",
+  "kind": "site_plugin",
+  "capabilities": [],
+  "match_priority": 20,
+  "entry": {"file": "plugin.py", "class": "AuthSnapshotGallery"},
+  "config_file": "plugin.yaml"
+}

@@ -19,7 +19,7 @@ from image_downloader.devtools.loading import DevelopmentLoader, resolve_target
 from image_downloader.devtools.output import RawOutput
 from image_downloader.devtools.runtime import DevelopmentSession
 from image_downloader.devtools.transport import FixtureMismatchError, FixtureTransport, TraceTransport
-from image_downloader.models import AdditionalFileSpec, ImageResource
+from image_downloader.models import AdditionalFileSpec, AuthSnapshot, AuthStatus, ImageResource
 from image_downloader.plugins.plugin_manifest import read_manifest
 from image_downloader.plugins.plugin_verification import verify_signed_plugin_source
 
@@ -78,6 +78,186 @@ def test_every_feature_generates_loadable_typed_v3_contract(tmp_path: Path, feat
             assert not hasattr(instance, "check_updates")
     finally:
         loader.close()
+
+
+def test_structured_data_generation_calls_transforms_and_scenarios(tmp_path):
+    directory = project(tmp_path, ["json", "chapters", "structured-data", "metadata"])
+    path = fixture(
+        tmp_path,
+        [
+            gallery_entry(
+                plugin_data={"same": "work"},
+                chapters=[
+                    {
+                        "title": "Chapter",
+                        "plugin_data": {"same": "chapter"},
+                        "images": [
+                            {
+                                "url": "/image.png",
+                                "plugin_data": {"same": "image", "array": [1, 2]},
+                                "metadata": {"legacy": "kept"},
+                            }
+                        ],
+                    }
+                ],
+            )
+        ],
+    )
+
+    async def scenario():
+        async with opened(directory, tmp_path, fixture=str(path)) as session:
+            manifest = await session.call("inspect", {"args": ["https://example.test/gallery"]}, save_as="work")
+            image = manifest.chapters[0].images[0]
+            assert manifest.plugin_data == {"same": "work"}
+            assert image.metadata == {"legacy": "kept"}
+            assert image.plugin_data == {"same": "image", "array": (1, 2)}
+            original = session.ensure_instance().create_image_request
+
+            async def request(image, context):
+                view = context.plugin_data
+                assert view.image is image.plugin_data
+                assert view.work == {"same": "work"} and view.chapter == {"same": "chapter"}
+                return await original(image, context)
+
+            session.instance.create_image_request = request
+            resources = {"manifest": {"$ref": "work"}, "chapter": {"$ref": "work.chapters.0"}}
+            await session.call(
+                "create_image_request",
+                {
+                    "args": [{"$ref": "work.chapters.0.images.0"}],
+                    "resources": resources,
+                },
+            )
+            assert not session.context.plugin_data.work
+
+            def transform(artifact, context):
+                assert context.plugin_data.work is manifest.plugin_data
+                assert context.plugin_data.chapter is manifest.chapters[0].plugin_data
+                assert context.plugin_data.image is image.plugin_data
+                return artifact
+
+            session.instance.transform_image = transform
+            await session.call(
+                "transform_image",
+                {
+                    "args": [
+                        {
+                            "$type": "ImageArtifact",
+                            "data": {"$base64": "aW1hZ2U="},
+                            "content_type": "image/png",
+                            "source_url": image.url,
+                        }
+                    ],
+                    "resources": {**resources, "image": {"$ref": "work.chapters.0.images.0"}},
+                },
+            )
+            session.instance.create_image_request = original
+            (directory / "scenario.yaml").write_text(
+                yaml.safe_dump(
+                    {
+                        "steps": [
+                            {
+                                "method": "create_image_request",
+                                "args": [
+                                    {"$type": "ImageResource", "url": image.url, "plugin_data": {"nested": [1, 2]}}
+                                ],
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            session.settings["scenarios"] = ["scenario.yaml"]
+            assert (await session.check())["valid"]
+            assert decode_input({"$type": "AuthSnapshot"}, root=directory, refs={}) == AuthSnapshot()
+
+    asyncio.run(scenario())
+
+
+def test_structured_image_only_call_has_empty_parents_and_feature_guard_precedes_io(tmp_path, monkeypatch):
+    import image_downloader
+
+    directory = project(tmp_path, ["json", "structured-data"])
+
+    async def scenario():
+        async with opened(directory, tmp_path) as session:
+
+            async def request(image, context):
+                assert not context.plugin_data.work and not context.plugin_data.chapter
+                assert context.plugin_data.image == {"n": 3}
+                from image_downloader import RequestSpec
+
+                return RequestSpec(image.url)
+
+            session.ensure_instance().create_image_request = request
+            await session.call(
+                "create_image_request",
+                {
+                    "args": [
+                        {"$type": "ImageResource", "url": "https://example.test/image.png", "plugin_data": {"n": 3}}
+                    ]
+                },
+            )
+            monkeypatch.setattr(image_downloader, "PLUGIN_API_FEATURES", frozenset())
+            with pytest.raises(ValueError, match="structured_plugin_data"):
+                session.instance.validate_config({}, {})
+            assert not session.output.recorded_http
+
+    asyncio.run(scenario())
+
+
+def test_extension_adds_structured_data_and_offline_fixture(tmp_path):
+    directory = project(tmp_path, ["json", "chapters", "metadata"])
+    result = extend_project(directory, {"features": ["structured-data"]}, apply=True)
+    assert result["applied"] and not result["conflicts"]
+
+    async def scenario():
+        async with opened(directory, tmp_path, fixture=str(directory / "fixtures/replay.yaml")) as session:
+            work = await session.call("inspect", {"args": ["https://example.test/gallery"]})
+            assert work.plugin_data == {"work_id": 42}
+            assert work.chapters[0].plugin_data == {"edition": {"name": "standard"}}
+            assert work.chapters[0].images[0].plugin_data == {"variant": "full", "dimensions": (2, 2)}
+
+    asyncio.run(scenario())
+
+
+def test_mock_auth_snapshot_sample_reauth_updates_identity_and_expiry(tmp_path):
+    sample = Path(__file__).resolve().parents[3] / "examples" / "plugin-v3-auth-snapshot"
+
+    async def scenario():
+        async with opened(sample, tmp_path, fixture=str(sample / "fixture.yaml")) as session:
+            assert session.execution_context().auth.snapshot() == AuthSnapshot(flow_configured=True)
+            work = await session.call("inspect", {"args": ["https://auth-snapshot.example.test/gallery"]})
+            context = session.execution_context()
+            initial = context.auth.snapshot()
+            assert initial.generation == 1 and initial.public_data == {"user_id": "user-1"}
+            assert 3500 < initial.remaining_seconds <= 3600
+            spec = await session.call("create_image_request", {"args": [work.chapters[0].images[0]]})
+            response = await context.requests.execute(spec)
+            assert response.status == 200
+            updated = context.auth.snapshot()
+            assert updated.generation == 2 and updated.public_data == {"user_id": "user-2"}
+            assert 7100 < updated.remaining_seconds <= 7200
+            assert updated.last_verified_status is AuthStatus.UNKNOWN
+            assert all(item["remaining"] == 0 for item in session.fixture.remaining())
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("mode", ["replay", "scenario"])
+def test_mock_auth_sample_runs_with_development_tools(tmp_path, mode):
+    sample = Path(__file__).resolve().parents[3] / "examples" / "plugin-v3-auth-snapshot"
+
+    async def scenario():
+        async with opened(sample, tmp_path, fixture=str(sample / "fixture.yaml")) as session:
+            if mode == "scenario":
+                report = await session.check()
+                assert report["valid"] and len(report["scenarios"]) == 1
+            else:
+                result = await session.simulate("https://auth-snapshot.example.test/gallery", "replay")
+                assert len(result.saved_files) == 1 and not result.failures
+
+    asyncio.run(scenario())
 
 
 @pytest.mark.parametrize("feature", [name for name, item in CATALOG.items() if "image_processor_plugin" in item.kinds])
@@ -591,9 +771,21 @@ def test_cli_timeout_cleans_up_worker(tmp_path, capfd):
         encoding="utf-8",
     )
     start = time.monotonic()
-    assert main([
-        "call", str(directory), "wait_forever", "--timeout", "10", "--json", "--exclude-event", "*",
-    ]) == 1
+    assert (
+        main(
+            [
+                "call",
+                str(directory),
+                "wait_forever",
+                "--timeout",
+                "10",
+                "--json",
+                "--exclude-event",
+                "*",
+            ]
+        )
+        == 1
+    )
     assert time.monotonic() - start < 25
     assert "timed out" in capfd.readouterr().out
     assert source.with_suffix(".cleanup").read_text(encoding="utf-8") == "closed"

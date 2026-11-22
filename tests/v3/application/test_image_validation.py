@@ -93,6 +93,43 @@ def _process(pipeline, data, mime, plugin=None):
     return asyncio.run(scenario())
 
 
+def test_site_and_processor_share_structured_data_without_transport_permission(core):
+    image = ImageResource("https://example.test/image.png", plugin_data={"same": "image"})
+    chapter = Chapter(1, "Chapter", images=(image,), plugin_data={"same": "chapter"})
+    manifest = DownloadManifest("Work", (chapter,), plugin_data={"same": "work"})
+    seen = []
+
+    def check(context):
+        assert context.plugin_data.work is manifest.plugin_data
+        assert context.plugin_data.chapter is chapter.plugin_data
+        assert context.plugin_data.image is image.plugin_data
+        assert not hasattr(context, "auth")
+        seen.append(context.plugin_data)
+
+    class Site(GenericHtmlPlugin):
+        def transform_image(self, artifact, context):
+            check(context)
+            return artifact
+
+    class Processor:
+        def transform(self, artifact, context):
+            check(context)
+            return artifact
+
+    record = SimpleNamespace(id="example.structured", manifest=SimpleNamespace(value={}), catalog=None)
+    binding = PreparedProcessor(record.id, record, Processor(), {}, {})
+    pipeline = _pipeline(core, processors=(binding,))
+
+    async def scenario():
+        async with pipeline.transform_executor:
+            await pipeline.process(
+                Site(), ImageArtifact(_image_bytes(), "image/png", image.url), image, manifest, chapter
+            )
+
+    asyncio.run(scenario())
+    assert len(seen) == 2
+
+
 @pytest.mark.parametrize("mime", ["image/png", "image/svg+xml", "image/avif", "", "application/octet-stream"])
 def test_explicit_content_type_mode_accepts_allowed_nonempty_data_without_decode(mime):
     pipeline = _pipeline(None, AppConfig.model_validate({"media": {"input_validation": "content_type"}}))

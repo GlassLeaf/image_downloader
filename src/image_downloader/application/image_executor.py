@@ -35,6 +35,7 @@ from ..models import (
     ImageOutcomeKind,
     ImageResource,
     ImageTransportMetadata,
+    PluginDataView,
     RequestResponse,
 )
 from ..observability.chapter_reporter import ChapterReporter
@@ -250,7 +251,11 @@ class ImageExecutor:
                 debug=True,
             )
             fetched = await self.operation.site.gateway.execute_image_with_metadata(
-                self.operation.site.plugin, image, self.operation.site.context
+                self.operation.site.plugin,
+                image,
+                self.operation.site.context._with_plugin_data(
+                    PluginDataView.from_resources(self.operation.manifest, self.chapter, image)
+                ),
             )
             response = fetched.response
             await best_effort_diagnostic(

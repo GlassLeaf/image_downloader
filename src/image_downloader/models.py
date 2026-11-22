@@ -14,6 +14,7 @@ from typing import Literal, TypeVar
 from ._numeric import _is_finite
 from .exceptions import ErrorInfo
 from .immutable import freeze_json as freeze_json
+from .immutable import freeze_plugin_data
 from .immutable import thaw_json as thaw_json
 
 T = TypeVar("T")
@@ -74,6 +75,7 @@ class AuthStatus(StrEnum):
 @dataclass(frozen=True, slots=True)
 class AuthLease:
     expires_in_seconds: float | None = None
+    public_data: Mapping[str, object] | None = field(default=None, kw_only=True, repr=False)
 
     def __post_init__(self) -> None:
         value = self.expires_in_seconds
@@ -81,6 +83,38 @@ class AuthLease:
             isinstance(value, bool) or not isinstance(value, (int, float)) or not _is_finite(value) or value <= 0
         ):
             raise ValueError("expires_in_seconds must be a positive finite number or None")
+        if self.public_data is not None:
+            object.__setattr__(self, "public_data", freeze_plugin_data(self.public_data))
+
+
+@dataclass(frozen=True, slots=True)
+class AuthSnapshot:
+    """An immutable, no-I/O view of the operation's current authentication generation."""
+
+    flow_configured: bool = False
+    credentials_ready: bool = False
+    last_verified_status: AuthStatus = AuthStatus.UNKNOWN
+    generation: int = 0
+    remaining_seconds: float | None = None
+    public_data: Mapping[str, object] = field(default_factory=freeze_mapping, repr=False)
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.flow_configured, bool) or not isinstance(self.credentials_ready, bool):
+            raise TypeError("authentication snapshot flags must be bool")
+        if not isinstance(self.last_verified_status, AuthStatus):
+            raise TypeError("last_verified_status must be AuthStatus")
+        if isinstance(self.generation, bool) or not isinstance(self.generation, int) or self.generation < 0:
+            raise ValueError("generation must be a non-negative integer")
+        remaining = self.remaining_seconds
+        if remaining is not None and (
+            isinstance(remaining, bool)
+            or not isinstance(remaining, (int, float))
+            or not _is_finite(remaining)
+            or remaining < 0
+        ):
+            raise ValueError("remaining_seconds must be finite and non-negative or None")
+        data = freeze_plugin_data(self.public_data)
+        object.__setattr__(self, "public_data", data if self.credentials_ready else freeze_mapping())
 
 
 @dataclass(frozen=True, slots=True)
@@ -390,10 +424,12 @@ class ImageResource:
     image_id: str | None = None
     metadata: Mapping[str, str] = field(default_factory=freeze_mapping)
     original_filename: str | None = None
+    plugin_data: Mapping[str, object] = field(default_factory=freeze_mapping, kw_only=True, repr=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "headers", freeze_mapping(self.headers))
         object.__setattr__(self, "metadata", _freeze_string_mapping(self.metadata, field_name="ImageResource.metadata"))
+        object.__setattr__(self, "plugin_data", freeze_plugin_data(self.plugin_data))
 
 
 @dataclass(frozen=True, slots=True)
@@ -407,12 +443,14 @@ class Chapter:
     published_at: str | None = field(default=None, kw_only=True, repr=False)
     publication_date: str | None = field(default=None, kw_only=True, repr=False)
     log_fields: Mapping[str, str] = field(default_factory=freeze_mapping, kw_only=True, repr=False)
+    plugin_data: Mapping[str, object] = field(default_factory=freeze_mapping, kw_only=True, repr=False)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "log_fields", _validate_publication_fields(self))
         if self.allow_empty_images is not None and not isinstance(self.allow_empty_images, bool):
             raise TypeError("Chapter.allow_empty_images must be bool or None")
         object.__setattr__(self, "images", tuple(self.images))
+        object.__setattr__(self, "plugin_data", freeze_plugin_data(self.plugin_data))
 
 
 @dataclass(frozen=True, slots=True)
@@ -428,8 +466,10 @@ class DownloadManifest:
     published_at: str | None = field(default=None, kw_only=True, repr=False)
     publication_date: str | None = field(default=None, kw_only=True, repr=False)
     log_fields: Mapping[str, str] = field(default_factory=freeze_mapping, kw_only=True, repr=False)
+    plugin_data: Mapping[str, object] = field(default_factory=freeze_mapping, kw_only=True, repr=False)
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "plugin_data", freeze_plugin_data(self.plugin_data))
         object.__setattr__(self, "log_fields", _validate_publication_fields(self))
         if self.allow_empty_chapters is not None and not isinstance(self.allow_empty_chapters, bool):
             raise TypeError("DownloadManifest.allow_empty_chapters must be bool or None")
@@ -439,6 +479,45 @@ class DownloadManifest:
             "metadata",
             _freeze_string_mapping(self.metadata, field_name="DownloadManifest.metadata"),
         )
+
+
+@dataclass(frozen=True, slots=True)
+class PluginDataView:
+    """Non-secret work/chapter/image data; scopes are independent and never merged."""
+
+    work: Mapping[str, object] = field(default_factory=freeze_mapping)
+    chapter: Mapping[str, object] = field(default_factory=freeze_mapping)
+    image: Mapping[str, object] = field(default_factory=freeze_mapping)
+
+    def __post_init__(self) -> None:
+        for name in ("work", "chapter", "image"):
+            object.__setattr__(self, name, freeze_plugin_data(getattr(self, name)))
+
+    @classmethod
+    def from_resources(
+        cls,
+        manifest: DownloadManifest | None = None,
+        chapter: Chapter | None = None,
+        image: ImageResource | None = None,
+    ) -> PluginDataView:
+        """Share the already validated immutable data, without copying it per image."""
+        view = object.__new__(cls)
+        for name, resource, expected in (
+            ("work", manifest, DownloadManifest),
+            ("chapter", chapter, Chapter),
+            ("image", image, ImageResource),
+        ):
+            if resource is not None and not isinstance(resource, expected):
+                raise TypeError("plugin data view requires resource DTOs")
+            object.__setattr__(view, name, resource.plugin_data if resource is not None else freeze_mapping())
+        return view
+
+    def _with_image(self, image: ImageResource) -> PluginDataView:
+        view = object.__new__(type(self))
+        object.__setattr__(view, "work", self.work)
+        object.__setattr__(view, "chapter", self.chapter)
+        object.__setattr__(view, "image", image.plugin_data)
+        return view
 
 
 @dataclass(frozen=True, slots=True)

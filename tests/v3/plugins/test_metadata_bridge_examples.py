@@ -16,6 +16,7 @@ from image_downloader import (
     ImageArtifact,
     ImageFetchRequest,
     ImageTransportMetadata,
+    PluginDataView,
     RequestResponse,
     TransformContext,
     TransportRequestMetadata,
@@ -41,9 +42,13 @@ def _png(width: int, height: int) -> bytes:
 
 
 def test_metadata_bridge_examples_are_signable_plugin_packages(tmp_path: Path) -> None:
-    for directory_name in ("site-plugin", "processor-plugin"):
-        package = tmp_path / directory_name
-        shutil.copytree(EXAMPLE_ROOT / directory_name, package)
+    for source in (
+        EXAMPLE_ROOT / "site-plugin",
+        EXAMPLE_ROOT / "processor-plugin",
+        EXAMPLE_ROOT.parent / "plugin-v3-auth-snapshot",
+    ):
+        package = tmp_path / source.name
+        shutil.copytree(source, package)
         sign(package, Ed25519PrivateKey.generate())
         verify_signed_plugin_source(read_manifest(package))
 
@@ -78,9 +83,12 @@ def test_site_metadata_drives_request_transform_and_authorized_processor() -> No
             "https://metadata-bridge.example.test/works/42", SimpleNamespace(requests=Requests())
         )
         image = manifest.chapters[0].images[0]
-        assert image.metadata == {"variant": "full", "orientation": "6"}
+        assert image.metadata == {}
+        assert image.plugin_data == {"variant": "full", "orientation": 6}
 
-        image_request = await site.create_image_request(image, SimpleNamespace())
+        image_request = await site.create_image_request(
+            image, SimpleNamespace(plugin_data=PluginDataView.from_resources(manifest, manifest.chapters[0], image))
+        )
         assert isinstance(image_request, ImageFetchRequest)
         assert image_request.request.url.endswith("/api/images/image-1/download")
         assert image_request.request.query == {"variant": "full"}

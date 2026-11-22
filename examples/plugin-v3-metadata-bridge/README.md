@@ -4,9 +4,9 @@
 
 `plugin-sources/`の署名済みソースを補う、プラグイン作成用の例です。`manifest.json`は含めていません。サンプルをインストール可能にするために秘密署名鍵をコミットしないでください。ソースを確認したうえで、後述の手順に従い、利用者が管理する鍵で各パッケージに署名してください。
 
-関連する次の2つのv3仕様を示します。
+`structured_plugin_data`対応本体が必要です。関連する次の2つのv3仕様を示します。
 
-1. `site-plugin/metadata_bridge_gallery.py`は、秘密情報ではない`variant`と`orientation`を各`ImageResource`に設定します。実際の画像要求の構築時に`variant`を使い、サイトの`transform_image()`フックでは`orientation`を使って取得した画像を回転します。
+1. `site-plugin/metadata_bridge_gallery.py`は、作品IDを`DownloadManifest.plugin_data`、版情報を`Chapter.plugin_data`、`variant`と数値の`orientation`を`ImageResource.plugin_data`に設定します。要求・サイト変換・プロセッサーは`context.plugin_data.work/chapter/image`から非秘密の構造化データを読みます。このビューの共有に許可設定は不要です。
 2. 同じ要求フックが、少量の非秘密データを`plugin_data`に持つ`ImageFetchRequest`を返します。`processor-plugin/metadata_bridge_processor.py`は、利用者がサイトと画像処理プラグインの組合せを明示的に許可した場合にだけ、そのデータを`TransformContext.transport_metadata`から読み取ります。
 
 例に使うAPIは架空のものです。`GET https://metadata-bridge.example.test/api/works/{work_id}`は、`id`、`title`、`images`配列を持つJSONオブジェクトを返します。各画像は、秘密情報ではない`id`、`variant`（`full`または`preview`）、EXIF形式の`orientation`（`1`、`3`、`6`、`8`のいずれか）を持ちます。実際の画像エンドポイントは`/api/images/{image_id}/download?variant={variant}`です。
@@ -36,7 +36,7 @@ image-downloader plugin install (Resolve-Path .\examples\plugin-v3-metadata-brid
 
 ## 必要なアプリケーション設定
 
-両方のパッケージを有効にし、次の組合せを永続設定の許可リストへ登録した場合にだけ、画像処理プラグインは秘匿化前の`plugin_data`を参照できます。
+両方のパッケージを有効にし、次の組合せを永続設定の許可リストへ登録した場合にだけ、画像処理プラグインは秘匿化前の**要求時データ**（`transport_metadata.plugin_data`）を参照できます。三階層の`context.plugin_data`は許可リストによらず共有します。
 
 ```yaml
 plugin_settings:

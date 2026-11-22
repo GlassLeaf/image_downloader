@@ -68,6 +68,11 @@ HTML抽出とCSRFログインのCSS解析には `parser` extraが必要です。
 認証方式はAPIキー、Bearer、OAuth更新、CSRFから一つ選択します。
 OAuth認可画面の操作・認可コード取得は含みません。
 
+`structured-data`は作品・章・画像のJSONの`plugin_data`をそれぞれのDTOへ取り込みます。
+章のないJSONでは作品データを章へ自動複製せず、章のデータは空です。
+`metadata`は既存の文字列マッピング生成用として併用できます。
+新機能の配置と配布手順は[移行ガイド](structured-data-and-auth-snapshot-migration.md)を参照してください。
+
 ## メソッド単体実行
 
 対象にはプロジェクト、プラグインディレクトリ、`manifest.json`、Pythonソースを指定できます。
@@ -161,6 +166,32 @@ kwargs:
 
 公式フックは本体の返却値検証を共用します。
 追加ファイルの個々の保存条件など、operation全体が必要な条件は `simulate` で検証します。
+
+### 構造化データを使う単体呼び出し
+
+画像要求・回復の画像階層は引数の`ImageResource.plugin_data`から構築します。
+作品・章は入力の`resources`で指定できます。省略した階層は空です。
+シナリオ内なら、先のinspect結果を参照できます。
+
+```yaml
+steps:
+  - method: inspect
+    args: [https://example.test/gallery]
+    save_as: work
+  - method: create_image_request
+    args:
+      - {$ref: work.chapters.0.images.0}
+    resources:
+      manifest: {$ref: work}
+      chapter: {$ref: work.chapters.0}
+```
+
+`transform_image`・`transform`では`resources.image`も指定します。
+`resources`の値には`$type: DownloadManifest`・`Chapter`・`ImageResource`によるDTO構築も使えます。
+明示的な`TransformContext`を引数に渡す従来の方法も利用できます。
+実行コンテキスト用の簡便な入力として、トップレベルの`plugin_data`に
+`{work: {...}, chapter: {...}}`または`$type: PluginDataView`を指定することもできます。
+この指定でも画像階層は対象画像から取り、元の共有コンテキストは変更しません。
 
 ## 試験ダウンロードと記録・再生
 

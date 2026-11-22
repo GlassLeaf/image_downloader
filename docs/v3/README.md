@@ -17,6 +17,7 @@
 | Cookie・秘密情報・プラグインを管理する | [安全な運用の手順](how-to/operate-securely.md) |
 | 資格情報を登録し、バックアップ・鍵更新を行う | [資格情報保管庫](reference/credential-vault.md) |
 | 認証・ページ分割・短命URLを実装する | [動的URLの実装手順](how-to/dynamic-urls-and-auth.md) |
+| inspectの構造化データ・認証の公開結果を後段で使う | [構造化データと認証スナップショットへの移行](how-to/structured-data-and-auth-snapshot-migration.md) |
 | 認証設定の省略・確認頻度・複数ホスト・Cookie更新を理解する | [接続先と認証方針](reference/configuration.md#config-plugin-connections)と[認証APIの移行手順](how-to/authentication-migration.md) |
 | Cookieの読込み・ブラウザインポート・認証・保存とAPIの位置を図で確認する | [Cookieと認証の流れ](explanation/authentication-and-cookie-flow.md)（[HTML版](explanation/authentication-and-cookie-flow.html)） |
 | CLIとJSONを自動処理する | [CLIリファレンス](reference/cli.md) |

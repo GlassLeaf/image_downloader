@@ -8,7 +8,7 @@ from typing import cast
 
 import pytest
 
-from image_downloader import AuthContext, AuthLease, BaseAuthFlow, DownloadRequest
+from image_downloader import AuthContext, AuthLease, BaseAuthFlow, DownloadRequest, RequestPort, SecretProvider
 from image_downloader.config import AppConfig
 from image_downloader.exceptions import HttpTransportError, PluginError
 from image_downloader.media import TransformExecutor
@@ -37,7 +37,7 @@ from image_downloader.transport.gateway import RequestGateway
 
 
 def _context() -> PluginExecutionContext:
-    return cast(PluginExecutionContext, object())
+    return PluginExecutionContext({}, {}, {}, None, cast(SecretProvider, object()), cast(RequestPort, object()))
 
 
 def test_invoker_converts_unexpected_hook_exceptions_with_plugin_and_hook_identity() -> None:

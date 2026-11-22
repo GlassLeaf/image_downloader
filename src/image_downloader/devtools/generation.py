@@ -377,7 +377,16 @@ def _replace_blocks(
 def changed_hooks(features: list[str], kind: str) -> set[str]:
     hooks = {hook for feature in features for hook in CATALOG[feature].hooks}
     groups = {
-        "inspect": {"html", "json", "pagination", "chapters", "empty-policy", "save-options", "metadata"},
+        "inspect": {
+            "html",
+            "json",
+            "pagination",
+            "chapters",
+            "empty-policy",
+            "save-options",
+            "metadata",
+            "structured-data",
+        },
         "matches": {"host"},
         "create_image_request": {"request", "short-lived", "metadata"},
         "transform" if kind == "image_processor_plugin" else "transform_image": {"transform", "history"},

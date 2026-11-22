@@ -122,14 +122,18 @@ def build_fixture(spec: dict[str, Any]) -> dict[str, Any]:
 
 def gallery_response(selected: set[str], config: dict[str, Any]) -> dict[str, Any]:
     if "json" in selected:
-        image = {"id": "image1"}
+        image: dict[str, Any] = {"id": "image1"}
         put(image, config.get("url_field", "url"), "/image.png")
-        group = {"id": "chapter1", "title": "Chapter"}
+        group: dict[str, Any] = {"id": "chapter1", "title": "Chapter"}
         put(group, config.get("images_field", "images"), [image])
         document = dict(group)
         put(document, config.get("title_field", "title"), "Fixture gallery")
         put(document, config.get("chapters_field", "chapters"), [group])
         put(document, config.get("updates_field", "updates"), [])
+        if "structured-data" in selected:
+            document["plugin_data"] = {"work_id": 42}
+            group["plugin_data"] = {"edition": {"name": "standard"}}
+            image["plugin_data"] = {"variant": "full", "dimensions": [2, 2]}
         return {"json": document}
     body = html_node(config.get("title_selector", "title"), tag="title", text="Fixture gallery")
     body += html_node(

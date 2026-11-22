@@ -208,10 +208,12 @@ template は `%CHAPTER_NUMBER%` と `%IMAGE_INDEX%` にその値を四桁ゼロ�
 | `PluginExecutionContext.config` | `Mapping[str, object]` | 選択したサイトプラグインの実効的な固有設定 |
 | `.app_settings` | `Mapping[str, object]` | 秘密情報を除いたアプリ設定。通信ヘッダー・プロキシ、セキュリティポリシー、通知、資格情報、他のプラグイン設定は含みません。 |
 | `.manifest` | `Mapping[str, object]` | 選択したプラグインのmanifestのスナップショット |
+| `.plugin_manifest` | `Mapping[str, object]` | 既存`.manifest`と同じパッケージ情報の別名 |
+| `.plugin_data` | `PluginDataView` | 対象作品・章・画像の構造化データ。下記の階層別ビューを参照 |
 | `.catalog` | `Mapping[str, object] | None` | 選択したプラグインのカタログのpin。pinなし・組込みの場合は`None`。 |
 | `.secrets` | `SecretProvider` | `get(name: str) -> str`。参照の未構成・未登録は`SecretNotFoundError`、鍵欠損・破損などの保管庫障害は`VaultError`。読取り専用。[登録方法](credential-vault.md#登録一覧削除)。 |
 | `.requests` | `RequestPort` | `await execute(RequestSpec) -> RequestResponse`。提供する通信権限はこれだけです。 |
-| `.auth` | `AuthPort` | `await ensure_ready(check=False)` で必要な初期化・更新、`check=True` で追加確認も要求する。`invalidate(response)` は同一operationの現在世代だけを無効化する。 |
+| `.auth` | `AuthPort` | `await ensure_ready(check=False)` で必要な初期化・更新、`check=True` で追加確認も要求する。`invalidate(response)` は同一operationの現在世代だけを無効化する。同期の`snapshot()`は通信せず現在の認証結果を返す。 |
 | `.endpoints` | `Mapping[str, Endpoint]` | 宣言済み接続先の読取り専用mapping。`.request(path, **kwargs)` で `RequestSpec` を構築する。`operation` は自動的に用意する。 |
 | `.get_cookies(*, domain=None, path=None)` | `dict` | 共有Cookie jarの現在値を同期取得する。domain/pathは保存属性との完全一致。返却階層は下記を参照。 |
 | `PluginFormatContext.plugin_id`, `.plugin_kind`, `.operation_url` | `str` | 出力書式値を提供しているプラグインの識別情報と操作URL。マッピングは画像・章・成果物ではなく、操作中に変わらないこのコンテキストだけに依存します。 |
@@ -219,6 +221,7 @@ template は `%CHAPTER_NUMBER%` と `%IMAGE_INDEX%` にその値を四桁ゼロ�
 | `TransformContext.image_id` | `str | None` | 元の`ImageResource.image_id` |
 | `.index` | `int` | 元の画像のindex |
 | `.image_metadata` | `Mapping[str, str]` | 元の`ImageResource.metadata`にある、不変かつ非秘密の検査時メタデータ |
+| `.plugin_data` | `PluginDataView` | サイト変換・プロセッサー共通の作品・章・画像の不変データ。追加許可なしで共有 |
 | `.transport_metadata` | `ImageTransportMetadata | None` | 画像取得成功時の、変換専用のスナップショット。サイト側の変換には生の値を渡します。プロセッサーには、`image_processors.transport_metadata_access`で選択サイトのIDを明示的に許可した場合だけ生の値を渡し、それ以外は`is_redacted=True`の同じ型のスナップショットを渡します。 |
 | `.config`, `.app_settings`, `.plugin_manifest`, `.catalog` | 上記と同じマッピング型 | 現在のプラグインの、プロセッサー・サイト変換用メタデータ |
 | `.site_manifest`, `.site_catalog` | `Mapping[str, object] | None` | 選択したサイトのメタデータ。別途サイトのメタデータがない場合はnullを許可します。 |
@@ -247,7 +250,32 @@ template は `%CHAPTER_NUMBER%` と `%IMAGE_INDEX%` にその値を四桁ゼロ�
 
 認証用通信の送信先はoperationの既定originを含む宣言済みoriginに限り、リダイレクト先も制限する。`AuthMode.NONE` でもこの制限は外れない。cross-origin redirectでは通常の非認証経路と同じヘッダー除去・本文転送制限を使う。Bearer等が必要なら認証フック側で明示し、Cookieは共有jarから通常どおり送信する。[Cookieログインの更新経路](../how-to/authentication-migration.md#cookie-session-refresh)を参照する。
 
-`AuthLease` の期限はコアが単調時計で管理し、期限不明なら `expires_in_seconds=None` とする。`verify()` がVALIDでleaseを省略した場合は既存期限を維持する。確認時刻と資格情報の世代は接続先ごとに分けず、operationで共有する。`verify_before_request` は要求の認証準備時に作用し、低層transport内部の再試行・redirect各hopでは追加実行しない。
+`AuthLease` の期限はコアが単調時計で管理し、期限不明なら `expires_in_seconds=None` とする。`verify()` がVALIDでleaseを省略した場合は既存期限を維持する。keyword-onlyの`public_data: Mapping[str, object] | None = None`には非秘密の認証結果を返せる。構造化データと同じ検証・不変化を行う。確認時刻と資格情報の世代は接続先ごとに分けず、operationで共有する。`verify_before_request` は要求の認証準備時に作用し、低層transport内部の再試行・redirect各hopでは追加実行しない。
+
+<a id="auth-snapshot"></a>
+
+### 認証スナップショット
+
+`AuthPort.snapshot() -> AuthSnapshot`は同期・通信なしの状態参照であり、初期化・検証・更新を実行しない。
+`PluginExecutionContext.auth`だけで利用でき、`TransformContext`には公開しない。
+現在のサーバー状態を確認するには先に`await context.auth.ensure_ready(check=True)`を呼ぶ。
+
+| フィールド | 意味 |
+| --- | --- |
+| `flow_configured` | 認証フローが設定されているか |
+| `credentials_ready` | 初期化済みで、無効化・期限更新が必要な状態・失敗・終了により利用不能でないか。認証不要の場合はFalse |
+| `last_verified_status` | 現在世代で最後に`verify()`が返した`AuthStatus`。未確認・再認証後はUNKNOWN |
+| `generation` | コア管理の認証世代。初期化前は0、初期化・再認証成功ごとに進む |
+| `remaining_seconds` | 単調時計から計算した残り秒数。期限不明はNone、超過は0。更新猶予内は正の残り時間でもreadyはFalse |
+| `public_data` | 利用可能な認証結果の読取り専用mapping。利用不能時は空 |
+
+初期化・再認証成功では期限と公開情報をまとめて更新し、`public_data=None`なら空にする。
+初期化成功は追加検証の成功を意味しない。VALIDな検証がleaseを返さなければ期限・公開情報を維持する。
+leaseがあると期限を更新し、公開情報はNoneなら維持、mappingなら全置換、空mappingなら消去する。
+無効化・期限更新が必要な状態・失敗・終了では公開ビューを空にする。古い世代の応答による無効化は無視する。
+返したスナップショットは後から変化せず、認証情報は操作をまたいで永続化しない。
+公開情報も非秘密データとし、変換で必要なら要求時の既存の受け渡し経路に明示的に載せる。
+[モック認証サンプル](../../../examples/plugin-v3-auth-snapshot/README.md)を参照する。
 
 HTTP 401と403の扱いはプラグインが上書きできる。応答分類は `AUTH_FAILURE`、`NOT_AUTH_FAILURE`、`UNKNOWN`。既定の401は認証失敗、403はUNKNOWN、その他は認証更新対象外で、プラグインが上書きできる。UNKNOWNでは `verify()` により追加確認し、INVALIDなら更新、VALIDなら通常処理、不明なら `AuthStateUnknownError`。要求は認証準備、apply、通信、分類、必要なら更新・再試行、その後HTTP status `>=400`なら最大一回の `recover_image_request` の順。認証再試行は `network.auth_refresh_attempts` 回まで。非冪等要求の再送には `retry_non_idempotent=True` が必要。フローがなければ401/403も通常のHTTPエラーとなる。
 
@@ -259,7 +287,7 @@ NOT_AUTH_FAILUREは認証済みの証明ではなく、その応答を認証更�
 
 要求を返す画像フックでは画像本体のURLを構築する。JSON一覧・署名APIの要求なら `context.requests.execute()` に渡して解析し、画像本体の要求を返す。絶対URLで直接構築した要求も同じoriginの認証方針を通し、接続先の名前による別セッションやURLの自動書換えはない。[実装例](../how-to/dynamic-urls-and-auth.md#endpoint-image-requests)を参照する。
 
-invoker は manifest、chapter/image index、plugin-returned `ImageResource.url` と `ImageArtifact.source_url` の **空でない文字列のlocator**、`ImageResource.original_filename` の非空・path separator なし string、`ImageResource.metadata` と `ImageFetchRequest.plugin_data` の string mapping、`RequestSpec.url` と referer の absolute HTTP(S) **構文**、hook return class、nested DTO、cleanup return を検証する。`ImageResource` constructor 自体は URL を検査しない。locator は plugin が `create_image_request` で実 request を組み立てるのに十分に安定していなければならない。`image_id`、image metadata、manifest metadata、`original_filename` は inspection-time の非秘密値だけにし、token、cookie、署名 URL、鍵などを含めてはならない。`plugin_data` は request-time の transform 専用値であり、必要最小限にして artifact/result/event/log へ自分でコピーしてはならない。plugin は `ImageSaveOptions(format="ORIGINAL")` により core の再エンコードを止められる。この指定は extension/encoder field と併用できず、site transform/processor 後の artifact bytes を保存する。core は locator の意味を解釈せず、`RequestSpec(url=image.url)` が HTTP(S) でなければ fetch 前に失敗する。予期しない hook exception と contract violation は plugin ID と hook 名を持つ `PluginError` に変換し、`asyncio.CancelledError` は再送出する。core fetch/process/save failure を plugin 内で握りつぶしてはならない。
+invoker は manifest、chapter/image index、plugin-returned `ImageResource.url` と `ImageArtifact.source_url` の **空でない文字列のlocator**、`ImageResource.original_filename` の非空・path separator なし string、`ImageResource.metadata` と `ImageFetchRequest.plugin_data` の string mapping、`RequestSpec.url` と referer の absolute HTTP(S) **構文**、hook return class、nested DTO、cleanup return を検証する。`ImageResource` constructor 自体は URL を検査しない。locator は plugin が `create_image_request` で実 request を組み立てるのに十分に安定していなければならない。`image_id`、image metadata、manifest metadata、`original_filename` は inspection-time の非秘密値だけにし、token、cookie、署名 URL、鍵などを含めてはならない。`ImageFetchRequest.plugin_data` は request-time の transform 専用値であり、必要最小限にして artifact/result/event/log へ自分でコピーしてはならない。plugin は `ImageSaveOptions(format="ORIGINAL")` により core の再エンコードを止められる。この指定は extension/encoder field と併用できず、site transform/processor 後の artifact bytes を保存する。core は locator の意味を解釈せず、`RequestSpec(url=image.url)` が HTTP(S) でなければ fetch 前に失敗する。予期しない hook exception と contract violation は plugin ID と hook 名を持つ `PluginError` に変換し、`asyncio.CancelledError` は再送出する。core fetch/process/save failure を plugin 内で握りつぶしてはならない。
 
 ```python
 async def create_image_request(self, image, context):
@@ -405,7 +433,8 @@ HTTP(S) 以外、SSE/WebSocket、JavaScript/DOM/headless browser、CAPTCHA、int
 プラグインの変換内部でawaitできることは別である。
 
 HTTP・認証・秘密情報の取得は既存のinspect/request/authフックで行う。非秘密な補助情報は
-`ImageResource.metadata`、要求時に得た変換専用の値は `ImageFetchRequest.plugin_data` で渡す。
+各DTOの`plugin_data`（`context.plugin_data`）、既存の文字列データは`ImageResource.metadata`、
+要求時に得た変換専用の値は `ImageFetchRequest.plugin_data` で渡す。
 `TransformContext` はnetwork/secret capabilityを持たず、別フックのcontextやraw HTTP clientを
 変換へ持ち込んでこの境界を迂回してはならない。
 
@@ -419,3 +448,37 @@ HTTP・認証・秘密情報の取得は既存のinspect/request/authフック�
 変換から戻った後にstateを書き換える未回収のtaskや独自スレッドを残してはならない。
 実行中の変換は、呼び出し側のキャンセル後も終了まで回収してからcleanupする。
 詳細と移行手順は[同期画像変換への移行](../maintenance/synchronous-image-transforms.md)を参照する。
+
+<a id="structured-plugin-data"></a>
+
+## 構造化データと統一参照ビュー
+
+`DownloadManifest`・`Chapter`・`ImageResource`はkeyword-onlyの
+`plugin_data: Mapping[str, object]`を持ち、既定値は空mapping。
+非秘密のJSON相当データとして、文字列キー、文字列・数値・真偽値・null・配列・入れ子mappingを受け付ける。
+DTO作成時にコピーして再帰的に不変化し、配列はtupleになる。
+bytes・任意のPythonオブジェクト・循環参照・非有限数・非文字列キーは拒否する。
+型違反はTypeError、循環・非有限数はValueErrorで、フック内の構築失敗は通常のPluginError経路に従う。
+
+`PluginDataView(work, chapter, image)`の三つのmappingはそれぞれ上記DTOのデータを表す。
+階層間の自動マージや優先順位はない。公開コンストラクターはコピー・不変化し、
+`PluginDataView.from_resources(manifest=None, chapter=None, image=None)`は検証済みDTOの不変データを共有する。
+コアの画像ごとのビュー構築は深いコピーを行わない。
+
+画像要求・回復、サイト変換・プロセッサーには対象画像に対応する三階層を渡す。
+追加ファイルフックと受信・保存コールバックにも対象の階層を渡す。
+作品・章・画像が未確定の階層は空。inspect開始前・更新確認は空ビューとなる。
+BEFORE_MANIFESTの受信は空、manifest確定後の各章への保存コールバックは対象作品・章を持つ。
+呼び出しごとにコンテキストを用意し、並行する画像で共有コンテキストを書き換えない。
+非秘密データとしてプロセッサーへ共有し、新しい許可設定は追加しない。
+
+既存`metadata`は文字列mappingとして維持し、自動移動しない。
+`ImageFetchRequest.plugin_data`の文字列mappingと`transport_metadata`の公開制御も維持する。
+詳細inspect JSONのallでは非空の`plugin_data`だけ各階層に含める。
+ログの要約・項目選択・保存モード・長さ制限は変更せず、ログ削減を保証しない。
+操作をまたぐストアは提供しない。
+
+公開定数`PLUGIN_API_FEATURES`は`structured_plugin_data`・`auth_snapshot`を含むfrozenset。
+新機能を使うプラグインはvalidate_configなど通信前の段階で対応を確認する。
+既存プラグインの一斉移行や非推奨警告は行わない。
+配置表・新旧コード例・配布順序は[移行ガイド](../how-to/structured-data-and-auth-snapshot-migration.md)を参照する。

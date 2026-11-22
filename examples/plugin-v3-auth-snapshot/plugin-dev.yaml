@@ -1,0 +1,7 @@
+target: plugin.py
+sample_url: https://auth-snapshot.example.test/gallery
+secrets:
+  username: mock-user
+  password: mock-password
+scenarios:
+  - scenario.yaml

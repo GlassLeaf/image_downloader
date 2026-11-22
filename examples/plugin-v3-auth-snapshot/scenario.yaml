@@ -1,0 +1,8 @@
+steps:
+  - method: inspect
+    args: [https://auth-snapshot.example.test/gallery]
+    save_as: work
+  - method: create_image_request
+    args:
+      - {$ref: work.chapters.0.images.0}
+    save_as: request

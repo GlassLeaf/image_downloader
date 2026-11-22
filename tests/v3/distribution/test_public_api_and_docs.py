@@ -36,6 +36,7 @@ INVENTORY = re.compile(
 EXPECTED_EXPORTS = {
     "image_downloader": tuple(
         """
+        PLUGIN_API_FEATURES PluginDataView AuthSnapshot
         WorkflowStateFormatError WorkflowStateConflictError WorkflowTargetStatus WorkflowTargetSelector
         WorkflowTargetRecord WorkflowTargetChange WorkflowTargetChangePlan WorkflowTargetChangeResult
         DownloadRequest InspectRequest UpdateCheckRequest WorkflowPlanRequest WorkflowRequest

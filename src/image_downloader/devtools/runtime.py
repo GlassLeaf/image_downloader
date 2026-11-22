@@ -28,6 +28,7 @@ from ..models import (
     Chapter,
     DownloadManifest,
     ImageResource,
+    PluginDataView,
 )
 from ..observability.events import EventBus
 from ..observability.logging import DownloadLogger
@@ -381,6 +382,7 @@ class DevelopmentSession:
                         args.append(defaults[key])
                     else:
                         kwargs[name] = defaults[key]
+            args, kwargs = self._bind_plugin_data(signature, args, kwargs, inputs, root or self.workspace)
         try:
             signature.bind(*args, **kwargs)
         except TypeError as exc:
@@ -427,6 +429,49 @@ class DevelopmentSession:
         except BaseException as exc:
             self.output.event("method_failed", method=method, error=exc)
             raise
+
+    def _bind_plugin_data(
+        self, signature: inspect.Signature, args: list[Any], kwargs: dict[str, Any], inputs: dict[str, Any], root: Path
+    ) -> tuple[list[Any], dict[str, Any]]:
+        bound = signature.bind_partial(*args, **kwargs)
+        resources = decode_input(inputs.get("resources", {}), root=root, refs=self.refs)
+        if not isinstance(resources, dict) or set(resources) - {"manifest", "chapter", "image"}:
+            raise DevelopmentInputError("resources must contain manifest, chapter and/or image")
+        try:
+            resource_view = PluginDataView.from_resources(**resources)
+            supplied = decode_input(inputs.get("plugin_data"), root=root, refs=self.refs)
+            view = PluginDataView(**supplied) if isinstance(supplied, dict) else supplied
+        except (TypeError, ValueError) as exc:
+            raise DevelopmentInputError(str(exc)) from exc
+        if supplied is not None and not isinstance(supplied, (PluginDataView, dict)):
+            raise DevelopmentInputError("plugin_data must be a scoped mapping or PluginDataView")
+        image = bound.arguments.get("image", resources.get("image"))
+        for name, context in bound.arguments.items():
+            if name.lstrip("_") == "context" and isinstance(context, PluginExecutionContext):
+                data = view if view is not None else resource_view if resources else context.plugin_data
+                if isinstance(image, ImageResource):
+                    data = data._with_image(image)
+                bound.arguments[name] = context._with_plugin_data(data)
+            elif name.lstrip("_") == "context" and isinstance(context, TransformContext):
+                if view is not None:
+                    raise DevelopmentInputError("transform inputs use resources or an explicit TransformContext")
+                if resources:
+                    resource_image = image if isinstance(image, ImageResource) else ImageResource("debug:image")
+                    chapter = resources.get("chapter") or Chapter(1, "Debug", images=(resource_image,))
+                    manifest = resources.get("manifest") or DownloadManifest("Debug", (chapter,))
+                    bound.arguments[name] = TransformContext(
+                        resource_image,
+                        context.config,
+                        context.app_settings,
+                        context.plugin_manifest,
+                        context.catalog,
+                        manifest,
+                        chapter,
+                        site_manifest=context.site_manifest,
+                        site_catalog=context.site_catalog,
+                        transport_metadata=context.transport_metadata,
+                    )
+        return list(bound.args), dict(bound.kwargs)
 
     async def _call_callback(self, target: Any, method: str, callback: Any, args: Any, kwargs: Any) -> Any:
         if target is self.instance and method in {"transform_image", "transform"}:

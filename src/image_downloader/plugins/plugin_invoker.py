@@ -10,6 +10,7 @@ from typing import TypeVar
 from urllib.parse import urlparse
 
 from ..exceptions import ImageDownloaderError, PluginError
+from ..immutable import freeze_plugin_data
 from ..media.transform_executor import TransformExecutor
 from ..models import (
     AuthDecision,
@@ -328,19 +329,35 @@ class PluginInvoker:
         value = await self._invoke_async("auth_initialize", lambda: flow.initialize(context))
         if not isinstance(value, AuthLease):
             raise self._error("auth_initialize", "initialize must return AuthLease")
+        self._validate_auth_data("auth_initialize", value)
         return value
 
     async def refresh_auth(self, flow: AuthFlow, context: AuthContext) -> AuthLease:
         value = await self._invoke_async("auth_refresh", lambda: flow.refresh(context))
         if not isinstance(value, AuthLease):
             raise self._error("auth_refresh", "refresh must return AuthLease; refresh(failed, response) was removed")
+        self._validate_auth_data("auth_refresh", value)
         return value
 
     async def verify_auth(self, flow: AuthFlow, context: AuthContext) -> AuthVerification:
         value = await self._invoke_async("auth_verify", lambda: flow.verify(context))
         if not isinstance(value, AuthVerification):
             raise self._error("auth_verify", "verify must return AuthVerification")
+        if value.lease is not None:
+            if not isinstance(value.lease, AuthLease):
+                raise self._error("auth_verify", "verification lease must be AuthLease")
+            self._validate_auth_data("auth_verify", value.lease)
         return value
+
+    def _validate_auth_data(self, hook: str, lease: AuthLease) -> None:
+        if lease.public_data is not None:
+            self._validate_plugin_data(hook, lease.public_data)
+
+    def _validate_plugin_data(self, hook: str, data: Mapping[str, object]) -> None:
+        try:
+            freeze_plugin_data(data)
+        except (TypeError, ValueError, RecursionError) as exc:
+            raise self._error(hook, "invalid structured plugin data") from exc
 
     def classify_auth(self, flow: AuthFlow, request: RequestSpec, response: RequestResponse) -> AuthDecision:
         value = self._invoke_sync("auth_classify_response", lambda: flow.classify_response(request, response))
@@ -352,6 +369,7 @@ class PluginInvoker:
         if not isinstance(value, DownloadManifest):
             raise self._error(hook, "inspect must return DownloadManifest")
         self._validate_publication(hook, value)
+        self._validate_plugin_data(hook, value.plugin_data)
         if not isinstance(value.title, str):
             raise self._error(hook, "inspect returned an invalid title")
         optional_text = (value.content_id, value.author, value.access, value.revision)
@@ -368,6 +386,7 @@ class PluginInvoker:
 
     def _validate_chapter(self, hook: str, chapter: Chapter, chapter_index: int) -> None:
         self._validate_publication(hook, chapter)
+        self._validate_plugin_data(hook, chapter.plugin_data)
         if isinstance(chapter.number, bool) or not isinstance(chapter.number, int) or chapter.number < 0:
             raise self._error(hook, f"inspect returned an invalid chapter number at chapters[{chapter_index}]")
         if not isinstance(chapter.title, str) or not isinstance(chapter.subtitle, str):
@@ -389,6 +408,7 @@ class PluginInvoker:
             raise self._error(hook, "inspect returned invalid publication fields") from exc
 
     def _validate_image(self, hook: str, image: ImageResource, chapter_index: int, image_index: int) -> None:
+        self._validate_plugin_data(hook, image.plugin_data)
         path = f"chapters[{chapter_index}].images[{image_index}]"
         self._validate_locator(hook, image.url, f"inspect returned an invalid image locator at {path}")
         if isinstance(image.index, bool) or not isinstance(image.index, int) or image.index < 0:

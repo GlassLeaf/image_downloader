@@ -13,6 +13,7 @@ from ..exceptions import (
     ConfigurationError,
 )
 from ..models import (
+    AuthSnapshot,
     DownloadManifest,
     RequestResponse,
     RequestSpec,
@@ -75,6 +76,9 @@ class _PluginAuth:
 
     def invalidate(self, response: RequestResponse) -> bool:
         return self._gateway.auth.invalidate(response)
+
+    def snapshot(self) -> AuthSnapshot:
+        return self._gateway.auth.snapshot()
 
 
 @dataclass(frozen=True, slots=True)

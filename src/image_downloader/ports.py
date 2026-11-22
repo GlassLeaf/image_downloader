@@ -5,6 +5,7 @@ from __future__ import annotations
 import inspect
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
+from copy import copy
 from dataclasses import dataclass
 from typing import Any, Protocol, TypeGuard, cast, overload, runtime_checkable
 from urllib.parse import urlsplit
@@ -19,6 +20,7 @@ from .models import (
     AdditionalFileSpec,
     AuthDecision,
     AuthLease,
+    AuthSnapshot,
     AuthStatus,
     AuthVerification,
     Chapter,
@@ -27,6 +29,7 @@ from .models import (
     ImageFetchRequest,
     ImageResource,
     ImageTransportMetadata,
+    PluginDataView,
     RequestResponse,
     RequestSpec,
     UpdateSnapshot,
@@ -43,6 +46,7 @@ class RequestPort(Protocol):
 class AuthPort(Protocol):
     async def ensure_ready(self, *, check: bool = False) -> None: ...
     def invalidate(self, response: RequestResponse) -> bool: ...
+    def snapshot(self) -> AuthSnapshot: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,6 +97,7 @@ class PluginExecutionContext:
         "_cookie_provider",
         "_auth",
         "_endpoints",
+        "_plugin_data",
     )
 
     def __init__(
@@ -107,6 +112,7 @@ class PluginExecutionContext:
         cookie_provider: CookieProvider | None = None,
         auth: AuthPort | None = None,
         endpoints: Mapping[str, Endpoint] | None = None,
+        plugin_data: PluginDataView | None = None,
     ) -> None:
         self._config = _readonly_mapping(config)
         self._app_settings = _readonly_mapping(app_settings)
@@ -117,6 +123,22 @@ class PluginExecutionContext:
         self._cookie_provider = cookie_provider
         self._auth = auth
         self._endpoints = freeze_mapping(endpoints)
+        if plugin_data is not None and not isinstance(plugin_data, PluginDataView):
+            raise TypeError("plugin_data must be PluginDataView or None")
+        self._plugin_data = plugin_data if plugin_data is not None else PluginDataView()
+
+    def _with_plugin_data(self, view: PluginDataView) -> PluginExecutionContext:
+        context = copy(self)
+        context._plugin_data = view
+        return context
+
+    @property
+    def plugin_data(self) -> PluginDataView:
+        return self._plugin_data
+
+    @property
+    def plugin_manifest(self) -> Mapping[str, object]:
+        return self._manifest
 
     @overload
     def get_cookies(self, *, domain: None = None, path: None = None) -> dict[str, dict[str, dict[str, str]]]: ...
@@ -280,6 +302,7 @@ class TransformContext:
         "_site_catalog",
         "_manifest",
         "_chapter",
+        "_plugin_data",
     )
 
     def __init__(
@@ -311,6 +334,11 @@ class TransformContext:
         self._site_catalog = _readonly_mapping(site_catalog) if site_catalog is not None else None
         self._manifest = manifest
         self._chapter = chapter
+        self._plugin_data = PluginDataView.from_resources(manifest, chapter, image)
+
+    @property
+    def plugin_data(self) -> PluginDataView:
+        return self._plugin_data
 
     @property
     def image_id(self) -> str | None:

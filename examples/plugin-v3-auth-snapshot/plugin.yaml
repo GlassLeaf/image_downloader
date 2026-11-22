@@ -1,0 +1,3 @@
+config: {}
+authentication:
+  refresh_skew_seconds: 0

@@ -57,9 +57,9 @@
 
 | DTO | 宣言されたコンストラクター・フィールド |
 | --- | --- |
-| `Chapter` | `Chapter(number: int, title: str, subtitle: str = "", images: tuple[ImageResource, ...] = (), chapter_id: str | None = None, *, allow_empty_images: bool | None = None, published_at: str | None = None, publication_date: str | None = None, log_fields: Mapping[str, str] = <factory: freeze_mapping>)` |
+| `Chapter` | `Chapter(number: int, title: str, subtitle: str = "", images: tuple[ImageResource, ...] = (), chapter_id: str | None = None, *, allow_empty_images: bool | None = None, published_at: str | None = None, publication_date: str | None = None, log_fields: Mapping[str, str] = <factory: freeze_mapping>, plugin_data: Mapping[str, object] = <factory: freeze_mapping>)` |
 | `ChapterResult` | `ChapterResult(chapter: Chapter, outcomes: tuple[ImageOutcome, ...])` |
-| `DownloadManifest` | `DownloadManifest(title: str, chapters: tuple[Chapter, ...], content_id: str | None = None, author: str | None = None, access: str | None = None, revision: str | None = None, metadata: Mapping[str, str] = <factory: freeze_mapping>, *, allow_empty_chapters: bool | None = None, published_at: str | None = None, publication_date: str | None = None, log_fields: Mapping[str, str] = <factory: freeze_mapping>)` |
+| `DownloadManifest` | `DownloadManifest(title: str, chapters: tuple[Chapter, ...], content_id: str | None = None, author: str | None = None, access: str | None = None, revision: str | None = None, metadata: Mapping[str, str] = <factory: freeze_mapping>, *, allow_empty_chapters: bool | None = None, published_at: str | None = None, publication_date: str | None = None, log_fields: Mapping[str, str] = <factory: freeze_mapping>, plugin_data: Mapping[str, object] = <factory: freeze_mapping>)` |
 | `DownloadResult` | `DownloadResult(source_url: str, manifest: DownloadManifest, chapters: tuple[ChapterResult, ...], additional_files: tuple[AdditionalFileOutcome, ...] = ())` |
 | `AdditionalFileSpec` | `AdditionalFileSpec(file_id: str, relative_path: str, request: RequestSpec | None = None, data: bytes | None = None)` |
 | `AdditionalFileHookContext` | `AdditionalFileHookContext(point: AdditionalFileHookPoint, operation_id: str, attempt_number: int, operation_url: str, invocation_id: str = "", manifest: DownloadManifest | None = None, chapter: Chapter | None = None, image: ImageResource | None = None, response: RequestResponse | None = None, artifact: ImageArtifact | None = None, image_outcome: ImageOutcome | None = None, chapter_result: ChapterResult | None = None)` |
@@ -74,7 +74,8 @@
 | `ManifestInspectionResult` | `ManifestInspectionResult(source_url: str, plugin_id: str, manifest: DownloadManifest, request_resolution_performed: bool, image_requests: tuple[ImageRequestResolution, ...] = ())`; `failures -> tuple[ImageRequestResolution, ...]` プロパティ |
 | `ImageFailure` | `ImageFailure(kind: FailureKind, exception_type: str, message: str, code: str = "unexpected_image_failure", reason: str = "unexpected image failure", response_url: str | None = None, http_status: int | None = None, output_path: str | None = None, transport: str | None = None)` |
 | `ImageOutcome` | `ImageOutcome(image: ImageResource, kind: ImageOutcomeKind, path: str | None = None, failure: ImageFailure | None = None)` |
-| `ImageResource` | `ImageResource(url: str, index: int = 1, referer: str | None = None, headers: Mapping[str, str] = <factory: freeze_mapping>, save_options: ImageSaveOptions = <factory: ImageSaveOptions>, image_id: str | None = None, metadata: Mapping[str, str] = <factory: freeze_mapping>, original_filename: str | None = None)` |
+| `ImageResource` | `ImageResource(url: str, index: int = 1, referer: str | None = None, headers: Mapping[str, str] = <factory: freeze_mapping>, save_options: ImageSaveOptions = <factory: ImageSaveOptions>, image_id: str | None = None, metadata: Mapping[str, str] = <factory: freeze_mapping>, original_filename: str | None = None, *, plugin_data: Mapping[str, object] = <factory: freeze_mapping>)` |
+| `PluginDataView` | `PluginDataView(work: Mapping[str, object] = <factory: freeze_mapping>, chapter: Mapping[str, object] = <factory: freeze_mapping>, image: Mapping[str, object] = <factory: freeze_mapping>)`。`from_resources(manifest: DownloadManifest | None = None, chapter: Chapter | None = None, image: ImageResource | None = None) -> PluginDataView`は検証済みDTOの不変データを共有する。 |
 | `ImageSaveOptions` | `ImageSaveOptions(format: str | None = None, extension: str | None = None, quality: int | None = None, optimize: bool | None = None, progressive: bool | None = None, lossless: bool | None = None, compress_level: int | None = None, exif: bool = False)` |
 | `ImageTransportMetadata` | `ImageTransportMetadata(initial_request: TransportRequestMetadata, final_request: TransportRequestMetadata, response_url: str, response_headers: Mapping[str, tuple[str, ...]], plugin_data: Mapping[str, str] = <factory: freeze_mapping>, is_redacted: bool = False)` |
 | `RequestSpec` | `RequestSpec(url: str, method: str = "GET", headers: Mapping[str, str] = <factory: freeze_mapping>, cookies: Mapping[str, str] = <factory: freeze_mapping>, referer: str | None = None, query: Mapping[str, str] = <factory: freeze_mapping>, form: Mapping[str, str] = <factory: freeze_mapping>, json: object | None = None, auth: AuthMode = AuthMode.AUTO, retry_non_idempotent: bool = False)` |
@@ -362,7 +363,8 @@
 
 | 型 | シグネチャ・値 |
 | --- | --- |
-| `AuthLease` | `AuthLease(expires_in_seconds: float | None = None)` |
+| `AuthLease` | `AuthLease(expires_in_seconds: float | None = None, *, public_data: Mapping[str, object] | None = None)` |
+| `AuthSnapshot` | `AuthSnapshot(flow_configured: bool = False, credentials_ready: bool = False, last_verified_status: AuthStatus = AuthStatus.UNKNOWN, generation: int = 0, remaining_seconds: float | None = None, public_data: Mapping[str, object] = <factory: freeze_mapping>)` |
 | `AuthVerification` | `AuthVerification(status: AuthStatus, lease: AuthLease | None = None)` |
 | `AuthReceipt` | `AuthReceipt(operation_id: str, generation: int)` |
 | `AuthContext` | `AuthContext(config: Mapping[str, object], secrets: SecretProvider, endpoints: Mapping[str, Endpoint], requests: RequestPort)` |
@@ -371,4 +373,4 @@
 | `AuthDecision` | `AUTH_FAILURE="auth_failure"`, `NOT_AUTH_FAILURE="not_auth_failure"`, `UNKNOWN="unknown"` |
 | `AuthStatus` | `VALID="valid"`, `INVALID="invalid"`, `UNKNOWN="unknown"` |
 
-`PluginExecutionContext` の追加keyword引数は `auth: AuthPort | None = None` と `endpoints: Mapping[str, Endpoint] | None = None`。`context.auth` は `async ensure_ready(*, check: bool = False) -> None` と `invalidate(response: RequestResponse) -> bool`、`context.endpoints` は読み取り専用mappingを提供する。`AuthFlow` と `BaseAuthFlow` のフックは[認証契約](plugin-hooks.md)を参照する。
+`PluginExecutionContext` の追加keyword引数は `auth: AuthPort | None = None`、`endpoints: Mapping[str, Endpoint] | None = None`、`plugin_data: PluginDataView | None = None`。`.plugin_data`は空が既定の`PluginDataView`、`.plugin_manifest`は既存`.manifest`の別名。`context.auth` は `async ensure_ready(*, check: bool = False) -> None`、`invalidate(response: RequestResponse) -> bool`、同期・通信なしの`snapshot() -> AuthSnapshot`、`context.endpoints` は読み取り専用mappingを提供する。`TransformContext.plugin_data`は引数の作品・章・画像DTOから構築する。`AuthFlow` と `BaseAuthFlow` のフックは[認証契約](plugin-hooks.md)を参照する。公開定数`PLUGIN_API_FEATURES: frozenset[str]`は`structured_plugin_data`・`auth_snapshot`を含む。

@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import replace
 
+import image_downloader as plugin_api
 from image_downloader import ImageArtifact, TransformContext
 
 
@@ -13,10 +14,15 @@ class MetadataBridgeProcessor:
 
     def validate_config(self, config: Mapping[str, object], app_settings: Mapping[str, object]) -> None:
         del app_settings
+        if "structured_plugin_data" not in getattr(plugin_api, "PLUGIN_API_FEATURES", ()):
+            raise ValueError("metadata bridge requires a runtime with structured_plugin_data")
         if config:
             raise ValueError("metadata bridge processor does not accept configuration")
 
     def transform(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:
+        # Inspection-time structured data is shared independently of transport permissions.
+        if context.plugin_data.image.get("variant") not in {"full", "preview"}:
+            return replace(artifact, history=(*artifact.history, "metadata-bridge:no-structured-data"))
         metadata = context.transport_metadata
         if metadata is None:
             return replace(artifact, history=(*artifact.history, "metadata-bridge:no-transport-metadata"))

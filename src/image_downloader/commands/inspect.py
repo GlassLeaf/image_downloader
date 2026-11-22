@@ -139,6 +139,7 @@ def _full_manifest_json(result: ManifestInspectionResult) -> dict[str, object]:
         "access": manifest.access,
         "revision": manifest.revision,
         "metadata": dict(manifest.metadata),
+        **({"plugin_data": thaw_json(manifest.plugin_data)} if manifest.plugin_data else {}),
         **_publication_json(manifest),
         **(
             {"allow_empty_chapters": manifest.allow_empty_chapters} if manifest.allow_empty_chapters is not None else {}
@@ -149,6 +150,7 @@ def _full_manifest_json(result: ManifestInspectionResult) -> dict[str, object]:
                 "title": chapter.title,
                 "subtitle": chapter.subtitle,
                 "chapter_id": chapter.chapter_id,
+                **({"plugin_data": thaw_json(chapter.plugin_data)} if chapter.plugin_data else {}),
                 **_publication_json(chapter),
                 **(
                     {"allow_empty_images": chapter.allow_empty_images} if chapter.allow_empty_images is not None else {}
@@ -162,6 +164,7 @@ def _full_manifest_json(result: ManifestInspectionResult) -> dict[str, object]:
                         "save_options": _save_options_json(image.save_options),
                         "image_id": image.image_id,
                         "metadata": dict(image.metadata),
+                        **({"plugin_data": thaw_json(image.plugin_data)} if image.plugin_data else {}),
                         "original_filename": image.original_filename,
                     }
                     for image in chapter.images

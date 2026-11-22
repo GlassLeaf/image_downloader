@@ -27,6 +27,7 @@ async def fetch_image(
     image: ImageResource,
     context: PluginExecutionContext,
 ) -> ImageFetchResult:
+    context = context._with_plugin_data(context.plugin_data._with_image(image))
     resolution = _image_fetch_request(await invoker.create_image_request(plugin, image, context))
     trace = _TransportTrace()
 

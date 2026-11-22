@@ -1,0 +1,19 @@
+requests:
+  - match:
+      url: https://auth-snapshot.example.test/api/login
+      method: POST
+    responses:
+      - json: {access_token: first-mock-token, user_id: user-1, expires_in: 3600}
+      - json: {access_token: second-mock-token, user_id: user-2, expires_in: 7200}
+  - match:
+      url: https://auth-snapshot.example.test/api/gallery?user_id=user-1
+    response:
+      json:
+        title: Mock gallery
+        images: [/images/cover.png]
+  - match:
+      url: https://auth-snapshot.example.test/images/cover.png
+    responses:
+      - status: 401
+      - headers: {content-type: image/png}
+        body_base64: iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=

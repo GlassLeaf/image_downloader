@@ -21,6 +21,7 @@ from ..models import (
     AdditionalFileSpec,
     DownloadManifest,
     DownloadResult,
+    PluginDataView,
     RequestSpec,
 )
 from ..observability.diagnostic_safety import best_effort_diagnostic
@@ -176,7 +177,7 @@ class AdditionalFiles:
                 return
             if not callable(callback):
                 raise PluginError("additional file callback must be callable")
-            value = callback(result, self.context)
+            value = callback(result, self._context_for(result.hook))
             if not inspect.isawaitable(value):
                 raise PluginError("additional file callback must be async")
             if await value is not None:
@@ -190,7 +191,7 @@ class AdditionalFiles:
             return
         hook = self.hook(point, **values)
         try:
-            specs = await cast(AdditionalFileProvider, self.plugin).additional_files(hook, self.context)
+            specs = await cast(AdditionalFileProvider, self.plugin).additional_files(hook, self._context_for(hook))
             if not isinstance(specs, tuple):
                 raise PluginError("additional file hook must return a tuple")
         except Exception as exc:
@@ -198,6 +199,9 @@ class AdditionalFiles:
             return
         for spec in specs:
             await self.process(hook, spec)
+
+    def _context_for(self, hook: AdditionalFileHookContext) -> PluginExecutionContext:
+        return self.context._with_plugin_data(PluginDataView.from_resources(hook.manifest, hook.chapter, hook.image))
 
     async def process(self, hook: AdditionalFileHookContext, value: object) -> None:
         file_id = ""

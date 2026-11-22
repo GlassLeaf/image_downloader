@@ -10,7 +10,16 @@ from uuid import uuid4
 
 from ..configuration.models import AuthenticationPolicy, EndpointSettings, PluginConnections, PluginSettings
 from ..exceptions import AuthReentryError, AuthScopeError, AuthStateUnknownError, PluginError
-from ..models import AuthDecision, AuthLease, AuthMode, AuthReceipt, AuthStatus, RequestResponse, RequestSpec
+from ..models import (
+    AuthDecision,
+    AuthLease,
+    AuthMode,
+    AuthReceipt,
+    AuthSnapshot,
+    AuthStatus,
+    RequestResponse,
+    RequestSpec,
+)
 from ..plugins.plugin_invoker import PluginInvoker
 from ..ports import AuthContext, AuthFlow, Endpoint, RequestPort, SecretProvider, is_auth_flow
 from .metadata import _request_origin
@@ -51,7 +60,28 @@ class OperationAuthSession:
         self._verified_at: float | None = None
         self._verification_serial = 0
         self._failure: BaseException | None = None
+        self._public_data: Mapping[str, object] = {}
+        self._last_verified_status = AuthStatus.UNKNOWN
         self._task: asyncio.Task[None] | None = None
+
+    def snapshot(self) -> AuthSnapshot:
+        """Read current state without running authentication hooks or sending requests."""
+        now = self._clock()
+        remaining = max(0.0, self._expires - now) if self._expires is not None else None
+        renewal_due = self._expires is not None and now >= self._expires - self.policy.refresh_skew_seconds
+        ready = bool(
+            self.flow is not None
+            and self._initialized
+            and not (self._dirty or self._closed or self._failure is not None or renewal_due)
+        )
+        return AuthSnapshot(
+            flow_configured=self.flow is not None,
+            credentials_ready=ready,
+            last_verified_status=self._last_verified_status,
+            generation=self.generation,
+            remaining_seconds=remaining,
+            public_data=self._public_data if ready else {},
+        )
 
     def guard(self) -> None:
         if self.operation_id in _AUTH_HOOKS.get():
@@ -160,6 +190,8 @@ class OperationAuthSession:
         hook = self._invoker.initialize_auth if initial else self._invoker.refresh_auth
         lease = await hook(self.flow, self.context)
         self._lease(lease)
+        self._public_data = lease.public_data if lease.public_data is not None else {}
+        self._last_verified_status = AuthStatus.UNKNOWN
         self.generation += 1
         self._initialized, self._dirty = True, False
         self._verified_at = None
@@ -168,6 +200,7 @@ class OperationAuthSession:
         assert self.flow is not None and self.context is not None
         result = await self._invoker.verify_auth(self.flow, self.context)
         self._verification_serial += 1
+        self._last_verified_status = result.status
         if result.status is AuthStatus.UNKNOWN:
             raise AuthStateUnknownError("verify returned UNKNOWN; implement a verifier or adjust the site policy")
         if result.status is AuthStatus.INVALID:
@@ -176,6 +209,8 @@ class OperationAuthSession:
         self._verified_at = self._clock()
         if result.lease is not None:
             self._lease(result.lease)
+            if result.lease.public_data is not None:
+                self._public_data = result.lease.public_data
         return True
 
     async def _run(self, action: str, check: bool) -> None:
