@@ -7,7 +7,7 @@ import random
 import sys
 import time
 from collections import defaultdict
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Callable, Mapping
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
@@ -99,6 +99,7 @@ class RequestGateway:
         invoker: PluginInvoker | None = None,
         request_concurrency: int | None = None,
         settings: PluginSettings | PluginConnections | None = None,
+        plugin_config: Mapping[str, object] | None = None,
     ) -> OperationRequestGateway:
         session = OperationRequestGateway(
             self,
@@ -107,6 +108,7 @@ class RequestGateway:
             invoker=invoker,
             request_concurrency=request_concurrency,
             settings=settings,
+            plugin_config=plugin_config,
         )
         self._operations.add(session)
         flow = auth_flow_factory(session) if auth_flow_factory is not None else None
@@ -134,9 +136,9 @@ class RequestGateway:
         spec: RequestSpec,
         *,
         plugin_id: str | None = None,
-        allowed_redirect_origins: frozenset[str] | None = None,
+        allowed_redirect_origins: Callable[[str], bool] | None = None,
         trace: _TransportTrace | None = None,
-        allowed_endpoint_origins: frozenset[str] | None = None,
+        allowed_endpoint_origins: Callable[[str], bool] | None = None,
     ) -> RequestResponse:
         retryable_method = spec.method.upper() in {"GET", "HEAD", "OPTIONS", "TRACE"}
         attempts = self.config.network.max_attempts if retryable_method or spec.retry_non_idempotent else 1
@@ -198,18 +200,15 @@ class RequestGateway:
         self,
         spec: RequestSpec,
         *,
-        allowed_redirect_origins: frozenset[str] | None = None,
+        allowed_redirect_origins: Callable[[str], bool] | None = None,
         trace: _TransportTrace | None = None,
-        allowed_endpoint_origins: frozenset[str] | None = None,
+        allowed_endpoint_origins: Callable[[str], bool] | None = None,
     ) -> RequestResponse:
         request = self._build_request(spec)
         initial_request = _request_metadata(request)
         redirects = 0
         while True:
-            if (
-                allowed_endpoint_origins is not None
-                and _request_origin(str(request.url)) not in allowed_endpoint_origins
-            ):
+            if allowed_endpoint_origins is not None and not allowed_endpoint_origins(_request_origin(str(request.url))):
                 raise AuthScopeError("authentication redirect targets an undeclared endpoint")
             async with self._send_one_hop(request) as response:
                 next_request = response.next_request if self.config.network.follow_redirects else None
@@ -280,7 +279,7 @@ class RequestGateway:
         previous: httpx.Request,
         next_request: httpx.Request,
         spec: RequestSpec,
-        allowed_origins: frozenset[str] | None,
+        allowed_origins: Callable[[str], bool] | None,
     ) -> httpx.Request:
         previous_origin = _request_origin(str(previous.url))
         next_origin = _request_origin(str(next_request.url))
@@ -289,7 +288,7 @@ class RequestGateway:
         if allowed_origins is not None:
             if previous.url.scheme == "https" and next_request.url.scheme == "http":
                 raise AuthScopeError("authenticated redirect cannot downgrade to HTTP")
-            if next_origin not in allowed_origins:
+            if not allowed_origins(next_origin):
                 raise AuthScopeError("authenticated redirect is outside the configured origins")
             # HTTPX strips Authorization on cross-origin redirects. The explicit
             # session declaration permits this credential on the destination too.

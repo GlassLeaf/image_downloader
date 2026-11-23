@@ -8,7 +8,7 @@ from collections.abc import Callable, Mapping
 from contextvars import ContextVar
 from uuid import uuid4
 
-from ..configuration.models import AuthenticationPolicy, EndpointSettings, PluginConnections, PluginSettings
+from ..configuration.models import PluginConnections, PluginSettings
 from ..exceptions import AuthReentryError, AuthScopeError, AuthStateUnknownError, PluginError
 from ..models import (
     AuthDecision,
@@ -22,6 +22,7 @@ from ..models import (
 )
 from ..plugins.plugin_invoker import PluginInvoker
 from ..ports import AuthContext, AuthFlow, Endpoint, RequestPort, SecretProvider, is_auth_flow
+from .endpoint_rules import EndpointRules, ResolvedEndpoint
 from .metadata import _request_origin
 
 _AUTH_HOOKS: ContextVar[frozenset[str]] = ContextVar("operation_auth_hooks", default=frozenset())
@@ -36,23 +37,29 @@ class OperationAuthSession:
         settings: PluginSettings | PluginConnections,
         invoker: PluginInvoker,
         *,
+        plugin_config: Mapping[str, object] | None = None,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
+        config = (
+            plugin_config
+            if plugin_config is not None
+            else settings.config
+            if isinstance(settings, PluginSettings)
+            else {}
+        )
         settings = PluginConnections.model_validate(
             {"authentication": settings.authentication, "endpoints": settings.endpoints}
         )
         self.operation_id = uuid4().hex
         self.policy = settings.authentication
-        self._declared = dict(settings.endpoints)
         self._origin = _request_origin(operation_url)
-        if "operation" in self._declared and self._declared["operation"].origin != self._origin:
+        self.rules = EndpointRules(settings, config, operation_url)
+        if "operation" in self.rules.endpoints and self.rules.endpoints["operation"].origins != (self._origin,):
             raise AuthScopeError("endpoints.operation is reserved for the operation origin")
         self._invoker, self._clock = invoker, clock
-        self._policies: dict[str, AuthenticationPolicy] = {}
         self.flow: AuthFlow | None = None
         self.context: AuthContext | None = None
-        self.origins: dict[str, EndpointSettings] = {}
-        self.endpoints = {name: Endpoint(item.origin) for name, item in self._declared.items()}
+        self.endpoints = dict(self.rules.endpoints)
         self.endpoints.setdefault("operation", Endpoint(self._origin))
         self.generation = 0
         self._initialized = self._dirty = self._closed = False
@@ -96,28 +103,26 @@ class OperationAuthSession:
                 "classify_response, verify, refresh(auth_context); remove is_auth_failure/allowed_origins"
             )
         self.flow = flow
-        for item in self._declared.values():
-            previous = self.origins.get(item.origin)
-            if previous is not None and (
-                previous.auth != item.auth or self.request_policy(previous) != self.request_policy(item)
-            ):
-                raise AuthScopeError(f"conflicting authentication declarations for {item.origin}")
-            if item.auth == "session" and flow is None:
-                raise AuthScopeError(f"{item.origin} declares session authentication but auth_flow returned None")
-            self.origins[item.origin] = item
-        self.origins.setdefault(
-            self._origin,
-            EndpointSettings(origin=self._origin, auth="session" if flow is not None else "none"),
-        )
+        if self.rules.requires_session and flow is None:
+            raise AuthScopeError("endpoint declares session authentication but auth_flow returned None")
 
     def bind(self, config: Mapping[str, object], secrets: SecretProvider, requests: RequestPort) -> None:
         self.context = AuthContext(config, secrets, self.endpoints, requests)
 
-    @property
-    def authenticated_origins(self) -> frozenset[str]:
-        return frozenset(origin for origin, item in self.origins.items() if item.auth == "session")
+    def lookup(self, origin: str) -> ResolvedEndpoint | None:
+        item = self.rules.lookup(origin)
+        if item is None and origin == self._origin:
+            return ResolvedEndpoint(origin, "session" if self.flow is not None else "none", self.policy)
+        return item
 
-    def resolve(self, spec: RequestSpec) -> EndpointSettings | None:
+    def allows_authenticated_origin(self, origin: str) -> bool:
+        item = self.lookup(origin)
+        return item is not None and item.auth == "session"
+
+    def allows_declared_origin(self, origin: str) -> bool:
+        return self.lookup(origin) is not None
+
+    def resolve(self, spec: RequestSpec) -> ResolvedEndpoint | None:
         self.guard()
         if spec.auth is AuthMode.NONE:
             return None
@@ -125,7 +130,7 @@ class OperationAuthSession:
             if spec.auth is AuthMode.REQUIRED:
                 raise AuthScopeError("REQUIRED request has no authentication flow")
             return None
-        item = self.origins.get(_request_origin(spec.url))
+        item = self.lookup(_request_origin(spec.url))
         if item is None:
             raise AuthScopeError("request origin is undeclared; add endpoints.<name>.origin/auth or use AuthMode.NONE")
         if item.auth == "none":
@@ -134,21 +139,8 @@ class OperationAuthSession:
             return None
         return item
 
-    def request_policy(self, endpoint: EndpointSettings) -> AuthenticationPolicy:
-        if endpoint.origin in self._policies:
-            return self._policies[endpoint.origin]
-        overrides = endpoint.verification.model_dump(exclude_unset=True)
-        values = self.policy.model_dump()
-        if "before_request" in overrides:
-            values["verify_before_request"] = overrides["before_request"]
-        if "interval_seconds" in overrides:
-            values["verify_interval_seconds"] = overrides["interval_seconds"]
-        policy = AuthenticationPolicy.model_validate(values)
-        self._policies[endpoint.origin] = policy
-        return policy
-
-    async def prepare(self, endpoint: EndpointSettings) -> None:
-        policy = self.request_policy(endpoint)
+    async def prepare(self, endpoint: ResolvedEndpoint) -> None:
+        policy = endpoint.policy
         interval = policy.verify_interval_seconds
         check = policy.verify_before_request or (
             interval is not None and (self._verified_at is None or self._clock() - self._verified_at >= interval)

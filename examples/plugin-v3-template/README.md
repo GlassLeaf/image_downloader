@@ -26,7 +26,7 @@ manifestを完成させる方法は2つあります。
 5. Ed25519公開鍵の生バイト列をBase64化した値と、そのバイト列のSHA-256の16進表記を、`public_key`・`key_id`へ設定します。
 6. 正規化した内側のmanifestをEd25519秘密鍵で署名し、署名の生バイト列をBase64化して、外側の`signature`へ設定します。
 
-作者既定値のYAMLは、必ず`config`だけをルートキーにします。利用者ごとの設定と秘密情報はプラグイン内に書かず、アプリ設定の`plugin_settings.<id>`へ置きます。`validate_config`はマージ済みの設定を同期的かつ副作用なしで検証し、成功時は`None`を返します。
+作者既定値のYAMLには必須の`config`と、任意の`authentication`・`endpoints`をルートに記述できます。利用者ごとの設定と秘密情報はプラグイン内に書かず、アプリ設定の`plugin_settings.<id>`へ置きます。`validate_config`はマージ済みの固有configを同期的かつ副作用なしで検証し、成功時は`None`を返します。`sample_plugin.yaml`のコメントに、起点変数・config配列参照・ワイルドカードの例があります。詳細は[接続先の設定](../../docs/v3/reference/configuration.md#config-endpoint-patterns)と[要求構築](../../docs/v3/how-to/dynamic-urls-and-auth.md#endpoint-image-requests)を参照してください。
 
 署名ツールを使う場合は、生成済みの`manifest.json`を直接編集しないでください。メタデータ、ソース、作者既定値のYAML、補助ファイルを更新してから、署名ツールを再実行します。`plugin-metadata.json`のスキーマと再署名の規則は[プラグインパッケージリファレンス](../../docs/v3/reference/plugin-package.md#plugin-signer-metadata)、フックの実装は[プラグインフックリファレンス](../../docs/v3/reference/plugin-hooks.md)を参照してください。`sample_plugin.py`の型注釈は、実装開始時に各フックの入出力を確認するためのものです。フックの意味・検証・例外はリファレンスを正本とします。付属の署名ツールは、メタデータの`kind`に応じて`site_plugin`と`image_processor_plugin`の両方を署名できます。
 

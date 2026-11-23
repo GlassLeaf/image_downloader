@@ -56,3 +56,14 @@ async def create_image_request(
 パスは単一の `/` で始める。絶対URL、`//other.example.test/...`、バックスラッシュを含むパスは拒否する。未宣言の `"api"` を参照するとKeyErrorになる。設定省略時も `context.endpoints["operation"]` は利用でき、operation開始URLと同じoriginの要求を構築できる。
 
 絶対URLを直接 `RequestSpec` に渡しても、送信時のorigin解決・認証方針は同じである。接続先宣言はURLの自動書換えやパス単位の認証ルーティングをしない。共通 `authentication` の確認方針は `endpoints.<name>.verification` でoriginごとに部分的に上書きする。省略時は継承し、`before_request: false` だけでは継承した間隔確認は止まらない。
+
+複数ホストへの対応には、`origin: "https://cdn.${operation.site_domain}"` のように起点変数を使える。起点がwww.example.comならcdn.example.comに解決する。候補が複数ならoriginを配列にでき、`origin: "https://*.images.${operation.site_domain}"` で直下の一階層にも対応できる。[変数・配列展開・優先順位](../reference/configuration.md#config-endpoint-patterns)を参照する。
+
+複数候補やワイルドカードは送信先を自動選択しない。絶対画像URLが分かる場合はそのまま `RequestSpec` に渡すか、具体originを選んでパスを組み立てる。
+
+```python
+endpoint = context.endpoints["images"].for_origin("https://a.images.example.com")
+request = endpoint.request("/images/original.jpg", referer=image.referer)
+```
+
+`.origins` は正規化した候補のtupleを返す。`.for_origin()` には候補に一致する具体originだけを渡す。一致しないoriginやパス付きURLは `ValueError` になる。複数候補・ワイルドカードの `.origin` や `.request()` も `ValueError` となる。

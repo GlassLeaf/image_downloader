@@ -405,7 +405,7 @@ operation開始URLのoriginに宣言がなければ、フローありでは `aut
 
 | `endpoints.<name>` のキー | 値・省略時の動作 |
 | --- | --- |
-| `origin` | 必須のHTTP(S) origin。scheme・host・portを指定する。パスは空または `/` だけで、ユーザー情報・query・fragmentは不可。 |
+| `origin` | 必須のHTTP(S) origin、または空でない文字列配列。候補はOR条件。変数参照とホスト左端の `*.` を利用できる。パスは空または `/` だけで、ユーザー情報・query・fragmentは不可。 |
 | `auth` | 必須の `session` / `none`。`session` はoperationの認証フローを使い、`none` は通常要求で認証フローを通さない。 |
 | `verification.before_request` | 真偽値。省略時は `authentication.verify_before_request` を継承する。 |
 | `verification.interval_seconds` | 正の有限数、または `null`。省略時は `authentication.verify_interval_seconds` を継承する。明示的な `null` はそのoriginの間隔確認を無効にする。 |
@@ -422,7 +422,55 @@ verification:
 
 認証セッション・資格情報の世代・最後の確認時刻はoperation内で一つである。接続先ごとに別のセッションや確認時計を持たず、あるoriginへの要求前に成功した確認は、別originの間隔判定にも使う。接続先の宣言は、確認用のURLや確認処理そのものを指定するものではない。
 
-originはscheme・正規化したhost・portで比較し、`https://example.test` と `https://example.test:443` は一致する。HTTPとHTTPS、異なるportは別originである。名前やURLパスでは方針を分けない。同一originの別名は実効的な `auth`・確認方針が一致する必要があり、矛盾は設定エラーになる。ワイルドカードやリダイレクト先の自動追加は行わない。
+originはscheme・正規化したhost・portで比較し、`https://example.test` と `https://example.test:443` は一致する。HTTPとHTTPS、異なるportは別originである。名前やURLパスでは方針を分けない。同一の完全一致origin、または同一ワイルドカードの別名は実効的な `auth`・確認方針が一致する必要があり、矛盾は設定エラーになる。完全一致指定はワイルドカードより優先し、起点の既定方針は明示ルールが一致しない場合だけ補う。リダイレクト先を自動追加しない。
+
+<a id="config-endpoint-patterns"></a>
+
+### 複数origin・変数・ワイルドカード
+
+起点ごとにCDNが変わる場合、次の宣言なら対応ホストを追加してもendpointを増やす必要がない。`supported_hosts` 自体の意味やサイト選択はプラグインが実装する。
+
+```yaml
+config:
+  supported_hosts: [host1.com, host2.com]
+endpoints:
+  images:
+    origin: "https://cdn.${operation.site_domain}"
+    auth: session
+```
+
+`https://host1.com/page` または `https://www.host1.com/page` が起点なら `https://cdn.host1.com:443` に解決する。起点変数はoperation開始URLから一度だけ解決し、リダイレクト後も変えない。
+
+| 変数 | 値 |
+| --- | --- |
+| `${operation.origin}` | 起点のscheme・正規化host・port。既定portも含む。 |
+| `${operation.host}` | 起点hostそのもの。www等を維持し、IPv6には角括弧を付ける。 |
+| `${operation.site_domain}` | PRIVATE領域を含むPublic Suffix Listによる登録可能ドメイン。 |
+| `${operation.scheme}` | http / https。 |
+| `${operation.port}` | 既定値を補ったportの文字列。 |
+| `${config.xxx}` | 作者・利用者・実行時上書きを反映した固有config。ドット区切りで階層参照可能。 |
+
+config参照は空でない文字列または空でない文字列配列を受け取る。`origin: "https://cdn.${config.supported_hosts}"` は全対応ホストへ展開するため、host1.comの操作でもhost2.com系が同じ認証対象になる。URL配列なら `origin: "${config.image_origins}"` と直接参照できる。一つのテンプレートの配列参照は一つまで。変数値を再帰展開せず、式・環境変数・秘密情報も参照しない。未定義参照、不正な型、空配列、不正な展開結果は通信・`auth_flow()` 呼出し前に設定エラーとなる。
+
+```yaml
+endpoints:
+  images:
+    origin:
+      - "https://cdn.${operation.site_domain}"
+      - "https://*.images.${operation.site_domain}"
+    auth: session
+  public_images:
+    origin: "https://public.images.${operation.site_domain}"
+    auth: none
+```
+
+配列はOR条件で、正規化後に重複を除去する。利用者の `origin` 指定は文字列・配列とも値全体を置換する。上例のpublic_imagesは完全一致なのでimagesより優先する。
+
+ワイルドカードはホスト左端の一ラベル全体だけに許可する。`https://*.example.com` は `cdn.example.com` に一致し、`example.com`、`a.cdn.example.com` には一致しない。`cdn*`、`**`、scheme・portのワイルドカード、IPに対するワイルドカードは不可。`*.com`・`*.co.jp`・`*.github.io` など公開サフィックス直下の指定と、サフィックスを判定できない指定も拒否する。
+
+`site_domain` は `reader.alice.github.io` を `alice.github.io` とする。IP・localhost・未知サフィックス・公開サフィックスそのもの、またはPSLを利用できない環境では、この変数を参照した設定だけをエラーにする。通常の固定originにPSLによる有効性判定は行わない。認証範囲の導出に簡易的なドメイン推定は使わない。PSLはアプリに同梱した公式スナップショットをpublicsuffix2で読み、実行時に取得しない。[リリース時の更新手順](../maintenance/release.md#release-psl)を参照する。
+
+`doctor` はconfig参照と静的ルールを検証するが、起点のない検証ではoperation変数を保留する。予約名 `endpoints.operation` の明示宣言は、起点が確定した時点で同じ単一の具体originに解決されなければならない。
 
 <a id="config-authentication-scope"></a>
 

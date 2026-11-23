@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from typing import Any, Protocol, TypeGuard, cast, overload, runtime_checkable
 from urllib.parse import urlsplit
 
+from .configuration.endpoint_origins import OriginPattern
 from .exceptions import AuthenticationError, UnsupportedSiteFeatureError
 from .immutable import freeze_json
 from .models import (
@@ -49,9 +50,27 @@ class AuthPort(Protocol):
     def snapshot(self) -> AuthSnapshot: ...
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True, slots=True, init=False)
 class Endpoint:
-    origin: str
+    origins: tuple[str, ...]
+
+    def __init__(self, origin: str | tuple[str, ...]) -> None:
+        values = (origin,) if isinstance(origin, str) else origin
+        if not values:
+            raise ValueError("endpoint requires at least one origin")
+        object.__setattr__(self, "origins", tuple(dict.fromkeys(OriginPattern.parse(item).origin for item in values)))
+
+    @property
+    def origin(self) -> str:
+        if len(self.origins) != 1 or "*" in self.origins[0]:
+            raise ValueError("endpoint has multiple or wildcard origins; select a concrete origin with for_origin()")
+        return self.origins[0]
+
+    def for_origin(self, origin: str) -> Endpoint:
+        target = OriginPattern.parse(origin, allow_wildcard=False)
+        if not any(OriginPattern.parse(item).matches(target) for item in self.origins):
+            raise ValueError("origin does not match this endpoint")
+        return Endpoint(target.origin)
 
     def request(self, path: str, **kwargs: Any) -> RequestSpec:
         parsed = urlsplit(path)

@@ -93,6 +93,9 @@
 #     endpoints:
 #       api:
 #         origin: https://api.example.test
+#         # origin may also be an array of HTTP(S) origins or patterns:
+#         # origin: ["https://cdn.${operation.site_domain}", "https://*.images.${operation.site_domain}"]
+#         # config arrays expand explicitly, e.g. origin: "https://cdn.${config.supported_hosts}"
 #         auth: session              # session or none; one authentication session per operation
 #         verification:
 #           before_request: false

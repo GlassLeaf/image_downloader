@@ -56,6 +56,8 @@ def _check_archive_names(names: list[str], *, source_archive: bool) -> None:
             raise RuntimeError(f"distribution contains an obsolete module: {name}")
     if not any(name.endswith("image_downloader/app.yaml") for name in names):
         raise RuntimeError("distribution is missing bundled configuration")
+    if not any(name.endswith("image_downloader/configuration/public_suffix_list.dat") for name in names):
+        raise RuntimeError("distribution is missing the bundled authentication Public Suffix List")
     required_modules = (
         "application/service.py",
         "application/requests.py",
@@ -134,6 +136,22 @@ def verify(*, offline: bool) -> None:
         installed_path = Path(origin.strip())
         if not installed_path.is_relative_to(environment):
             raise RuntimeError(f"import did not use the wheel installation: {installed_path}")
+        _run(
+            str(python),
+            "-c",
+            "import asyncio\n"
+            "from image_downloader import AppConfig, Endpoint\n"
+            "from image_downloader.config import PluginSettings\n"
+            "from image_downloader.runtime import RequestGateway\n"
+            "gateway = RequestGateway(AppConfig())\n"
+            "session = gateway.operation(plugin_id=None, operation_url='https://reader.alice.vercel.app/page', "
+            "settings=PluginSettings.model_validate({'endpoints': {'images': "
+            "{'origin': 'https://cdn.${operation.site_domain}', 'auth': 'none'}}}))\n"
+            "assert session.endpoints['images'].origin == 'https://cdn.alice.vercel.app:443'\n"
+            "assert Endpoint('https://*.example.com').for_origin('https://cdn.example.com').origin "
+            "== 'https://cdn.example.com:443'\n"
+            "asyncio.run(gateway.close())\n",
+        )
 
         data_root = base / "data"
         plugin_root = base / "plugins"

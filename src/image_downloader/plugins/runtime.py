@@ -22,6 +22,7 @@ from ..exceptions import ConfigurationError, PluginError
 from ..immutable import freeze_json
 from ..ports import ImageProcessor, SitePlugin
 from ..storage.path_safety import existing_directory
+from ..transport.endpoint_rules import expand_connections
 from .lifecycle import (
     PluginClassLoader,
     PluginDiagnostic,
@@ -240,12 +241,22 @@ class PluginRuntime:
         except ValueError as exc:
             raise ConfigurationError(f"runtime download policy override for {record.id} is invalid") from exc
 
-    def effective_connections(self, record: PluginRecord) -> PluginConnections:
+    def effective_connections(
+        self,
+        record: PluginRecord,
+        *,
+        plugin_config: Mapping[str, object] | None = None,
+    ) -> PluginConnections:
         setting = self._setting(record.id)
         overrides = setting.model_dump(include={"authentication", "endpoints"}, exclude_unset=True) if setting else {}
         incoming = {key: value for key, value in overrides.items() if key in {"authentication", "endpoints"}}
         try:
-            return PluginConnections.model_validate(deep_merge(record.connection_defaults, incoming))
+            connections = PluginConnections.model_validate(deep_merge(record.connection_defaults, incoming))
+            expand_connections(
+                connections,
+                self.effective_config(record) if plugin_config is None else plugin_config,
+            )
+            return connections
         except ValueError as exc:
             raise ConfigurationError(f"authentication/endpoints configuration for {record.id} is invalid") from exc
 
@@ -356,12 +367,13 @@ class PluginRuntime:
         self.validate_settings()
         for record in list(self.records.values()):
             try:
-                self.effective_connections(record)
+                plugin_config = self.effective_config(record, overrides)
+                self.effective_connections(record, plugin_config=plugin_config)
                 instance = self._typed_instance(record)
                 _validate_plugin_config(
                     record.id,
                     instance,
-                    self.effective_config(record, overrides),
+                    plugin_config,
                     safe_app_settings(self.config),
                 )
             except Exception as exc:
@@ -372,12 +384,13 @@ class PluginRuntime:
     def validate_all(self, overrides: PluginConfigOverrides | None = None) -> None:
         self.validate_settings()
         for record in self.records.values():
-            self.effective_connections(record)
+            plugin_config = self.effective_config(record, overrides)
+            self.effective_connections(record, plugin_config=plugin_config)
             instance = self._typed_instance(record)
             _validate_plugin_config(
                 record.id,
                 instance,
-                self.effective_config(record, overrides),
+                plugin_config,
                 safe_app_settings(self.config),
             )
 

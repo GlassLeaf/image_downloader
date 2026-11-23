@@ -129,7 +129,7 @@
 | `OutputAllocator.allocate` <!-- api-contract: image_downloader.runtime.OutputAllocator.allocate --> | `async allocate(self, chapter_directory: Path, context: OutputFormatContext) -> OutputAllocation` |
 | `OutputAllocator.allocate_relative` <!-- api-contract: image_downloader.runtime.OutputAllocator.allocate_relative --> | `async allocate_relative(self, base: Path) -> OutputAllocation` |
 | `RequestGateway` <!-- api-contract: image_downloader.runtime.RequestGateway --> | `RequestGateway(config: AppConfig, cookie_jar: CookieJar | None = None, *, logger: DownloadLogger | None = None, transport_factory: Callable[[], httpx.AsyncBaseTransport] | None = None)` |
-| `RequestGateway.operation` <!-- api-contract: image_downloader.runtime.RequestGateway.operation --> | `operation(self, *, plugin_id: str | None, operation_url: str, auth_flow_factory: Callable[[OperationRequestGateway], object | None] | None = None, invoker: PluginInvoker | None = None, request_concurrency: int | None = None, settings: PluginSettings | PluginConnections | None = None) -> OperationRequestGateway` |
+| `RequestGateway.operation` <!-- api-contract: image_downloader.runtime.RequestGateway.operation --> | `operation(self, *, plugin_id: str | None, operation_url: str, auth_flow_factory: Callable[[OperationRequestGateway], object | None] | None = None, invoker: PluginInvoker | None = None, request_concurrency: int | None = None, settings: PluginSettings | PluginConnections | None = None, plugin_config: Mapping[str, object] | None = None) -> OperationRequestGateway` |
 | `RequestGateway.execute` <!-- api-contract: image_downloader.runtime.RequestGateway.execute --> | `async execute(self, spec: RequestSpec) -> RequestResponse` |
 | `RequestGateway.get_cookie_snapshot` <!-- api-contract: image_downloader.runtime.RequestGateway.get_cookie_snapshot --> | `get_cookie_snapshot(self) -> dict[str, dict[str, dict[str, str]]]`。有効なCookieをdomain/path/name別にコピーする。 |
 | `RequestGateway.close` <!-- api-contract: image_downloader.runtime.RequestGateway.close --> | `async close(self) -> None` |
@@ -201,7 +201,7 @@
 | `PluginRuntime.enabled` <!-- api-contract: image_downloader.security.PluginRuntime.enabled --> | `enabled(self, record: PluginRecord) -> bool` |
 | `PluginRuntime.effective_config` <!-- api-contract: image_downloader.security.PluginRuntime.effective_config --> | `effective_config(self, record: PluginRecord, overrides: PluginConfigOverrides | None = None) -> Mapping[str, Any]` |
 | `PluginRuntime.effective_download_policy` <!-- api-contract: image_downloader.security.PluginRuntime.effective_download_policy --> | `effective_download_policy(self, record: PluginRecord, overrides: PluginDownloadPolicyOverrides | None = None) -> PluginDownloadPolicy` |
-| `PluginRuntime.effective_connections` <!-- api-contract: image_downloader.security.PluginRuntime.effective_connections --> | `effective_connections(self, record: PluginRecord) -> PluginConnections` |
+| `PluginRuntime.effective_connections` <!-- api-contract: image_downloader.security.PluginRuntime.effective_connections --> | `effective_connections(self, record: PluginRecord, *, plugin_config: Mapping[str, object] | None = None) -> PluginConnections` |
 | `PluginRuntime.validate_operation_overrides` <!-- api-contract: image_downloader.security.PluginRuntime.validate_operation_overrides --> | `validate_operation_overrides(self, site_record: PluginRecord, overrides: PluginConfigOverrides | None) -> None` |
 | `PluginRuntime.validate_download_policy_overrides` <!-- api-contract: image_downloader.security.PluginRuntime.validate_download_policy_overrides --> | `validate_download_policy_overrides(self, site_record: PluginRecord, overrides: PluginDownloadPolicyOverrides | None) -> None` |
 | `PluginRuntime.validate_candidate_overrides` <!-- api-contract: image_downloader.security.PluginRuntime.validate_candidate_overrides --> | `validate_candidate_overrides(self, overrides: PluginConfigOverrides | None) -> None` |
@@ -368,9 +368,13 @@
 | `AuthVerification` | `AuthVerification(status: AuthStatus, lease: AuthLease | None = None)` |
 | `AuthReceipt` | `AuthReceipt(operation_id: str, generation: int)` |
 | `AuthContext` | `AuthContext(config: Mapping[str, object], secrets: SecretProvider, endpoints: Mapping[str, Endpoint], requests: RequestPort)` |
-| `Endpoint` | `Endpoint(origin: str)`、`request(self, path: str, **kwargs: Any) -> RequestSpec` |
+| `Endpoint` | `Endpoint(origin: str | tuple[str, ...])`、`origins: tuple[str, ...]`、`origin: str`、`for_origin(self, origin: str) -> Endpoint`、`request(self, path: str, **kwargs: Any) -> RequestSpec` |
 | `AuthMode` | `AUTO="auto"`, `NONE="none"`, `REQUIRED="required"` |
 | `AuthDecision` | `AUTH_FAILURE="auth_failure"`, `NOT_AUTH_FAILURE="not_auth_failure"`, `UNKNOWN="unknown"` |
 | `AuthStatus` | `VALID="valid"`, `INVALID="invalid"`, `UNKNOWN="unknown"` |
 
-`PluginExecutionContext` の追加keyword引数は `auth: AuthPort | None = None`、`endpoints: Mapping[str, Endpoint] | None = None`、`plugin_data: PluginDataView | None = None`。`.plugin_data`は空が既定の`PluginDataView`、`.plugin_manifest`は既存`.manifest`の別名。`context.auth` は `async ensure_ready(*, check: bool = False) -> None`、`invalidate(response: RequestResponse) -> bool`、同期・通信なしの`snapshot() -> AuthSnapshot`、`context.endpoints` は読み取り専用mappingを提供する。`TransformContext.plugin_data`は引数の作品・章・画像DTOから構築する。`AuthFlow` と `BaseAuthFlow` のフックは[認証契約](plugin-hooks.md)を参照する。公開定数`PLUGIN_API_FEATURES: frozenset[str]`は`structured_plugin_data`・`auth_snapshot`を含む。
+`PluginExecutionContext` の追加keyword引数は `auth: AuthPort | None = None`、`endpoints: Mapping[str, Endpoint] | None = None`、`plugin_data: PluginDataView | None = None`。`.plugin_data`は空が既定の`PluginDataView`、`.plugin_manifest`は既存`.manifest`の別名。`context.auth` は `async ensure_ready(*, check: bool = False) -> None`、`invalidate(response: RequestResponse) -> bool`、同期・通信なしの`snapshot() -> AuthSnapshot`、`context.endpoints` は読み取り専用mappingを提供する。`TransformContext.plugin_data`は引数の作品・章・画像DTOから構築する。`AuthFlow` と `BaseAuthFlow` のフックは[認証契約](plugin-hooks.md)を参照する。公開定数`PLUGIN_API_FEATURES: frozenset[str]`は`structured_plugin_data`・`auth_snapshot`・`endpoint_patterns`を含む。
+
+`Endpoint.origins` は展開・正規化・重複除去済みの読み取り専用候補で、ワイルドカードを含み得る。`.origin` と `.request()` は単一の具体originの場合だけ利用可能で、複数候補またはワイルドカードでは `ValueError`。`.for_origin()` は候補と一致する具体originのEndpointを返し、不一致・パス付きURL・ワイルドカード入力は `ValueError`。要求構築だけでは通信せず、送信時は操作全体の最優先ルールを適用する。
+
+`EndpointSettings.origin` は `str | tuple[str, ...]` で、YAMLでは文字列または配列を指定できる。`RequestGateway.operation(plugin_config=...)` は変数展開に使う設定スナップショットを渡す。省略時は `PluginSettings.config`、それもなければ空設定を使う。ホストアプリは実行時上書きを含む最終configを渡し、認証・実行コンテキストにも同じ値を使う。[変数と照合規則](configuration.md#config-endpoint-patterns)を参照する。

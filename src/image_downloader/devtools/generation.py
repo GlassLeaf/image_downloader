@@ -16,10 +16,12 @@ from urllib.parse import urlsplit
 
 import yaml
 
+from ..configuration.endpoint_origins import OriginPattern
 from ..configuration.merging import deep_merge
-from ..configuration.models import _valid_plugin_id
+from ..configuration.models import PluginConnections, _valid_plugin_id
 from ..models import AdditionalFileHookPoint
 from ..plugins.plugin_files import canonical_jcs
+from ..transport.endpoint_rules import EndpointRules
 from .catalog import AUTH, CATALOG, FEATURES, select_features
 from .fixture_generation import build_fixture
 from .loading import SITE_HOOKS, resolve_target, workspace_for
@@ -256,9 +258,25 @@ def test_generated_contract():
             '                 "--json"]) == 0\n'
         )
     endpoints = dict(spec.get("endpoints", {}))
-    for index, origin in enumerate(spec["config"].pop("endpoint_origins", [])):
-        endpoints[f"authenticated_{index}"] = {"origin": origin, "auth": "session"}
+    additional_origins = spec["config"].pop("endpoint_origins", [])
+    if additional_origins:
+        name = "authenticated"
+        index = 0
+        while name in endpoints:
+            index += 1
+            name = f"authenticated_{index}"
+        endpoints[name] = {"origin": additional_origins, "auth": "session"}
     if AUTH.intersection(spec["features"]):
+        rules = EndpointRules(
+            PluginConnections.model_validate(
+                {
+                    "endpoints": endpoints,
+                    "authentication": spec.get("authentication", {}),
+                }
+            ),
+            spec["config"],
+            spec["sample_url"],
+        )
         for name in ("login", "token"):
             value = spec["config"].get(name + "_url")
             if value:
@@ -267,7 +285,9 @@ def test_generated_contract():
                 sample = urlsplit(spec["sample_url"])
                 main_origin = f"{sample.scheme}://{sample.netloc}"
                 mode = "session" if origin == main_origin else "none"
-                mode = next((item["auth"] for item in endpoints.values() if item["origin"] == origin), mode)
+                matched = rules.lookup(OriginPattern.parse(origin, allow_wildcard=False).origin)
+                if matched is not None:
+                    mode = matched.auth
                 endpoints.setdefault(name, {"origin": origin, "auth": mode})
     spec["endpoints"] = endpoints
     author = {"config": spec["config"], "endpoints": endpoints, "authentication": spec.get("authentication", {})}

@@ -1,1 +1,25 @@
 config: {}
+
+# An AuthFlow is required for auth: session. The operation origin is automatic.
+# endpoints:
+#   images:
+#     origin: "https://cdn.${operation.site_domain}"
+#     auth: session
+#
+# Multiple candidates and one-label host wildcards:
+#   images:
+#     origin:
+#       - "https://cdn.${operation.site_domain}"
+#       - "https://*.images.${operation.site_domain}"
+#     auth: session
+#   public_images:
+#     origin: "https://public.images.${operation.site_domain}"
+#     auth: none
+#
+# To authorize ALL configured hosts in every operation, explicitly expand a config array:
+# config:
+#   supported_hosts: [host1.com, host2.com]
+# endpoints:
+#   images:
+#     origin: "https://cdn.${config.supported_hosts}"
+#     auth: session

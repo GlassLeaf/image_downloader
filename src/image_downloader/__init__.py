@@ -141,7 +141,7 @@ from .ports import (
 )
 from .runtime import DownloadService, RuntimeComposer
 
-PLUGIN_API_FEATURES: frozenset[str] = frozenset({"structured_plugin_data", "auth_snapshot"})
+PLUGIN_API_FEATURES: frozenset[str] = frozenset({"structured_plugin_data", "auth_snapshot", "endpoint_patterns"})
 
 __all__ = [
     "PLUGIN_API_FEATURES",

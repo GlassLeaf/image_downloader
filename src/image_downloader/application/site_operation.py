@@ -199,13 +199,14 @@ class SiteOperationFactory:
         settings = self.config.plugin_settings.get(record.id)
         secrets = RuntimeSecrets(record.id, settings.secrets if settings else {}, store=self.credentials)
         context: PluginExecutionContext | None = None
-        connections = self.registry.effective_connections(record)
+        plugin_config = self.registry.effective_config(record, overrides)
+        connections = self.registry.effective_connections(record, plugin_config=plugin_config)
 
         def auth_flow_factory(session: OperationRequestGateway) -> object | None:
             nonlocal context
-            session.bind_auth_context(self.registry.effective_config(record, overrides), secrets)
+            session.bind_auth_context(plugin_config, secrets)
             context = PluginExecutionContext(
-                self.registry.effective_config(record, overrides),
+                plugin_config,
                 safe_app_settings(self.config),
                 record.manifest.value,
                 record.catalog.as_json() if record.catalog else None,
@@ -224,6 +225,7 @@ class SiteOperationFactory:
             invoker=invoker,
             request_concurrency=policy.request_concurrency,
             settings=connections,
+            plugin_config=plugin_config,
         )
         if context is None:
             raise RuntimeError("operation context was not initialized")

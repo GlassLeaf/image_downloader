@@ -30,6 +30,25 @@ def project(tmp_path: Path, features=None, config=None, **extra) -> Path:
     return directory
 
 
+def test_generated_additional_origins_share_one_endpoint_and_login_uses_the_matching_rule(tmp_path):
+    directory = project(
+        tmp_path,
+        ["csrf", "origins"],
+        {
+            "endpoint_origins": ["https://*.example.com", "https://fixed.example.org"],
+            "login_url": "https://login.example.com/session",
+        },
+        sample_url="https://www.example.com/gallery",
+    )
+    author = yaml.safe_load((directory / "plugin/plugin.yaml").read_text(encoding="utf-8"))
+    assert author["endpoints"]["authenticated"] == {
+        "origin": ["https://*.example.com", "https://fixed.example.org"],
+        "auth": "session",
+    }
+    assert author["endpoints"]["login"]["auth"] == "session"
+    assert "endpoint_origins" not in author["config"]
+
+
 @asynccontextmanager
 async def opened(directory: Path, tmp_path: Path, **options):
     output = RawOutput(tmp_path / "run", stream=io.StringIO())

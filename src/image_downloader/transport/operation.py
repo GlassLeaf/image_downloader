@@ -6,7 +6,7 @@ import asyncio
 from collections.abc import Awaitable, Callable, Mapping
 from contextlib import nullcontext
 from dataclasses import replace
-from typing import TYPE_CHECKING, Unpack
+from typing import TYPE_CHECKING, Unpack, cast
 
 from ..configuration.models import PluginConnections, PluginSettings
 from ..exceptions import (
@@ -15,6 +15,7 @@ from ..exceptions import (
     HttpStatusError,
     SecretNotFoundError,
 )
+from ..immutable import freeze_json
 from ..models import (
     AuthReceipt,
     EffectiveRequestPreview,
@@ -54,14 +55,26 @@ class OperationRequestGateway:
         invoker: PluginInvoker | None = None,
         request_concurrency: int | None = None,
         settings: PluginSettings | PluginConnections | None = None,
+        plugin_config: Mapping[str, object] | None = None,
     ) -> None:
         self._shared = shared
         self.plugin_id = plugin_id
         self._invoker = invoker or PluginInvoker(plugin_id or "core.request", shared._logger)
-        self.auth = OperationAuthSession(operation_url, settings or PluginSettings(), self._invoker)
+        selected_settings = settings or PluginSettings()
+        config = cast(
+            Mapping[str, object],
+            freeze_json(
+                plugin_config
+                if plugin_config is not None
+                else selected_settings.config
+                if isinstance(selected_settings, PluginSettings)
+                else {}
+            ),
+        )
+        self.auth = OperationAuthSession(operation_url, selected_settings, self._invoker, plugin_config=config)
         self.endpoints = self.auth.endpoints
         self._request_limit = asyncio.Semaphore(request_concurrency) if request_concurrency is not None else None
-        self.bind_auth_context({}, _UnavailableSecrets())
+        self.bind_auth_context(config, _UnavailableSecrets())
 
     def bind_auth_context(self, config: Mapping[str, object], secrets: SecretProvider) -> None:
         self.auth.bind(config, secrets, _AuthenticationRequests(self))
@@ -115,7 +128,7 @@ class OperationRequestGateway:
         recovered = False
         while True:
             current, receipt = await self._prepare(base)
-            redirect_origins = self.auth.authenticated_origins if receipt is not None else None
+            redirect_origins = self.auth.allows_authenticated_origin if receipt is not None else None
             async with self._request_limit if self._request_limit is not None else nullcontext():
                 response = await self._send(current, redirect_origins, trace)
             response = replace(response, auth_receipt=receipt)
@@ -142,7 +155,7 @@ class OperationRequestGateway:
     async def _send(
         self,
         request: RequestSpec,
-        redirect_origins: frozenset[str] | None,
+        redirect_origins: Callable[[str], bool] | None,
         trace: _TransportTrace | None,
     ) -> RequestResponse:
         if trace is None:
@@ -188,11 +201,11 @@ class _AuthenticationRequests:
         if gateway.auth._closed:
             raise AuthScopeError("authentication operation is closed")
         gateway._shared._validate_protocol(spec)
-        if _request_origin(spec.url) not in gateway.auth.origins:
+        if not gateway.auth.allows_declared_origin(_request_origin(spec.url)):
             raise AuthScopeError("authentication request origin is undeclared; add an endpoints declaration")
         async with gateway._request_limit if gateway._request_limit is not None else nullcontext():
             return await gateway._shared._transport(
                 spec,
                 plugin_id=gateway.plugin_id,
-                allowed_endpoint_origins=frozenset(gateway.auth.origins),
+                allowed_endpoint_origins=gateway.auth.allows_declared_origin,
             )

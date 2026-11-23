@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import io
+from collections.abc import Callable
 from concurrent.futures.process import BrokenProcessPool
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -492,10 +493,12 @@ def test_concurrent_auth_refresh_applies_credentials_once_per_retry() -> None:
             request: RequestSpec,
             *,
             plugin_id: str | None = None,
-            allowed_redirect_origins: frozenset[str] | None = None,
+            allowed_redirect_origins: Callable[[str], bool] | None = None,
         ) -> RequestResponse:
             assert plugin_id == "com.example.gallery"
-            assert allowed_redirect_origins == frozenset({"https://example.test:443"})
+            assert allowed_redirect_origins is not None
+            assert allowed_redirect_origins("https://example.test:443")
+            assert not allowed_redirect_origins("https://other.test:443")
             nonlocal initial_requests
             if request.headers.get("Authorization") == "Bearer 0":
                 initial_requests += 1
@@ -541,9 +544,11 @@ def test_concurrent_operation_sessions_do_not_share_auth_or_plugin_identity() ->
             request: RequestSpec,
             *,
             plugin_id: str | None = None,
-            allowed_redirect_origins: frozenset[str] | None = None,
+            allowed_redirect_origins: Callable[[str], bool] | None = None,
         ) -> RequestResponse:
-            assert allowed_redirect_origins == frozenset({"https://example.test:443"})
+            assert allowed_redirect_origins is not None
+            assert allowed_redirect_origins("https://example.test:443")
+            assert not allowed_redirect_origins("https://other.test:443")
             await asyncio.sleep(0)
             token = request.headers.get("Authorization")
             observed.append((plugin_id, token))

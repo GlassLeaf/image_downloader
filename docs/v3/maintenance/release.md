@@ -24,3 +24,18 @@ python tools/release_smoke.py
 - プロジェクトのライセンス、第三者・同梱ソースの帰属表示、脆弱性の非公開報告の運用を公開前に決定する。
 - リリースノートに、ベータ版と安定性、v1/v2プラグインとの非互換性、移行、設定の書き換えとバックアップ、必要なら旧版より小さな版番号へのインストール手順を記載する。
 - strictでのinstall・trust・revoke・uninstall・doctorと、文書の契約・リンク検査をリリース候補で再実行する。
+
+<a id="release-psl"></a>
+
+## 認証用Public Suffix Listの更新
+
+endpointのワイルドカードと `operation.site_domain` は、`src/image_downloader/configuration/public_suffix_list.dat` の公式PSLスナップショットを使う。依存publicsuffix2の古い内蔵リストや、通信制限用の簡易フォールバックは使わない。アプリ実行時にデータを取得しない。
+
+リリース準備時、ネットワークを利用できる環境で次を実行する。公式配布元に対する取得は一日一回以下にする。
+
+```powershell
+python tools/update_public_suffix_list.py
+python -m pytest tests/v3/configuration/test_endpoint_origins.py tests/v3/transport/test_endpoint_patterns.py -q
+```
+
+更新ツールは公式URLから取得し、ライセンス・VERSION・COMMIT・ICANN/PRIVATE両領域と代表的な境界を確認してから置き換える。上流のMPL 2.0表記とバージョンヘッダーを維持する。PSL差分をレビューし、パッケージを再構築する。wheel・sdist両方への同梱はrelease smokeで確認する。新しいPRIVATE境界により既存ワイルドカードが拒否される場合は、具体originへの変更をリリースノートに記載する。

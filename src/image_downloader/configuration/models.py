@@ -247,32 +247,20 @@ class EndpointVerification(StrictModel):
 
 
 class EndpointSettings(StrictModel):
-    origin: StrictStr
+    origin: StrictStr | tuple[StrictStr, ...]
     auth: Literal["session", "none"]
     verification: EndpointVerification = Field(default_factory=EndpointVerification)
 
-    @field_validator("origin")
+    @field_validator("origin", mode="before")
     @classmethod
-    def valid_origin(cls, value: str) -> str:
-        from urllib.parse import urlsplit
+    def valid_origin(cls, value: object) -> str | tuple[str, ...]:
+        from .endpoint_origins import validate_origin
 
-        from ..configuration.hosts import normalize_host
-
-        parsed = urlsplit(value)
-        if (
-            parsed.scheme not in {"http", "https"}
-            or not parsed.hostname
-            or parsed.username is not None
-            or parsed.password is not None
-            or parsed.path not in {"", "/"}
-            or parsed.query
-            or parsed.fragment
-        ):
-            raise ValueError("endpoint origin must be an HTTP(S) origin without userinfo, path, query or fragment")
-        host, _ = normalize_host(parsed.hostname)
-        host = f"[{host}]" if ":" in host else host
-        port = parsed.port if parsed.port is not None else (443 if parsed.scheme == "https" else 80)
-        return f"{parsed.scheme}://{host}:{port}"
+        if isinstance(value, str):
+            return validate_origin(value)
+        if not isinstance(value, (list, tuple)) or not value or any(not isinstance(item, str) for item in value):
+            raise ValueError("endpoint origin must be a string or a non-empty string array")
+        return tuple(dict.fromkeys(validate_origin(item) for item in value))
 
 
 class PluginConnections(StrictModel):
@@ -293,9 +281,10 @@ class PluginConnections(StrictModel):
                 overrides.get("before_request", self.authentication.verify_before_request),
                 overrides.get("interval_seconds", self.authentication.verify_interval_seconds),
             )
-            if item.origin in seen and seen[item.origin] != value:
-                raise ValueError(f"conflicting authentication declarations for {item.origin}")
-            seen[item.origin] = value
+            for origin in (item.origin,) if isinstance(item.origin, str) else item.origin:
+                if origin in seen and seen[origin] != value:
+                    raise ValueError(f"conflicting authentication declarations for {origin}")
+                seen[origin] = value
         object.__setattr__(self, "endpoints", MappingProxyType(dict(self.endpoints)))
         return self
 
