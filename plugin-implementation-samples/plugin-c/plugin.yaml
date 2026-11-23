@@ -1,0 +1,8 @@
+config:
+  supported_hosts:
+    - example.com
+
+endpoints:
+  viewer:
+    origin: https://viewer.example.com
+    auth: session
