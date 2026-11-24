@@ -22,11 +22,13 @@ from image_downloader.exceptions import (
 )
 from image_downloader.media import ImageProcessor, TransformExecutor
 from image_downloader.media.artifact_pipeline import ArtifactPipeline
+from image_downloader.media.pipeline_binding import PreparedPipelineBinding
 from image_downloader.media.processor_chain import PreparedProcessor
 from image_downloader.models import Chapter, DownloadManifest, ImageArtifact, ImageResource
 from image_downloader.observability.events import EventName
 from image_downloader.plugins.builtin import GenericHtmlPlugin
 from image_downloader.plugins.plugin_invoker import PluginInvoker
+from image_downloader.plugins.runtime import safe_app_settings
 
 
 def _image_bytes(image_format="PNG", size=(16, 16)):
@@ -65,12 +67,9 @@ def _pipeline(core, config=None, processors=()):
 
     logger = SimpleNamespace(core=log, plugin=log)
     record = SimpleNamespace(id="core.generic-html", manifest=SimpleNamespace(value={}), catalog=None)
-    registry = SimpleNamespace(effective_config=lambda *args: {})
-    return ArtifactPipeline(
-        config or AppConfig(),
-        registry,
-        record,
-        None,
+    config = config or AppConfig()
+    return ArtifactPipeline._from_binding(
+        PreparedPipelineBinding.prepare(config, record.id, {}, safe_app_settings(config), {}, None),
         core,
         logger,
         PluginInvoker(record.id, logger),

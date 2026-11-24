@@ -258,6 +258,7 @@ async def _finalize_shutdown(
         settled = await settle_operation(revise_after_close(config, final_result, outcome.exit_code, root))
         if settled.value is not None:
             final_result, _ = settled.value
+        settled.raise_interruption()
         if settled.error is not None or settled.cancellation is not None:
             from ..application.shutdown import warn_shutdown_failure
 

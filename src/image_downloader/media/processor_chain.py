@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from types import TracebackType
 from typing import Any, Literal
 
@@ -14,6 +14,7 @@ from ..plugins.plugin_invoker import PluginInvoker
 from ..plugins.plugin_manifest import PluginConfigOverrides
 from ..plugins.runtime import PluginRuntime, safe_app_settings
 from ..ports import ImageProcessor
+from .pipeline_binding import snapshot
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,6 +24,15 @@ class PreparedProcessor:
     instance: ImageProcessor
     config: Mapping[str, Any]
     app_settings: Mapping[str, Any]
+    plugin_manifest: Mapping[str, object] = field(init=False)
+    catalog: Mapping[str, object] | None = field(init=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "config", snapshot(self.config))
+        object.__setattr__(self, "app_settings", snapshot(self.app_settings))
+        object.__setattr__(self, "plugin_manifest", snapshot(self.record.manifest.value))
+        catalog = self.record.catalog.as_json() if self.record.catalog else None
+        object.__setattr__(self, "catalog", snapshot(catalog) if catalog is not None else None)
 
 
 class OperationProcessorChain:

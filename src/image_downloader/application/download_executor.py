@@ -20,6 +20,7 @@ from ..exceptions import (
     error_info_for,
 )
 from ..media.artifact_pipeline import ArtifactPipeline
+from ..media.pipeline_binding import PreparedPipelineBinding
 from ..media.processor_chain import OperationProcessorChain
 from ..models import (
     AdditionalFileHookPoint,
@@ -182,6 +183,15 @@ class DownloadExecutor:
         plugin_values: Mapping[str, Mapping[str, str]],
         processors: OperationProcessorChain,
     ) -> DownloadResult:
+        binding = PreparedPipelineBinding.prepare(
+            self.config,
+            site.record.id,
+            site.context.config,
+            site.context.app_settings,
+            site.context.manifest,
+            site.context.catalog,
+            force_image_format=request.force_image_format,
+        )
         await additional.initialize()
         await additional.run(AdditionalFileHookPoint.BEFORE_MANIFEST)
         manifest = self.operations.normalize_manifest(
@@ -198,16 +208,12 @@ class DownloadExecutor:
             result = DownloadResult(request.url, manifest, ())
         else:
             allocator = additional.allocator
-            pipeline = ArtifactPipeline(
-                self.config,
-                self.registry,
-                site.record,
-                request.plugin_overrides,
+            pipeline = ArtifactPipeline._from_binding(
+                binding,
                 self.image_processor,
                 self.logger,
                 site.invoker,
                 processors.bindings,
-                force_image_format=request.force_image_format,
                 transform_executor=self.transform_executor,
             )
             results = await self.chapters.execute(

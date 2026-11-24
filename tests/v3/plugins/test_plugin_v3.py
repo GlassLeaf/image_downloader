@@ -654,7 +654,10 @@ def test_install_updates_existing_plugin_id_when_source_directory_name_changes(t
     install_plugin(root, source.resolve())
     install_plugin(root, renamed_source)
 
-    installed = [path for path in (root / "site_plugins").iterdir() if path.is_dir()]
+    installed = [
+        path for path in (root / "site_plugins").iterdir()
+        if path.is_dir() and path.name != ".id-install-transactions"
+    ]
     assert installed == [root / "site_plugins" / source.name]
     assert read_manifest(installed[0]).id == "com.example.gallery"
 

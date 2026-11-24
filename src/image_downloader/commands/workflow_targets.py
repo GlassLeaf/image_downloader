@@ -220,6 +220,7 @@ async def workflow_targets_command(args: StateArguments, outcome: CommandOutcome
         result = change_result(plan, dry_run=True)
     else:
         settled = await settle_operation(asyncio.to_thread(partial(state.apply_changes, plan, approved)))
+        settled.raise_interruption()
         if settled.error is not None:
             raise settled.error
         assert settled.value is not None

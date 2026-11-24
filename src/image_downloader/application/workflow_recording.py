@@ -149,6 +149,7 @@ async def revise_result(config: AppConfig, result: WorkflowResult, exit_code: in
 async def _settle(function: Callable[[], None]) -> asyncio.CancelledError | None:
     """History keeps cancellation primary even when the recording write fails."""
     settled = await settle_operation(asyncio.to_thread(function))
+    settled.raise_interruption()
     if settled.error is not None:
         if settled.cancellation is not None and isinstance(settled.error, Exception):
             warn_history(SAVE_WARNING)

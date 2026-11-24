@@ -185,7 +185,10 @@ class WorkflowState:
             raise ValueError("invalid workflow target status")
         with self.lock(Path("workflow.lock")):
             document = self._read()
-            records = document["sources"][plugin_id][source_key(source_url)]["records"]
+            feed = document["sources"].get(plugin_id, {}).get(source_key(source_url))
+            if feed is None:
+                raise UpdateStateError("workflow target source not found")
+            records = feed["records"]
             for record in records.values():
                 if record["url"] == target_url and (not only_unfinished or record["status"] != "completed"):
                     record["status"] = status

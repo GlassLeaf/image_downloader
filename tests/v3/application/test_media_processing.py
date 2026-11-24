@@ -19,6 +19,7 @@ from image_downloader.exceptions import (
 )
 from image_downloader.media import ImageProcessor
 from image_downloader.media.artifact_pipeline import ArtifactPipeline
+from image_downloader.media.pipeline_binding import PreparedPipelineBinding
 from image_downloader.models import Chapter, DownloadManifest, ImageArtifact, ImageResource, ImageSaveOptions
 
 
@@ -26,6 +27,10 @@ def _image(image_format: str = "PNG", size: tuple[int, int] = (8, 6)) -> bytes:
     output = io.BytesIO()
     Image.new("RGBA", size, "red").save(output, format=image_format)
     return output.getvalue()
+
+
+def _binding(config=None):
+    return PreparedPipelineBinding.prepare(config or AppConfig(), "com.example.site", {}, {}, {}, None)
 
 
 def test_image_processor_preserves_matching_data_and_converts_when_requested() -> None:
@@ -128,14 +133,14 @@ def test_image_processor_reports_unsupported_decoded_format() -> None:
 
 def test_input_validation_uses_specific_content_type_and_mime_errors() -> None:
     pipeline = ArtifactPipeline.__new__(ArtifactPipeline)
-    pipeline.config = AppConfig.model_validate({"media": {"input_validation": "content_type"}})
+    pipeline.binding = _binding(AppConfig.model_validate({"media": {"input_validation": "content_type"}}))
     with pytest.raises(ImageContentTypeError, match="non-image content type"):
         pipeline._validate_input(ImageArtifact(b"<html>", "text/html", "https://example.test/error"))
 
     processor = ImageProcessor()
-    pipeline.config = AppConfig.model_validate(
+    pipeline.binding = _binding(AppConfig.model_validate(
         {"media": {"input_validation": "decode", "content_type_mismatch": "error"}}
-    )
+    ))
     pipeline.core = processor
     try:
         with pytest.raises(ImageMimeMismatchError, match="MIME"):
@@ -152,20 +157,12 @@ def test_original_format_preserves_the_transformed_artifact_and_validates_it_onc
         async def transform_image(self, *_args: object, **_kwargs: object) -> ImageArtifact:
             return transformed
 
-    class Registry:
-        @staticmethod
-        def effective_config(*_args: object) -> dict[str, object]:
-            return {}
-
     class Logger:
         async def core(self, *_args: object, **_kwargs: object) -> None:
             return None
 
     pipeline = ArtifactPipeline.__new__(ArtifactPipeline)
-    pipeline.config = AppConfig()
-    pipeline.registry = Registry()
-    pipeline.site_record = SimpleNamespace(id="com.example.site", manifest=SimpleNamespace(value={}), catalog=None)
-    pipeline.overrides = None
+    pipeline.binding = _binding()
     pipeline.core = SimpleNamespace()
     pipeline.logger = Logger()
     pipeline.invoker = Invoker()
@@ -193,7 +190,7 @@ def test_original_format_preserves_the_transformed_artifact_and_validates_it_onc
 
 def test_format_precedence_keeps_plugin_default_and_force_overrides_it() -> None:
     pipeline = ArtifactPipeline.__new__(ArtifactPipeline)
-    pipeline.config = AppConfig.model_validate({"output": {"image_format": "PNG"}})
+    pipeline.binding = _binding(AppConfig.model_validate({"output": {"image_format": "PNG"}}))
     plugin_image = ImageResource("image:1", save_options=ImageSaveOptions(format="JPEG", extension=".jpeg"))
     default_image = ImageResource("image:2")
 
@@ -227,11 +224,6 @@ def test_forced_jpeg_replaces_a_plugin_format_and_extension() -> None:
         async def transform_image(self, *_args: object, **_kwargs: object) -> ImageArtifact:
             return _args[1]
 
-    class Registry:
-        @staticmethod
-        def effective_config(*_args: object) -> dict[str, object]:
-            return {}
-
     class Logger:
         async def core(self, *_args: object, **_kwargs: object) -> None:
             return None
@@ -243,10 +235,7 @@ def test_forced_jpeg_replaces_a_plugin_format_and_extension() -> None:
     manifest = DownloadManifest("gallery", (Chapter(1, "chapter", images=(image,)),))
     with ImageProcessor() as core:
         pipeline = ArtifactPipeline.__new__(ArtifactPipeline)
-        pipeline.config = AppConfig()
-        pipeline.registry = Registry()
-        pipeline.site_record = SimpleNamespace(id="com.example.site", manifest=SimpleNamespace(value={}), catalog=None)
-        pipeline.overrides = None
+        pipeline.binding = _binding()
         pipeline.core = core
         pipeline.logger = Logger()
         pipeline.invoker = Invoker()

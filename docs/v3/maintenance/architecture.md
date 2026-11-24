@@ -31,6 +31,16 @@ flowchart TD
 `OutputWriter`はcommitと同期的な確定結果登録をキャンセル伝播前に完了し、フックやイベントは
 ロック解放後に呼ぶ。章レポーターも結果登録とログ出力を分離し、終了時に残った登録済み結果を出力する。
 
+内部`PreparedPipelineBinding`はdownload試行ごとにサイト設定、安全なアプリ設定、manifest・catalog、
+変換方針、metadata公開許可を不変スナップショットへ解決する。画像処理中の`ArtifactPipeline`は
+レジストリを保持せず、このスナップショットを使う。公開コンストラクターの引数は互換性のため維持し、
+薄いアダプターで同じスナップショットを一度生成する。processorは既存`PreparedProcessor`へ設定・metadataの
+スナップショットを保持する。各画像の`TransformContext`生成と防御的コピーは維持し、試行間のキャッシュは持たない。
+
+`PluginInstallTransaction`は同じ種類別ディレクトリ内でステージ・旧版・公開段階・復旧記録を所有する。
+カタログロック下で公開・復元・後始末を行い、未解決の公開記録があるrootの変更操作を拒否する。
+自動復旧を行わない理由と手動手順は[プラグイン形式](../reference/plugin-package.md#management-policy)を参照する。
+
 `PluginInvoker`は呼出し制御・例外変換を担当し、戻り値の検証は`plugins.plugin_validation`の
 純粋関数へ委譲する。付随ファイルの宣言・提供・callbackも同じ呼出し窓口を使い、通常の失敗を
 任意機能として記録する判断は`AdditionalFiles`に残す。
@@ -48,6 +58,13 @@ CLIの検証処理は不変の`PreparedCommand`を生成します。入力は`Do
 並列ジョブと確定待ち処理は、タスクを作る前に`capture_result`で処理を包みます。`SystemExit`や`KeyboardInterrupt`が子タスクから漏れると、呼出し側で捕捉する前にイベントループが停止するためです。元の例外は`TaskSettlement.error`で受け渡し、開始済みの処理を回収した後に所有者が再送出します。`settle_operation`は待機側のキャンセルと処理側の失敗を別々に保持し、保存では処理の失敗、履歴ではキャンセルを優先する既存の規則を維持します。並列実行はfactoryの同期例外も同じ境界で捕捉し、未開始の処理を止めます。
 
 `WorkflowState.read_feeds()`は、短いworkflowロックの下で不変な`WorkflowFeedSnapshot`のタプルを渡すcontext managerです。そのコンテキスト内で履歴を読むことで、workflowロック→履歴ロックの順序を保ちます。フィードロックは取得しません。applicationは保存用辞書や非公開の読取関数を使いません。`source_key()`は既存のUTF-8 URLのSHA-256を維持し、名前長の調整は`FileSystem.shorten_component()`を通じて既存アルゴリズムを利用します。
+
+`TaskSettlement.interruption`は待機側で受けた最初の重大割込みを、子処理の`error`や通常の
+`cancellation`と区別して保持する。開始済みの処理・結果登録・ロック解放を終えてから重大割込みを優先して伝播し、
+同時の子処理失敗は例外連鎖へ残す。重大割込みがない場合の保存・履歴の優先順位は変更しない。
+
+workflow履歴は現行JSON形式とロック下の全件検証・合成・保存を維持する。各runのJSON表現を保存処理内で
+一度生成し、保持判定・最終出力・サイズ判定で再利用する。検証省略キャッシュや形式移行は行わない。
 
 テストの背景タスクはsupportの`managed_task()`で、作成直後から所有します。開始待ちは`wait_until_started()`で処理の早期終了と区別し、失敗した場合もサービス終了より先にタスクをキャンセル・回収します。保護された書き込みをEventで止めるテストでは、回収前に`finally`でEventを解放します。
 

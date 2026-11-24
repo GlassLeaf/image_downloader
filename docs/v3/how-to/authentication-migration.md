@@ -150,4 +150,9 @@ UNKNOWNは追加検証を求める。検証もUNKNOWNなら `AuthStateUnknownErr
 
 同時要求は実行中の初期化・更新・検証を共有する。初期化・更新の失敗もoperation内で共有する。待機要求のキャンセルは共有タスクを中断せず、operation終了時に残存タスクを回収する。自動の認証再試行は要求ごとに `network.auth_refresh_attempts` 回まで。非冪等要求の再送には `retry_non_idempotent=True` が必要。
 
+通信の一時障害へのHTTP再試行（`network.max_attempts`）は個々の通信を扱い、
+`auth_refresh_attempts`は認証応答を受けた要求の更新回数を制限する。認証hook自体の失敗を
+同じoperation内で単純にリセットして再実行する設定ではない。workflowの新しい試行は新しい
+認証セッションを準備する。操作内の失敗共有と試行間の回復を区別する。
+
 `AuthScopeError`（設定）、`AuthReentryError`（実装契約）、`AuthStateUnknownError`（確認不能）はworkflowの自動再試行対象外。`inspect` も認証準備と同期applyを通すが画像本体は送信しない。Cookie変更は分離した検査セッション内に留まり、サーバー上のログイン・token発行などの副作用は取り消せない。

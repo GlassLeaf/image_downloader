@@ -119,6 +119,15 @@ ORIGINAL保存も対象になる。設定の許可範囲と既存設定の変更
 
 ## 実行環境のファサード
 
+`ArtifactPipeline`の公開コンストラクターは従来の引数を維持し、構築時に固定設定を
+不変スナップショットへ解決します。通常のdownloadは試行ごとに一度解決します。
+各画像のmanifest・chapter・plugin data・transport情報と、公開コンテキストの防御的コピーは維持します。
+
+`CookieStore.import_browser(domain, *, chrome_user_data_dir=None)`のdomainはCookieを利用するホストです。
+明示Chrome・自動検出とも、PSLのICANN・PRIVATE境界内の親Domain Cookieを既定で許可します。
+host-only Cookieは完全一致、IP・PSL不明のホストも完全一致だけを許可し、Cookie属性は変更しません。
+従来より取込み対象が増えます。詳細は[Cookieの実行時仕様](runtime-behavior.md#runtime-cookies)を参照してください。
+
 | API | 契約の説明 |
 | --- | --- |
 | `RuntimeComposer(config, *, config_root, plugin_root, output_root=None, plugin_verification_override=None)` | `output_root` は absolute safe path の任意 image-output root であり、指定すると profile `downloads` だけを置換し、logs/state/cookies は config 由来の root に残る。`compose() -> DownloadService` は log file、filesystem/state/cookie store、HTTP gateway、worker/image processor を作成してそれらを所有するため、compose 自体が filesystem/resource side effect を持つ。`compose_registry() -> PluginRuntime` は registry/module discovery だけを作り、gateway/logger/worker/file handle を作らず、caller が `close()` する。CLI `inspect` は内部の sinkless composition を使うため debug log / console sink を作らない。 |

@@ -231,7 +231,7 @@ download・inspect・workflowとstateの問い合わせ操作で`--plugin ID`を
 | `plugin install SOURCE`、`trust SOURCE`、`revoke ID`、`uninstall ID` | 操作に応じたソースディレクトリまたはmanifest ID | 解決済み設定、ソース・カタログ、確認入力 | 設定の初期作成・書き換え、トランザクションによるプラグインディレクトリ・カタログ変更 | カタログの登録内容、または削除結果のオブジェクト | 0・2・4 |
 | `cookie export PATH` | 出力パス | 解決済み設定とプロファイルのCookie保存先 | 暗号化した書き出しファイル | 操作・対象のオブジェクト、またはメッセージ | 0・2・3 |
 | `cookie import PATH` | 既存の暗号化書き出しファイルのパス | 解決済み設定、取り込みファイル、プロファイルのCookie保存先 | プロファイルの暗号化Cookieを合成・保存 | 操作・対象のオブジェクト、またはメッセージ | 0・1・2・3 |
-| `cookie browser-import DOMAIN` | ブラウザーCookieのドメイン | 解決済み設定、ブラウザーのCookieデータベース、プロファイルのCookie保存先 | プロファイルの暗号化Cookieを合成・保存 | 操作・対象のオブジェクト、またはメッセージ | 0・2・3 |
+| `cookie browser-import DOMAIN` | Cookieを利用するホスト | 解決済み設定、ブラウザーのCookieデータベース、プロファイルのCookie保存先 | プロファイルの暗号化Cookieを合成・保存 | 操作・対象のオブジェクト、またはメッセージ | 0・2・3 |
 
 `config init`は`--config`・`--profile`を受理せず、任意のパスは位置引数で指定します。`config profile init`はメイン設定の場所として`--config`を受理し、`--profile`・`--data-root`・`--plugin-root`を拒否します。処理側が拒否する指定では、最後の指定を採用するのではなく、主操作の前に引数エラーで終了します。上のコマンド表と[オプション表](#cli-options)で、受理・効果あり・効果なし・拒否を区別してください。
 
@@ -242,6 +242,12 @@ download・inspect・workflowとstateの問い合わせ操作で`--plugin ID`を
 ### Cookie操作とブラウザー対応
 
 `cookie export PATH`と`cookie import PATH`は、制御端末で`Passphrase:`と表示して入力を求めます。パスフレーズはオプションや環境変数で受け付けません。`cookie browser-import DOMAIN`は、任意のブラウザー読み取り依存を`pip install 'image-downloader[browser-cookies]'`で追加してから使ってください。一致するブラウザーCookieを読み取り、現在のプロファイルへ合成します。3操作とも、成功JSONにはCookie値・パスフレーズ・ブラウザーの記録・暗号鍵を含めません。暗号化・合成・lockの挙動は[実行時の挙動](runtime-behavior.md#runtime-cookies)を参照してください。
+
+`DOMAIN`はCookieを利用するホストです。たとえば`gallery.example.com`には、そのホストのCookieと
+適用可能な親Domain Cookie（`.example.com`など）を既定で取り込みます。親host-only Cookieや
+兄弟・子ドメインは取り込みません。同梱PSLのICANN・PRIVATE境界を越えるCookieは除外し、
+IPやPSL不明のホストは完全一致だけを許可します。明示Chrome取込みと自動検出に同じ規則を使います。
+従来の完全一致限定より取込み対象が増えますが、Cookieの属性は変更しません。
 
 `cookie import PATH`の相対パスはCWD基準です。絶対パスも使用できます。`..`、シンボリックリンク、
 Windows再解析ポイントを含む経路は設定エラー（終了コード2）です。不在・読取り不能はストレージの失敗

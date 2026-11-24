@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import re
-from collections.abc import Mapping
 from dataclasses import replace
 from pathlib import PurePosixPath
 from urllib.parse import urlparse
@@ -12,6 +11,7 @@ from urllib.parse import urlparse
 from ..configuration.models import AppConfig, ImageFormat
 from ..exceptions import ConfigurationError, ImageContentTypeError, ImageDecodeError, ImageMimeMismatchError
 from ..media.image_processor import ImageProcessor
+from ..media.pipeline_binding import PreparedPipelineBinding
 from ..media.processor_chain import PreparedProcessor
 from ..media.transform_executor import TransformExecutor
 from ..models import (
@@ -29,11 +29,10 @@ from ..observability.logging import DownloadLogger
 from ..plugins.lifecycle import PluginRecord
 from ..plugins.plugin_invoker import PluginInvoker
 from ..plugins.plugin_manifest import PluginConfigOverrides
-from ..plugins.runtime import PluginRuntime, safe_app_settings
+from ..plugins.runtime import PluginRuntime
 from ..ports import SitePlugin, TransformContext
 from ..privacy.log_safety import safe_url
 
-_IMAGE_FORMATS = frozenset(("ORIGINAL", "JPEG", "PNG", "WEBP"))
 _SAFE_EXTENSION = re.compile(r"\.?([A-Za-z0-9]{1,16})\Z")
 _CONTENT_TYPE_EXTENSIONS = {
     "image/jpeg": ".jpeg",
@@ -66,22 +65,44 @@ class ArtifactPipeline:
         force_image_format: ImageFormat | None = None,
         transform_executor: TransformExecutor,
     ) -> None:
-        if force_image_format not in (None, *_IMAGE_FORMATS):
-            raise ValueError("force_image_format must be ORIGINAL, JPEG, PNG, WEBP, or None")
-        self.config = config
-        self.registry = registry
-        self.site_record = site_record
-        self.overrides = overrides
+        # Preserve the advanced public constructor; core execution supplies its
+        # already-prepared binding through the internal entry point below.
+        from .pipeline_binding import prepare_runtime_binding
+
+        binding = prepare_runtime_binding(config, registry, site_record, overrides, force_image_format)
+        self._initialize(binding, image_processor, logger, invoker, processors, transform_executor)
+
+    @classmethod
+    def _from_binding(
+        cls,
+        binding: PreparedPipelineBinding,
+        image_processor: ImageProcessor,
+        logger: DownloadLogger,
+        invoker: PluginInvoker,
+        processors: tuple[PreparedProcessor | str, ...],
+        *,
+        transform_executor: TransformExecutor,
+    ) -> ArtifactPipeline:
+        pipeline = cls.__new__(cls)
+        pipeline._initialize(binding, image_processor, logger, invoker, processors, transform_executor)
+        return pipeline
+
+    def _initialize(
+        self,
+        binding: PreparedPipelineBinding,
+        image_processor: ImageProcessor,
+        logger: DownloadLogger,
+        invoker: PluginInvoker,
+        processors: tuple[PreparedProcessor | str, ...],
+        transform_executor: TransformExecutor,
+    ) -> None:
+        self.binding = binding
         self.core = image_processor
         self.logger = logger
         self.invoker = invoker
         self.processors = processors
-        self.force_image_format = force_image_format
+        self.force_image_format = binding.force_image_format
         self.transform_executor = transform_executor
-
-    @staticmethod
-    def _catalog(record: PluginRecord) -> Mapping[str, object] | None:
-        return record.catalog.as_json() if record.catalog is not None else None
 
     @staticmethod
     def _redacted_transport_metadata(value: ImageTransportMetadata) -> ImageTransportMetadata:
@@ -108,8 +129,7 @@ class ArtifactPipeline:
     ) -> ImageTransportMetadata | None:
         if value is None:
             return None
-        permitted_sites = self.config.image_processors.transport_metadata_access.get(processor_id, ())
-        return value if self.site_record.id in permitted_sites else self._redacted_transport_metadata(value)
+        return value if processor_id in self.binding.metadata_processors else self._redacted_transport_metadata(value)
 
     async def process(
         self,
@@ -123,10 +143,10 @@ class ArtifactPipeline:
     ) -> ImageArtifact:
         context = TransformContext(
             image,
-            self.registry.effective_config(self.site_record, self.overrides),
-            safe_app_settings(self.config),
-            self.site_record.manifest.value,
-            self._catalog(self.site_record),
+            self.binding.config,
+            self.binding.app_settings,
+            self.binding.manifest,
+            self.binding.catalog,
             manifest,
             chapter,
             transport_metadata=transport_metadata,
@@ -163,12 +183,12 @@ class ArtifactPipeline:
                 image,
                 binding.config,
                 binding.app_settings,
-                binding.record.manifest.value,
-                self._catalog(binding.record),
+                binding.plugin_manifest,
+                binding.catalog,
                 manifest,
                 chapter,
-                site_manifest=self.site_record.manifest.value,
-                site_catalog=self._catalog(self.site_record),
+                site_manifest=self.binding.manifest,
+                site_catalog=self.binding.catalog,
                 transport_metadata=self._processor_transport_metadata(binding.plugin_id, transport_metadata),
             )
             previous = current
@@ -201,7 +221,7 @@ class ArtifactPipeline:
             chapter_id=chapter_id,
             url=final.source_url,
             bytes_count=len(final.data),
-            plugin_id=self.site_record.id,
+            plugin_id=self.binding.plugin_id,
             url_is_locator=True,
             debug=True,
         )
@@ -226,7 +246,7 @@ class ArtifactPipeline:
             return replace(image.save_options, format=self.force_image_format, extension=None)
         if image.save_options.format:
             return image.save_options
-        return replace(image.save_options, format=self.config.output.image_format)
+        return replace(image.save_options, format=self.binding.image_format)
 
     @staticmethod
     def _is_original(options: ImageSaveOptions) -> bool:
@@ -276,18 +296,18 @@ class ArtifactPipeline:
             raise ImageDecodeError("image data is empty")
         declared = artifact.content_type.lower().split(";", 1)[0].strip()
         unspecified = declared in {"", "application/octet-stream"}
-        if self.config.media.input_validation in {"content_type", "both"} and (
+        if self.binding.input_validation in {"content_type", "both"} and (
             not unspecified and declared not in _CONTENT_TYPE_EXTENSIONS
         ):
             raise ImageContentTypeError("image request returned a non-image content type")
-        if self.config.media.input_validation in {"decode", "both"} or (
-            declared.startswith("image/") and self.config.media.content_type_mismatch == "error"
+        if self.binding.input_validation in {"decode", "both"} or (
+            declared.startswith("image/") and self.binding.content_type_mismatch == "error"
         ):
-            detected = self.core.inspect(artifact.data, max_pixels=self.config.media.max_image_pixels)
+            detected = self.core.inspect(artifact.data, max_pixels=self.binding.max_image_pixels)
             if (
                 declared.startswith("image/")
                 and declared != detected
-                and self.config.media.content_type_mismatch == "error"
+                and self.binding.content_type_mismatch == "error"
             ):
                 raise ImageMimeMismatchError("declared image MIME does not match image data")
 
@@ -303,6 +323,6 @@ class ArtifactPipeline:
             source_url=artifact.source_url,
             content_type=artifact.content_type,
             options=options,
-            max_pixels=self.config.media.max_image_pixels,
+            max_pixels=self.binding.max_image_pixels,
         )
         return replace(artifact, data=data, extension=extension, history=(*artifact.history, history))

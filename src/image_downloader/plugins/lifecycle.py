@@ -155,6 +155,8 @@ class PluginDiscovery:
         )
 
     def _directories(self, diagnostics: list[PluginDiagnostic]) -> list[tuple[PluginKind, Path]]:
+        from .install_area import is_install_area
+
         found: list[tuple[PluginKind, Path]] = []
         roots: tuple[tuple[str, PluginKind], ...] = (
             ("site_plugins", "site_plugin"),
@@ -168,6 +170,8 @@ class PluginDiscovery:
                 diagnostics.append(PluginDiagnostic(name, str(parent), False, "plugin kind directory is invalid"))
                 continue
             for item in parent.iterdir():
+                if is_install_area(item):
+                    continue
                 if _is_link(item) or not item.is_dir():
                     diagnostics.append(
                         PluginDiagnostic(item.name, str(item), False, "plugin unit must be a non-link directory")

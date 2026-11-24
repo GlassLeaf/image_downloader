@@ -182,5 +182,8 @@ def _write_catalog_unlocked(plugin_root: Path, catalog: PluginCatalog) -> None:
 
 
 def write_catalog(plugin_root: Path, catalog: PluginCatalog) -> None:
+    from .install_area import require_recovered_installs
+
     with _catalog_lock(plugin_root):
+        require_recovered_installs(plugin_root)
         _write_catalog_unlocked(plugin_root, catalog)

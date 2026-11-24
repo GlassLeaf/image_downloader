@@ -31,10 +31,10 @@ def canonical_path(path: Path, label: str) -> Path:
     """
     if not path.is_absolute():
         raise ConfigurationError(f"{label} must be an absolute path")
+    if any(part in {".", ".."} for part in path.parts[1:]):
+        raise ConfigurationError(f"{label} must not contain relative path components: {path}")
     current = Path(path.anchor)
     for part in path.parts[1:]:
-        if part in {".", ".."}:
-            raise ConfigurationError(f"{label} must not contain relative path components: {path}")
         current = current / part
         try:
             state = current.lstat()

@@ -111,7 +111,13 @@ class CommandOutcome:
         finally:
             # Shield cleanup only: the command body must remain cancellable.
             settled = await settle_operation(close())
-            self._closed(settled.error if settled.error is not None else settled.cancellation, handled=handled)
+            close_error = settled.error if settled.error is not None else settled.cancellation
+            try:
+                settled.raise_interruption()
+            except BaseException as interruption:
+                close_error = interruption
+            self._closed(close_error, handled=handled)
+            settled.raise_interruption()
 
     @contextmanager
     def closing_sync(self, close: Callable[[], None]) -> Iterator[None]:

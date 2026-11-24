@@ -82,6 +82,22 @@ def test_cookie_import_rejects_reparse_point_before_reading(exported, tmp_path, 
         target.import_file(exported, "test-passphrase")
 
 
+@pytest.mark.parametrize("relative", [False, True])
+@pytest.mark.parametrize("traversal_first", [False, True])
+def test_missing_component_cannot_hide_parent_traversal(exported, tmp_path, monkeypatch, relative, traversal_first):
+    target = cookie_store(tmp_path / "target")
+    target.save(_deserialize("[]"))
+    before = target.path.read_bytes()
+    suffix = Path("..") / "missing" / exported.name if traversal_first else Path("missing") / ".." / exported.name
+    path = exported.parent / suffix
+    if relative:
+        monkeypatch.chdir(exported.parent)
+        path = suffix
+    with pytest.raises(ConfigurationError, match="relative path components"):
+        target.import_file(path, "test-passphrase")
+    assert target.path.read_bytes() == before
+
+
 @pytest.mark.parametrize("missing", [False, True])
 def test_cookie_import_cli_relative_path_and_storage_status(exported, tmp_path, monkeypatch, capsys, missing):
     import image_downloader.commands.cookie as command

@@ -166,6 +166,7 @@ class DownloadService:
             return
         settled = await settle_task(task)
         error = settled.error if settled.error is not None else settled.value
+        settled.raise_interruption(error)
         if error is not None:
             raise error
         if settled.cancellation is not None:

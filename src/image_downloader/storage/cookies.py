@@ -22,6 +22,7 @@ from ..credentials.profile_store import ProfileCredentialStore
 from ..credentials.vault_crypto import FILE_LIMIT
 from ..credentials.vault_files import private_directory
 from ..exceptions import AuthenticationError, StorageError
+from .cookie_selection import BrowserCookieSelection
 from .filesystem import FileSystem, atomic_write
 from .interprocess_lock import InterProcessFileLock
 from .path_safety import canonical_path, existing_directory
@@ -116,6 +117,7 @@ class CookieStore:
             self._save_unlocked(target)
 
     def import_browser(self, domain: str, *, chrome_user_data_dir: Path | None = None) -> None:
+        domain = BrowserCookieSelection.for_host(domain).host
         if chrome_user_data_dir is not None:
             from .browser_cookies import import_chrome
 
@@ -130,10 +132,11 @@ class CookieStore:
 
     @staticmethod
     def _discover_browser(domain: str) -> CookieJar:
+        selection = BrowserCookieSelection.for_host(domain)
         try:
             import browser_cookie3
 
-            return cast(CookieJar, browser_cookie3.load(domain_name=domain))
+            return selection.select(cast(CookieJar, browser_cookie3.load(domain_name=selection.query_host)))
         except ImportError as exc:
             raise AuthenticationError("browser cookie import requires browser-cookie3") from exc
 

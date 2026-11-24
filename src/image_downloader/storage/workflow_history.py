@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -30,13 +30,27 @@ def run_payload(record: WorkflowRunRecord) -> dict[str, object]:
     }
 
 
-def encode_records(records: list[WorkflowRunRecord]) -> bytes:
+def _encode_record(record: WorkflowRunRecord) -> bytes:
     return json.dumps(
-        {"schema_version": 1, "runs": [run_payload(r) for r in records]},
+        run_payload(record),
         ensure_ascii=False,
         separators=(",", ":"),
         allow_nan=False,
     ).encode("utf-8")
+
+
+def _assemble(records: list[bytes]) -> bytes:
+    return b'{"schema_version":1,"runs":[' + b",".join(records) + b"]}"
+
+
+def encode_records(records: list[WorkflowRunRecord]) -> bytes:
+    return _assemble([_encode_record(record) for record in records])
+
+
+@dataclass(frozen=True, slots=True)
+class _EncodedRun:
+    record: WorkflowRunRecord
+    payload: bytes
 
 
 def parse_time(value: Any) -> datetime:
@@ -139,16 +153,15 @@ class WorkflowHistoryStore:
         return [r for r in records if r.ended_at > cutoff]
 
     def _retain(
-        self, records: list[WorkflowRunRecord], now: datetime, *, incoming: WorkflowRunRecord | None = None
-    ) -> tuple[list[WorkflowRunRecord], int]:
+        self, records: list[_EncodedRun], now: datetime, *, incoming: _EncodedRun | None = None
+    ) -> tuple[list[_EncodedRun], int]:
         cutoff = _cutoff(now, self.policy.max_age_days)
-        retained = [r for r in records if r.ended_at > cutoff]
+        retained = [r for r in records if r.record.ended_at > cutoff]
         expired = len(records) - len(retained)
-        oversized = incoming is not None and len(encode_records([incoming])) > self.policy.max_size_bytes
+        envelope_size = len(_assemble([]))
+        oversized = incoming is not None and envelope_size + len(incoming.payload) > self.policy.max_size_bytes
         if not oversized:
-            # Serialize each summary once instead of repeatedly encoding the whole journal.
-            envelope_size = len(encode_records([]))
-            sizes = [len(encode_records([r])) - envelope_size for r in retained]
+            sizes = [len(r.payload) for r in retained]
             total = envelope_size + sum(sizes) + max(0, len(retained) - 1)
             first = 0
             while len(retained) - first > 1 and total > self.policy.max_size_bytes:
@@ -157,11 +170,19 @@ class WorkflowHistoryStore:
             retained = retained[first:]
         return retained, expired
 
-    def _write(self, records: list[WorkflowRunRecord]) -> None:
+    def _write(self, payload: bytes) -> None:
         try:
-            self.filesystem.write_bytes_atomic(self.relative, encode_records(records))
+            self.filesystem.write_bytes_atomic(self.relative, payload)
         except OSError as exc:
             raise UpdateStateError("workflow history cannot be saved") from exc
+
+    def _save_records(self, records: list[WorkflowRunRecord], incoming: WorkflowRunRecord, now: datetime) -> bool:
+        encoded = [_EncodedRun(record, _encode_record(record)) for record in records]
+        item = next(item for item in encoded if item.record.run_id == incoming.run_id)
+        retained, _ = self._retain(encoded, now, incoming=item)
+        payload = _assemble([item.payload for item in retained])
+        self._write(payload)
+        return len(payload) > self.policy.max_size_bytes
 
     def save(self, record: WorkflowRunRecord, *, now: datetime | None = None) -> bool:
         with self.lock():
@@ -169,9 +190,7 @@ class WorkflowHistoryStore:
             records = [r for r in records if r.run_id != record.run_id]
             records.append(record)
             records.sort(key=lambda r: (r.ended_at, r.run_id))
-            records, _ = self._retain(records, now or datetime.now(UTC), incoming=record)
-            self._write(records)
-            return len(encode_records(records)) > self.policy.max_size_bytes
+            return self._save_records(records, record, now or datetime.now(UTC))
 
     def revise(self, run_id: str, details: dict[str, object], exit_code: int) -> bool:
         with self.lock():
@@ -182,17 +201,17 @@ class WorkflowHistoryStore:
             record = replace(old, details=details, exit_code=exit_code, ended_at=max(old.started_at, datetime.now(UTC)))
             records = [r for r in records if r.run_id != run_id] + [record]
             records.sort(key=lambda r: (r.ended_at, r.run_id))
-            records, _ = self._retain(records, datetime.now(UTC), incoming=record)
-            self._write(records)
-            return len(encode_records(records)) > self.policy.max_size_bytes
+            return self._save_records(records, record, datetime.now(UTC))
 
     def prune(self, *, dry_run: bool = False, now: datetime | None = None) -> WorkflowPruneResult:
         with self.lock():
             records, before = self._read()
-            retained, expired = self._retain(records, now or datetime.now(UTC))
-            ids = {r.run_id for r in retained}
+            encoded = [_EncodedRun(record, _encode_record(record)) for record in records]
+            retained, expired = self._retain(encoded, now or datetime.now(UTC))
+            ids = {r.record.run_id for r in retained}
             deleted = tuple(r.run_id for r in records if r.run_id not in ids)
-            after = len(encode_records(retained)) if before else 0
+            payload = _assemble([item.payload for item in retained])
+            after = len(payload) if before else 0
             if not dry_run and before:
-                self._write(retained)
+                self._write(payload)
             return WorkflowPruneResult(deleted, before, after, expired, after > self.policy.max_size_bytes, dry_run)

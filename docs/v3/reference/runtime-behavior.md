@@ -92,7 +92,13 @@ file importは相対パスをCWD基準の絶対表記へ変換し、元の経路
 明示的な`chrome_user_data_dir`はChromeの`Default/Network/Cookies`と`Local State`に限定する。
 両方の通常ファイルを安全に開き、変更を検知するスナップショットから読み取る。SQLiteとLocal Stateの最低限の構造を検査し、
 Local StateのJSON読取りは4MiBを上限にする。
-依存ローダーのsubstringドメインフィルターに加えて、取得後にドメイン完全一致で絞る。
+ブラウザー取込みの指定ドメインはCookieを利用するホストとして扱い、IDNA・小文字へ正規化する。
+明示Chrome取込みと自動検出の両方で、同梱PSLのICANN・PRIVATE境界による登録可能ドメインを
+依存ローダーの取得条件にし、取得後に指定ホストへ適用できるCookieだけを選ぶ。
+host-only Cookieは完全一致、Domain Cookieは完全一致またはドット境界の親ドメイン一致を許可する。
+public suffix、別テナント、兄弟・子ドメイン、部分一致だけのCookieは除外する。
+IPおよびPSLで登録可能ドメインを確定できないホストは完全一致に限定する。
+Cookieのdomain・path・secure・期限などは書き換えない。以前の完全一致限定から取込み対象が増える。
 依存の生例外・標準出力は公開せず、固定文言の認証エラーにする。未対応の復号方式を回避する権限昇格や保護機能変更は行わない。
 実機確認では一時領域も隔離端末の専用領域内に置く。手順は[実Chrome試験](../../../manual-tests/browser-cookies/README.md)を参照する。
 

@@ -12,6 +12,7 @@ from http.cookiejar import CookieJar
 from pathlib import Path
 
 from ..exceptions import AuthenticationError, ConfigurationError, StorageSafetyError
+from .cookie_selection import BrowserCookieSelection
 from .filesystem import FileSystem
 from .path_safety import existing_directory
 from .reading import VerificationFileChangedError, stable_file
@@ -104,6 +105,7 @@ def import_chrome(domain: str, user_data_dir: Path) -> CookieJar:
 
 
 def _load(domain: str, cookie_file: Path, key_file: Path) -> CookieJar:
+    selection = BrowserCookieSelection.for_host(domain)
     with io.StringIO() as output, io.StringIO() as errors:
         with contextlib.redirect_stdout(output), contextlib.redirect_stderr(errors):
             try:
@@ -116,14 +118,9 @@ def _load(domain: str, cookie_file: Path, key_file: Path) -> CookieJar:
                 raise ChromeCookieImportError(ChromeImportFailure.DEPENDENCY_INIT) from None
             try:
                 loaded = browser_cookie3.chrome(
-                    cookie_file=str(cookie_file), key_file=str(key_file), domain_name=domain
+                    cookie_file=str(cookie_file), key_file=str(key_file), domain_name=selection.query_host
                 )
-                result = CookieJar()
-                for cookie in loaded:
-                    # The dependency's substring filter is not a domain boundary.
-                    if cookie.domain.lstrip(".").lower() == domain.lstrip(".").lower():
-                        result.set_cookie(cookie)
-                return result
+                return selection.select(loaded)
             except Exception:
                 # Dependency exceptions can contain paths, encrypted keys or SQL data.
                 raise ChromeCookieImportError(ChromeImportFailure.LOADER) from None

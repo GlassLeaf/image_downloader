@@ -11,6 +11,7 @@ from support.workflow import FEED, A, compose
 from support.workflow_retry import RetryGallery, manifest, transport
 
 from image_downloader import DownloadRequest, ImageResource, WorkflowRequest
+from image_downloader.application.workflow_retry import ImageLedger
 from image_downloader.configuration.models import AppConfig
 from image_downloader.models import (
     AdditionalFileHookPoint as Point,
@@ -19,7 +20,7 @@ from image_downloader.models import AdditionalFileSpec, Chapter, DownloadManifes
 from image_downloader.observability.chapter_reporter import ChapterReporter
 from image_downloader.observability.events import EventName
 from image_downloader.observability.logging import DownloadLogger
-from image_downloader.output.output_allocator import OutputAllocation, OutputAllocator
+from image_downloader.output.output_allocator import OutputAllocation, OutputAllocator, OutputFormatContext
 from image_downloader.output.output_lock import OutputDirectoryLocks
 from image_downloader.output.output_writer import OutputWriter
 from image_downloader.storage import FileSystem
@@ -108,6 +109,70 @@ def test_reporter_flushes_results_past_unprocessed_positions_once(tmp_path):
         assert logger.chapter_save.await_args_list[1].args == ("test", "last.png")
         assert logger.chapter_save.await_count == 2
         await logger.close()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("kind", [KeyboardInterrupt, SystemExit])
+def test_commit_waiter_interruption_preserves_artifact_ledger_log_and_lock(tmp_path, monkeypatch, kind):
+    async def scenario():
+        filesystem = FileSystem(tmp_path / "output")
+        allocator = OutputAllocator(filesystem, AppConfig())
+        logger = DownloadLogger([])
+        locks = OutputDirectoryLocks(FileSystem(tmp_path / "state"), timeout_seconds=0, logger=logger)
+        image = ImageResource(URL + "/image.png", index=1)
+        chapter = Chapter(1, "chapter", images=(image,))
+        manifest = DownloadManifest("book", (chapter,))
+        directory = Path("chapter")
+        reporter = ChapterReporter(filesystem, directory, manifest, chapter, logger, "test.site")
+        ledger = ImageLedger(URL)
+        ledger.begin(manifest, "test.site")
+        started, release = asyncio.Event(), asyncio.Event()
+        interruption = kind("commit waiter interrupted")
+        original_commit, original_shield = OutputAllocation.commit, asyncio.shield
+        injected = False
+
+        async def commit(allocation):
+            started.set()
+            await release.wait()
+            await original_commit(allocation)
+
+        async def shield(task):
+            nonlocal injected
+            if not injected:
+                injected = True
+                await started.wait()
+                release.set()
+                raise interruption
+            return await original_shield(task)
+
+        def register(receipt):
+            outcome = ImageOutcome(image, ImageOutcomeKind.SAVED, receipt.relative_path.as_posix())
+            ledger.record(0, 0, outcome)
+            reporter._register(0, outcome)
+
+        try:
+            await reporter.start()
+            monkeypatch.setattr(OutputAllocation, "commit", commit)
+            monkeypatch.setattr(asyncio, "shield", shield)
+            with pytest.raises(kind) as caught:
+                await OutputWriter(allocator, locks).image(
+                    directory,
+                    OutputFormatContext(manifest, chapter, URL, "test.site", image, extension=".png"),
+                    b"committed image",
+                    register,
+                )
+            assert caught.value is interruption
+            outcome = ledger.outcomes[0, 0]
+            assert filesystem.path(Path(outcome.path)).read_bytes() == b"committed image"
+            await reporter.finish()
+            await reporter.finish()
+            assert filesystem.path(directory / "log.log").read_text(encoding="utf-8").count("save: ") == 1
+            async with locks.hold(filesystem.path(directory)):
+                pass
+        finally:
+            release.set()
+            await logger.close()
 
     asyncio.run(scenario())
 
