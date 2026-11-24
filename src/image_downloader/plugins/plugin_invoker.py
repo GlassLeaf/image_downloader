@@ -5,29 +5,25 @@ from __future__ import annotations
 import inspect
 import re
 from collections.abc import Awaitable, Callable, Mapping
-from datetime import datetime
-from typing import TypeVar
-from urllib.parse import urlparse
+from typing import Literal, TypeVar, cast
 
 from ..exceptions import ImageDownloaderError, PluginError
-from ..immutable import freeze_plugin_data
 from ..media.transform_executor import TransformExecutor
 from ..models import (
+    AdditionalFileHookContext,
+    AdditionalFileHookPoint,
+    AdditionalFileReceiveResult,
+    AdditionalFileSaveResult,
     AuthDecision,
     AuthLease,
-    AuthMode,
     AuthVerification,
-    Chapter,
     DownloadManifest,
     ImageArtifact,
     ImageFetchRequest,
     ImageResource,
-    ImageSaveOptions,
     RequestResponse,
     RequestSpec,
-    UpdateCandidate,
     UpdateSnapshot,
-    _validate_publication_fields,
 )
 from ..observability.logging import DownloadLogger
 from ..ports import (
@@ -42,9 +38,9 @@ from ..ports import (
     UpdateProvider,
     is_auth_flow,
 )
+from . import plugin_validation as validation
 
 _T = TypeVar("_T")
-_HTTP_METHOD = re.compile(r"[!#$%&'*+.^_`|~0-9A-Za-z-]+")
 _OUTPUT_FORMAT_KEY = re.compile(r"[A-Z][A-Z0-9_]{0,63}\Z")
 
 
@@ -56,7 +52,7 @@ class PluginInvoker:
         self.logger = logger
 
     def _error(self, hook: str, message: str) -> PluginError:
-        return PluginError(f"{message} (plugin={self.plugin_id}, hook={hook})")
+        return validation.plugin_error(self.plugin_id, hook, message)
 
     async def _start(
         self,
@@ -118,6 +114,71 @@ class PluginInvoker:
         except Exception as exc:
             raise self._error(hook, "plugin hook failed") from exc
 
+    async def _required_async(self, hook: str, callback: Callable[[], object]) -> object:
+        async def invoke() -> object:
+            value = callback()
+            if not inspect.isawaitable(value):
+                raise self._error(hook, "additional file hook must be async")
+            result: object = await value
+            return result
+
+        await self._start(hook)
+        result = await self._invoke_async(hook, invoke)
+        await self._finish(hook)
+        return result
+
+    def additional_file_hook_points(
+        self,
+        plugin: object,
+        context: PluginExecutionContext,
+    ) -> tuple[AdditionalFileHookPoint, ...]:
+        hook = "additional_file_hook_points"
+        declaration = self._invoke_sync(hook, lambda: getattr(plugin, hook, None))
+        provider = self._invoke_sync(hook, lambda: getattr(plugin, "additional_files", None))
+        if declaration is None and provider is None:
+            return ()
+        if not callable(declaration) or not callable(provider):
+            raise self._error(hook, "additional file methods must be paired callables")
+        points = self._invoke_sync(hook, lambda: declaration(context))
+        if inspect.isawaitable(points):
+            if inspect.iscoroutine(points):
+                points.close()
+            raise self._error(hook, "additional file declaration must be synchronous")
+        if not isinstance(points, tuple) or any(not isinstance(p, AdditionalFileHookPoint) for p in points):
+            raise self._error(hook, "invalid additional file hook points")
+        if len(set(points)) != len(points):
+            raise self._error(hook, "duplicate additional file hook points")
+        return cast(tuple[AdditionalFileHookPoint, ...], points)
+
+    async def additional_files(
+        self,
+        plugin: object,
+        hook: AdditionalFileHookContext,
+        context: PluginExecutionContext,
+    ) -> tuple[object, ...]:
+        name = "additional_files"
+        value = await self._required_async(name, lambda: getattr(plugin, name)(hook, context))
+        if not isinstance(value, tuple):
+            raise self._error("additional_files", "additional file hook must return a tuple")
+        return value
+
+    async def additional_file_callback(
+        self,
+        plugin: object,
+        name: Literal["additional_file_received", "additional_file_saved"],
+        result: AdditionalFileReceiveResult | AdditionalFileSaveResult,
+        context: PluginExecutionContext,
+    ) -> bool:
+        callback = self._invoke_sync(name, lambda: getattr(plugin, name, None))
+        if callback is None:
+            return False
+        if not callable(callback):
+            raise self._error(name, "additional file callback must be callable")
+        value = await self._required_async(name, lambda: callback(result, context))
+        if value is not None:
+            raise self._error(name, "additional file callback must return None")
+        return True
+
     def validate_config(
         self,
         plugin: SitePlugin | ImageProcessor,
@@ -177,7 +238,7 @@ class PluginInvoker:
         hook = "inspect"
         await self._start(hook, url=url)
         value = await self._invoke_async(hook, lambda: plugin.inspect(url, context))
-        self._validate_manifest(hook, value)
+        validation.validate_manifest(self.plugin_id, hook, value)
         await self._finish(hook, url=url)
         return value
 
@@ -190,7 +251,7 @@ class PluginInvoker:
         hook = "check_updates"
         await self._start(hook, url=url)
         value = await self._invoke_async(hook, lambda: plugin.check_updates(url, context))
-        self._validate_update_snapshot(hook, value)
+        validation.validate_update_snapshot(self.plugin_id, hook, value)
         await self._finish(hook, url=url)
         return value
 
@@ -213,7 +274,7 @@ class PluginInvoker:
         hook = "create_image_request"
         await self._start(hook, url=image.url, url_is_locator=True)
         value = await self._invoke_async(hook, lambda: plugin.create_image_request(image, context))
-        self._validate_image_fetch_request(hook, value, allow_none=False)
+        validation.validate_image_fetch_request(self.plugin_id, hook, value, allow_none=False)
         assert isinstance(value, (RequestSpec, ImageFetchRequest))
         request = value.request if isinstance(value, ImageFetchRequest) else value
         await self._finish(hook, url=request.url)
@@ -233,7 +294,7 @@ class PluginInvoker:
             hook,
             lambda: plugin.recover_image_request(image, failed, response, context),
         )
-        self._validate_image_fetch_request(hook, value, allow_none=True)
+        validation.validate_image_fetch_request(self.plugin_id, hook, value, allow_none=True)
         request = value.request if isinstance(value, ImageFetchRequest) else value
         await self._finish(hook, url=request.url if request is not None else failed.url)
         return value
@@ -252,7 +313,7 @@ class PluginInvoker:
         value = await executor.run(
             lambda: self._invoke_transform(hook, lambda: plugin.transform_image(artifact, context))
         )
-        self._validate_artifact(hook, value)
+        validation.validate_artifact(self.plugin_id, hook, value)
         await self._finish(
             hook,
             url=value.source_url,
@@ -280,7 +341,7 @@ class PluginInvoker:
             url_is_locator=True,
         )
         value = await executor.run(lambda: self._invoke_transform(hook, lambda: processor.transform(artifact, context)))
-        self._validate_artifact(hook, value)
+        validation.validate_artifact(self.plugin_id, hook, value)
         await self._finish(
             hook,
             module="processor",
@@ -321,7 +382,7 @@ class PluginInvoker:
     def apply_auth(self, flow: AuthFlow, request: RequestSpec) -> RequestSpec:
         hook = "auth_apply"
         value = self._invoke_sync(hook, lambda: flow.apply(request))
-        self._validate_request(hook, value, allow_none=False)
+        validation.validate_request(self.plugin_id, hook, value, allow_none=False)
         assert isinstance(value, RequestSpec)
         return value
 
@@ -329,14 +390,14 @@ class PluginInvoker:
         value = await self._invoke_async("auth_initialize", lambda: flow.initialize(context))
         if not isinstance(value, AuthLease):
             raise self._error("auth_initialize", "initialize must return AuthLease")
-        self._validate_auth_data("auth_initialize", value)
+        validation.validate_auth_data(self.plugin_id, "auth_initialize", value)
         return value
 
     async def refresh_auth(self, flow: AuthFlow, context: AuthContext) -> AuthLease:
         value = await self._invoke_async("auth_refresh", lambda: flow.refresh(context))
         if not isinstance(value, AuthLease):
             raise self._error("auth_refresh", "refresh must return AuthLease; refresh(failed, response) was removed")
-        self._validate_auth_data("auth_refresh", value)
+        validation.validate_auth_data(self.plugin_id, "auth_refresh", value)
         return value
 
     async def verify_auth(self, flow: AuthFlow, context: AuthContext) -> AuthVerification:
@@ -346,199 +407,11 @@ class PluginInvoker:
         if value.lease is not None:
             if not isinstance(value.lease, AuthLease):
                 raise self._error("auth_verify", "verification lease must be AuthLease")
-            self._validate_auth_data("auth_verify", value.lease)
+            validation.validate_auth_data(self.plugin_id, "auth_verify", value.lease)
         return value
-
-    def _validate_auth_data(self, hook: str, lease: AuthLease) -> None:
-        if lease.public_data is not None:
-            self._validate_plugin_data(hook, lease.public_data)
-
-    def _validate_plugin_data(self, hook: str, data: Mapping[str, object]) -> None:
-        try:
-            freeze_plugin_data(data)
-        except (TypeError, ValueError, RecursionError) as exc:
-            raise self._error(hook, "invalid structured plugin data") from exc
 
     def classify_auth(self, flow: AuthFlow, request: RequestSpec, response: RequestResponse) -> AuthDecision:
         value = self._invoke_sync("auth_classify_response", lambda: flow.classify_response(request, response))
         if not isinstance(value, AuthDecision):
             raise self._error("auth_classify_response", "classify_response must return AuthDecision")
         return value
-
-    def _validate_manifest(self, hook: str, value: object) -> None:
-        if not isinstance(value, DownloadManifest):
-            raise self._error(hook, "inspect must return DownloadManifest")
-        self._validate_publication(hook, value)
-        self._validate_plugin_data(hook, value.plugin_data)
-        if not isinstance(value.title, str):
-            raise self._error(hook, "inspect returned an invalid title")
-        optional_text = (value.content_id, value.author, value.access, value.revision)
-        if any(item is not None and not isinstance(item, str) for item in optional_text):
-            raise self._error(hook, "inspect returned invalid manifest metadata")
-        if any(not isinstance(key, str) or not isinstance(item, str) for key, item in value.metadata.items()):
-            raise self._error(hook, "inspect returned invalid manifest metadata")
-        if value.allow_empty_chapters is not None and not isinstance(value.allow_empty_chapters, bool):
-            raise self._error(hook, "inspect returned invalid allow_empty_chapters")
-        for chapter_index, chapter in enumerate(value.chapters):
-            if not isinstance(chapter, Chapter):
-                raise self._error(hook, f"inspect returned an invalid chapter at chapters[{chapter_index}]")
-            self._validate_chapter(hook, chapter, chapter_index)
-
-    def _validate_chapter(self, hook: str, chapter: Chapter, chapter_index: int) -> None:
-        self._validate_publication(hook, chapter)
-        self._validate_plugin_data(hook, chapter.plugin_data)
-        if isinstance(chapter.number, bool) or not isinstance(chapter.number, int) or chapter.number < 0:
-            raise self._error(hook, f"inspect returned an invalid chapter number at chapters[{chapter_index}]")
-        if not isinstance(chapter.title, str) or not isinstance(chapter.subtitle, str):
-            raise self._error(hook, f"inspect returned invalid chapter text at chapters[{chapter_index}]")
-        if chapter.chapter_id is not None and not isinstance(chapter.chapter_id, str):
-            raise self._error(hook, f"inspect returned an invalid chapter ID at chapters[{chapter_index}]")
-        if chapter.allow_empty_images is not None and not isinstance(chapter.allow_empty_images, bool):
-            raise self._error(hook, "inspect returned invalid allow_empty_images")
-        for image_index, image in enumerate(chapter.images):
-            if not isinstance(image, ImageResource):
-                path = f"chapters[{chapter_index}].images[{image_index}]"
-                raise self._error(hook, f"inspect returned an invalid image at {path}")
-            self._validate_image(hook, image, chapter_index, image_index)
-
-    def _validate_publication(self, hook: str, value: Chapter | DownloadManifest) -> None:
-        try:
-            _validate_publication_fields(value)
-        except (TypeError, ValueError, AttributeError) as exc:
-            raise self._error(hook, "inspect returned invalid publication fields") from exc
-
-    def _validate_image(self, hook: str, image: ImageResource, chapter_index: int, image_index: int) -> None:
-        self._validate_plugin_data(hook, image.plugin_data)
-        path = f"chapters[{chapter_index}].images[{image_index}]"
-        self._validate_locator(hook, image.url, f"inspect returned an invalid image locator at {path}")
-        if isinstance(image.index, bool) or not isinstance(image.index, int) or image.index < 0:
-            raise self._error(hook, f"inspect returned an invalid image index at {path}")
-        if image.referer is not None:
-            self._validate_http_url(hook, image.referer, f"inspect returned an invalid referer at {path}")
-        self._validate_string_mapping(hook, image.headers, f"inspect returned invalid image headers at {path}")
-        self._validate_string_mapping(hook, image.metadata, f"inspect returned invalid image metadata at {path}")
-        if not isinstance(image.save_options, ImageSaveOptions):
-            raise self._error(hook, f"inspect returned invalid save options at {path}")
-        self._validate_save_options(hook, image.save_options, path)
-        if image.image_id is not None and not isinstance(image.image_id, str):
-            raise self._error(hook, f"inspect returned an invalid image ID at {path}")
-        if image.original_filename is not None and (
-            not isinstance(image.original_filename, str)
-            or not image.original_filename.strip()
-            or "/" in image.original_filename
-            or "\\" in image.original_filename
-        ):
-            raise self._error(hook, f"inspect returned an invalid original filename at {path}")
-
-    def _validate_update_snapshot(self, hook: str, value: object) -> None:
-        if not isinstance(value, UpdateSnapshot):
-            raise self._error(hook, "check_updates must return UpdateSnapshot")
-        self._validate_http_url(hook, value.source_url, "check_updates returned an invalid source URL")
-        if not isinstance(value.checked_at, datetime):
-            raise self._error(hook, "check_updates returned an invalid checked_at value")
-        for index, candidate in enumerate(value.candidates):
-            if not isinstance(candidate, UpdateCandidate):
-                raise self._error(hook, f"check_updates returned an invalid candidate at candidates[{index}]")
-            self._validate_http_url(
-                hook,
-                candidate.url,
-                f"check_updates returned an invalid candidate URL at candidates[{index}]",
-            )
-            if candidate.content_id is not None and not isinstance(candidate.content_id, str):
-                raise self._error(hook, f"check_updates returned an invalid content ID at candidates[{index}]")
-            if candidate.revision is not None and not isinstance(candidate.revision, str):
-                raise self._error(hook, f"check_updates returned an invalid revision at candidates[{index}]")
-
-    def _validate_request(self, hook: str, value: object, *, allow_none: bool) -> None:
-        if value is None and allow_none:
-            return
-        if not isinstance(value, RequestSpec):
-            expected = "RequestSpec or None" if allow_none else "RequestSpec"
-            raise self._error(hook, f"{hook} must return {expected}")
-        self._validate_http_url(hook, value.url, f"{hook} returned an invalid request URL")
-        if not isinstance(value.method, str) or _HTTP_METHOD.fullmatch(value.method) is None:
-            raise self._error(hook, f"{hook} returned an invalid HTTP method")
-        self._validate_string_mapping(hook, value.headers, f"{hook} returned invalid request headers")
-        self._validate_string_mapping(hook, value.cookies, f"{hook} returned invalid request cookies")
-        self._validate_string_mapping(hook, value.query, f"{hook} returned invalid request query")
-        self._validate_string_mapping(hook, value.form, f"{hook} returned invalid request form")
-        if value.referer is not None:
-            self._validate_http_url(hook, value.referer, f"{hook} returned an invalid referer")
-        if not isinstance(value.auth, AuthMode) or not isinstance(value.retry_non_idempotent, bool):
-            raise self._error(hook, f"{hook} returned invalid request flags")
-
-    def _validate_image_fetch_request(self, hook: str, value: object, *, allow_none: bool) -> None:
-        if value is None and allow_none:
-            return
-        if isinstance(value, ImageFetchRequest):
-            self._validate_request(hook, value.request, allow_none=False)
-            self._validate_string_mapping(hook, value.plugin_data, f"{hook} returned invalid plugin data")
-            return
-        if isinstance(value, RequestSpec):
-            self._validate_request(hook, value, allow_none=False)
-            return
-        expected = "RequestSpec, ImageFetchRequest, or None" if allow_none else "RequestSpec or ImageFetchRequest"
-        raise self._error(hook, f"{hook} must return {expected}")
-
-    def _validate_artifact(self, hook: str, value: object) -> None:
-        if not isinstance(value, ImageArtifact):
-            raise self._error(hook, f"{hook} must return ImageArtifact")
-        if not isinstance(value.data, bytes) or not isinstance(value.content_type, str):
-            raise self._error(hook, f"{hook} returned invalid image data")
-        self._validate_locator(hook, value.source_url, f"{hook} returned an invalid source locator")
-        if value.image_id is not None and not isinstance(value.image_id, str):
-            raise self._error(hook, f"{hook} returned an invalid image ID")
-        if value.extension is not None and not isinstance(value.extension, str):
-            raise self._error(hook, f"{hook} returned an invalid extension")
-        if any(not isinstance(item, str) for item in value.history):
-            raise self._error(hook, f"{hook} returned an invalid history")
-
-    def _validate_save_options(self, hook: str, value: ImageSaveOptions, path: str) -> None:
-        if any(item is not None and not isinstance(item, str) for item in (value.format, value.extension)):
-            raise self._error(hook, f"inspect returned invalid save options at {path}")
-        if any(
-            item is not None and (isinstance(item, bool) or not isinstance(item, int))
-            for item in (value.quality, value.compress_level)
-        ):
-            raise self._error(hook, f"inspect returned invalid save options at {path}")
-        if any(
-            item is not None and not isinstance(item, bool)
-            for item in (value.optimize, value.progressive, value.lossless)
-        ) or not isinstance(value.exif, bool):
-            raise self._error(hook, f"inspect returned invalid save options at {path}")
-        if (
-            value.format is not None
-            and value.format.upper() == "ORIGINAL"
-            and (
-                value.extension is not None
-                or any(
-                    item is not None
-                    for item in (
-                        value.quality,
-                        value.optimize,
-                        value.progressive,
-                        value.lossless,
-                        value.compress_level,
-                    )
-                )
-                or value.exif
-            )
-        ):
-            raise self._error(hook, f"inspect returned ORIGINAL save options with encoder fields at {path}")
-
-    def _validate_http_url(self, hook: str, value: object, message: str) -> None:
-        if not isinstance(value, str):
-            raise self._error(hook, message)
-        parsed = urlparse(value)
-        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-            raise self._error(hook, message)
-
-    def _validate_locator(self, hook: str, value: object, message: str) -> None:
-        if not isinstance(value, str) or not value.strip():
-            raise self._error(hook, message)
-
-    def _validate_string_mapping(self, hook: str, value: object, message: str) -> None:
-        if not isinstance(value, Mapping):
-            raise self._error(hook, message)
-        if any(not isinstance(key, str) or not isinstance(item, str) for key, item in value.items()):
-            raise self._error(hook, message)

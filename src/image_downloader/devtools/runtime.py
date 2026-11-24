@@ -34,6 +34,7 @@ from ..observability.events import EventBus
 from ..observability.logging import DownloadLogger
 from ..observability.notifications import NotificationService
 from ..output.output_lock import OutputDirectoryLocks
+from ..plugins import plugin_validation as validation
 from ..plugins.builtin import GenericHtmlPlugin
 from ..plugins.lifecycle import PluginRegistry
 from ..plugins.plugin_invoker import PluginInvoker
@@ -114,13 +115,15 @@ class DevelopmentLogger(DownloadLogger):
 
 def validate_return(method: str, value: Any, invoker: PluginInvoker) -> None:
     if method == "inspect":
-        invoker._validate_manifest(method, value)
+        validation.validate_manifest(invoker.plugin_id, method, value)
     elif method == "check_updates":
-        invoker._validate_update_snapshot(method, value)
+        validation.validate_update_snapshot(invoker.plugin_id, method, value)
     elif method in {"create_image_request", "recover_image_request"}:
-        invoker._validate_image_fetch_request(method, value, allow_none=method == "recover_image_request")
+        validation.validate_image_fetch_request(
+            invoker.plugin_id, method, value, allow_none=method == "recover_image_request"
+        )
     elif method in {"transform", "transform_image"}:
-        invoker._validate_artifact(method, value)
+        validation.validate_artifact(invoker.plugin_id, method, value)
     elif method in {"matches", "matches_with_config"}:
         if not isinstance(value, bool):
             raise invoker._error(method, "matcher must return bool")

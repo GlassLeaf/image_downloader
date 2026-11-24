@@ -92,6 +92,11 @@ class NotificationSender(Protocol):
     async def send(self, title: str, message: str) -> bool: ...
 
 
+def _validate_smtp_auth(reference: str | None, use_tls: bool) -> None:
+    if reference and not use_tls:
+        raise ConfigurationError("SMTP authentication requires TLS; enable notification.email.use_tls")
+
+
 def validate_notification_delivery(config: Notification) -> None:
     """Validate only the methods reachable from enabled notification categories."""
     if not config.enabled:
@@ -104,6 +109,8 @@ def validate_notification_delivery(config: Notification) -> None:
         raise ConfigurationError("desktop notification requires image-downloader[notify]")
     if "email" in methods and (not config.email.smtp_host or not config.email.from_ or not config.email.to):
         raise ConfigurationError("email notification requires smtp_host, from, and to")
+    if "email" in methods:
+        _validate_smtp_auth(config.email.credential_reference, config.email.use_tls)
 
 
 class DesktopNotificationSender:
@@ -123,6 +130,7 @@ class EmailNotificationSender:
         self.credentials = credentials
 
     async def send(self, title: str, message: str) -> bool:
+        _validate_smtp_auth(self.config.credential_reference, self.config.use_tls)
         settings = self.config.model_dump(by_alias=True, warnings=False)
         if not settings["smtp_host"] or not settings["from"] or not settings["to"]:
             raise RuntimeError("email notification requires smtp_host, from, and to")
@@ -148,6 +156,7 @@ def default_notification_senders(
 
 
 def _send_mail(settings: dict[str, Any], title: str, message: str) -> None:
+    _validate_smtp_auth(settings.get("credential_reference"), settings.get("use_tls", True))
     mail = EmailMessage()
     mail["Subject"] = title
     mail["From"] = settings["from"]

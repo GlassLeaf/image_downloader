@@ -69,6 +69,11 @@ selected site instance は `download()` / `check_updates()` の runtime 利用�
 
 追加ファイルを宣言する任意の site hook は download attempt の構成後、inspect 前に一度だけ段階を宣言する。core が `BEFORE_MANIFEST`、`AFTER_MANIFEST`、`BEFORE_IMAGE_REQUEST`、`AFTER_IMAGE_REQUEST`、`BEFORE_IMAGE_SAVE`、`AFTER_IMAGE_SAVE`、`AFTER_DOWNLOAD` の順で呼ぶ。画像取得後は認証更新・復旧を含む最終成功の後、保存前は変換の後、保存後は保存／skip 確定の後である。manifest 後と download 後は章ごと、画像の前後は処理対象画像ごとに呼ぶ。
 
+画像の保存／skip結果は、保存後イベントと`AFTER_IMAGE_SAVE`の前に台帳・章レポーターへ登録する。
+commit中のキャンセルも確定と登録を完了してから伝播する。保存後イベント・付随ファイルhook・callbackは
+出力ロック解放後に実行し、その失敗・キャンセルによって確定済み画像を未処理へ戻さない。
+章ログは登録済み結果を画像順に出力し、未処理位置で待機していた後続結果も章終了時に出力する。
+
 各段階は `additional_files()` → core 取得 → `additional_file_received()` → core 保存／skip → `additional_file_saved()` の順で実行する。callback の await 完了を待って主処理へ進むため、取得した鍵は直後の request hook、画像取得後の補助データは site transform から利用できる。取得失敗時も received を一回呼ぶが保存と saved は呼ばない。callback 失敗でも保存を続ける。callback は保存先 lock の外で呼び、並行画像間では重なり得るため invocation ID と対象画像で plugin の状態を分離する。
 
 `BEFORE_MANIFEST` の受け渡しは inspect 前に一度だけ行い、取得 bytes を operation 所有の一時領域に保持して、manifest 確定後に各章へ保存する。saved callback は元の段階と保存対象章を受け取る。一時領域は成功・例外・cancel で後始末する。章がなければ `no_target` を記録する。

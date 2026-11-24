@@ -18,6 +18,7 @@ from ..models import (
 )
 from ..observability.diagnostic_safety import best_effort_diagnostic, best_effort_diagnostic_sync
 from ..storage import FileSystem
+from ..storage.transactions import finish_task
 
 
 class ChapterReporter:
@@ -41,6 +42,7 @@ class ChapterReporter:
         self._items: dict[int, ImageOutcome] = {}
         self._positions = sorted(range(len(chapter.images)), key=lambda index: (chapter.images[index].index, index))
         self._next = 0
+        self._emitted: set[int] = set()
         self._finished = False
         self._source_url = manifest.metadata.get("source_url", "")
         self._manifest = manifest
@@ -76,20 +78,36 @@ class ChapterReporter:
         )
 
     async def record(self, position: int, outcome: ImageOutcome) -> None:
+        self._register(position, outcome)
+        await finish_task(self._flush())
+
+    def _register(self, position: int, outcome: ImageOutcome) -> None:
+        """Register on the event-loop thread without a cancellation point."""
+        self._items[position] = outcome
+
+    async def _flush(self, *, final: bool = False) -> None:
         async with self._lock:
-            self._items[position] = outcome
-            ready: list[ImageOutcome] = []
-            while self._next < len(self._positions) and self._positions[self._next] in self._items:
-                item = self._items[self._positions[self._next]]
+            ready: list[int] = []
+            if final:
+                ready = [position for position in self._positions if position in self._items]
+            else:
+                while self._next < len(self._positions) and self._positions[self._next] in self._items:
+                    ready.append(self._positions[self._next])
+                    self._next += 1
+            for position in ready:
+                if position in self._emitted:
+                    continue
+                item = self._items[position]
                 if item.kind is not ImageOutcomeKind.FAILED:
-                    ready.append(item)
-                self._next += 1
-            for item in ready:
-                await best_effort_diagnostic(self.logger.chapter_download, self.reporter_id, item.image.url)
-                await best_effort_diagnostic(self.logger.chapter_save, self.reporter_id, item.path or "")
+                    await best_effort_diagnostic(self.logger.chapter_download, self.reporter_id, item.image.url)
+                    await best_effort_diagnostic(self.logger.chapter_save, self.reporter_id, item.path or "")
+                self._emitted.add(position)
 
     async def finish(self, outcomes: tuple[ImageOutcome, ...] | None = None) -> None:
         """Render every recorded outcome exactly once, even after fail-fast exits."""
+        await finish_task(self._finish(outcomes))
+
+    async def _finish(self, outcomes: tuple[ImageOutcome, ...] | None) -> None:
         async with self._lock:
             if self._finished:
                 return
@@ -98,6 +116,7 @@ class ChapterReporter:
                     self._items.setdefault(position, outcome)
             self._finished = True
             outcomes = tuple(sorted(self._items.values(), key=lambda item: item.image.index))
+        await self._flush(final=True)
         failures = [item for item in outcomes if item.failure is not None]
         if failures:
             grouped: dict[FailureKind, list[ChapterFailureRecord]] = defaultdict(list)

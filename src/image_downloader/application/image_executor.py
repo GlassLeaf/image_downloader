@@ -43,14 +43,13 @@ from ..observability.diagnostic_safety import best_effort_diagnostic
 from ..observability.events import EventBus, EventName, EventPayload
 from ..observability.logging import DownloadLogger
 from ..output.original_filename import resolve_original_filename
-from ..output.output_allocator import OutputAllocation, OutputFormatContext
+from ..output.output_allocator import OutputFormatContext
 from ..output.output_lock import OutputDirectoryLocks
+from ..output.output_writer import OutputWriter, SaveReceipt
 from ..storage import FileSystem
-from ..storage.transactions import finish_task
 from ..transport.metadata import ImageFetchResult
 from .additional_files import AdditionalFiles
 from .download_context import DownloadContext
-from .workflow_retry import ImageLedger
 
 _IMAGE_FAILURE_EVENTS = {
     FailureKind.FETCH: EventName.FETCH_FAILED,
@@ -79,18 +78,6 @@ async def _additional_image(
 ) -> None:
     if additional is not None:
         await additional.run(point, manifest=manifest, chapter=chapter, image=image, **values)
-
-
-def _remember_image(
-    ledger: ImageLedger | None, chapter_position: int, image_position: int, outcome: ImageOutcome
-) -> None:
-    if ledger is not None:
-        ledger.record(chapter_position, image_position, outcome)
-
-
-def _start_workflow_image(ledger: ImageLedger | None, chapter_position: int, image_position: int) -> None:
-    if ledger is not None:
-        ledger.mark_attempted(chapter_position, image_position)
 
 
 class _ImageJobError(Exception):
@@ -161,12 +148,14 @@ class ImageOperationError(Exception):
         self.cause, self.context = cause, context
 
 
-def _workflow_image_error(error: _ImageJobError, ledger: ImageLedger | None) -> Exception:
-    return error.original if ledger is not None and error.unexpected else error.cause
+def _workflow_image_error(error: _ImageJobError, unexpected_errors_are_fatal: bool) -> Exception:
+    return error.original if unexpected_errors_are_fatal and error.unexpected else error.cause
 
 
-def _raise_image_error(error: _ImageJobError, ledger: ImageLedger | None, context: ImageFailureContext) -> NoReturn:
-    if ledger is not None and error.unexpected:
+def _raise_image_error(
+    error: _ImageJobError, unexpected_errors_are_fatal: bool, context: ImageFailureContext
+) -> NoReturn:
+    if unexpected_errors_are_fatal and error.unexpected:
         raise ImageOperationError(error.original, context) from None
     error.cause.image_failure = context
     raise error.cause from error.cause.__cause__
@@ -175,10 +164,10 @@ def _raise_image_error(error: _ImageJobError, ledger: ImageLedger | None, contex
 def _is_fatal_image_error(
     error: _ImageJobError,
     continue_on_image_error: bool,
-    ledger: ImageLedger | None = None,
+    unexpected_errors_are_fatal: bool = False,
 ) -> bool:
     return (
-        (ledger is not None and error.unexpected)
+        (unexpected_errors_are_fatal and error.unexpected)
         or not continue_on_image_error
         or isinstance(
             error.cause,
@@ -208,13 +197,13 @@ class ImageExecutor:
         self.chapter_id = str(chapter.number)
 
     async def execute(self, position: int, image: ImageResource) -> ImageOutcome:
-        ledger = self.operation.ledger
-        retained = ledger.retained_outcome(self.chapter_position, position) if ledger is not None else None
+        sink = self.operation.image_outcomes
+        retained = sink.retained_outcome(self.chapter_position, position)
         if retained is not None:
             outcome = retained
             await self.reporter.record(position, outcome)
             return outcome
-        _start_workflow_image(ledger, self.chapter_position, position)
+        sink.mark_attempted(self.chapter_position, position)
         extra = partial(
             _additional_image,
             self.operation.additional,
@@ -230,9 +219,12 @@ class ImageExecutor:
             raise
         except _ImageJobError as error:
             return await self._report_failure(position, image, error)
-        _remember_image(ledger, self.chapter_position, position, outcome)
         await self.reporter.record(position, outcome)
         return outcome
+
+    def _register_outcome(self, position: int, outcome: ImageOutcome) -> None:
+        self.operation.image_outcomes.record(self.chapter_position, position, outcome)
+        self.reporter._register(position, outcome)
 
     async def _fetch(self, image: ImageResource, extra: Callable[..., Awaitable[None]]) -> ImageFetchResult:
         try:
@@ -312,48 +304,31 @@ class ImageExecutor:
         try:
             await extra(AdditionalFileHookPoint.BEFORE_IMAGE_SAVE, response=response, artifact=processed)
             await self.events.emit(EventName.BEFORE_SAVE, EventPayload(url=image.url))
-            async with self.output_locks.hold(self.operation.allocator.filesystem.path(self.directory)):
-                await self.operation.allocator.refresh_directory(self.directory)
-                allocation = await self.operation.allocator.allocate(
-                    self.directory,
-                    OutputFormatContext(
-                        self.operation.manifest,
-                        self.chapter,
-                        self.operation.source_url,
-                        self.operation.site.record.id,
-                        image,
-                        processed.extension or ".jpeg",
-                        resolve_original_filename(image, response),
-                        self.operation.plugin_values,
-                    ),
-                )
-                path = self.operation.allocator.filesystem.path(allocation.relative_path)
-                if allocation.should_write:
-                    try:
-                        path = self.operation.allocator.filesystem.write_bytes_atomic(
-                            allocation.relative_path, processed.data
-                        )
-                    except BaseException:
-                        await self._settle_allocation(allocation, success=False)
-                        raise
-                    await self._commit_image_allocation(
-                        allocation, self.operation.ledger, self.chapter_position, position, image, path
-                    )
-                _remember_image(
-                    self.operation.ledger,
-                    self.chapter_position,
-                    position,
-                    ImageOutcome(
-                        image,
-                        ImageOutcomeKind.SAVED if allocation.should_write else ImageOutcomeKind.SKIPPED,
-                        str(path),
-                    ),
-                )
+
+            def settled(receipt: SaveReceipt) -> None:
+                self._register_outcome(position, self._saved_outcome(image, receipt))
+
+            receipt = await OutputWriter(self.operation.allocator, self.output_locks).image(
+                self.directory,
+                OutputFormatContext(
+                    self.operation.manifest,
+                    self.chapter,
+                    self.operation.source_url,
+                    self.operation.site.record.id,
+                    image,
+                    processed.extension or ".jpeg",
+                    resolve_original_filename(image, response),
+                    self.operation.plugin_values,
+                ),
+                processed.data,
+                settled,
+            )
         except asyncio.CancelledError:
             raise
         except Exception as exc:
             raise _ImageJobError(FailureKind.SAVE, exc, response) from exc
-        if allocation.should_write:
+        path = self.operation.allocator.filesystem.path(receipt.relative_path)
+        if receipt.status == "saved":
             await self.events.emit(EventName.SAVE_SUCCESS, EventPayload(url=image.url, path=str(path)))
             await best_effort_diagnostic(
                 self.logger.core,
@@ -368,9 +343,7 @@ class ImageExecutor:
                 url_is_locator=True,
                 debug=True,
             )
-        outcome = ImageOutcome(
-            image, ImageOutcomeKind.SAVED if allocation.should_write else ImageOutcomeKind.SKIPPED, str(path)
-        )
+        outcome = self._saved_outcome(image, receipt)
         await extra(
             AdditionalFileHookPoint.AFTER_IMAGE_SAVE,
             response=response,
@@ -380,9 +353,16 @@ class ImageExecutor:
 
         return outcome
 
+    def _saved_outcome(self, image: ImageResource, receipt: SaveReceipt) -> ImageOutcome:
+        return ImageOutcome(
+            image,
+            ImageOutcomeKind(receipt.status),
+            str(self.operation.allocator.filesystem.path(receipt.relative_path)),
+        )
+
     async def _report_failure(self, position: int, image: ImageResource, exc: _ImageJobError) -> ImageOutcome:
         info, response_url, http_status, failure_path = _failure_info(
-            _workflow_image_error(exc, self.operation.ledger),
+            _workflow_image_error(exc, self.operation.unexpected_errors_are_fatal),
             exc.response,
             self.operation.allocator.filesystem,
         )
@@ -442,9 +422,11 @@ class ImageExecutor:
                 transport=transport,
             ),
         )
-        _remember_image(self.operation.ledger, self.chapter_position, position, outcome)
+        self._register_outcome(position, outcome)
         await self.reporter.record(position, outcome)
-        if _is_fatal_image_error(exc, self.config.download.continue_on_image_error, self.operation.ledger):
+        if _is_fatal_image_error(
+            exc, self.config.download.continue_on_image_error, self.operation.unexpected_errors_are_fatal
+        ):
             context = ImageFailureContext(
                 _IMAGE_FAILURE_STAGES[exc.kind],
                 transport,
@@ -453,26 +435,5 @@ class ImageExecutor:
                 http_status,
                 info.output_path,
             )
-            _raise_image_error(exc, self.operation.ledger, context)
+            _raise_image_error(exc, self.operation.unexpected_errors_are_fatal, context)
         return outcome
-
-    @staticmethod
-    async def _commit_image_allocation(
-        allocation: OutputAllocation,
-        ledger: ImageLedger | None,
-        chapter_position: int,
-        image_position: int,
-        image: ImageResource,
-        path: Path,
-    ) -> None:
-        try:
-            await ImageExecutor._settle_allocation(allocation, success=True)
-        except asyncio.CancelledError:
-            _remember_image(
-                ledger, chapter_position, image_position, ImageOutcome(image, ImageOutcomeKind.SAVED, str(path))
-            )
-            raise
-
-    @staticmethod
-    async def _settle_allocation(allocation: OutputAllocation, *, success: bool) -> None:
-        await finish_task(allocation.commit() if success else allocation.abort())

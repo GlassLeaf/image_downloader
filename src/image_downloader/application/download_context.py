@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from ..media.artifact_pipeline import ArtifactPipeline
 from ..models import (
@@ -11,8 +11,8 @@ from ..models import (
 )
 from ..output.output_allocator import OutputAllocator
 from .additional_files import AdditionalFiles
+from .image_outcomes import ImageOutcomeSink, NullImageOutcomeSink
 from .site_operation import SiteOperation
-from .workflow_retry import ImageLedger
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,5 +25,6 @@ class DownloadContext:
     pipeline: ArtifactPipeline
     source_url: str
     plugin_values: Mapping[str, Mapping[str, str]]
-    ledger: ImageLedger | None = None
+    image_outcomes: ImageOutcomeSink = field(default_factory=NullImageOutcomeSink)
     additional: AdditionalFiles | None = None
+    unexpected_errors_are_fatal: bool = False

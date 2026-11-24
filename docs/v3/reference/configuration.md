@@ -271,6 +271,18 @@ ORIGINALでも検査するが、正常な入力bytesを再エンコードしな�
 検査のCPU使用量・処理時間が増える。検査は利用環境のPillowが読める形式に限られ、
 SVG・HEIC等を読めない環境では既定で拒否する。
 
+`media.max_image_pixels`は既定・明示的な`null`ともに無制限である。巨大画像を扱う必要がない場合は、
+例えば次のように各フレームを5,000万画素までに制限できる。値は必要な画像サイズと利用可能なメモリに合わせて選ぶ。
+
+```yaml
+media:
+  max_image_pixels: 50000000
+```
+
+圧縮されたHTTP応答のサイズ制限は、展開後の画素メモリを制限しない。Pillowを別プロセスで実行しても、
+OSによるメモリ・CPU・処理時間の強制上限は設けていない。この値も全フレームの合計画素数や、
+加工プラグインが独自に確保するメモリの上限ではない。既存設定の`null`を自動変更しない。
+
 `content_type_mismatch: accept`が既定で、正常な画像の宣言MIMEと実体の不一致は許容する。
 `error`では宣言が`image/*`の場合にデコードを行って一致を確認する。形式未指定は不一致判定の対象外。
 `content_type`だけを選択し、`accept`を維持した場合は非空本文の実体を検査しない。
@@ -318,6 +330,12 @@ raw credentialをYAML、manifest、catalog、plugin source、log、exceptionへ�
 `credential smtp set <REFERENCE>`でユーザー名・パスワードを一組として登録し、
 `notification.email.credential_reference`で選択する。旧`username`・`credential_service`は
 非使用の互換項目として設定に残す。旧ユーザー名だけを指定した状態では再設定エラーになる。
+
+SMTP認証を使う場合は`notification.email.use_tls: true`が必須である。
+ポート465は暗黙TLS、それ以外はSTARTTLSを使い、TLSの確立に失敗した場合は認証しない。
+`credential_reference`と`use_tls: false`の組合せは、資格情報の取得・SMTP接続前に
+`ConfigurationError`となる。通知無効・メール経路未使用の設定は事前検証の対象外であり、
+認証情報を指定しないローカルSMTPでは`use_tls: false`を引き続き使用できる。
 
 OSストアにはマスターキーだけを保存し、資格情報とCookieの暗号文はデータルートへ保存する。
 `--data-root`の変更は資格情報の取得先も変更する。旧データの移行・削除は行わない。

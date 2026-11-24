@@ -18,9 +18,22 @@ flowchart TD
     Download --> Chapters[ChapterExecutor：並列数を制限した実行]
     Chapters --> Images[ImageExecutor：取得・加工・保存]
     Images --> Pipeline[ArtifactPipeline]
-    Images --> Storage[出力先の割当て・保存]
+    Images --> Writer[OutputWriter：出力ロック・予約・書込み・確定]
+    Download --> Additional[AdditionalFiles：任意の付随ファイル]
+    Additional --> Writer
+    Images --> Outcomes[ImageOutcomeSink：保持結果・試行・結果登録]
+    Writer --> Storage[OutputAllocator / FileSystem]
     Download --> Site[SiteOperationFactory：プラグイン・認証セッション]
 ```
+
+画像実行器は内部`ImageOutcomeSink`を通じて結果を扱う。通常取得は記録なしの実装、workflowは
+`ImageLedger`を渡し、予期しない例外の停止方針は別の内部設定で明示する。
+`OutputWriter`はcommitと同期的な確定結果登録をキャンセル伝播前に完了し、フックやイベントは
+ロック解放後に呼ぶ。章レポーターも結果登録とログ出力を分離し、終了時に残った登録済み結果を出力する。
+
+`PluginInvoker`は呼出し制御・例外変換を担当し、戻り値の検証は`plugins.plugin_validation`の
+純粋関数へ委譲する。付随ファイルの宣言・提供・callbackも同じ呼出し窓口を使い、通常の失敗を
+任意機能として記録する判断は`AdditionalFiles`に残す。
 
 CLIの検証処理は不変の`PreparedCommand`を生成します。入力は`DownloadArguments`、`WorkflowArguments`などのコマンド別dataclassへ複製し、位置引数の列もタプルへ変換します。実行側は元の`argparse.Namespace`や構文解析用の属性を保持しません。設定選択だけを共通の基底型で共有し、コマンド固有の項目は各型に定義します。Cookieの旧オプション形式も、この境界で通常の操作名・対象へ正規化します。
 

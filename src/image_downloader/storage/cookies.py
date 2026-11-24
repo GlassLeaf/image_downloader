@@ -21,10 +21,10 @@ from .._numeric import _is_finite
 from ..credentials.profile_store import ProfileCredentialStore
 from ..credentials.vault_crypto import FILE_LIMIT
 from ..credentials.vault_files import private_directory
-from ..exceptions import AuthenticationError
+from ..exceptions import AuthenticationError, StorageError
 from .filesystem import FileSystem, atomic_write
 from .interprocess_lock import InterProcessFileLock
-from .path_safety import existing_directory
+from .path_safety import canonical_path, existing_directory
 
 _FORMAT = 1
 CookieKey = tuple[str, str, str]
@@ -99,11 +99,16 @@ class CookieStore:
     def import_file(self, path: Path, passphrase: str) -> None:
         if not passphrase:
             raise AuthenticationError("cookie import passphrase is required")
+        path = canonical_path(path.absolute(), "cookie import path")
         try:
-            source = json.loads(FileSystem(path.parent).read_bytes_bounded(Path(path.name), FILE_LIMIT))
+            payload = FileSystem(path.parent).read_bytes_bounded(Path(path.name), FILE_LIMIT)
+        except OSError as exc:
+            raise StorageError("could not read cookie import") from exc
+        try:
+            source = json.loads(payload)
             salt = _export_salt(source)
             imported = _deserialize(_decrypt(source, _derive(passphrase, salt)).decode("utf-8"))
-        except (OSError, ValueError, TypeError, RecursionError, json.JSONDecodeError, InvalidTag):
+        except (ValueError, TypeError, RecursionError, json.JSONDecodeError, InvalidTag):
             raise AuthenticationError("cookie import cannot be decrypted") from None
         with self._lock():
             target = self._load_unlocked()

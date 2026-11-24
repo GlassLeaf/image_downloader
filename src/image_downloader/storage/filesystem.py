@@ -147,6 +147,7 @@ class FileSystem:
             raise StorageSafetyError("storage parent disappeared during write")
         with _path_errors(path.parent / ".id-temporary", creating=True):
             fd, temporary = tempfile.mkstemp(prefix=".id-", dir=path.parent)
+        owns_temporary = True
         try:
             with os.fdopen(fd, "wb") as stream:
                 stream.write(data)
@@ -160,16 +161,19 @@ class FileSystem:
             with _path_errors(path, creating=True):
                 if overwrite:
                     os.replace(temporary, path)
+                    owns_temporary = False
                 else:
                     os.link(temporary, path)
-                    os.unlink(temporary)
-            return path
-        except Exception:
-            try:
-                os.unlink(temporary)
-            except (OSError, ValueError):
-                pass
+        except BaseException:
+            if owns_temporary:
+                try:
+                    _remove_temporary(temporary)
+                except BaseException:
+                    pass  # Preserve the write failure even if cleanup is interrupted.
             raise
+        if owns_temporary and not _remove_temporary(temporary):
+            raise StorageSafetyError("file was published but its temporary link could not be removed")
+        return path
 
     def open_text_append(self, relative: str | Path, *, encoding: str = "utf-8", newline: str = "") -> TextIO:
         path = self._prepare_file(relative, create_parent=True)
@@ -263,6 +267,27 @@ class FileSystem:
     @staticmethod
     def _same_state(left: os.stat_result, right: os.stat_result) -> bool:
         return left.st_dev == right.st_dev and left.st_ino == right.st_ino
+
+
+def _remove_temporary(path: str) -> bool:
+    """Remove only the temporary name owned by this write, retrying once."""
+    interruption: BaseException | None = None
+    removed = False
+    for _ in range(2):
+        try:
+            os.unlink(path)
+            removed = True
+            break
+        except FileNotFoundError:
+            removed = True
+            break
+        except (OSError, ValueError):
+            pass
+        except BaseException as exc:
+            interruption = exc
+    if interruption is not None:
+        raise interruption
+    return removed
 
 
 def atomic_write(path: Path, data: bytes) -> None:

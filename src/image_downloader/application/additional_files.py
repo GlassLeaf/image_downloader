@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import inspect
 import re
 import tempfile
 import uuid
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path, PureWindowsPath
-from typing import TYPE_CHECKING, Any, Literal, cast
+from typing import TYPE_CHECKING, Any, Literal
 
 from ..exceptions import ErrorInfo, PluginError, StorageSafetyError, error_info_for
 from ..models import (
@@ -26,9 +25,11 @@ from ..models import (
 )
 from ..observability.diagnostic_safety import best_effort_diagnostic
 from ..observability.logging import DownloadLogger, safe_relative_path, safe_url
-from ..output.output_allocator import OutputAllocation, OutputAllocator, OutputFormatContext
+from ..output.output_allocator import OutputAllocator, OutputFormatContext
 from ..output.output_lock import OutputDirectoryLocks
-from ..ports import AdditionalFileProvider, PluginExecutionContext, SitePlugin
+from ..output.output_writer import OutputWriter, SaveReceipt
+from ..plugins.plugin_invoker import PluginInvoker
+from ..ports import PluginExecutionContext, SitePlugin
 
 if TYPE_CHECKING:
     from .workflow_retry import ImageLedger
@@ -58,6 +59,7 @@ class AdditionalFiles:
         ledger: ImageLedger | None = None,
     ) -> None:
         self.plugin, self.context = plugin, context
+        self.invoker = PluginInvoker(plugin_id, logger)
         self.max_response_bytes, self.logger, self.output_locks = max_response_bytes, logger, output_locks
         self.allocator, self.plugin_id = allocator, plugin_id
         self.url, self.plugin_values, self.ledger = url, plugin_values, ledger
@@ -80,26 +82,24 @@ class AdditionalFiles:
     async def initialize(self) -> None:
         hook = self.hook(AdditionalFileHookPoint.BEFORE_MANIFEST)
         try:
-            declaration = getattr(self.plugin, "additional_file_hook_points", None)
-            provider = getattr(self.plugin, "additional_files", None)
-            if declaration is None and provider is None:
-                return
-            if not callable(declaration) or not callable(provider):
-                raise PluginError("additional file methods must be paired callables")
-            points = declaration(self.context)
-            if inspect.isawaitable(points):
-                if inspect.iscoroutine(points):
-                    points.close()
-                raise PluginError("additional file declaration must be synchronous")
-            if not isinstance(points, tuple) or any(not isinstance(p, AdditionalFileHookPoint) for p in points):
-                raise PluginError("invalid additional file hook points")
-            if len(set(points)) != len(points):
-                raise PluginError("duplicate additional file hook points")
-            self.points = points
+            self.points = self.invoker.additional_file_hook_points(self.plugin, self.context)
         except Exception as exc:
             await self.record(hook, "", "declaration", "failed", error=exc)
 
     async def record(
+        self,
+        hook: AdditionalFileHookContext,
+        file_id: str,
+        phase: _Phase,
+        status: _Status,
+        *,
+        path: str | None = None,
+        error: BaseException | None = None,
+    ) -> None:
+        self._register(hook, file_id, phase, status, path=path, error=error)
+        await self._diagnose(phase, status)
+
+    def _register(
         self,
         hook: AdditionalFileHookContext,
         file_id: str,
@@ -126,6 +126,8 @@ class AdditionalFiles:
         self.outcomes.append(outcome)
         if self.ledger is not None:
             self.ledger.record_additional(outcome, hook)
+
+    async def _diagnose(self, phase: _Phase, status: _Status) -> None:
         await best_effort_diagnostic(
             self.logger.core,
             "additional_file_" + status,
@@ -172,17 +174,11 @@ class AdditionalFiles:
     ) -> None:
         phase: _Phase = "received_callback" if name.endswith("received") else "saved_callback"
         try:
-            callback = getattr(self.plugin, name, None)
-            if callback is None:
-                return
-            if not callable(callback):
-                raise PluginError("additional file callback must be callable")
-            value = callback(result, self._context_for(result.hook))
-            if not inspect.isawaitable(value):
-                raise PluginError("additional file callback must be async")
-            if await value is not None:
-                raise PluginError("additional file callback must return None")
-            await self.record(result.hook, result.file_id, phase, "completed")
+            called = await self.invoker.additional_file_callback(
+                self.plugin, name, result, self._context_for(result.hook)
+            )
+            if called:
+                await self.record(result.hook, result.file_id, phase, "completed")
         except Exception as exc:
             await self.record(result.hook, result.file_id, phase, "failed", error=exc)
 
@@ -191,9 +187,7 @@ class AdditionalFiles:
             return
         hook = self.hook(point, **values)
         try:
-            specs = await cast(AdditionalFileProvider, self.plugin).additional_files(hook, self._context_for(hook))
-            if not isinstance(specs, tuple):
-                raise PluginError("additional file hook must return a tuple")
+            specs = await self.invoker.additional_files(self.plugin, hook, self._context_for(hook))
         except Exception as exc:
             await self.record(hook, "", "hook", "failed", error=exc)
             return
@@ -272,31 +266,29 @@ class AdditionalFiles:
             OutputFormatContext(hook.manifest, hook.chapter, self.url, self.plugin_id, plugin_values=self.plugin_values)
         )
 
-    async def write(self, hook: AdditionalFileHookContext, spec: _FileTarget, data: bytes) -> OutputAllocation:
+    async def write(self, hook: AdditionalFileHookContext, spec: _FileTarget, data: bytes) -> SaveReceipt:
         directory = self.directory(hook)
         relative = directory / Path(*spec.relative_path.replace("\\", "/").split("/"))
-        # Confine to a chapter first, then apply managed-output locking/allocation.
-        self.allocator.filesystem.ensure_directory(relative.parent)
-        async with self.output_locks.hold(self.allocator.filesystem.path(directory)):
-            await self.allocator.refresh_directory(relative.parent)
-            allocation = await self.allocator.allocate_relative(relative)
-            if allocation.should_write:
-                try:
-                    self.allocator.filesystem.write_bytes_atomic(allocation.relative_path, data)
-                    await allocation.commit()
-                except BaseException:
-                    await allocation.abort()
-                    raise
-            return allocation
+
+        def settled(receipt: SaveReceipt) -> None:
+            self._register(
+                hook,
+                spec.file_id,
+                "save",
+                receipt.status,
+                path=safe_relative_path(
+                    str(self.allocator.filesystem.path(receipt.relative_path)), self.allocator.filesystem.root
+                ),
+            )
+
+        return await OutputWriter(self.allocator, self.output_locks).additional(directory, relative, data, settled)
 
     async def save(self, hook: AdditionalFileHookContext, spec: _FileTarget, data: bytes) -> None:
         try:
-            allocation = await self.write(hook, spec, data)
-            path = str(self.allocator.filesystem.path(allocation.relative_path))
-            status: Literal["saved", "skipped"] = "saved" if allocation.should_write else "skipped"
-            await self.record(
-                hook, spec.file_id, "save", status, path=safe_relative_path(path, self.allocator.filesystem.root)
-            )
+            receipt = await self.write(hook, spec, data)
+            path = str(self.allocator.filesystem.path(receipt.relative_path))
+            status = receipt.status
+            await self._diagnose("save", status)
         except Exception as exc:
             await self.record(hook, spec.file_id, "save", "failed", error=exc)
             await self.callback(
@@ -309,10 +301,10 @@ class AdditionalFiles:
         try:
             stored = (
                 data
-                if allocation.should_write
-                else self.allocator.filesystem.read_bytes_bounded(allocation.relative_path, self.max_response_bytes)
+                if receipt.status == "saved"
+                else self.allocator.filesystem.read_bytes_bounded(receipt.relative_path, self.max_response_bytes)
             )
-            if not allocation.should_write:
+            if receipt.status == "skipped":
                 await self.record(hook, spec.file_id, "read", "completed")
         except Exception as exc:
             stored, read_error = None, self.safe_error(exc)

@@ -21,13 +21,11 @@ PROBE = textwrap.dedent(
     import json
     import sys
     from pathlib import Path
-    from types import SimpleNamespace
 
     from image_downloader import AppConfig, RuntimeComposer
     from image_downloader.application.concurrency import bounded
-    from image_downloader.application.image_executor import ImageExecutor
     from image_downloader.application.workflow_recording import _settle
-    from image_downloader.storage.transactions import finish_transaction
+    from image_downloader.storage.transactions import finish_task, finish_transaction
 
     kind, mode, root = sys.argv[1:]
     failure = {"exit": SystemExit, "interrupt": KeyboardInterrupt, "cancel": asyncio.CancelledError}[kind]("fatal job")
@@ -79,7 +77,7 @@ PROBE = textwrap.dedent(
             elif mode == "history":
                 await _settle(fail_sync)
             elif mode == "allocation":
-                await ImageExecutor._settle_allocation(SimpleNamespace(commit=fail_async), success=True)
+                await finish_task(fail_async())
             else:
                 factory = fail_sync if mode == "factory" else fail_async
                 await bounded([factory, sibling, queued], 2)

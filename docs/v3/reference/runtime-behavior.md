@@ -86,6 +86,9 @@ profile cookieは`<storage.data_root>/profiles/<profile>/cookie/cookies.v2.enc`�
 
 cookie export/import は passphrase container を使い、passphrase を対話入力する。browser import は `browser-cookie3` を含む `.[browser-cookies]` extra が必要で、既存 jar を差分 merge する。破損した保存先はfile importでも上書きせずエラーにする。
 
+file importは相対パスをCWD基準の絶対表記へ変換し、元の経路のリンク・再解析ポイントと`..`を
+検査してから正規化する。経路・読取りの失敗を復号エラーへ変換しない。正常な取り込みは既存Cookieへ合成する。
+
 明示的な`chrome_user_data_dir`はChromeの`Default/Network/Cookies`と`Local State`に限定する。
 両方の通常ファイルを安全に開き、変更を検知するスナップショットから読み取る。SQLiteとLocal Stateの最低限の構造を検査し、
 Local StateのJSON読取りは4MiBを上限にする。
@@ -150,6 +153,12 @@ Windowsの公開処理は、調査で効果が見られた「書込み済みの�
 
 output path は trusted root の配下だけに作る。managed directory/file/lock に symlink または Windows reparse point があれば `StorageSafetyError` を送出する。`OutputAllocator.allocate()` が reservation を返した `should_write=True` allocation は `commit()` または `abort()` の一度だけで完了する。`existing_file=skip` による `should_write=False` allocation は reservation を持たず、`commit()`/`abort()` は何度呼んでも no-op である。`existing_file=error` は controlled `ExistingFileConflictError`、output lock timeout は operation failure であり image retry ではない。
 
+画像と追加ファイルの内部保存境界は、出力ロック・再読込み・予約・書込み・確定を共通管理する。
+commit開始後は結果登録まで完了してからキャンセルを伝播する。画像の台帳・章レポーターへの登録、
+追加ファイルの保存結果登録は、保存後イベント・プラグインcallbackより前に行う。
+これらのイベント・callbackは出力ロック解放後に実行し、そのキャンセルで確定済み結果を未処理へ戻さない。
+章終了時には未処理の位置より後ろにある登録済み結果も順番に出力し、通常出力との重複を防ぐ。
+
 出力名のWindows禁止文字は、`"→”`、`*→＊`、`/→／`、`:→：`、`<→＜`、`>→＞`、`?→？`、`\→＼`、`|→｜`へ置換する。タイトル・subtitle・元ファイル名のstem等、名前部分の`.`は`．`へ置換し、画像ファイルの最後の拡張子区切りは`.`を維持する（`archive.tar.webp`の出力名は`archive．tar.webp`）。制御文字の`_`置換とWindows予約名の回避は維持する。汎用`safe_name()`は通常のファイル名を検査する用途も持つため、禁止記号を上記の文字へ置換するが、通常のドットは維持する。名前部分のドット変換は出力formatterが行う。元のmanifestタイトル、画像URL、revisionは変更しない。これまで禁止記号を`_`へ置換していた名前と、名前部分にドットを含む出力名は変わり得る。既存ファイル・状態の自動移行は行わない。
 
 コア生成の章名・画像名・重複時の候補名・出力用host/plugin IDは、安全化と`output.max_component_length`による短縮の後、保存先ファイルシステムの要素長上限だけ追加で検査する。上限内なら安全化後の名前を維持する。WindowsはUTF-16単位数、POSIXは`os.fsencode()`のバイト数で測り、上限を取得できない場合は255とする。超過時だけ先頭を短縮し、名前全体のSHA-256先頭8桁を付ける。追加短縮では最後の拡張子と重複時の連番を保持する。既存の明示設定による短縮で既に拡張子が落ちる挙動は変更しない。
@@ -157,6 +166,23 @@ output path は trusted root の配下だけに作る。managed directory/file/l
 `max_component_length: null`は利用者指定の短縮を行わない意味であり、OSの要素上限対策は有効である。OS間で上限と計測単位が異なるため、超過する名前だけ保存名が異なる場合がある。追加ファイルのplugin指定相対パス、保存root、profile名、stateファイル名を自動改名せず、既存ファイルと状態を自動移行しない。
 
 原子的保存は同じ親ディレクトリに最終名を含まない短い`.id-`接頭辞の一時ファイルを作り、`fsync`と安全性検査後に置換する。パス全体を260文字などで事前拒否しない。親が深すぎて短い一時名も作れない場合を含め、実際の長さ超過は`StorageError`の定型診断で通知する。長いWindowsパスで親が存在するのに作成が`FileNotFoundError`となる場合は、長さ制約の可能性として案内する。通常の不存在判定・無関係なエラーは維持する。保存rootやWindows設定を自動変更せず、別ディレクトリへの一時保存・非原子的保存へ切り替えない。
+
+workflowログやvaultバックアップの非上書き公開は、一時ファイルへのハードリンクを最終名として作り、
+所有する一時名だけを解除する。削除は最大2回試み、再試行で解除できれば成功とする。
+公開後も解除できなければ`StorageSafetyError`となり、最終名は削除しない。
+公開前の失敗・重大例外でも後始末し、後始末の失敗で主例外を置き換えない。
+公開から解除までの短い間はリンク数が2となり、並行した安全性検査に拒否されることがある。
+強制終了・プロセスクラッシュでは一時リンクが残る可能性があり、自動回収は行わない。
+
+残留が疑われる場合の復旧は次の順序で行う。
+
+1. 対象へ書き込むダウンローダーと、関連するバックアップ・検査プロセスを停止する。
+2. 対象の最終名と一時名が通常ファイルで、リンク・再解析ポイントではなく、同じ親ディレクトリに
+   あることを確認する。`Path.samefile()`またはデバイス番号・inodeの一致で同一ファイルと確認し、
+   両方のリンク数が2であること、当該書込みが所有した一時名であることも確認する。
+3. 所有と対応が確認できた一時名だけを解除する。最終名を削除せず、`.id-`接頭辞だけで一括削除しない。
+   所有を確認できない場合や追加のリンクがある場合は削除せず調査する。
+4. 最終名のリンク数が1へ戻ったことを確認し、通常の読取り・成果物検証またはバックアップ復元を再実行する。
 
 通常downloadの成果物には短い絶対パスの`--output-dir`を指定できる。profileのCookie・state・logも深い場合は、既存データを退避して必要なprofileツリーを短い`storage.data_root`へ移し、`config explain`で解決先を確認する。`--output-dir`だけではprofileデータの場所は変わらない。Windowsでは実行PythonとOSの長いパス対応も確認する。実測結果と再実行コマンドは[R15検証記録](../../investigations/implementation-review-2026-10-04/r15-details.md)を参照する。
 

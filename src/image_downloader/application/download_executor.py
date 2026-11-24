@@ -44,6 +44,7 @@ from .chapter_executor import ChapterExecutor
 from .dependencies import _RuntimeDependencies
 from .download_context import DownloadContext
 from .image_executor import ImageOperationError
+from .image_outcomes import NullImageOutcomeSink
 from .requests import DownloadRequest
 from .site_operation import SiteOperation, SiteOperationFactory
 from .workflow_retry import ImageLedger
@@ -217,8 +218,9 @@ class DownloadExecutor:
                     pipeline,
                     request.url,
                     plugin_values,
-                    ledger,
+                    ledger if ledger is not None else NullImageOutcomeSink(),
                     additional,
+                    unexpected_errors_are_fatal=ledger is not None,
                 )
             )
             result = DownloadResult(request.url, manifest, tuple(results))
