@@ -172,9 +172,10 @@ def test_added_conflict_is_detected_across_hierarchy_before_values(extended_opti
     assert payload["details"] == {"kind": "option_conflict", "options": ["--future-count", "--future-mode"]}
 
 
-def test_added_options_appear_in_help_without_initialization(extended_options, capsys):
+@pytest.mark.parametrize("command", [["doctor"], ["plugin", "list"]])
+def test_added_options_appear_in_help_without_initialization(extended_options, capsys, command):
     with pytest.raises(SystemExit) as stopped:
-        dispatch.main(["help", "--json"])
+        dispatch.main(["help", *command, "--json"])
     assert stopped.value.code == 0
     output = capsys.readouterr()
     assert output.err == ""

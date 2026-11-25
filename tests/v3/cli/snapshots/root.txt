@@ -1,0 +1,51 @@
+usage: image-downloader COMMAND [arguments] [options]
+
+Download images with local API v3 plugins, inspect requests, and manage saved
+state.
+
+Download and inspect:
+  download
+    Download images from a page using a matching site plugin.
+  workflow
+    Check a workflow input URL, select targets, download them, and retry
+    unfinished work.
+  inspect
+    Inspect a manifest and resolved image requests without downloading image
+    bodies.
+
+State and verification:
+  state
+    View workflow registrations, inspect saved runs, or change target
+    statuses.
+  verify
+    Check recorded log errors or match a saved workflow run to output files.
+
+Configuration and diagnostics:
+  config
+    Locate, explain, or initialize application and profile configuration.
+  doctor
+    Diagnose effective configuration, plugin loading, and plugin selection.
+
+Plugins and credentials:
+  plugin
+    List, install, trust, revoke, or uninstall local plugins.
+  cookie
+    Export, import, or copy browser cookies for the selected profile.
+  credential
+    Manage plugin and SMTP credentials without displaying secret values.
+  vault
+    Manage the data-root-wide credential vault, backups, and encryption keys.
+
+Help:
+  -h, --help
+    Show help and exit.
+  Use help COMMAND [SUBCOMMAND ...] or COMMAND --help for options, conditions,
+  and examples. Options are specific to each operation; their position does
+  not make them global.
+  A bare HTTP(S) URL is a compatibility form of download URL. See help cookie
+  for legacy forms.
+
+Examples:
+  image-downloader download https://example.test/gallery
+  image-downloader workflow https://example.test/feed --dry-run
+  image-downloader help download

@@ -18,12 +18,13 @@ from typing import Any
 from .catalog import FEATURES
 from .display import LEVELS, SOURCES, nonempty_pattern
 from .generation import create_project, extend_project, wizard
+from .help import DevelopmentArgumentParser, bind_help
 from .loading import workspace_for
 from .output import read_document
 
 
 def parser() -> argparse.ArgumentParser:
-    result = argparse.ArgumentParser(prog="image-downloader-dev", description="API v3プラグインの生成・実行・デバッグ")
+    result = DevelopmentArgumentParser(prog="image-downloader-dev", description="Generate and debug API v3 plugins")
     result.add_argument("--json", action="store_true")
     subcommands = result.add_subparsers(dest="command", required=True)
     for name in ("init", "extend"):
@@ -83,6 +84,7 @@ def parser() -> argparse.ArgumentParser:
     sign.add_argument("--key", type=Path, required=True)
     sign.add_argument("--create-key", action="store_true")
     sign.add_argument("--json", action="store_true", default=argparse.SUPPRESS)
+    bind_help(result)
     return result
 
 

@@ -37,6 +37,34 @@ image-downloader cookie export|import|browser-import VALUE [options]
 image-downloader help [COMMAND [SUBCOMMAND ...]]
 ```
 
+## ヘルプの使い方
+
+ヘルプは英語で表示します。`help`／`--help`は目的別のコマンド案内と代表例を表示し、
+全オプションの一覧は表示しません。`help plugin`のような中間階層では、各サブコマンドの意味、
+共通オプション、サブコマンドによって使える範囲が異なる指定を確認できます。
+個別操作のヘルプは、その操作の位置引数、目的別オプション、選択肢、省略時の扱い、
+必須・依存・排他条件、利用例を表示します。コマンド階層の前後に置いても適用範囲は変わりません。
+
+```text
+image-downloader help
+image-downloader help download
+image-downloader download --help
+image-downloader help download --inspect-only
+image-downloader help download --list-updated-urls
+image-downloader help state workflow history
+image-downloader help state workflow set
+image-downloader help verify workflow
+```
+
+`help COMMAND`と`COMMAND --help`は同じ内容です。downloadは検査・更新一覧のモード指定に合わせて
+表示を切り替え、競合する両モードを指定した場合は通常取得のヘルプと併用不可の注記を表示します。
+`Accepted without effect`は、受理するものの対象操作では効果がない指定です。
+`Legacy invocation forms`には、サブコマンドと併用できない旧Cookie形式を掲載します。
+`Uses configuration`は、利用者の設定を読み込んで表示した値ではなく、省略時に設定へ従うことを表します。
+
+ヘルプは`--json`併用時も標準出力へのプレーンテキストで、正常終了コードは0です。
+設定解決・設定生成・プラグイン実行・通信・ダウンロードを開始しません。
+
 従来の`--export-cookies`、`--import-cookies`、`--import-browser-cookies`は、Cookie操作を一つ選ぶ指定であり、併用できません。`URL`を単独で指定する形式は`download`へ読み替えます。
 
 <a id="cli-state-effects"></a>

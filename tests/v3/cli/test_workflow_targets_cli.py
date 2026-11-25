@@ -366,12 +366,14 @@ def test_workflow_target_help_explains_url_roles(no_target_execution, capsys):
     help_text = " ".join(capsys.readouterr().out.split())
     assert "TARGET_URL" in help_text and "workflow input URL" in help_text
     assert "filters saved registrations" in help_text and "does not save state" in help_text
-    with pytest.raises(SystemExit):
-        build_parser().parse_args(["--help"])
-    help_text = " ".join(capsys.readouterr().out.split())
     assert "--filter-workflow-url WORKFLOW_INPUT_URL" in help_text
     assert "--query-targets-from-workflow-url WORKFLOW_INPUT_URL" in help_text
     assert "--source" not in help_text and "--refresh" not in help_text
+    with pytest.raises(SystemExit):
+        build_parser().parse_args(["--help"])
+    root_help = " ".join(capsys.readouterr().out.split())
+    assert "help COMMAND" in root_help
+    assert "--query-targets-from-workflow-url" not in root_help
 
 
 def test_workflow_filter_uses_original_input_url_while_target_selectors_use_returned_urls(tmp_path, capsys):

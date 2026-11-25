@@ -25,6 +25,32 @@ def test_archive_accepts_current_modules_and_rejects_obsolete_roots(source_archi
         _check_archive_names([*archive_names, prefix + "image_downloader/legacy.py"], source_archive=source_archive)
 
 
+@pytest.mark.parametrize("source_archive", [False, True])
+@pytest.mark.parametrize(
+    "module",
+    [
+        "_cli_help.py",
+        "commands/help.py",
+        "commands/help_catalog.py",
+        "commands/option_help.py",
+        "devtools/help.py",
+    ],
+)
+def test_archives_require_the_help_runtime_modules(source_archive: bool, module: str) -> None:
+    repository = Path(__file__).resolve().parents[3]
+    source = repository / "src"
+    prefix = "image_downloader-0.0.0.1b0/src/" if source_archive else ""
+    names = [
+        prefix + path.relative_to(source).as_posix()
+        for path in (source / "image_downloader").rglob("*")
+        if path.is_file()
+        and "__pycache__" not in path.parts
+        and path.relative_to(source / "image_downloader").as_posix() != module
+    ]
+    with pytest.raises(RuntimeError, match="missing reorganized module: " + module.replace(".", r"\.")):
+        _check_archive_names(names, source_archive=source_archive)
+
+
 def test_failed_command_preserves_output_and_exit_status(capsys: pytest.CaptureFixture[str]) -> None:
     script = "import sys; print('smoke output'); print('smoke error', file=sys.stderr); sys.exit(4)"
     with pytest.raises(subprocess.CalledProcessError) as caught:

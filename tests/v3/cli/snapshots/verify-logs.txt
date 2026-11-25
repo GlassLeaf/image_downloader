@@ -1,0 +1,25 @@
+usage: image-downloader verify logs PATH [options]
+
+Check saved logs for recorded errors, incomplete sections, and indeterminate
+records.
+
+Arguments:
+  PATH
+    Absolute directory, or a single log.log or debug.log file.
+
+Display and limits:
+  --json
+    Write one structured JSON result; help remains plain text. Omitted:
+    disabled.
+
+Help:
+  -h, --help
+    Show this help and exit.
+
+Requirements and conflicts:
+  This checks recorded evidence, not image decoding or content integrity. No
+  downloads are performed.
+
+Examples:
+  image-downloader verify logs "C:\Downloads"
+  image-downloader verify logs "C:\Downloads" --json

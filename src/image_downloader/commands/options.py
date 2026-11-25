@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import argparse
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
+
+from .option_help import OPTION_HELP
 
 
 @dataclass(frozen=True)
@@ -21,6 +23,8 @@ class OptionDefinition:
     metavar: str | None = None
     help: str | None = None
     no_effect: frozenset[str] = frozenset()
+    group: str = "Other options"
+    omitted: str = ""
 
     @property
     def attribute(self) -> str:
@@ -65,7 +69,7 @@ _FORMAT = _DOWNLOAD | {"doctor", "config explain"}
 _OUTPUT_NOOP = frozenset({"download --inspect-only", "download --list-updated-urls"})
 _IMAGE_FORMATS = ("ORIGINAL", "JPEG", "PNG", "WEBP")
 
-OPTIONS = (
+OPTIONS: tuple[OptionDefinition, ...] = (
     OptionDefinition(
         "config", _RUNTIME | _STATE | _VERIFY_WORKFLOW | {"config explain", "config profile init"} | _MANAGED, Path
     ),
@@ -201,6 +205,15 @@ OPTIONS = (
         float,
         help="positive retry duration including waits (default: unlimited)",
     ),
+)
+
+# Enrich the same definitions used by parsing; presentation never registers a
+# competing set of arguments or defaults in the command hierarchy.
+OPTIONS = tuple(
+    replace(option, group=metadata[0], help=metadata[1], omitted=metadata[2])
+    if (metadata := OPTION_HELP.get(option.name)) is not None
+    else option
+    for option in OPTIONS
 )
 
 # Conditional exclusions (fallback mode and explicit/legacy Cookie command) are

@@ -4,6 +4,13 @@
 サイトプラグインと画像プロセッサーの生成、読込み、単体呼出し、試験実行に対応します。
 `python -m image_downloader.devtools` でも同じ機能を起動できます。
 
+ヘルプは英語です。`image-downloader-dev help`は生成・検査・実行の目的別にコマンドを案内し、
+`image-downloader-dev help simulate`または`image-downloader-dev simulate --help`は、
+操作の意味、位置引数、目的別オプション、選択肢、省略時の扱い、適用条件と利用例を表示します。
+同じ形式で`help call`、`help session`、`help sign`も確認できます。
+通常CLIの`--config`がアプリケーション設定を指すのに対し、開発用の`--config`はプラグイン設定です。
+ヘルプは`--json`併用時もプレーンテキストで、worker起動・ファイル読込み・生成・署名を行いません。
+
 ```powershell
 python -m pip install -e ".[dev,parser]"
 

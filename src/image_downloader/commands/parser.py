@@ -5,12 +5,14 @@ import re
 import sys
 from collections.abc import Sequence
 from pathlib import Path
-from typing import NoReturn
+from typing import NoReturn, cast
 
+from .._cli_help import walk_parsers
 from ..diagnostics import argument_error, safe_option
 from ..exceptions import ArgumentError
 from .argument_rules import _check_conflicts, is_http_url
-from .options import OPTIONS
+from .help import format_help as scoped_help
+from .options import OPTIONS, OptionDefinition
 
 _COMMAND_NAMES = frozenset(
     (
@@ -41,6 +43,24 @@ class _CliArgumentParser(argparse.ArgumentParser):
     operation = "cli"
     _positionals_only = False
     _defer_value_errors = False
+    _help_path: tuple[str, ...] = ()
+    _help_options: tuple[OptionDefinition, ...] = ()
+    _help_prog = ""
+    _help_modes: frozenset[str] = frozenset()
+
+    def format_help(self) -> str:
+        if not self._help_prog:
+            return super().format_help()
+        return scoped_help(self, self._help_path, self._help_options, prog=self._help_prog, modes=self._help_modes)
+
+    def _show_help(self, target: argparse.ArgumentParser, explicit: Sequence[str]) -> NoReturn:
+        selected = cast(_CliArgumentParser, target)
+        selected._help_modes = frozenset(option.removeprefix("--") for option in explicit)
+        try:
+            selected.print_help()
+        finally:
+            selected._help_modes = frozenset()
+        self.exit(0)
 
     def _parse_optional(self, arg_string):
         return None if self._positionals_only else super()._parse_optional(arg_string)
@@ -178,12 +198,11 @@ class _CliArgumentParser(argparse.ArgumentParser):
                 target = self._help_target(words[1:])
                 # Check option syntax preceding help without executing anything.
                 argparse.ArgumentParser.parse_known_args(self, options, namespace)
-                target.print_help()
-                self.exit(0)
+                self._show_help(target, explicit)
             if help_requested:
                 argparse.ArgumentParser.parse_known_args(self, options, namespace)
-                self._help_target(words, strict=False).print_help()
-                self.exit(0)
+                help_words = ["download", *words] if words and is_http_url(words[0]) else words
+                self._show_help(self._help_target(help_words, strict=False), explicit)
             if words and is_http_url(words[0]):
                 words.insert(0, "download")
             # Options are parsed once, independently of the positional hierarchy.
@@ -305,7 +324,7 @@ def _workflow_target_argument(operation: argparse.ArgumentParser, action: str) -
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = _CliArgumentParser(description="local plugin API v3 image downloader")
+    parser = _CliArgumentParser(prog="image-downloader", description="local plugin API v3 image downloader")
     parser.set_defaults(config_explicit=False, command=None)
     for option in OPTIONS:
         option.add_to(parser)
@@ -325,10 +344,8 @@ def build_parser() -> argparse.ArgumentParser:
     ):
         command = commands.add_parser(name, help=f"{name} operations")
         command.set_defaults(command_handler=name)
-        # Help lists canonical options from the single root registry. Parsing
-        # strips them before entering this hierarchy, so there are no competing
-        # per-level defaults or mutually-exclusive groups.
-        command.epilog = "Options may appear before, within, or after the command. See --help at the root."
+        # Scoped help is rendered separately. Execution options stay registered
+        # only at the root, with no competing per-level defaults.
         if name in {"download", "workflow", "inspect"}:
             command.add_argument("url")
         elif name in {"credential", "vault"}:
@@ -365,4 +382,13 @@ def build_parser() -> argparse.ArgumentParser:
                     operation.add_argument("target")
                 elif action in {"history", "targets", "set", "reset"}:
                     _workflow_target_argument(operation, action)
+    _bind_help(parser)
     return parser
+
+
+def _bind_help(parser: argparse.ArgumentParser) -> None:
+    for path, child in walk_parsers(parser):
+        selected = cast(_CliArgumentParser, child)
+        selected._help_path = path
+        selected._help_options = OPTIONS
+        selected._help_prog = parser.prog

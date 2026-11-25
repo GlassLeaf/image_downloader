@@ -16,6 +16,7 @@ from pathlib import Path
 REPOSITORY = Path(__file__).resolve().parents[1]
 FORBIDDEN_PARTS = {"__pycache__", ".local", ".runtime", "profiles", "image_downloader.und"}
 ROOT_MODULES = {
+    "_cli_help.py",
     "_numeric.py",
     "__init__.py",
     "__main__.py",
@@ -59,6 +60,7 @@ def _check_archive_names(names: list[str], *, source_archive: bool) -> None:
     if not any(name.endswith("image_downloader/configuration/public_suffix_list.dat") for name in names):
         raise RuntimeError("distribution is missing the bundled authentication Public Suffix List")
     required_modules = (
+        "_cli_help.py",
         "application/service.py",
         "application/requests.py",
         "application/site_operation.py",
@@ -69,6 +71,9 @@ def _check_archive_names(names: list[str], *, source_archive: bool) -> None:
         "commands/dispatch.py",
         "commands/prepared.py",
         "commands/argument_rules.py",
+        "commands/help.py",
+        "commands/help_catalog.py",
+        "commands/option_help.py",
         "commands/download.py",
         "commands/cookie.py",
         "commands/doctor.py",
@@ -92,6 +97,7 @@ def _check_archive_names(names: list[str], *, source_archive: bool) -> None:
         "transport/operation.py",
         "transport/image_requests.py",
         "devtools/cli.py",
+        "devtools/help.py",
         "devtools/display.py",
         "devtools/worker.py",
         "devtools/generation.py",
