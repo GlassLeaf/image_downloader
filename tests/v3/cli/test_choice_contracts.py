@@ -9,10 +9,11 @@ from typing import get_args, get_type_hints
 import pytest
 import yaml
 
+from image_downloader import DownloadRequest
 from image_downloader.commands import inspect, setup
 from image_downloader.commands.options import OPTIONS
 from image_downloader.commands.parser import build_parser
-from image_downloader.configuration.models import AppConfig, Output
+from image_downloader.configuration.models import AppConfig
 from image_downloader.models import DownloadManifest, ManifestInspectionResult, WorkflowPlanResult
 from image_downloader.plugins.plugin_manifest import PluginVerificationOverride
 
@@ -27,7 +28,6 @@ def choices(name):
         (option, field, value)
         for option, field in (
             ("image-format", "image_format"),
-            ("force-image-format", "image_format"),
             ("existing-file", "existing_file"),
         )
         for value in choices(option)
@@ -35,8 +35,8 @@ def choices(name):
 )
 def test_every_declared_output_choice_is_accepted_by_configuration(option, field, value):
     args = build_parser().parse_args(["download", "https://example.test/feed", f"--{option}={value}"])
-    if option == "force-image-format":
-        output = Output.model_validate({field: args.force_image_format})
+    if option == "image-format":
+        output = DownloadRequest(url=args.url, image_format=args.image_format)
     else:
         output = AppConfig.model_validate(setup._app_override(args)).output
     assert getattr(output, field) == value

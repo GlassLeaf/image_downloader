@@ -22,6 +22,7 @@
 | サイト側の画像変換 | `transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact` | 通信・秘密情報へのアクセス権限なし。 |
 | 更新確認 | `async check_updates(self, url: str, context: PluginExecutionContext) -> UpdateSnapshot` | 任意。部分的な差分ではなく、完全なスナップショットを返す。 |
 | プロセッサーの画像変換 | `transform(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact` | 設定済みの処理チェーンの順に実行する。 |
+| 任意の保存条件 | `image_save_options(self, artifact: ImageArtifact, context: TransformContext) -> ImageSaveOptions | None` | サイト・プロセッサー共通の同期フック。全変換後の同じArtifactを受け取り、保存の最低条件を返す。 |
 | 任意の出力書式値 | `output_format_values(self, context: PluginFormatContext) -> Mapping[str, str]` | selected site plugin と enabled processor に任意で実装できる同期 hook。operation 構成後に一度だけ呼ばれ、同一 operation 内では時点によらず同じ、大文字スネークケース key の非秘密 string mapping を返す。未実装は空 mapping。 |
 | 実行時利用後の任意の後始末 | `cleanup_after_use() -> Awaitable[None] | None` | selected site instance と configured processor instance に任意で実装する。runtime がその instance の利用を終えると一回だけ呼び、awaitable は await する。最終戻り値は `None`。 |
 
@@ -287,7 +288,7 @@ NOT_AUTH_FAILUREは認証済みの証明ではなく、その応答を認証更�
 
 要求を返す画像フックでは画像本体のURLを構築する。JSON一覧・署名APIの要求なら `context.requests.execute()` に渡して解析し、画像本体の要求を返す。絶対URLで直接構築した要求も同じoriginの認証方針を通し、接続先の名前による別セッションやURLの自動書換えはない。[実装例](../how-to/dynamic-urls-and-auth.md#endpoint-image-requests)を参照する。
 
-invoker は manifest、chapter/image index、plugin-returned `ImageResource.url` と `ImageArtifact.source_url` の **空でない文字列のlocator**、`ImageResource.original_filename` の非空・path separator なし string、`ImageResource.metadata` と `ImageFetchRequest.plugin_data` の string mapping、`RequestSpec.url` と referer の absolute HTTP(S) **構文**、hook return class、nested DTO、cleanup return を検証する。`ImageResource` constructor 自体は URL を検査しない。locator は plugin が `create_image_request` で実 request を組み立てるのに十分に安定していなければならない。`image_id`、image metadata、manifest metadata、`original_filename` は inspection-time の非秘密値だけにし、token、cookie、署名 URL、鍵などを含めてはならない。`ImageFetchRequest.plugin_data` は request-time の transform 専用値であり、必要最小限にして artifact/result/event/log へ自分でコピーしてはならない。plugin は `ImageSaveOptions(format="ORIGINAL")` により core の再エンコードを止められる。この指定は extension/encoder field と併用できず、site transform/processor 後の artifact bytes を保存する。core は locator の意味を解釈せず、`RequestSpec(url=image.url)` が HTTP(S) でなければ fetch 前に失敗する。予期しない hook exception と contract violation は plugin ID と hook 名を持つ `PluginError` に変換し、`asyncio.CancelledError` は再送出する。core fetch/process/save failure を plugin 内で握りつぶしてはならない。
+invoker は manifest、chapter/image index、plugin-returned `ImageResource.url` と `ImageArtifact.source_url` の **空でない文字列のlocator**、`ImageResource.original_filename` の非空・path separator なし string、`ImageResource.metadata` と `ImageFetchRequest.plugin_data` の string mapping、`RequestSpec.url` と referer の absolute HTTP(S) **構文**、hook return class、nested DTO、cleanup return を検証する。`ImageResource` constructor 自体は URL を検査しない。locator は plugin が `create_image_request` で実 request を組み立てるのに十分に安定していなければならない。`image_id`、image metadata、manifest metadata、`original_filename` は inspection-time の非秘密値だけにし、token、cookie、署名 URL、鍵などを含めてはならない。`ImageFetchRequest.plugin_data` は request-time の transform 専用値であり、必要最小限にして artifact/result/event/log へ自分でコピーしてはならない。plugin は任意の同期`image_save_options`フックから保存時の最低条件を返せる。core は locator の意味を解釈せず、`RequestSpec(url=image.url)` が HTTP(S) でなければ fetch 前に失敗する。予期しない hook exception と contract violation は plugin ID と hook 名を持つ `PluginError` に変換し、`asyncio.CancelledError` は再送出する。core fetch/process/save failure を plugin 内で握りつぶしてはならない。
 
 ```python
 async def create_image_request(self, image, context):
@@ -300,21 +301,20 @@ async def create_image_request(self, image, context):
 
 ### 変換後の画像と保存形式
 
-`transform_image(artifact, context)` が返す `ImageArtifact` に保存オプションはない。
-`artifact.data` / `artifact.content_type` は変換後の入力であり、保存形式は
-`--force-image-format` → `ImageResource.save_options.format` → `output.image_format`
-（通常の `--image-format` による上書きを含む、既定は `ORIGINAL`）の順で決まる。
-PNG bytesと`image/png`を返しても、保存指定がJPEGなら、入力検証後にJPEGへ再エンコードする。
-宣言MIMEと実体が違う場合は`media.content_type_mismatch`に従い、非画像MIME等の検証エラーは
-変換より先に発生する。MIMEを変更するだけで保存形式を指定することはできない。
+`ImageResource`と`ImageArtifact`は保存オプションを持たない。`ImageArtifact.content_type`は含まれる実データの形式を宣言する。CLIの`--image-format`があれば最優先し、なければ設定の`output.image_format`を使う。設定も`null`なら最終Artifactの形式を維持する。設定の`ORIGINAL`も最終バイト列を維持する指定となる。コアのエンコードは全プロセッサーの後、必要な場合だけ最大一度行う。
 
-`ORIGINAL` はサイト変換・プロセッサー後の最終bytesを維持する。元のHTTP本文へ戻す指定ではなく、
-画像検証も省略しない。保存拡張子は最終artifactの `extension`、`content_type`、`source_url`の拡張子、
-`.bin` の順で選び、bytesのデコード結果では自動補正しない。形式を変えるプラグインは
-`data`・`content_type`・`extension` を一致させる。
-形式の食い違いの具体例と、形式不明データの扱いは
-[保存形式の正本](configuration.md#image-save-format)、[入力検証](configuration.md#image-input-validation)、
-[FAQ](../how-to/faq.md#faq-image-save-format)を参照する。
+サイト・画像プロセッサーとも、次の任意フックを実装できる。
+
+```python
+def image_save_options(self, artifact: ImageArtifact, context: TransformContext) -> ImageSaveOptions | None:
+    return ImageSaveOptions(min_width=1920, min_height=1080, quality=90, lossless=True)
+```
+
+全フックに同じ最終Artifactを渡し、同期変換と同じExecutorで実行する。各Contextの設定・metadata許可は当該プラグインのものを使用する。フックは通信を行わず、同一操作中は安定した条件を返す。成功画像の再試行時再利用では再実行しない。検査操作では呼び出さない。
+
+寸法・品質は最大の下限、ロスレスはTrue優先で集約する。その他の明示設定はサイト→プロセッサー順で項目ごとに後勝ちとし、空の指定は最低条件を解除しない。CLI品質はこの下限を下げ、ロスレスも解除できる。未達はログへ記録して保存を続ける。型・範囲不正、async実装、awaitable返却は契約違反となる。
+
+[保存条件の詳細](configuration.md#image-save-format)、[移行手順](../maintenance/image-save-options-migration.md)を参照する。
 
 ### Cookieの同期取得
 

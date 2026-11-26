@@ -87,7 +87,8 @@ class DownloadCommandHandler:
                             plugin_id=plugin_id,
                             force_plugin=force_plugin,
                             plugin_download_policy_overrides=download_policy_overrides,
-                            force_image_format=args.force_image_format,
+                            image_format=args.image_format,
+                            image_quality=args.image_quality,
                         )
                     )
                 status = (

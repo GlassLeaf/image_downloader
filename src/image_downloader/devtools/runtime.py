@@ -122,6 +122,8 @@ def validate_return(method: str, value: Any, invoker: PluginInvoker) -> None:
         validation.validate_image_fetch_request(
             invoker.plugin_id, method, value, allow_none=method == "recover_image_request"
         )
+    elif method == "image_save_options":
+        validation.validate_save_options(invoker.plugin_id, method, value)
     elif method in {"transform", "transform_image"}:
         validation.validate_artifact(invoker.plugin_id, method, value)
     elif method in {"matches", "matches_with_config"}:
@@ -330,7 +332,7 @@ class DevelopmentSession:
                 "url": self.options.get("url") or self.settings.get("sample_url", "https://example.test/"),
             }
         context: Any = self.execution_context()
-        if method in {"transform", "transform_image"}:
+        if method in {"transform", "transform_image", "image_save_options"}:
             image = ImageResource("https://example.test/image.png")
             chapter = Chapter(1, "Debug", images=(image,))
             context = TransformContext(
@@ -405,6 +407,7 @@ class DevelopmentSession:
                         "auth_flow",
                         "output_format_values",
                         "additional_file_hook_points",
+                        "image_save_options",
                         "transform_image",
                         "transform",
                     }
@@ -477,7 +480,7 @@ class DevelopmentSession:
         return list(bound.args), dict(bound.kwargs)
 
     async def _call_callback(self, target: Any, method: str, callback: Any, args: Any, kwargs: Any) -> Any:
-        if target is self.instance and method in {"transform_image", "transform"}:
+        if target is self.instance and method in {"transform_image", "transform", "image_save_options"}:
             assert self.service is not None
             return await self.service.transform_executor.run(lambda: callback(*args, **kwargs))
         return callback(*args, **kwargs)

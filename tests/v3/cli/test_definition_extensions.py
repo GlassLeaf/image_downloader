@@ -13,7 +13,7 @@ from textwrap import dedent
 from typing import Literal
 
 import pytest
-from pydantic import Field, StrictInt, ValidationError
+from pydantic import Field, StrictInt
 
 from image_downloader.commands import argument_rules, dispatch, inspect, options, parser, setup, validation
 from image_downloader.configuration import layers, normalization
@@ -363,7 +363,9 @@ def test_extending_parser_choices_alone_does_not_extend_configuration_schema(mon
         for spec in options.OPTIONS
     )
     monkeypatch.setattr(parser, "OPTIONS", definitions)
-    args = parser.build_parser().parse_args(["doctor", "--image-format=FUTURE"])
-    assert validation.validate_arguments(args).name == "doctor"
-    with pytest.raises(ValidationError):
-        AppConfig.model_validate({"output": {"image_format": args.image_format}})
+    args = parser.build_parser().parse_args(["download", "https://example.test/", "--image-format=FUTURE"])
+    assert validation.validate_arguments(args).name == "download"
+    from image_downloader import DownloadRequest
+
+    with pytest.raises(ValueError):
+        DownloadRequest(url=args.url, image_format=args.image_format)

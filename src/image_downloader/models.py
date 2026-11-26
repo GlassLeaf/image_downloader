@@ -397,14 +397,16 @@ class ImageTransportMetadata:
 
 @dataclass(frozen=True, slots=True)
 class ImageSaveOptions:
-    format: str | None = None
-    extension: str | None = None
+    """Minimum save requirements; None leaves an item unspecified."""
+
+    min_width: int | None = None
+    min_height: int | None = None
     quality: int | None = None
     optimize: bool | None = None
     progressive: bool | None = None
     lossless: bool | None = None
     compress_level: int | None = None
-    exif: bool = False
+    exif: bool | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -420,7 +422,6 @@ class ImageResource:
     index: int = 1
     referer: str | None = None
     headers: Mapping[str, str] = field(default_factory=freeze_mapping)
-    save_options: ImageSaveOptions = field(default_factory=ImageSaveOptions)
     image_id: str | None = None
     metadata: Mapping[str, str] = field(default_factory=freeze_mapping)
     original_filename: str | None = None

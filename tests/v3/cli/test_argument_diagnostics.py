@@ -50,7 +50,7 @@ def no_execution(monkeypatch):
         (["--config", "plugin", "doctor"], "invalid_value", "doctor", "--config"),
         (["workflow", URL, "--workflow-retries", "private-value"], "invalid_value", "workflow", "integer"),
         (["workflow", URL, "--workflow-retry-delay", "-1e3"], "invalid_value", "workflow", "non-negative"),
-        (["doctor", "--image-format", "private-value"], "invalid_value", "doctor", "choose from"),
+        (["download", URL, "--image-format", "private-value"], "invalid_value", "download", "choose from"),
     ],
 )
 def test_specific_single_json_diagnostic(words, kind, operation, fragment, capsys, no_execution):
@@ -97,7 +97,7 @@ def test_scope_error_is_identical_at_every_position(command, options, json_mode,
 @pytest.mark.parametrize(
     "command,left,right",
     [
-        (["download", URL], ["--image-format", "PNG"], ["--force-image-format", "JPEG"]),
+        (["download", URL], ["--image-format", "ORIGINAL"], ["--image-quality", "80"]),
         (["workflow", URL], ["--plugin", "test.a"], ["--force-plugin", "test.b"]),
         (["download", URL], ["--inspect-only"], ["--list-updated-urls"]),
         (["download", URL], ["--plugin", "test.a"], ["--fallback-generic", "enabled"]),

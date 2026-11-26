@@ -21,6 +21,7 @@ from ..models import (
     ImageArtifact,
     ImageFetchRequest,
     ImageResource,
+    ImageSaveOptions,
     RequestResponse,
     RequestSpec,
     UpdateSnapshot,
@@ -351,6 +352,27 @@ class PluginInvoker:
             url_is_locator=True,
         )
         return value
+
+    async def image_save_options(
+        self,
+        plugin: object,
+        artifact: ImageArtifact,
+        context: TransformContext,
+        *,
+        chapter_id: str,
+        executor: TransformExecutor,
+    ) -> ImageSaveOptions | None:
+        hook = "image_save_options"
+        callback = self._invoke_sync(hook, lambda: getattr(plugin, hook, None))
+        if callback is None:
+            return None
+        if not callable(callback):
+            raise self._error(hook, "image_save_options must be callable")
+        await self._start(hook, url=artifact.source_url, chapter_id=chapter_id, url_is_locator=True)
+        value = await executor.run(lambda: self._invoke_transform(hook, lambda: callback(artifact, context)))
+        validation.validate_save_options(self.plugin_id, hook, value)
+        await self._finish(hook, url=artifact.source_url, chapter_id=chapter_id, url_is_locator=True)
+        return cast(ImageSaveOptions | None, value)
 
     def _invoke_transform(self, hook: str, callback: Callable[[], _T]) -> _T:
         value = self._invoke_sync(hook, callback)

@@ -81,15 +81,14 @@ OPTION_HELP = {
         "Uses configuration",
     ),
     "image-format": (
-        "Output setting overrides",
-        "Set the default output format; per-image plugin settings take priority.",
-        "Uses configuration",
+        "Image output",
+        "Choose the final format, overriding output.image_format. ORIGINAL preserves final plugin bytes.",
+        "uses output.image_format; null preserves the final format",
     ),
-    "force-image-format": (
-        "Output setting overrides",
-        "Override even per-image plugin formats. ORIGINAL saves the final "
-        "plugin-produced bytes without core re-encoding.",
-        "no forced format",
+    "image-quality": (
+        "Image output",
+        "Set lossy JPEG/WEBP quality (0-100), overriding plugin quality and lossless requirements.",
+        "uses plugin requirements",
     ),
     "inspection-data": (
         "Inspection",

@@ -36,7 +36,7 @@ class SiteArguments(ConfigurationArguments):
 class DownloadOutputArguments(SiteArguments):
     existing_file: Literal["overwrite", "skip", "rename", "error"] | None = None
     image_format: ImageFormat | None = None
-    force_image_format: ImageFormat | None = None
+    image_quality: int | None = None
     output_dir: Path | None = None
     directory_format: str | None = None
     no_console_log: bool = False

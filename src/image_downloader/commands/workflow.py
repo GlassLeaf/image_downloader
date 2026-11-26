@@ -225,7 +225,8 @@ class WorkflowCommandHandler:
                         plugin_id=args.plugin_id or args.force_plugin_id,
                         force_plugin=args.force_plugin_id is not None,
                         plugin_download_policy_overrides=command.download_policy,
-                        force_image_format=args.force_image_format,
+                        image_format=args.image_format,
+                        image_quality=args.image_quality,
                     )
                 )
             except (WorkflowExecutionError, WorkflowCancelledError) as error:

@@ -284,6 +284,7 @@ class ImageExecutor:
                 self.operation.manifest,
                 self.chapter,
                 transport_metadata=transport_metadata,
+                reporter_id=self.reporter.reporter_id,
             )
             await self.events.emit(EventName.IMAGE_PROCESS_SUCCESS, EventPayload(url=image.url))
         except asyncio.CancelledError:

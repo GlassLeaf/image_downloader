@@ -73,6 +73,7 @@ _SAFE_EVENTS = {
     "response_received",
     "site_operation_close_failed",
     "image_processed",
+    "image_save_policy_unmet",
     "file_saved",
     "download_failed",
     "download_finished",
@@ -122,6 +123,42 @@ class _CapturedPythonLogHandler(logging.Handler):
         except Exception:
             # Logging is diagnostic-only. Never propagate an observer failure.
             return
+
+
+def _policy_log_parts(
+    policy_field: str | None,
+    requested: int | bool | None,
+    actual: int | bool | None,
+    reason: str | None,
+) -> list[str]:
+    parts: list[str] = []
+    if policy_field in {
+        "min_width",
+        "min_height",
+        "quality",
+        "lossless",
+        "optimize",
+        "progressive",
+        "compress_level",
+        "exif",
+    }:
+        parts.append("field=" + policy_field)
+        for key, value in (("requested", requested), ("actual", actual)):
+            if isinstance(value, int) and value >= 0:
+                parts.append(f"{key}={value}")
+            elif value is None:
+                parts.append(f"{key}=unknown")
+    if reason in {
+        "dimensions_unknown",
+        "resolution_below_minimum",
+        "original_preserves_bytes",
+        "unsupported_option",
+        "preserve_lossless_requirement",
+        "cli_overrides_lossless",
+        "cli_quality_below_minimum",
+    }:
+        parts.append("reason=" + reason)
+    return parts
 
 
 class DownloadLogger:
@@ -233,6 +270,10 @@ class DownloadLogger:
         url_is_locator: bool = False,
         debug: bool = False,
         include_chapter: bool = False,
+        policy_field: str | None = None,
+        requested: int | bool | None = None,
+        actual: int | bool | None = None,
+        reason: str | None = None,
     ) -> None:
         """Log a core event from a strict allowlist; never render caller-provided messages."""
         parts = [
@@ -260,6 +301,7 @@ class DownloadLogger:
             parts.append("path=" + safe_relative_path(path, self._output_root))
         if error is not None:
             parts.append("error=" + safe_exception_name(error))
+        parts.extend(_policy_log_parts(policy_field, requested, actual, reason))
         await self._write(
             LogRecord(" ".join(parts), chapter_id, {"module": module}, trusted=True),
             debug_only=debug,

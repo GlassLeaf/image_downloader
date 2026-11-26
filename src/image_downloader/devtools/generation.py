@@ -29,6 +29,8 @@ from .output import read_document
 
 # Each signature describes the actual public v3 hook. Only selected optional hooks are emitted.
 SIGNATURES = {
+    "image_save_options": "def image_save_options(self, artifact: ImageArtifact, context: TransformContext) "
+    "-> ImageSaveOptions | None",
     "validate_config": "def validate_config(self, config: Mapping[str, object], "
     "app_settings: Mapping[str, object]) -> None",
     "matches": "def matches(self, url: str) -> bool",
@@ -59,6 +61,7 @@ SIGNATURES = {
     "cleanup_after_use": "async def cleanup_after_use(self) -> None",
 }
 ARGS = {
+    "image_save_options": "artifact, context",
     "validate_config": "config, app_settings",
     "inspect": "url, context",
     "create_image_request": "image, context",

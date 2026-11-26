@@ -6,7 +6,8 @@ from dataclasses import dataclass
 from typing import Literal, cast
 
 from .._numeric import numeric_value_error
-from ..configuration.models import ImageFormat
+from ..configuration.models import AppConfig, ImageFormat
+from ..diagnostics import configuration_error
 from ..exceptions import ConfigurationError
 from ..immutable import freeze_json
 from ..plugins.plugin_manifest import PluginConfigOverrides, PluginDownloadPolicyOverrides
@@ -26,7 +27,32 @@ def _validate_selection(plugin_id: str | None, force_plugin: bool, fallback_over
 
 def _validate_format(value: ImageFormat | None) -> None:
     if value not in (None, "ORIGINAL", "JPEG", "PNG", "WEBP"):
-        raise ValueError("force_image_format must be ORIGINAL, JPEG, PNG, WEBP, or None")
+        raise ValueError("image_format must be ORIGINAL, JPEG, PNG, WEBP, or None")
+
+
+def validate_image_output(image_format: ImageFormat | None, image_quality: int | None) -> None:
+    _validate_format(image_format)
+    if image_quality is not None:
+        if type(image_quality) is not int or not 0 <= image_quality <= 100:
+            raise ValueError("image_quality must be an integer between 0 and 100")
+        if image_format == "ORIGINAL":
+            raise ValueError("ORIGINAL image format cannot be combined with image_quality")
+
+
+def resolve_image_output(
+    config: AppConfig, image_format: ImageFormat | None, image_quality: int | None
+) -> ImageFormat | None:
+    """Resolve operation settings over persistent policy without mutating either."""
+    validate_image_output(image_format, image_quality)
+    resolved = image_format if image_format is not None else config.output.image_format
+    if resolved == "ORIGINAL" and image_quality is not None:
+        raise configuration_error(
+            "output.image_format ORIGINAL cannot be combined with image_quality; "
+            "override the format with JPEG, PNG, or WEBP",
+            "configuration_value",
+            field="output.image_format",
+        )
+    return resolved
 
 
 def _validate_retry(retries: int, delay: float, timeout: float | None) -> None:
@@ -54,13 +80,14 @@ class DownloadRequest:
     plugin_id: str | None = None
     force_plugin: bool = False
     plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None
-    force_image_format: ImageFormat | None = None
+    image_format: ImageFormat | None = None
+    image_quality: int | None = None
 
     def __post_init__(self) -> None:
         _validate_selection(self.plugin_id, self.force_plugin, self.fallback_override)
         _freeze_options(self, "plugin_overrides", self.plugin_overrides)
         _freeze_options(self, "plugin_download_policy_overrides", self.plugin_download_policy_overrides)
-        _validate_format(self.force_image_format)
+        validate_image_output(self.image_format, self.image_quality)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -133,13 +160,14 @@ class WorkflowRequest:
     plugin_id: str | None = None
     force_plugin: bool = False
     plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None
-    force_image_format: ImageFormat | None = None
+    image_format: ImageFormat | None = None
+    image_quality: int | None = None
 
     def __post_init__(self) -> None:
         _validate_selection(self.plugin_id, self.force_plugin, self.fallback_override)
         _freeze_options(self, "plugin_overrides", self.plugin_overrides)
         _freeze_options(self, "plugin_download_policy_overrides", self.plugin_download_policy_overrides)
-        _validate_format(self.force_image_format)
+        validate_image_output(self.image_format, self.image_quality)
         if self.download_scope not in ("all", "updated"):
             raise ValueError("download_scope must be all or updated")
         _validate_retry(self.workflow_retries, self.workflow_retry_delay, self.workflow_retry_timeout)

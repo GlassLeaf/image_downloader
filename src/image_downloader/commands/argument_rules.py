@@ -27,6 +27,8 @@ def is_http_url(value: str) -> bool:
 
 def _check_conflicts(args: argparse.Namespace, explicit: set[str], *, syntax_only: bool = False) -> None:
     groups = list(CONFLICT_GROUPS)
+    if getattr(args, "image_format", None) == "ORIGINAL":
+        groups.insert(0, ("image-format", "image-quality"))
     if getattr(args, "fallback_generic", "auto") != "auto":
         groups.extend([("plugin", "fallback-generic"), ("force-plugin", "fallback-generic")])
     if syntax_only:

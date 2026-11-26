@@ -109,8 +109,8 @@ OPTIONS: tuple[OptionDefinition, ...] = (
     OptionDefinition("list-updated-urls", frozenset({"download", "download --inspect-only"}), default=False, flag=True),
     OptionDefinition("inspect-only", frozenset({"download", "download --inspect-only"}), default=False, flag=True),
     OptionDefinition("existing-file", _FORMAT, choices=("overwrite", "skip", "rename", "error")),
-    OptionDefinition("image-format", _FORMAT, choices=_IMAGE_FORMATS),
-    OptionDefinition("force-image-format", _DOWNLOAD, choices=_IMAGE_FORMATS),
+    OptionDefinition("image-format", _DOWNLOAD, choices=_IMAGE_FORMATS, no_effect=_OUTPUT_NOOP),
+    OptionDefinition("image-quality", _DOWNLOAD, int, no_effect=_OUTPUT_NOOP),
     OptionDefinition(
         "output-dir",
         _DOWNLOAD | _VERIFY_WORKFLOW | {"download --inspect-only"},
@@ -219,10 +219,8 @@ OPTIONS = tuple(
 # Conditional exclusions (fallback mode and explicit/legacy Cookie command) are
 # evaluated by common validation using the same canonical option names.
 CONFLICT_GROUPS = (
-    ("image-format", "force-image-format"),
     ("plugin", "force-plugin"),
     ("inspect-only", "list-updated-urls"),
-    ("force-image-format", "list-updated-urls"),
     ("filter-workflow-url", "query-targets-from-workflow-url"),
     ("export-cookies", "import-cookies", "import-browser-cookies"),
 )

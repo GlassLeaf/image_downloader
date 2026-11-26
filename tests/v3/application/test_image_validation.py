@@ -61,7 +61,7 @@ def core():
         yield processor
 
 
-def _pipeline(core, config=None, processors=()):
+def _pipeline(core, config=None, processors=(), *, image_format=None):
     async def log(*args, **kwargs):
         pass
 
@@ -69,7 +69,9 @@ def _pipeline(core, config=None, processors=()):
     record = SimpleNamespace(id="core.generic-html", manifest=SimpleNamespace(value={}), catalog=None)
     config = config or AppConfig()
     return ArtifactPipeline._from_binding(
-        PreparedPipelineBinding.prepare(config, record.id, {}, safe_app_settings(config), {}, None),
+        PreparedPipelineBinding.prepare(
+            config, record.id, {}, safe_app_settings(config), {}, None, image_format=image_format
+        ),
         core,
         logger,
         PluginInvoker(record.id, logger),
@@ -110,10 +112,18 @@ def test_site_and_processor_share_structured_data_without_transport_permission(c
             check(context)
             return artifact
 
+        def image_save_options(self, artifact, context):
+            check(context)
+            return None
+
     class Processor:
         def transform(self, artifact, context):
             check(context)
             return artifact
+
+        def image_save_options(self, artifact, context):
+            check(context)
+            return None
 
     record = SimpleNamespace(id="example.structured", manifest=SimpleNamespace(value={}), catalog=None)
     binding = PreparedProcessor(record.id, record, Processor(), {}, {})
@@ -126,7 +136,7 @@ def test_site_and_processor_share_structured_data_without_transport_permission(c
             )
 
     asyncio.run(scenario())
-    assert len(seen) == 2
+    assert len(seen) == 4
 
 
 @pytest.mark.parametrize("mime", ["image/png", "image/svg+xml", "image/avif", "", "application/octet-stream"])
@@ -275,7 +285,7 @@ def test_history_only_processor_does_not_reencode_normalized_image(core, monkeyp
 
     record = SimpleNamespace(manifest=SimpleNamespace(value={}), catalog=None)
     binding = PreparedProcessor("example.label", record, Processor(), {}, {})
-    pipeline = _pipeline(core, AppConfig.model_validate({"output": {"image_format": "PNG"}}), (binding,))
+    pipeline = _pipeline(core, processors=(binding,), image_format="JPEG")
     original = pipeline._normalize
     calls = []
 
@@ -297,9 +307,11 @@ def test_processor_corruption_is_detected_before_save(core, output_format, corru
 
     record = SimpleNamespace(manifest=SimpleNamespace(value={}), catalog=None)
     binding = PreparedProcessor("example.corrupt", record, CorruptingProcessor(), {}, {})
-    config = AppConfig.model_validate({"output": {"image_format": output_format}})
+    config = AppConfig()
     with pytest.raises(ImageDecodeError):
-        _process(_pipeline(core, config, processors=(binding,)), _image_bytes(), "image/png")
+        _process(
+            _pipeline(core, config, processors=(binding,), image_format=output_format), _image_bytes(), "image/png"
+        )
 
 
 @pytest.mark.parametrize("mime", [None, "image/png", "application/octet-stream"])

@@ -190,7 +190,8 @@ class DownloadExecutor:
             site.context.app_settings,
             site.context.manifest,
             site.context.catalog,
-            force_image_format=request.force_image_format,
+            image_format=request.image_format,
+            image_quality=request.image_quality,
         )
         await additional.initialize()
         await additional.run(AdditionalFileHookPoint.BEFORE_MANIFEST)

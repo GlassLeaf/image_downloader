@@ -44,6 +44,7 @@ def test_persist_initial_user_config_writes_complete_bundled_snapshot(
     cli_setup._persist_initial_user_config("defaults")
 
     assert yaml.safe_load(user_config.read_text(encoding="utf-8")) == _snapshot()
+    assert yaml.safe_load(user_config.read_text(encoding="utf-8"))["output"]["image_format"] is None
     assert "Generated from the bundled app.yaml" in user_config.read_text(encoding="utf-8")
     assert "Created user configuration" in capsys.readouterr().err
 

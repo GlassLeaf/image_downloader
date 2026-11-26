@@ -199,12 +199,7 @@ processor へ raw transport data を渡す組は、`image_processors.transport_m
 
 ### Q15. `transform_image()` がPNGを返したのに、JPEGで保存されるのはなぜか？
 
-`artifact.content_type` は保存形式の指定ではない。保存形式は `--force-image-format` →
-`ImageResource.save_options.format` → `output.image_format` の順で決まり、最後の既定値は
-`ORIGINAL` である。通常の `--image-format` は `output.image_format` をその操作だけ上書きし、
-プラグインの指定より優先しない。PNG bytesと`image/png`を返しても、JPEG指定が有効なら
-入力検証後にJPEGへ再エンコードする。
-[優先順位と具体例](../reference/configuration.md#image-save-format)を参照する。
+保存形式はCLIの`--image-format`が最優先で、未指定なら設定の`output.image_format`を使う。設定も`null`（既定）なら最終Artifactの実データ形式を維持する。設定の`ORIGINAL`は最終バイト列を維持し、CLIで形式を上書きしない限り品質指定と併用できない。サイト・プロセッサーの`image_save_options`は最低条件を返し、CLI品質がその条件より優先する。詳細は[保存条件](../reference/configuration.md#image-save-format)を参照。
 
 ### Q16. 保存形式を指定すれば、MIME不一致や画像として読めないデータも保存できるか？
 
@@ -323,7 +318,7 @@ images/image.jpeg?ver=yymmddhhmmss&key-pair-id=bbbb
 ```
 
 現行実装は画像本体を比較せず、`ImageResource`の全フィールド（`url`、`image_id`、`index`、`referer`、
-`headers`、`save_options`、`metadata`、`original_filename`）を比較する。`referer`／`headers`、加工指定、
+`headers`、`metadata`、`original_filename`）を比較する。`referer`／`headers`、加工指定、
 元ファイル名だけの変更でも再取得する。chapter／画像の識別子が重複し照合できない範囲も再取得する。
 manifestの`revision`だけの変更では成功画像を取り直さない。
 

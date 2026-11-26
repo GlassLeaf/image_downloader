@@ -23,15 +23,18 @@ def test_prepared_settings_are_detached_and_next_attempt_observes_changes():
 
     def prepare():
         return PreparedPipelineBinding.prepare(
-            config, "test.site", plugin_config, safe_app_settings(config), manifest, catalog
+            config, "test.site", plugin_config, safe_app_settings(config), manifest, catalog, image_format=image_format
         )
 
+    image_format = None
     first = prepare()
-    config = config.model_copy(update={
-        "media": config.media.model_copy(update={"max_image_pixels": 100}),
-        "output": config.output.model_copy(update={"image_format": "JPEG"}),
-        "image_processors": config.image_processors.model_copy(update={"transport_metadata_access": {}}),
-    })
+    image_format = "JPEG"
+    config = config.model_copy(
+        update={
+            "media": config.media.model_copy(update={"max_image_pixels": 100}),
+            "image_processors": config.image_processors.model_copy(update={"transport_metadata_access": {}}),
+        }
+    )
     plugin_config["nested"]["items"].append(3)
     manifest["entry"]["class"] = "Second"
     catalog["selection_priority"] = 2
@@ -43,7 +46,7 @@ def test_prepared_settings_are_detached_and_next_attempt_observes_changes():
     assert first.catalog["selection_priority"] == 1
     assert second.catalog["selection_priority"] == 2
     assert first.max_image_pixels is None and second.max_image_pixels == 100
-    assert first.image_format == "ORIGINAL" and second.image_format == "JPEG"
+    assert first.image_format is None and second.image_format == "JPEG"
     assert first.metadata_processors == frozenset({"test.processor"})
     assert second.metadata_processors == frozenset()
     assert "headers" not in first.app_settings["network"]

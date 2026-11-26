@@ -36,7 +36,7 @@ def visible_options(path: str, definitions: Sequence[OptionDefinition]) -> tuple
     if path == "download --inspect-only":
         excluded.add("list-updated-urls")
     elif path == "download --list-updated-urls":
-        excluded.update(("inspect-only", "force-image-format"))
+        excluded.add("inspect-only")
     return tuple(o for o in definitions if scope in o.commands and o.name not in excluded)
 
 

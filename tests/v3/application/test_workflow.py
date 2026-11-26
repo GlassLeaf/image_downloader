@@ -84,10 +84,10 @@ def test_workflow_existing_file_policy_and_forced_format(tmp_path, policy):
         gallery.candidates = (A,)
         async with compose(tmp_path, gallery, existing_file=policy) as service:
             await attach_transport(service)
-            first = await service.workflow(WorkflowRequest(url=FEED, workflow_retries=0, force_image_format="WEBP"))
+            first = await service.workflow(WorkflowRequest(url=FEED, workflow_retries=0, image_format="WEBP"))
             assert first.items[0].download.saved_files[0].endswith(".webp")
             second = await service.workflow(
-                WorkflowRequest(url=FEED, workflow_retries=0, download_scope="all", force_image_format="WEBP")
+                WorkflowRequest(url=FEED, workflow_retries=0, download_scope="all", image_format="WEBP")
             )
             item = second.items[0]
             if policy == "error":

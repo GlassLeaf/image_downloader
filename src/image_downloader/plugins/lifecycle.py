@@ -413,6 +413,7 @@ class PluginClassLoader:
         if not is_site_plugin(value):
             raise PluginError("plugin class does not implement the v3 contract")
         self._require_sync_transform(value, "transform_image")
+        self._require_save_options(value)
         return value
 
     def processor_instance(self, record: PluginRecord) -> ImageProcessor:
@@ -422,7 +423,16 @@ class PluginClassLoader:
         if not is_image_processor(value):
             raise PluginError("plugin class does not implement the v3 contract")
         self._require_sync_transform(value, "transform")
+        self._require_save_options(value)
         return value
+
+    @classmethod
+    def _require_save_options(cls, value: object) -> None:
+        callback = getattr(value, "image_save_options", None)
+        if callback is not None:
+            if not callable(callback):
+                raise PluginError("image_save_options must be callable")
+            cls._require_sync_transform(value, "image_save_options")
 
     @staticmethod
     def _require_sync_transform(value: object, hook: str) -> None:

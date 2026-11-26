@@ -227,9 +227,11 @@ class GeneratedSupport:
     def image(self, url, index, image_id, config, metadata, plugin_data=None):
         return ImageResource(url, index, image_id=image_id,
             metadata={str(key): str(value) for key, value in metadata.items()} if "metadata" in self.features else {},
-            save_options=ImageSaveOptions(**dict(config.get("save_options", {}))),
             original_filename=urlparse(url).path.rsplit("/", 1)[-1] or None,
             **({"plugin_data": plugin_data if plugin_data is not None else {}} if "structured-data" in self.features else {}))
+
+    def image_save_options(self, artifact, context):
+        return ImageSaveOptions(**dict(context.config.get("save_options", {})))
 
     async def create_image_request(self, image, context):
         config = context.config

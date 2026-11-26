@@ -55,7 +55,7 @@ EXPECTED_EXPORTS = {
         ImageRequestResolutionFailure ImageRequestResolutionStatus ImageContentTypeError ImageDecodeError
         ImageDimensionLimitError ImageDownloaderError ImageFailure ImageMimeMismatchError ImageOutcome
         ImageOutcomeKind ImageProcessingError ImageProcessorClosedError ImageProcessor ImageResource
-        ImageSaveOptions ImageTransportMetadata ImageWorkerError InterProcessLockError
+        ImageSaveOptions ImageSaveOptionsProvider ImageTransportMetadata ImageWorkerError InterProcessLockError
         load_application_config ManifestInspectionResult OutputAllocationError resolve_application_config
         RedirectPolicyError ResolvedApplicationConfig PluginError PluginExecutionContext PluginFormatContext
         OutputFormatValueProvider RequestPort RequestError RequestResponse RequestSpec
@@ -131,11 +131,11 @@ def test_public_configuration_helpers_are_available_from_package_root(tmp_path: 
 
     loaded = load_application_config(config_path, require_config=True)
     resolved = resolve_application_config(config_path, require_config=True)
-    overridden = apply_overrides(AppConfig(), {"output": {"image_format": "PNG"}})
+    overridden = apply_overrides(AppConfig(), {"output": {"existing_file": "skip"}})
 
     assert loaded.storage.data_root is not None
     assert resolved.config == loaded
-    assert overridden.output.image_format == "PNG"
+    assert overridden.output.existing_file == "skip"
 
 
 def test_embedded_tutorial_composes_with_an_uncreated_platform_plugin_root(monkeypatch, tmp_path: Path) -> None:

@@ -16,13 +16,24 @@ from image_downloader.configuration import layers, normalization
 from image_downloader.exceptions import ConfigurationError
 
 
-@pytest.mark.parametrize("image_format", ("ORIGINAL", "JPEG", "PNG", "WEBP"))
-def test_output_image_format_accepts_original_and_existing_values(image_format: str) -> None:
+@pytest.mark.parametrize("image_format", (None, "ORIGINAL", "JPEG", "PNG", "WEBP"))
+def test_output_image_format_is_accepted(image_format):
     assert AppConfig.model_validate({"output": {"image_format": image_format}}).output.image_format == image_format
 
 
-def test_output_image_format_defaults_to_original() -> None:
-    assert AppConfig().output.image_format == "ORIGINAL"
+@pytest.mark.parametrize("image_format", ("jpeg", "GIF", "", True, 1, []))
+def test_output_image_format_rejects_invalid_values(image_format):
+    with pytest.raises(ValidationError):
+        AppConfig.model_validate({"output": {"image_format": image_format}})
+
+
+def test_output_image_format_defaults_match_model_bundled_config_and_template():
+    package = Path(layers.__file__).parents[1]
+    bundled = yaml.safe_load((package / "app.yaml").read_text(encoding="utf-8"))
+    template = (package / "config-template.yaml").read_text(encoding="utf-8")
+    assert AppConfig().output.image_format is None
+    assert bundled["output"]["image_format"] is None
+    assert "#   image_format: null" in template
 
 
 def test_output_name_format_defaults_match_model_bundled_config_and_template() -> None:
@@ -213,7 +224,7 @@ def test_config_explain_includes_layers_effective_values_and_origins(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     main = tmp_path / "app.yaml"
-    original = "network: {request_concurrency: 3, stale: ignored}\n"
+    original = "network: {request_concurrency: 3, stale: ignored}\noutput: {image_format: PNG}\n"
     main.write_text(original, encoding="utf-8")
     args = build_parser().parse_args(
         [
@@ -221,8 +232,8 @@ def test_config_explain_includes_layers_effective_values_and_origins(
             "explain",
             "--config",
             str(main),
-            "--image-format",
-            "PNG",
+            "--existing-file",
+            "skip",
             "--json",
             "--data-root",
             str(tmp_path / "data"),
@@ -237,9 +248,11 @@ def test_config_explain_includes_layers_effective_values_and_origins(
     assert payload["main_config_kind"] == "explicit"
     assert payload["effective"]["network"]["request_concurrency"] == 3
     assert payload["effective"]["network"]["auth_refresh_attempts"] == 1
+    assert payload["effective"]["output"]["existing_file"] == "skip"
     assert payload["effective"]["output"]["image_format"] == "PNG"
+    assert payload["origins"]["output.image_format"] == str(main)
     assert payload["origins"]["network.request_concurrency"] == str(main)
-    assert payload["origins"]["output.image_format"] == "runtime override"
+    assert payload["origins"]["output.existing_file"] == "runtime override"
     assert payload["layers"][0]["role"] == "schema_default"
     assert main.read_text(encoding="utf-8") == original
 
@@ -327,3 +340,32 @@ def test_cleanup_failure_stops_state_changing_command_before_service_composition
         asyncio.run(run(args))
     assert not composed
     assert "unknown" in main.read_text(encoding="utf-8")
+
+
+def test_image_format_survives_configuration_cleanup(tmp_path):
+    config_path = tmp_path / "app.yaml"
+    original = "output: {image_format: PNG}\nnetwork: {stale: ignored}\n"
+    config_path.write_text(original, encoding="utf-8")
+    resolved = resolve_application_config(config_path, rewrite_user_layers=True)
+    assert resolved.config.output.image_format == "PNG"
+    rewritten = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    assert rewritten["output"]["image_format"] == "PNG"
+    assert "stale" not in rewritten["network"]
+
+
+def test_image_format_layer_precedence_and_null_reset(tmp_path):
+    main = tmp_path / "app.yaml"
+    main.write_text("output: {image_format: JPEG}\n", encoding="utf-8")
+    assert resolve_application_config(main).config.output.image_format == "JPEG"
+    profile = tmp_path / "profiles" / "default" / "app.yaml"
+    profile.parent.mkdir(parents=True)
+    profile.write_text("output: {image_format: WEBP}\n", encoding="utf-8")
+    assert resolve_application_config(main).config.output.image_format == "WEBP"
+    site = tmp_path / "sites" / "example.test.yaml"
+    site.parent.mkdir()
+    site.write_text("output: {image_format: PNG}\n", encoding="utf-8")
+    assert resolve_application_config(main, site="example.test").config.output.image_format == "PNG"
+    site.write_text("output: {image_format: null}\n", encoding="utf-8")
+    resolved = resolve_application_config(main, site="example.test")
+    assert resolved.config.output.image_format is None
+    assert resolved.origins["output.image_format"] == str(site)

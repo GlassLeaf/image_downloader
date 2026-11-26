@@ -14,7 +14,6 @@ from ..models import (
     Chapter,
     DownloadManifest,
     EffectiveRequestPreview,
-    ImageSaveOptions,
     ManifestInspectionResult,
     RequestSpec,
 )
@@ -106,19 +105,6 @@ def _manifest_summary(result: ManifestInspectionResult) -> dict[str, int]:
     }
 
 
-def _save_options_json(options: ImageSaveOptions) -> dict[str, object]:
-    return {
-        "format": options.format,
-        "extension": options.extension,
-        "quality": options.quality,
-        "optimize": options.optimize,
-        "progressive": options.progressive,
-        "lossless": options.lossless,
-        "compress_level": options.compress_level,
-        "exif": options.exif,
-    }
-
-
 def _publication_json(value: Chapter | DownloadManifest) -> dict[str, object]:
     result: dict[str, object] = {}
     for name in ("published_at", "publication_date"):
@@ -161,7 +147,6 @@ def _full_manifest_json(result: ManifestInspectionResult) -> dict[str, object]:
                         "index": image.index,
                         "referer": image.referer,
                         "headers": dict(image.headers),
-                        "save_options": _save_options_json(image.save_options),
                         "image_id": image.image_id,
                         "metadata": dict(image.metadata),
                         **({"plugin_data": thaw_json(image.plugin_data)} if image.plugin_data else {}),

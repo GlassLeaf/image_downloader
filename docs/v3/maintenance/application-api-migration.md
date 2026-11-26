@@ -8,13 +8,13 @@
 
 ## ダウンロードとその他の操作
 
-`service.run(url, force_image_format="PNG")`を、次の呼び出しへ置き換えてください。
+`service.run(url, image_format="PNG")`を、次の呼び出しへ置き換えてください。
 
 ```python
 from image_downloader import DownloadRequest
 
 async def download_png(service, url):
-    return await service.download(DownloadRequest(url=url, force_image_format="PNG"))
+    return await service.download(DownloadRequest(url=url, image_format="PNG"))
 ```
 
 `inspect`、`check_updates`、`plan_workflow`、`workflow`では、従来のURLとキーワード引数を、それぞれ`InspectRequest`、`UpdateCheckRequest`、`WorkflowPlanRequest`、`WorkflowRequest`へ移します。全フィールドはキーワード引数専用で、既定値は従来どおりです。リクエストの構築時に検証を行い、呼び出し側が渡した上書き設定のマッピングは、不変の値として複製します。

@@ -24,7 +24,14 @@ from ..storage.transactions import finish_transaction, settle_task
 from .dependencies import _RuntimeDependencies
 from .download_executor import DownloadExecutor
 from .inspection import InspectionExecutor
-from .requests import DownloadRequest, InspectRequest, UpdateCheckRequest, WorkflowPlanRequest, WorkflowRequest
+from .requests import (
+    DownloadRequest,
+    InspectRequest,
+    UpdateCheckRequest,
+    WorkflowPlanRequest,
+    WorkflowRequest,
+    resolve_image_output,
+)
 from .shutdown import close_service, shutdown_resources
 from .site_operation import SiteOperationFactory
 from .update_executor import UpdateExecutor
@@ -96,6 +103,7 @@ class DownloadService:
             raise TypeError("request must be DownloadRequest")
         async with self._operation_lock:
             self._ensure_open()
+            resolve_image_output(self.config, request.image_format, request.image_quality)
             async with OperationDiagnosticsScope(
                 self.logger,
                 lambda: self.notifications.flush(source_url=request.url),
@@ -141,6 +149,7 @@ class DownloadService:
             raise TypeError("request must be WorkflowRequest")
         async with self._operation_lock:
             self._ensure_open()
+            resolve_image_output(self.config, request.image_format, request.image_quality)
             return await self._workflows.execute(request)
 
     async def plan_workflow_targets(

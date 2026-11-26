@@ -9,8 +9,8 @@ from pathlib import PurePosixPath
 from urllib.parse import urlparse
 
 from ..configuration.models import AppConfig, ImageFormat
-from ..exceptions import ConfigurationError, ImageContentTypeError, ImageDecodeError, ImageMimeMismatchError
-from ..media.image_processor import ImageProcessor
+from ..exceptions import ImageContentTypeError, ImageDecodeError, ImageMimeMismatchError
+from ..media.image_processor import ImageEncodingOptions, ImageProcessor
 from ..media.pipeline_binding import PreparedPipelineBinding
 from ..media.processor_chain import PreparedProcessor
 from ..media.transform_executor import TransformExecutor
@@ -32,6 +32,7 @@ from ..plugins.plugin_manifest import PluginConfigOverrides
 from ..plugins.runtime import PluginRuntime
 from ..ports import SitePlugin, TransformContext
 from ..privacy.log_safety import safe_url
+from .save_policy import FORMAT_MIMES, aggregate_save_options, resolve_save_plan
 
 _SAFE_EXTENSION = re.compile(r"\.?([A-Za-z0-9]{1,16})\Z")
 _CONTENT_TYPE_EXTENSIONS = {
@@ -62,14 +63,15 @@ class ArtifactPipeline:
         invoker: PluginInvoker,
         processors: tuple[PreparedProcessor | str, ...],
         *,
-        force_image_format: ImageFormat | None = None,
+        image_format: ImageFormat | None = None,
+        image_quality: int | None = None,
         transform_executor: TransformExecutor,
     ) -> None:
         # Preserve the advanced public constructor; core execution supplies its
         # already-prepared binding through the internal entry point below.
         from .pipeline_binding import prepare_runtime_binding
 
-        binding = prepare_runtime_binding(config, registry, site_record, overrides, force_image_format)
+        binding = prepare_runtime_binding(config, registry, site_record, overrides, image_format, image_quality)
         self._initialize(binding, image_processor, logger, invoker, processors, transform_executor)
 
     @classmethod
@@ -101,7 +103,8 @@ class ArtifactPipeline:
         self.logger = logger
         self.invoker = invoker
         self.processors = processors
-        self.force_image_format = binding.force_image_format
+        self.image_format = binding.image_format
+        self.image_quality = binding.image_quality
         self.transform_executor = transform_executor
 
     @staticmethod
@@ -140,6 +143,7 @@ class ArtifactPipeline:
         chapter: Chapter,
         *,
         transport_metadata: ImageTransportMetadata | None = None,
+        reporter_id: str | None = None,
     ) -> ImageArtifact:
         context = TransformContext(
             image,
@@ -160,14 +164,8 @@ class ArtifactPipeline:
             executor=self.transform_executor,
         )
         await asyncio.to_thread(self._validate_input, transformed)
-        options = self._effective_save_options(image)
-        original = self._is_original(options)
-        if original:
-            self._validate_original_options(options)
-            current = transformed
-        else:
-            current = await self._normalize(transformed, options, "core.decode-normalize")
-        processor_changed = False
+        current = transformed
+        providers: list[tuple[object, PluginInvoker, TransformContext]] = [(plugin, self.invoker, context)]
         for binding in self.processors:
             if isinstance(binding, str):
                 await best_effort_diagnostic(
@@ -191,7 +189,6 @@ class ArtifactPipeline:
                 site_catalog=self.binding.catalog,
                 transport_metadata=self._processor_transport_metadata(binding.plugin_id, transport_metadata),
             )
-            previous = current
             current = await PluginInvoker(binding.plugin_id, self.logger).transform_processor(
                 binding.instance,
                 current,
@@ -199,21 +196,22 @@ class ArtifactPipeline:
                 chapter_id=chapter_id,
                 executor=self.transform_executor,
             )
-            processor_changed = processor_changed or not self._same_processing_input(current, previous)
-        if original:
-            if current.data is not transformed.data or current.content_type != transformed.content_type:
-                await asyncio.to_thread(self._validate_input, current)
-            final = replace(
+            providers.append((binding.instance, PluginInvoker(binding.plugin_id, self.logger), processor_context))
+        if current.data is not transformed.data or current.content_type != transformed.content_type:
+            await asyncio.to_thread(self._validate_input, current)
+        requirements = []
+        for provider, invoker, save_context in providers:
+            options = await invoker.image_save_options(
+                provider,
                 current,
-                extension=self._original_extension(current),
-                history=(*current.history, "core.original-preserve"),
+                save_context,
+                chapter_id=chapter_id,
+                executor=self.transform_executor,
             )
-        else:
-            final = (
-                await self._normalize(current, options, "core.final-validate")
-                if processor_changed
-                else replace(current, history=(*current.history, "core.final-validate"))
-            )
+            if options is not None:
+                requirements.append(options)
+        combined = aggregate_save_options(requirements)
+        final = await self._save_artifact(current, combined, reporter_id or chapter_id)
         await best_effort_diagnostic(
             self.logger.core,
             "image_processed",
@@ -227,48 +225,51 @@ class ArtifactPipeline:
         )
         return final
 
-    @staticmethod
-    def _same_processing_input(current: ImageArtifact, previous: ImageArtifact) -> bool:
-        return (
-            current.data is previous.data
-            and current.content_type == previous.content_type
-            and current.source_url == previous.source_url
-            and current.extension == previous.extension
+    async def _save_artifact(
+        self, artifact: ImageArtifact, options: ImageSaveOptions, chapter_id: str
+    ) -> ImageArtifact:
+        info = None
+        needs_info = (
+            options.min_width is not None
+            or options.min_height is not None
+            or self.image_format not in (None, "ORIGINAL")
+            or self.image_quality is not None
+            or any(getattr(options, name) is not None for name in ("optimize", "progressive", "compress_level", "exif"))
         )
-
-    def _effective_save_options(self, image: ImageResource) -> ImageSaveOptions:
-        """Resolve the force CLI, plugin, and configuration format precedence."""
-        if self.force_image_format is not None:
-            if self.force_image_format == "ORIGINAL":
-                # A forced pass-through must not retain a plugin's prospective
-                # extension or encoder settings for a different target format.
-                return ImageSaveOptions(format="ORIGINAL")
-            return replace(image.save_options, format=self.force_image_format, extension=None)
-        if image.save_options.format:
-            return image.save_options
-        return replace(image.save_options, format=self.binding.image_format)
-
-    @staticmethod
-    def _is_original(options: ImageSaveOptions) -> bool:
-        return options.format is not None and options.format.upper() == "ORIGINAL"
-
-    @staticmethod
-    def _validate_original_options(options: ImageSaveOptions) -> None:
-        if (
-            options.extension is not None
-            or any(
-                value is not None
-                for value in (
-                    options.quality,
-                    options.optimize,
-                    options.progressive,
-                    options.lossless,
-                    options.compress_level,
+        if needs_info:
+            try:
+                info = await asyncio.to_thread(
+                    self.core.describe, artifact.data, max_pixels=self.binding.max_image_pixels
                 )
+            except ImageDecodeError:
+                # Weak input-validation modes may intentionally accept Pillow-unsupported data.
+                # A requested encode will still perform its normal validation and fail if needed.
+                pass
+        plan = resolve_save_plan(options, info, artifact.content_type, self.image_format, self.image_quality)
+        for warning in plan.warnings:
+            await best_effort_diagnostic(
+                self.logger.core,
+                "image_save_policy_unmet",
+                module="image",
+                chapter_id=chapter_id,
+                url=artifact.source_url,
+                url_is_locator=True,
+                include_chapter=True,
+                policy_field=warning.field,
+                requested=warning.requested,
+                actual=warning.actual,
+                reason=warning.reason,
             )
-            or options.exif
-        ):
-            raise ConfigurationError("ORIGINAL image format cannot use an extension or encoder options")
+        if plan.encoding is None:
+            if self.image_format not in (None, "ORIGINAL"):
+                mime = FORMAT_MIMES[self.image_format]
+                artifact = replace(artifact, content_type=mime, extension=_CONTENT_TYPE_EXTENSIONS[mime])
+            return replace(
+                artifact,
+                extension=self._original_extension(artifact),
+                history=(*artifact.history, "core.original-preserve"),
+            )
+        return await self._normalize(artifact, plan.encoding, "core.final-encode")
 
     @staticmethod
     def _safe_extension(value: str) -> str | None:
@@ -304,17 +305,13 @@ class ArtifactPipeline:
             declared.startswith("image/") and self.binding.content_type_mismatch == "error"
         ):
             detected = self.core.inspect(artifact.data, max_pixels=self.binding.max_image_pixels)
-            if (
-                declared.startswith("image/")
-                and declared != detected
-                and self.binding.content_type_mismatch == "error"
-            ):
+            if declared.startswith("image/") and declared != detected and self.binding.content_type_mismatch == "error":
                 raise ImageMimeMismatchError("declared image MIME does not match image data")
 
     async def _normalize(
         self,
         artifact: ImageArtifact,
-        options: ImageSaveOptions,
+        options: ImageEncodingOptions,
         history: str,
     ) -> ImageArtifact:
         data, extension = await asyncio.to_thread(
@@ -325,4 +322,10 @@ class ArtifactPipeline:
             options=options,
             max_pixels=self.binding.max_image_pixels,
         )
-        return replace(artifact, data=data, extension=extension, history=(*artifact.history, history))
+        return replace(
+            artifact,
+            data=data,
+            content_type=FORMAT_MIMES[options.format or ""],
+            extension=extension,
+            history=(*artifact.history, history),
+        )

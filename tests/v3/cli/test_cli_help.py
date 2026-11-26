@@ -173,7 +173,7 @@ def values(tmp_path):
         "fallback-generic": "auto",
         "existing-file": "skip",
         "image-format": "PNG",
-        "force-image-format": "PNG",
+        "image-quality": "80",
         "output-dir": str(tmp_path),
         "directory-format": "%CHAPTER_NUMBER%",
         "plugin": "com.example.gallery",

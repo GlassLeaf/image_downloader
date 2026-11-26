@@ -63,7 +63,7 @@ class ImageLedger:
 
     @staticmethod
     def can_retain(outcome: ImageOutcome, image: ImageResource) -> bool:
-        # Full equality deliberately includes acquisition, transform and save inputs.
+        # Compare acquisition and transform inputs; save hooks are stable within the operation.
         return outcome.image == image and (
             outcome.kind is not ImageOutcomeKind.FAILED or not ImageLedger._retryable_outcome(outcome)
         )

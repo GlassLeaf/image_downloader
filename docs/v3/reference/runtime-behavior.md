@@ -313,7 +313,6 @@ chapterは`chapter_id`、なければ章番号で識別し、そのchapter内の
 | `image_id` | 識別と比較に使用。変更・追加・削除で照合できなければ再取得する |
 | `index` | 比較する。値が変われば再取得する |
 | `referer`、`headers` | 比較する。値の変更で再取得する。mappingの並び順だけの変更は無視 |
-| `save_options` | 全フィールドを比較。形式・拡張子・品質・optimize・progressive・lossless・compress_level・EXIFの変更で再取得 |
 | `metadata` | キーと値を比較。変更で再取得する。mappingの並び順だけの変更は無視 |
 | `original_filename` | 比較する。値が変われば再取得する |
 | 対象URLのplugin ID | 変われば以前の画像結果を流用しない |
@@ -328,7 +327,7 @@ chapterは`chapter_id`、なければ章番号で識別し、そのchapter内の
 変わらなければ、確定済み結果を保持するための条件である。部分失敗の回復時に、変更のない成功画像の
 通信・加工・保存を繰り返さず、`rename`での重複保存や`error`での既存ファイル衝突を抑える。
 `metadata`、`headers`／`referer`、`index`は要求や加工結果へ影響し得る情報として比較し、
-`save_options`と`original_filename`の変更も保存条件・名前への追随のために再取得対象とする。
+`original_filename`の変更も名前への追随のために再取得対象とする。保存条件フックは成功結果の再利用時には再実行しない。
 
 当面はこの動作仕様を維持し、比較条件と結果を保持する理由を明確にする整理を優先する。
 保存条件・名前の比較除外や、画像revision／hashの一致によるURL比較の省略は現行機能ではない。

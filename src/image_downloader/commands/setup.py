@@ -216,12 +216,6 @@ def _app_override(args: ConfigurationArguments) -> Mapping[str, object]:
     existing_file = getattr(args, "existing_file", None)
     if existing_file:
         patch["output"] = {"existing_file": existing_file}
-    image_format = getattr(args, "image_format", None)
-    if image_format:
-        existing_output = patch.get("output")
-        output = dict(existing_output) if isinstance(existing_output, Mapping) else {}
-        output["image_format"] = image_format
-        patch["output"] = output
     directory_format = getattr(args, "directory_format", None)
     if (
         directory_format is not None

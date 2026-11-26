@@ -8,7 +8,7 @@ output:
   directory_format: '%CHAPTER_NUMBER%_%CONTENT_TITLE%_%CHAPTER_TITLE%'
   filename_format: '%IMAGE_INDEX%.%EXT%'
   existing_file: overwrite
-  image_format: ORIGINAL
+  image_format: null
   isolate_by_plugin: false
   max_component_length: null
   lock_timeout_seconds: 30

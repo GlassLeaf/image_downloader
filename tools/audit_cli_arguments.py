@@ -122,7 +122,7 @@ def main() -> None:  # noqa: C901 - Keep the investigation cases and their instr
         "--inspect-only": [],
         "--existing-file": ["skip"],
         "--image-format": ["PNG"],
-        "--force-image-format": ["JPEG"],
+        "--image-quality": ["80"],
         "--output-dir": ["@OUTPUT@"],
         "--directory-format": ["%CHAPTER_NUMBER%"],
         "--plugin": ["com.example.missing"],
@@ -239,7 +239,7 @@ def main() -> None:  # noqa: C901 - Keep the investigation cases and their instr
     invalid = {
         "--existing-file": ["invalid", "SKIP", ""],
         "--image-format": ["png", "GIF", "invalid"],
-        "--force-image-format": ["png", "GIF"],
+        "--image-quality": ["-1", "101", "abc"],
         "--inspection-data": ["private", "URL"],
         "--fallback-generic": ["true", "invalid"],
         "--plugin-verification-override": ["strict", "warn", "off", "invalid"],
@@ -296,12 +296,11 @@ def main() -> None:  # noqa: C901 - Keep the investigation cases and their instr
         add([left, *lv, right, *rv, *commands["download"]], "all-option-pairs-left-right")
         add([right, *rv, left, *lv, *commands["download"]], "all-option-pairs-right-left")
     conflicts = [
-        (["--image-format", "PNG"], ["--force-image-format", "JPEG"]),
+        (["--image-format", "ORIGINAL"], ["--image-quality", "80"]),
         (["--plugin", "com.example.missing"], ["--force-plugin", "com.example.missing"]),
         (["--inspect-only"], ["--list-updated-urls"]),
         (["--plugin", "com.example.missing"], ["--fallback-generic", "disabled"]),
         (["--force-plugin", "com.example.missing"], ["--fallback-generic", "enabled"]),
-        (["--force-image-format", "PNG"], ["--list-updated-urls"]),
         (["--export-cookies", "@MISSING@"], ["--import-cookies", "@MISSING@"]),
         (["--export-cookies", "@MISSING@"], ["--import-browser-cookies", "example.test"]),
     ]
@@ -605,8 +604,8 @@ def main() -> None:  # noqa: C901 - Keep the investigation cases and their instr
         ["config", "unknown"],
         ["--host", "example.test", "plugin", "list"],
         ["plugin", "list", "--host", "example.test"],
-        ["--image-format", "PNG", "download", "probe-invalid-url", "--force-image-format", "JPEG"],
-        ["download", "probe-invalid-url", "--image-format", "PNG", "--force-image-format", "JPEG"],
+        ["--image-format", "ORIGINAL", "download", "probe-invalid-url", "--image-quality", "80"],
+        ["download", "probe-invalid-url", "--image-format", "ORIGINAL", "--image-quality", "80"],
         ["plugin", "list"],
         ["config", "path"],
         ["doctor"],

@@ -21,7 +21,7 @@ image-downloader --workflow-progress-log enabled workflow URL --json
 正規のコマンド形式は次のとおりです。
 
 ```text
-image-downloader download URL [--force-image-format FORMAT] [options]
+image-downloader download URL [--image-format FORMAT] [--image-quality QUALITY] [options]
 image-downloader workflow URL [--download-scope all|updated] [download options]
 image-downloader state workflow [list|show|history|run|prune|targets|set|reset] [arguments] [options]
 image-downloader verify logs ABSOLUTE_PATH [--json]
@@ -109,12 +109,12 @@ image-downloader workflow https://example.test/gallery --fallback-generic enable
 ```
 既定の`--download-scope updated`は、追加・変更された候補と、現在も存在する未完了候補を選びます。`--download-scope all`は現在のスナップショット全体を選びます。初回実行は全候補を選びます。削除候補は取得せず、再出現した候補は再度追加として扱います。比較には専用のワークフロー履歴を使い、`--list-updated-urls`の履歴から独立しています。
 
-設定・プロファイル・ルート・セキュリティ、プラグイン設定・選択・フォールバック・取得方針、出力先、ディレクトリ形式、既存ファイル、画像形式・強制画像形式、JSON、コンソールの指定はワークフローにも適用します。既存の優先順位と排他条件、つまりimage-formatとforce-image-format、pluginとforce-plugin、明示的なプラグイン選択と明示的なフォールバックの排他を維持します。明示的なプラグイン選択はフィードと全対象へ適用します。サイト設定はフィードに対して解決し、Cookie・接続を含めて対象間で共有します。`--yes`は受理しますが、新たな確認は追加しません。`--download-scope`は`workflow`の前後で受理し、`state workflow targets/set/reset`でも問い合わせ指定時に受理します。その他の操作では拒否します。更新一覧、検査、Cookie操作、`--host`、`--selection-priority`は、コマンド前に指定した場合も拒否します。
+設定・プロファイル・ルート・セキュリティ、プラグイン設定・選択・フォールバック・取得方針、出力先、ディレクトリ形式、既存ファイル、画像形式・画像品質、JSON、コンソールの指定はワークフローにも適用します。既存の優先順位と排他条件、つまりORIGINAL形式と品質指定、pluginとforce-plugin、明示的なプラグイン選択と明示的なフォールバックの排他を維持します。明示的なプラグイン選択はフィードと全対象へ適用します。サイト設定はフィードに対して解決し、Cookie・接続を含めて対象間で共有します。`--yes`は受理しますが、新たな確認は追加しません。`--download-scope`は`workflow`の前後で受理し、`state workflow targets/set/reset`でも問い合わせ指定時に受理します。その他の操作では拒否します。更新一覧、検査、Cookie操作、`--host`、`--selection-priority`は、コマンド前に指定した場合も拒否します。
 
 出力や設定を変えただけでは、完了済み候補を更新扱いにしません。新しい出力設定で再取得する場合は`all`を使ってください。`skip`でも取得・加工を先に行う点を含め、既存ファイル方針は維持します。再試行可能な失敗がある未完了URLは、初回周回後に再試行します。各再試行でフィードと対象manifestを取り直し、消えたURLを除外して、残った失敗と追加・変更URLを処理します。同じ呼び出し内では、`all`であっても変更のない成功・skip画像結果を保持します。次の呼び出しではURL単位の未完了状態と通常の既存ファイル方針を使います。
 
 URL候補の更新判定と、対象URL内の画像の変更判定は別である。画像は`ImageResource`の全フィールドを
-比較し、同じ`image_id`でも画像URLのクエリ、`referer`／`headers`、`save_options`、`original_filename`
+比較し、同じ`image_id`でも画像URLのクエリ、`referer`／`headers`、`original_filename`
 などが変われば再取得する。画像本体や実際の要求URLは比較しない。
 条件表と既知の制限は[実行時動作](runtime-behavior.md#workflow-retry-rounds)、
 具体例は[workflowのFAQ](../how-to/faq.md#workflow-retry-faq)を参照する。
@@ -188,8 +188,8 @@ URL results: success=0 partial=0 failed=0 unprocessed=0 removed=0
 | `--plugin ID` | download（`--list-updated-urls`を含む）、workflow、inspect、state workflow list/show/history/targets/set/reset | stateでは保存済みplugin IDを絞り込み、問い合わせ時は更新確認プラグインを選択する。その他では拒否 |
 | `--force-plugin ID` | download（`--list-updated-urls`を含む）、workflow、inspect | stateを含むその他のコマンドでは拒否 |
 | `--plugin-download-policy ID=JSON`、`--plugin-download-policy-file PATH` | download（`--list-updated-urls`を含む）、workflow | 検査を含む他のコマンドでは拒否 |
-| `--no-console-log`、`--existing-file`、`--image-format` | download、workflow、doctor、config explainの許可範囲 | 検査、cookie、その他のconfig・plugin操作では拒否 |
-| `--force-image-format FORMAT` | 通常のdownload、URL単独形式、workflow | `--image-format`と排他的。inspect、doctor、config、plugin、cookie、更新一覧では拒否 |
+| `--no-console-log`、`--existing-file` | download、workflow、doctor、config explainの許可範囲 | 検査、cookie、その他のconfig・plugin操作では拒否 |
+| `--image-format FORMAT`、`--image-quality QUALITY` | download、URL単独形式、workflow | 操作単位の最優先指定。ORIGINALと品質指定の併用は拒否。検査・doctor・configでは拒否 |
 | `--output-dir ABSOLUTE_PATH` | 通常のdownload、URL単独形式、workflow、verify workflow | `download --inspect-only`と`--list-updated-urls`では受理するが効果なし。verify workflowでは成果物を検証する出力先を指定。その他では拒否 |
 | `--directory-format FORMAT` | 通常のdownload、URL単独形式、workflow | `download --inspect-only`と`--list-updated-urls`では受理するが効果なし。その他では拒否 |
 | `--list-updated-urls` | download | その他では拒否 |
@@ -219,7 +219,7 @@ Plugin verification override: bypass-all
 
 download・inspect・workflowとstateの問い合わせ操作で`--plugin ID`を使う場合、有効かつ非組み込みのサイトプラグインが、通常のmatcherで入力URLを受理する必要があります。問い合わせ指定のないstate操作では保存済みplugin IDの絞り込みだけを行い、プラグインの存在・有効性は検査しません。`--force-plugin ID`は、有効な非組み込みサイトプラグインであることを確認した後でだけmatcherを省略します。両者は排他的で、明示的な`--fallback-generic=enabled|disabled`とも併用できません。`--fallback-generic`は、パーサーの既定値`auto`、`enabled`、`disabled`を受理し、`auto`は解決済み設定を維持します。`--existing-file`の値は`overwrite`・`skip`・`rename`・`error`です。
 
-`--image-format`は`ORIGINAL`・`JPEG`・`PNG`・`WEBP`を受理し、その操作だけ`output.image_format`を上書きします。プラグインが`ImageResource.save_options.format`を指定した画像は、プラグインの形式を保ちます。`--force-image-format`も同じ値を受理しますが、`--image-format`と排他的で、プラグイン指定より優先します。`--force-image-format ORIGINAL`は、プラグインが生成した最終バイト列をコアで再エンコードせず保存します。HTTP応答をそのまま保存するモードではありません。強制的なエンコード形式を指定すると、プラグインの拡張子指定を解除し、出力拡張子を形式に合わせます。出力トークンは明示的な`%CONTENT_TITLE%`・`%CHAPTER_TITLE%`・`%CHAPTER_SUBTITLE%`・`%CHAPTER_NUMBER%`・`%IMAGE_INDEX%`を使い、`%NUM%`・`%TITLE%`・`%SUBTITLE%`は拒否します。[設定](configuration.md#config-storage-layout)を参照してください。
+`--image-format`は`ORIGINAL`・`JPEG`・`PNG`・`WEBP`を受理し、設定の`output.image_format`より優先します。CLI未指定なら設定を使い、設定も`null`なら最終Artifactの形式を維持します。`--image-quality`は0〜100の整数で、JPEG・WEBPの非可逆品質を明示し、プラグインの下限・ロスレス要求にも優先します。未達は記録して保存を続けます。設定を含め、実効形式が`ORIGINAL`の場合は品質指定を併用できません。設定が`ORIGINAL`の場合は`--image-format JPEG`等で上書きしてから品質を指定してください。品質の永続設定と旧force指定は受け付けません。[保存条件](configuration.md#image-save-format)を参照してください。
 
 `--output-dir`は、通常のダウンロード一回の画像出力ルートだけを置き換えます。安全な絶対ディレクトリパスが必要で、プロファイルのログ・Cookie・更新状態は移動しません。`--directory-format`は、同じトークン検証を使って`output.directory_format`をその操作だけ上書きします。併用もでき、`--output-dir C:\Base --directory-format destination_%CHAPTER_NUMBER%`なら`C:\Base\destination_0001`以下へ保存します。`output.isolate_by_plugin=true`なら、選択した出力ルートと章ディレクトリの間に`<normalized-host>/<selected-site-plugin-id>/`を挿入します。どちらもYAMLは書き換えません。
 
@@ -329,7 +329,7 @@ image-downloader download https://example.test/gallery --plugin com.example.site
   --plugin-download-policy com.example.site='{"preserve_image_start_order": true}'
 
 # このダウンロードだけ、プラグインが要求する変換形式を上書きする。
-image-downloader download https://example.test/gallery --force-image-format ORIGINAL
+image-downloader download https://example.test/gallery --image-format ORIGINAL
 ```
 
 プラグインを対話なしで変更する場合は`--yes`を追加します。`config init`では確認への効果はなく、この指定によって安全性が増すわけではありません。自動化する側では、成功JSONの入力先を標準出力だけとし、標準エラー出力は診断用として保持してください。

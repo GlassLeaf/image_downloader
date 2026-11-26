@@ -291,7 +291,7 @@ def test_workflow_json_is_single_safe_document_and_keeps_partial_results(tmp_pat
     assert captured["download_scope"] == "updated"
     assert captured["workflow_progress_log"] is False
     assert captured["config"].output.existing_file == "skip"
-    assert captured["config"].output.image_format == "PNG"
+    assert captured["image_format"] == "PNG"
     assert captured["config"].output.directory_format == "%CONTENT_TITLE%"
     assert captured["composer"]["output_root"] == tmp_path / "out"
     assert closed == [True]
@@ -309,8 +309,8 @@ def test_workflow_status_and_stop_error_serialization(tmp_path):
 @pytest.mark.parametrize(
     "before,after",
     [
-        (["--image-format", "PNG"], ["--force-image-format", "WEBP"]),
-        (["--force-image-format", "PNG"], ["--image-format", "WEBP"]),
+        (["--image-format", "ORIGINAL"], ["--image-quality", "80"]),
+        (["--image-quality", "80"], ["--image-format", "ORIGINAL"]),
         (["--plugin", "one"], ["--force-plugin", "two"]),
         (["--force-plugin", "one"], ["--plugin", "two"]),
     ],

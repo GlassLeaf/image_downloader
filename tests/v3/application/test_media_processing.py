@@ -19,8 +19,9 @@ from image_downloader.exceptions import (
 )
 from image_downloader.media import ImageProcessor
 from image_downloader.media.artifact_pipeline import ArtifactPipeline
+from image_downloader.media.image_processor import ImageEncodingOptions
 from image_downloader.media.pipeline_binding import PreparedPipelineBinding
-from image_downloader.models import Chapter, DownloadManifest, ImageArtifact, ImageResource, ImageSaveOptions
+from image_downloader.models import Chapter, DownloadManifest, ImageArtifact, ImageResource
 
 
 def _image(image_format: str = "PNG", size: tuple[int, int] = (8, 6)) -> bytes:
@@ -46,7 +47,7 @@ def test_image_processor_preserves_matching_data_and_converts_when_requested() -
             source,
             source_url="https://example.test/image.bin",
             content_type="application/octet-stream",
-            options=ImageSaveOptions(format="JPEG", quality=80, optimize=True, progressive=True),
+            options=ImageEncodingOptions(format="JPEG", quality=80, optimize=True, progressive=True),
         )
         assert extension == ".jpeg"
         with Image.open(io.BytesIO(converted)) as image:
@@ -69,7 +70,7 @@ def test_reencoding_preserves_requested_exif_or_applies_orientation_before_remov
             source.getvalue(),
             source_url="https://example.test/photo.jpg",
             content_type="image/jpeg",
-            options=ImageSaveOptions(format=target, exif=preserve_exif),
+            options=ImageEncodingOptions(format=target, exif=preserve_exif),
         )
     with Image.open(io.BytesIO(data)) as decoded:
         metadata = decoded.getexif()
@@ -94,20 +95,20 @@ def test_reencoding_rejects_exif_preservation_for_an_unsupported_encoder() -> No
             _image(),
             source_url="https://example.test/image.png",
             content_type="image/png",
-            options=ImageSaveOptions(format="GIF", exif=True),
+            options=ImageEncodingOptions(format="GIF", exif=True),
         )
 
 
 @pytest.mark.parametrize(
     ("options", "message"),
     [
-        (ImageSaveOptions(format="unknown"), "unsupported image format"),
-        (ImageSaveOptions(quality=101), "quality"),
-        (ImageSaveOptions(compress_level=10), "compress_level"),
-        (ImageSaveOptions(format="PNG", extension=".jpg"), "extension must match"),
+        (ImageEncodingOptions(format="unknown"), "unsupported image format"),
+        (ImageEncodingOptions(quality=101), "quality"),
+        (ImageEncodingOptions(compress_level=10), "compress_level"),
+        (ImageEncodingOptions(format="PNG", extension=".jpg"), "extension must match"),
     ],
 )
-def test_image_processor_rejects_invalid_save_options(options: ImageSaveOptions, message: str) -> None:
+def test_image_processor_rejects_invalid_save_options(options: ImageEncodingOptions, message: str) -> None:
     with ImageProcessor() as processor, pytest.raises(ConfigurationError, match=message):
         processor.process(
             _image(), source_url="https://example.test/image.png", content_type="image/png", options=options
@@ -138,9 +139,9 @@ def test_input_validation_uses_specific_content_type_and_mime_errors() -> None:
         pipeline._validate_input(ImageArtifact(b"<html>", "text/html", "https://example.test/error"))
 
     processor = ImageProcessor()
-    pipeline.binding = _binding(AppConfig.model_validate(
-        {"media": {"input_validation": "decode", "content_type_mismatch": "error"}}
-    ))
+    pipeline.binding = _binding(
+        AppConfig.model_validate({"media": {"input_validation": "decode", "content_type_mismatch": "error"}})
+    )
     pipeline.core = processor
     try:
         with pytest.raises(ImageMimeMismatchError, match="MIME"):
@@ -157,6 +158,9 @@ def test_original_format_preserves_the_transformed_artifact_and_validates_it_onc
         async def transform_image(self, *_args: object, **_kwargs: object) -> ImageArtifact:
             return transformed
 
+        async def image_save_options(self, *_args: object, **_kwargs: object):
+            return None
+
     class Logger:
         async def core(self, *_args: object, **_kwargs: object) -> None:
             return None
@@ -167,7 +171,8 @@ def test_original_format_preserves_the_transformed_artifact_and_validates_it_onc
     pipeline.logger = Logger()
     pipeline.invoker = Invoker()
     pipeline.processors = ()
-    pipeline.force_image_format = None
+    pipeline.image_format = None
+    pipeline.image_quality = None
     pipeline.transform_executor = None
     pipeline._validate_input = validations.append
 
@@ -186,64 +191,3 @@ def test_original_format_preserves_the_transformed_artifact_and_validates_it_onc
     assert result.extension == ".avif"
     assert result.history[-1] == "core.original-preserve"
     assert validations == [transformed]
-
-
-def test_format_precedence_keeps_plugin_default_and_force_overrides_it() -> None:
-    pipeline = ArtifactPipeline.__new__(ArtifactPipeline)
-    pipeline.binding = _binding(AppConfig.model_validate({"output": {"image_format": "PNG"}}))
-    plugin_image = ImageResource("image:1", save_options=ImageSaveOptions(format="JPEG", extension=".jpeg"))
-    default_image = ImageResource("image:2")
-
-    pipeline.force_image_format = None
-    pipeline.transform_executor = None
-    assert pipeline._effective_save_options(plugin_image).format == "JPEG"
-    assert pipeline._effective_save_options(default_image).format == "PNG"
-
-    pipeline.force_image_format = "JPEG"
-    forced_jpeg = pipeline._effective_save_options(plugin_image)
-    assert forced_jpeg.format == "JPEG"
-    assert forced_jpeg.extension is None
-
-    pipeline.force_image_format = "ORIGINAL"
-    assert pipeline._effective_save_options(plugin_image) == ImageSaveOptions(format="ORIGINAL")
-
-
-def test_original_rejects_encoder_options_and_uses_safe_extension_fallbacks() -> None:
-    with pytest.raises(ConfigurationError, match="ORIGINAL image format"):
-        ArtifactPipeline._validate_original_options(ImageSaveOptions(format="ORIGINAL", extension=".png"))
-
-    assert ArtifactPipeline._original_extension(ImageArtifact(b"", "image/x-icon", "image:1")) == ".ico"
-    assert (
-        ArtifactPipeline._original_extension(ImageArtifact(b"", "application/octet-stream", "image:1.avif")) == ".avif"
-    )
-    assert ArtifactPipeline._original_extension(ImageArtifact(b"", "application/octet-stream", "image:1")) == ".bin"
-
-
-def test_forced_jpeg_replaces_a_plugin_format_and_extension() -> None:
-    class Invoker:
-        async def transform_image(self, *_args: object, **_kwargs: object) -> ImageArtifact:
-            return _args[1]
-
-    class Logger:
-        async def core(self, *_args: object, **_kwargs: object) -> None:
-            return None
-
-    image = ImageResource(
-        "https://example.test/image.png", save_options=ImageSaveOptions(format="PNG", extension=".png")
-    )
-    artifact = ImageArtifact(_image(), "image/png", image.url)
-    manifest = DownloadManifest("gallery", (Chapter(1, "chapter", images=(image,)),))
-    with ImageProcessor() as core:
-        pipeline = ArtifactPipeline.__new__(ArtifactPipeline)
-        pipeline.binding = _binding()
-        pipeline.core = core
-        pipeline.logger = Logger()
-        pipeline.invoker = Invoker()
-        pipeline.processors = ()
-        pipeline.force_image_format = "JPEG"
-        pipeline.transform_executor = None
-        result = asyncio.run(pipeline.process(object(), artifact, image, manifest, manifest.chapters[0]))
-
-    assert result.extension == ".jpeg"
-    with Image.open(io.BytesIO(result.data)) as decoded:
-        assert decoded.format == "JPEG"

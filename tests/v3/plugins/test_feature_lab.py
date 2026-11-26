@@ -178,7 +178,7 @@ def test_configured_matcher_and_forced_output(lab, tmp_path, artificial_stores):
                 with pytest.raises(ValueError):
                     plugin.validate_config({"origin": "bad"}, {})
                 result = await service.download(
-                    DownloadRequest(url=f"{site.origin}/samples/output-gallery/work", force_image_format="PNG")
+                    DownloadRequest(url=f"{site.origin}/samples/output-gallery/work", image_format="PNG")
                 )
                 assert not result.failures
                 for path in result.saved_files:

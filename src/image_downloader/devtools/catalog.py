@@ -113,7 +113,13 @@ FEATURES = (
         kinds=BOTH,
         defaults={"max_width": 1600, "max_height": 1600, "transform_format": "PNG"},
     ),
-    Feature("save-options", "画像保存形式・品質・元ファイル名", defaults={"save_options": {"format": "ORIGINAL"}}),
+    Feature(
+        "save-options",
+        "画像保存の最低条件・品質",
+        ("image_save_options",),
+        kinds=BOTH,
+        defaults={"save_options": {"lossless": True}},
+    ),
     Feature("metadata", "画像metadata・request-time data", kinds=BOTH),
     Feature("structured-data", "作品・章・画像の構造化データ", ("validate_config",), kinds=BOTH),
     Feature(

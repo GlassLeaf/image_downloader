@@ -119,7 +119,7 @@ profile・Cookie DB・Local State・暗号鍵・実行結果を、この作業�
 
 ```powershell
 image-downloader download "$origin/samples/output-gallery/work" --config (Join-Path $work 'output.yaml') --json
-image-downloader download "$origin/samples/output-gallery/work" --config (Join-Path $work 'output.yaml') --force-image-format PNG --existing-file overwrite --json
+image-downloader download "$origin/samples/output-gallery/work" --config (Join-Path $work 'output.yaml') --image-format PNG --existing-file overwrite --json
 image-downloader doctor --config $config --host "$origin/samples/configured-host-gallery/work" --fallback-generic enabled --json
 image-downloader doctor --config $config --host 'http://127.0.0.1:1/samples/configured-host-gallery/work' --fallback-generic enabled --json
 ```

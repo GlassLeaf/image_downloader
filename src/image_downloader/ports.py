@@ -29,6 +29,7 @@ from .models import (
     ImageArtifact,
     ImageFetchRequest,
     ImageResource,
+    ImageSaveOptions,
     ImageTransportMetadata,
     PluginDataView,
     RequestResponse,
@@ -445,6 +446,13 @@ class BaseAuthFlow(ABC):
 
     async def refresh(self, auth_context: AuthContext) -> AuthLease:
         raise AuthenticationError("authentication refresh is not supported")
+
+
+@runtime_checkable
+class ImageSaveOptionsProvider(Protocol):
+    """Optional site/processor requirements for the final transformed image."""
+
+    def image_save_options(self, artifact: ImageArtifact, context: TransformContext) -> ImageSaveOptions | None: ...
 
 
 @runtime_checkable

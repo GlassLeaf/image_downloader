@@ -60,7 +60,7 @@ class Output(StrictModel):
     directory_format: StrictStr = "%CHAPTER_NUMBER%_%CONTENT_TITLE%_%CHAPTER_TITLE%"
     filename_format: StrictStr = "%IMAGE_INDEX%.%EXT%"
     existing_file: Literal["overwrite", "skip", "rename", "error"] = "overwrite"
-    image_format: ImageFormat = "ORIGINAL"
+    image_format: ImageFormat | None = None
     isolate_by_plugin: StrictBool = False
     # Opt-in only: preserve existing names unless an operator selects a limit.
     max_component_length: StrictInt | None = Field(None, ge=16)

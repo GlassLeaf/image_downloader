@@ -98,9 +98,6 @@ def validate_image(plugin_id: str, hook: str, image: ImageResource, chapter_inde
         validate_http_url(plugin_id, hook, image.referer, f"inspect returned an invalid referer at {path}")
     validate_string_mapping(plugin_id, hook, image.headers, f"inspect returned invalid image headers at {path}")
     validate_string_mapping(plugin_id, hook, image.metadata, f"inspect returned invalid image metadata at {path}")
-    if not isinstance(image.save_options, ImageSaveOptions):
-        raise plugin_error(plugin_id, hook, f"inspect returned invalid save options at {path}")
-    validate_save_options(plugin_id, hook, image.save_options, path)
     if image.image_id is not None and not isinstance(image.image_id, str):
         raise plugin_error(plugin_id, hook, f"inspect returned an invalid image ID at {path}")
     if image.original_filename is not None and (
@@ -180,37 +177,24 @@ def validate_artifact(plugin_id: str, hook: str, value: object) -> None:
         raise plugin_error(plugin_id, hook, f"{hook} returned an invalid history")
 
 
-def validate_save_options(plugin_id: str, hook: str, value: ImageSaveOptions, path: str) -> None:
-    if any(item is not None and not isinstance(item, str) for item in (value.format, value.extension)):
-        raise plugin_error(plugin_id, hook, f"inspect returned invalid save options at {path}")
-    if any(
-        item is not None and (isinstance(item, bool) or not isinstance(item, int))
-        for item in (value.quality, value.compress_level)
+def validate_save_options(plugin_id: str, hook: str, value: object) -> None:
+    if value is None:
+        return
+    if not isinstance(value, ImageSaveOptions):
+        raise plugin_error(plugin_id, hook, "image_save_options must return ImageSaveOptions or None")
+    for name, minimum, maximum in (
+        ("min_width", 1, None),
+        ("min_height", 1, None),
+        ("quality", 0, 100),
+        ("compress_level", 0, 9),
     ):
-        raise plugin_error(plugin_id, hook, f"inspect returned invalid save options at {path}")
-    if any(
-        item is not None and not isinstance(item, bool) for item in (value.optimize, value.progressive, value.lossless)
-    ) or not isinstance(value.exif, bool):
-        raise plugin_error(plugin_id, hook, f"inspect returned invalid save options at {path}")
-    if (
-        value.format is not None
-        and value.format.upper() == "ORIGINAL"
-        and (
-            value.extension is not None
-            or any(
-                item is not None
-                for item in (
-                    value.quality,
-                    value.optimize,
-                    value.progressive,
-                    value.lossless,
-                    value.compress_level,
-                )
-            )
-            or value.exif
-        )
-    ):
-        raise plugin_error(plugin_id, hook, f"inspect returned ORIGINAL save options with encoder fields at {path}")
+        item = getattr(value, name)
+        if item is not None and (type(item) is not int or item < minimum or (maximum is not None and item > maximum)):
+            raise plugin_error(plugin_id, hook, f"invalid save option: {name}")
+    for name in ("optimize", "progressive", "lossless", "exif"):
+        item = getattr(value, name)
+        if item is not None and not isinstance(item, bool):
+            raise plugin_error(plugin_id, hook, f"invalid save option: {name}")
 
 
 def validate_http_url(plugin_id: str, hook: str, value: object, message: str) -> None:

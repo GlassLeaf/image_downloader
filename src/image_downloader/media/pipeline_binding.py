@@ -26,12 +26,12 @@ class PreparedPipelineBinding:
     app_settings: Mapping[str, object]
     manifest: Mapping[str, object]
     catalog: Mapping[str, object] | None
-    image_format: ImageFormat
     input_validation: str
     content_type_mismatch: str
     max_image_pixels: int | None
     metadata_processors: frozenset[str]
-    force_image_format: ImageFormat | None
+    image_format: ImageFormat | None
+    image_quality: int | None
 
     @classmethod
     def prepare(
@@ -43,25 +43,28 @@ class PreparedPipelineBinding:
         manifest: Mapping[str, object],
         catalog: Mapping[str, object] | None,
         *,
-        force_image_format: ImageFormat | None = None,
+        image_format: ImageFormat | None = None,
+        image_quality: int | None = None,
     ) -> PreparedPipelineBinding:
-        if force_image_format not in (None, "ORIGINAL", "JPEG", "PNG", "WEBP"):
-            raise ValueError("force_image_format must be ORIGINAL, JPEG, PNG, WEBP, or None")
+        from ..application.requests import resolve_image_output
+
+        resolved_format = resolve_image_output(config, image_format, image_quality)
         return cls(
             plugin_id,
             snapshot(plugin_config),
             snapshot(app_settings),
             snapshot(manifest),
             snapshot(catalog) if catalog is not None else None,
-            config.output.image_format,
             config.media.input_validation,
             config.media.content_type_mismatch,
             config.media.max_image_pixels,
             frozenset(
-                processor for processor, sites in config.image_processors.transport_metadata_access.items()
+                processor
+                for processor, sites in config.image_processors.transport_metadata_access.items()
                 if plugin_id in sites
             ),
-            force_image_format,
+            resolved_format,
+            image_quality,
         )
 
 
@@ -70,9 +73,10 @@ def prepare_runtime_binding(
     registry: PluginRuntime,
     record: PluginRecord,
     overrides: PluginConfigOverrides | None,
-    force_image_format: ImageFormat | None,
+    image_format: ImageFormat | None,
+    image_quality: int | None = None,
 ) -> PreparedPipelineBinding:
-    """Compatibility adapter; never used for per-image execution."""
+    """Constructor adapter; never used for per-image execution."""
     from ..plugins.runtime import safe_app_settings
 
     return PreparedPipelineBinding.prepare(
@@ -82,5 +86,6 @@ def prepare_runtime_binding(
         safe_app_settings(config),
         record.manifest.value,
         record.catalog.as_json() if record.catalog is not None else None,
-        force_image_format=force_image_format,
+        image_format=image_format,
+        image_quality=image_quality,
     )

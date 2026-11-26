@@ -102,6 +102,7 @@ ImageProcessorClosedError
 ImageProcessor
 ImageResource
 ImageSaveOptions
+ImageSaveOptionsProvider
 ImageTransportMetadata
 ImageWorkerError
 InterProcessLockError

@@ -199,6 +199,19 @@ def _check_workflow_target_values(args: argparse.Namespace, command: str) -> Non
             raise argument_error("invalid URL regular expression", "invalid_value", option="--url-regex") from None
 
 
+def _check_image_output(args: argparse.Namespace) -> None:
+    quality = getattr(args, "image_quality", None)
+    if quality is not None:
+        if type(quality) is not int or not 0 <= quality <= 100:
+            raise argument_error("--image-quality must be between 0 and 100", "invalid_value", option="--image-quality")
+        if getattr(args, "image_format", None) == "ORIGINAL":
+            raise argument_error(
+                "--image-quality cannot be combined with --image-format ORIGINAL",
+                "option_conflict",
+                options=["--image-format", "--image-quality"],
+            )
+
+
 def _check_values(
     args: argparse.Namespace, command: str
 ) -> tuple[PluginConfigOverrides, PluginDownloadPolicyOverrides]:
@@ -250,6 +263,7 @@ def _check_values(
                 "invalid_value",
                 option="--directory-format",
             ) from exc
+    _check_image_output(args)
     from .setup import _download_policy_overrides, _runtime_overrides
 
     plugin_config = _runtime_overrides(args)

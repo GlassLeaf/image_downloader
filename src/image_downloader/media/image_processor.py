@@ -5,9 +5,10 @@ import threading
 from collections.abc import Callable
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures.process import BrokenProcessPool
+from dataclasses import dataclass
 from pathlib import PurePosixPath
 from types import TracebackType
-from typing import TypeVar
+from typing import TYPE_CHECKING, TypeVar
 from urllib.parse import urlparse
 
 from ..exceptions import (
@@ -18,7 +19,10 @@ from ..exceptions import (
     ImageWorkerError,
     UnsupportedImageFormatError,
 )
-from ..models import ImageSaveOptions
+
+if TYPE_CHECKING:
+    from PIL import Image
+
 
 _EXTENSION_TO_FORMAT = {
     ".jpg": "JPEG",
@@ -40,6 +44,29 @@ _CONTENT_TYPE_TO_FORMAT = {
     "image/tiff": "TIFF",
 }
 
+
+@dataclass(frozen=True, slots=True)
+class ImageEncodingOptions:
+    """Resolved encoder settings, separate from plugin minimum requirements."""
+
+    format: str | None = None
+    extension: str | None = None
+    quality: int | None = None
+    optimize: bool | None = None
+    progressive: bool | None = None
+    lossless: bool | None = None
+    compress_level: int | None = None
+    exif: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class ImageDescription:
+    format: str
+    content_type: str
+    width: int
+    height: int
+
+
 _ResultT = TypeVar("_ResultT")
 
 
@@ -57,7 +84,7 @@ class ImageProcessor:
         *,
         source_url: str,
         content_type: str,
-        options: ImageSaveOptions | None = None,
+        options: ImageEncodingOptions | None = None,
         max_pixels: int | None = None,
     ) -> tuple[bytes, str]:
         return self._submit(
@@ -65,13 +92,17 @@ class ImageProcessor:
             data,
             source_url,
             content_type,
-            options or ImageSaveOptions(),
+            options or ImageEncodingOptions(),
             max_pixels,
         )
 
     def inspect(self, data: bytes, *, max_pixels: int | None = None) -> str:
         """Validate image bytes and return their detected MIME type without encoding."""
         return self._submit(_inspect_image, data, max_pixels)
+
+    def describe(self, data: bytes, *, max_pixels: int | None = None) -> ImageDescription:
+        """Read format and display dimensions without re-encoding."""
+        return self._submit(_describe_image, data, max_pixels)
 
     def close(self) -> None:
         with self._lifecycle_lock:
@@ -118,12 +149,12 @@ def _process_image(
     data: bytes,
     source_url: str,
     content_type: str,
-    options: ImageSaveOptions,
+    options: ImageEncodingOptions,
     max_pixels: int | None,
 ) -> tuple[bytes, str]:
     _validate(options)
     try:
-        from PIL import Image, ImageOps
+        from PIL import Image
 
         _inspect_image(data, max_pixels)
         with Image.open(io.BytesIO(data)) as image:
@@ -140,23 +171,24 @@ def _process_image(
                 return data, extension
             if options.exif and target not in {"JPEG", "PNG", "WEBP", "TIFF"}:
                 raise ConfigurationError(f"EXIF preservation is not supported for {target}")
-            image.load()
-            encoder_options = _pillow_options(options, target)
-            if options.exif:
-                exif = image.getexif()
-                if exif:
-                    encoder_options["exif"] = exif.tobytes()
-                save_image = image.copy()
-            else:
-                # Removing Orientation without rotating pixels changes how the
-                # photo looks. Apply it first, then remove the remaining EXIF.
-                oriented = ImageOps.exif_transpose(image)
-                assert oriented is not None
-                save_image = oriented
-                save_image.info.pop("exif", None)
-                save_image.info.pop("Raw profile type exif", None)
-            if target == "JPEG":
-                save_image = save_image.convert("RGB")
+            save_image, encoder_options = _encoding_frame(image, options, target)
+            if getattr(image, "n_frames", 1) > 1 and target in {"PNG", "WEBP", "TIFF", "GIF"}:
+                frames = [save_image]
+                durations = [image.info.get("duration", 0)]
+                loop = image.info.get("loop")
+                for index in range(1, getattr(image, "n_frames", 1)):
+                    image.seek(index)
+                    frame, _ = _encoding_frame(image, options, target)
+                    frames.append(frame)
+                    durations.append(image.info.get("duration", 0))
+                if target in {"PNG", "WEBP"}:
+                    frames = [frame.convert("RGBA") for frame in frames]
+                save_image = frames[0]
+                encoder_options.update(save_all=True, append_images=frames[1:])
+                if target != "TIFF":
+                    encoder_options["duration"] = durations
+                    if loop is not None:
+                        encoder_options["loop"] = loop
             output = io.BytesIO()
             save_image.save(output, format=target, **encoder_options)
             return output.getvalue(), extension
@@ -164,6 +196,30 @@ def _process_image(
         raise
     except Exception as exc:
         raise ImageDecodeError("invalid image data") from exc
+
+
+def _encoding_frame(
+    image: Image.Image, options: ImageEncodingOptions, target: str
+) -> tuple[Image.Image, dict[str, object]]:
+    from PIL import ImageOps
+
+    image.load()
+    encoder_options = _pillow_options(options, target)
+    if options.exif:
+        exif = image.getexif()
+        if exif:
+            encoder_options["exif"] = exif.tobytes()
+        save_image = image.copy()
+    else:
+        # Keep the display orientation when removing its EXIF tag.
+        oriented = ImageOps.exif_transpose(image)
+        assert oriented is not None
+        save_image = oriented
+        save_image.info.pop("exif", None)
+        save_image.info.pop("Raw profile type exif", None)
+    if target == "JPEG":
+        save_image = save_image.convert("RGB")
+    return save_image, encoder_options
 
 
 def _inspect_image(data: bytes, max_pixels: int | None) -> str:
@@ -186,6 +242,27 @@ def _inspect_image(data: bytes, max_pixels: int | None) -> str:
         raise ImageDecodeError("invalid image data") from exc
 
 
+def _describe_image(data: bytes, max_pixels: int | None) -> ImageDescription:
+    try:
+        from PIL import Image
+
+        with Image.open(io.BytesIO(data)) as image:
+            _check_dimensions(image.size, max_pixels)
+            width, height = image.size
+            if image.getexif().get(274) in {5, 6, 7, 8}:
+                width, height = height, width
+            return ImageDescription(
+                (image.format or "").upper(),
+                Image.MIME.get(image.format or "", "application/octet-stream").lower(),
+                width,
+                height,
+            )
+    except ImageDimensionLimitError:
+        raise
+    except Exception as exc:
+        raise ImageDecodeError("cannot determine image dimensions") from exc
+
+
 def _format_from_locator(locator: str) -> str | None:
     """Use a locator suffix as a format hint without requiring an HTTP URL."""
     return _EXTENSION_TO_FORMAT.get(PurePosixPath(urlparse(locator).path).suffix.lower())
@@ -195,7 +272,7 @@ def _format_from_content_type(content_type: str) -> str | None:
     return _CONTENT_TYPE_TO_FORMAT.get(content_type.split(";", 1)[0].strip().lower())
 
 
-def _extension_for(options: ImageSaveOptions, image_format: str) -> str:
+def _extension_for(options: ImageEncodingOptions, image_format: str) -> str:
     if options.extension:
         ext = options.extension.lower()
         if not ext.startswith(".") or ext not in _EXTENSION_TO_FORMAT:
@@ -206,7 +283,7 @@ def _extension_for(options: ImageSaveOptions, image_format: str) -> str:
     return _FORMAT_TO_EXTENSION[image_format]
 
 
-def _validate(options: ImageSaveOptions) -> None:
+def _validate(options: ImageEncodingOptions) -> None:
     if options.format and options.format.upper() not in _FORMAT_TO_EXTENSION:
         raise ConfigurationError(f"unsupported image format: {options.format}")
     if options.quality is not None and not 0 <= options.quality <= 100:
@@ -220,7 +297,7 @@ def _check_dimensions(size: tuple[int, int], max_pixels: int | None) -> None:
         raise ImageDimensionLimitError("image dimensions exceed the configured pixel limit")
 
 
-def _pillow_options(options: ImageSaveOptions, image_format: str) -> dict[str, object]:
+def _pillow_options(options: ImageEncodingOptions, image_format: str) -> dict[str, object]:
     result: dict[str, object] = {}
     if options.quality is not None and image_format in {"JPEG", "WEBP"}:
         result["quality"] = options.quality

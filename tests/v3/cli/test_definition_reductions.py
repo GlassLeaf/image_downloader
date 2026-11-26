@@ -91,7 +91,7 @@ def test_removed_option_is_unknown_and_absent_from_help(change_definitions, remo
 @pytest.mark.parametrize(
     "name,command,old,kept",
     [
-        ("image-format", ["doctor"], "WEBP", ("ORIGINAL", "JPEG", "PNG")),
+        ("image-format", ["download", URL], "WEBP", ("ORIGINAL", "JPEG", "PNG")),
         ("inspection-data", ["inspect", URL], "http", ("url", "all")),
         ("fallback-generic", ["doctor"], "enabled", ("auto", "disabled")),
     ],

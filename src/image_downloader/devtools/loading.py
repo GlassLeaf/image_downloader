@@ -27,6 +27,7 @@ SITE_HOOKS = {
     "transform_image",
 }
 OPTIONAL_HOOKS = {
+    "image_save_options",
     "matches_with_config",
     "check_updates",
     "output_format_values",

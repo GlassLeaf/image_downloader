@@ -194,12 +194,12 @@ def test_output_options_are_ignored_for_non_saving_download_modes(monkeypatch, t
 def test_image_format_options_support_original_and_force_is_download_only(monkeypatch, tmp_path: Path) -> None:
     parser = build_parser()
     preferred = parser.parse_args(["download", "https://example.test/gallery", "--image-format", "ORIGINAL"])
-    forced = parser.parse_args(["https://example.test/gallery", "--force-image-format", "PNG"])
+    forced = parser.parse_args(["https://example.test/gallery", "--image-format", "PNG", "--image-quality", "80"])
 
     assert preferred.image_format == "ORIGINAL"
-    assert preferred.force_image_format is None
+    assert preferred.image_quality is None
     assert forced.command_handler == "download"
-    assert forced.force_image_format == "PNG"
+    assert forced.image_format == "PNG"
     with pytest.raises(SystemExit):
         parser.parse_args(
             ["download", "https://example.test/gallery", "--image-format", "PNG", "--force-image-format", "JPEG"]
@@ -222,7 +222,8 @@ def test_image_format_options_support_original_and_force_is_download_only(monkey
                     "plugin_id": request.plugin_id,
                     "force_plugin": request.force_plugin,
                     "plugin_download_policy_overrides": request.plugin_download_policy_overrides,
-                    "force_image_format": request.force_image_format,
+                    "image_format": request.image_format,
+                    "image_quality": request.image_quality,
                 }
             )
             return SimpleNamespace(saved_files=(), skipped_files=(), failures=())
@@ -243,7 +244,9 @@ def test_image_format_options_support_original_and_force_is_download_only(monkey
         lambda *_args, **_kwargs: (config, tmp_path.resolve(), tmp_path.resolve(), "test"),
     )
     monkeypatch.setattr(cli_download, "RuntimeComposer", Composer)
-    args = parser.parse_args(["download", "https://example.test/gallery", "--force-image-format", "PNG"])
+    args = parser.parse_args(
+        ["download", "https://example.test/gallery", "--image-format", "PNG", "--image-quality", "80"]
+    )
 
     assert asyncio.run(cli.run(args)) == cli.EXIT_SUCCESS
     assert calls == [
@@ -253,21 +256,16 @@ def test_image_format_options_support_original_and_force_is_download_only(monkey
             "plugin_id": None,
             "force_plugin": False,
             "plugin_download_policy_overrides": {},
-            "force_image_format": "PNG",
+            "image_format": "PNG",
+            "image_quality": 80,
         }
     ]
 
     inspect_args = parser.parse_args(
-        ["download", "https://example.test/gallery", "--inspect-only", "--force-image-format", "PNG"]
+        ["download", "https://example.test/gallery", "--inspect-only", "--image-format", "PNG"]
     )
-    with pytest.raises(ConfigurationError, match="force-image-format.*inspect"):
+    with pytest.raises(ConfigurationError, match="image-format.*inspect"):
         asyncio.run(cli.run(inspect_args))
-
-    update_args = parser.parse_args(
-        ["download", "https://example.test/gallery", "--list-updated-urls", "--force-image-format", "PNG"]
-    )
-    with pytest.raises(ConfigurationError, match="force-image-format.*list-updated-urls"):
-        asyncio.run(cli.run(update_args))
 
 
 def test_each_top_level_subparser_selects_its_own_handler(tmp_path: Path) -> None:

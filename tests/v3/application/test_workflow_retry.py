@@ -664,18 +664,23 @@ def test_deadline_during_state_commit_finishes_transaction(tmp_path, monkeypatch
     asyncio.run(scenario())
 
 
-@pytest.mark.parametrize("force,extension", [(None, ".jpeg"), ("WEBP", ".webp")])
+@pytest.mark.parametrize("force,extension", [(None, ".png"), ("WEBP", ".webp")])
 def test_retry_preserves_image_format_precedence(tmp_path, force, extension):
     async def scenario():
         gallery = RetryGallery()
-        gallery.manifests[1, A.url] = manifest(
-            *(replace(image, save_options=ImageSaveOptions(format="JPEG")) for image in manifest().chapters[0].images)
-        )
-        async with compose(tmp_path, gallery, network={"max_attempts": 1}, image_format="PNG") as service:
+        save_calls = []
+
+        def image_save_options(artifact, context):
+            save_calls.append(context.image_id)
+            return ImageSaveOptions(quality=90)
+
+        gallery.image_save_options = image_save_options
+        async with compose(tmp_path, gallery, network={"max_attempts": 1}) as service:
             await transport(service, gallery)
-            result = await service.workflow(WorkflowRequest(url=FEED, workflow_retry_delay=0, force_image_format=force))
+            result = await service.workflow(WorkflowRequest(url=FEED, workflow_retry_delay=0, image_format=force))
             assert all(path.endswith(extension) for path in result.items[0].download.saved_files)
             assert result.items[0].attempts[1].images[0].retained
+            assert len(save_calls) == 2
 
     asyncio.run(scenario())
 

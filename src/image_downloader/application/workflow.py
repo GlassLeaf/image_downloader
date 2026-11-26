@@ -51,7 +51,8 @@ class _WorkflowExecution:
             request.plugin_id,
             request.force_plugin,
         )
-        self.policies, self.image_format = request.plugin_download_policy_overrides, request.force_image_format
+        self.policies, self.image_format = request.plugin_download_policy_overrides, request.image_format
+        self.image_quality = request.image_quality
         self.retries, self.delay = request.workflow_retries, request.workflow_retry_delay
         self.timeout = request.workflow_retry_timeout
         self.state = WorkflowState(runtime.state.filesystem)
@@ -361,7 +362,8 @@ class _WorkflowExecution:
                                 plugin_id=self.plugin_id,
                                 force_plugin=self.force_plugin,
                                 plugin_download_policy_overrides=self.policies,
-                                force_image_format=self.image_format,
+                                image_format=self.image_format,
+                                image_quality=self.image_quality,
                             ),
                             diagnostics,
                             ledger,

@@ -81,7 +81,7 @@ mapping は再帰 merge、scalar/list/`null` は高い layer が置換する。I
 | `download.continue_on_image_error`, `download.allow_empty_chapter_manifest` | 厳密な真偽値; `true`, `false` |
 | `output.directory_format`, `output.filename_format` | 文字列。 `%CHAPTER_NUMBER%_%CONTENT_TITLE%_%CHAPTER_TITLE%`, `%IMAGE_INDEX%.%EXT%`。`%NUM%`、`%TITLE%`、`%SUBTITLE%` は 設定エラー |
 | `output.existing_file` | `overwrite|skip|rename|error`; `overwrite` |
-| `output.image_format` | `ORIGINAL|JPEG|PNG|WEBP`; `ORIGINAL`。`ORIGINAL` は プラグインの変換・プロセッサーの完了後の成果物のバイト列を、本体が再エンコードせず保存する |
+| `output.image_format` | `null|ORIGINAL|JPEG|PNG|WEBP`; `null`。操作単位の形式指定を優先し、`null` は最終画像の形式を維持 |
 | `output.isolate_by_plugin` | 厳密な真偽値; `false` |
 | `output.max_component_length` | `null`または 厳密な整数 `>=16`; `null`。利用者指定のPython文字数による短縮。OSの要素上限対策は別途適用 |
 | `output.lock_timeout_seconds` | 有限の数値 `>=0`; `30`; 0は待機しない |
@@ -191,47 +191,36 @@ plugin_settings:
       image_concurrency_per_chapter: 1
 ```
 
-YAMLは永続設定を指定します。CLIの実行時上書き（`--existing-file`、`--image-format`、`--directory-format`、プラグイン設定・方針の上書きJSON、フォールバックモード）は、その操作のレイヤー解決後に適用し、ファイルへ書き戻しません。`--output-dir`も`AppConfig`のフィールドではなく、ダウンロード専用の依存構築時の上書きであり、保存しません。対応する設定上書きとその由来は`config explain --json`で確認できます。このコマンドは、ダウンロード専用の`--directory-format`・`--output-dir`を受理しません。
+YAMLは永続設定を指定します。CLIの実行時上書き（`--existing-file`、`--directory-format`、プラグイン設定・方針の上書きJSON、フォールバックモード）は、その操作のレイヤー解決後に適用し、ファイルへ書き戻しません。`--output-dir`も`AppConfig`のフィールドではなく、ダウンロード専用の依存構築時の上書きであり、保存しません。対応する設定上書きとその由来は`config explain --json`で確認できます。このコマンドは、ダウンロード専用の`--directory-format`・`--output-dir`・`--image-format`・`--image-quality`を受理しません。
 
 <a id="image-save-format"></a>
 
 ### 変換後の画像と保存形式
 
-画像の保存形式は次の優先順位で決まる。
+保存形式は、操作の`image_format` / CLI `--image-format`、設定の`output.image_format`、最終`ImageArtifact`の実データ形式の順に決める。`output.image_format`は`null`（既定）・`ORIGINAL`・`JPEG`・`PNG`・`WEBP`を受理する。通常の設定レイヤーで解決し、上位レイヤーの`null`は下位の指定を解除する。操作引数の`None`は設定を参照し、操作単位の指定を設定ファイルへ保存しない。`--force-image-format`と旧API引数は受け付けない。API番号・マニフェストのバージョン値は変更しない。
 
-| 優先順位 | 参照元 | 効果 |
-| --- | --- | --- |
-| 1 | `DownloadRequest(force_image_format=...)` / CLI `--force-image-format` | plugin 指定も上書きする。`--image-format` とは排他的。 |
-| 2 | plugin の `ImageResource.save_options.format` | 画像単位の保存形式。 |
-| 3 | CLI `--image-format` または YAML の `output.image_format` | plugin 指定がないときの既定。CLI はその operation 限り。 |
-| 4 | bundled default `ORIGINAL` | 上位の指定がない新規設定の既定。 |
+設定の`null`は形式を指定せず、プラグインの補助設定による同じ形式への再エンコードを許容する。設定の`ORIGINAL`はCLIでの明示指定と同じく最終バイト列を維持し、エンコード設定を適用しない。操作引数が未指定で設定が`ORIGINAL`の場合も、品質指定との併用は`output.image_format`を示す設定エラーとして、通信・プラグイン呼び出し前に拒否する。CLIや操作引数で`JPEG`等へ上書きすれば品質指定を利用できる。検査・更新一覧では保存形式の解決や保存条件フックを実行しない。
 
-`ImageArtifact` 自体は `ImageSaveOptions` を持たない。`transform_image()` が返す
-`artifact.data` は変換後の入力データ、`artifact.content_type` はそのデータの宣言MIMEであり、
-保存形式の指定ではない。コアは元の `ImageResource.save_options` と上記の優先順位から
-保存形式を決める。通常の `--image-format` はプラグイン指定を上書きしない。
+画像処理は、取得→サイト変換→入力検証→全プロセッサー→最終検証→保存条件フック→必要な場合だけ一度エンコード→保存の順に行う。プラグイン自身の変換・エンコードはこの回数に含まない。形式を変えるプラグインは`data`・`content_type`・`extension`を一致させる。MIME不一致の扱いと入力検証設定は維持する。
 
-`ORIGINAL` 以外では、site transform後の入力をまず検証し、通過したデータを指定形式へ
-再エンコードする。プロセッサーが成果物を変更した場合は、保存前にも同じ保存オプションで
-再度正規化する。以下は強制指定なし、`artifact.extension` 未指定、既定の検証設定での例である。
+サイトと各有効プロセッサーの任意同期フック`image_save_options(artifact, context)`は、同じ最終Artifactを受け取り、`ImageSaveOptions`または`None`を返す。コンテキストは各プラグイン自身の設定と既存のtransport metadataアクセス制約を使う。
 
-| `artifact.data` の実体 | `artifact.content_type` | 有効な保存形式 | 保存結果 |
-| --- | --- | --- | --- |
-| PNG | `image/png` | `JPEG` | JPEGへ再エンコードし、`.jpeg`で保存 |
-| JPEG | `image/jpeg` | `PNG` | PNGへ再エンコードし、`.png`で保存 |
-| PNG | `image/jpeg` | `PNG` | 既定の`accept`では不一致を許容し、PNGへ再エンコードして保存 |
-| PNG | `image/png` | `ORIGINAL` | 後続プロセッサーの変更がなければ、返却されたPNG bytesを維持して保存 |
+| 条件 | 集約方法 |
+| --- | --- |
+| `min_width`・`min_height` | 各項目の最大値。正の整数。EXIF Orientationを考慮した表示寸法の下限 |
+| `quality` | 0〜100の最大値。非可逆再エンコード時の設定値の下限で、入力画像の実画質を保証しない |
+| `lossless` | 一つでもTrueなら追加劣化なしを要求。Falseは他の要求を解除しない |
+| `optimize`・`progressive`・`compress_level`・`exif` | サイト→プロセッサーの順に、項目ごとの最後の明示指定を採用 |
 
-`media.content_type_mismatch: error` は、実データと宣言MIMEの不一致を検出すると、
-指定保存形式への変換より前に `ImageMimeMismatchError` にする。入力PNG・宣言`image/png`を
-JPEGとして保存するような、入力形式と保存形式の違い自体は不一致エラーではない。
-既定の`both`ではHTMLやJSON等の非画像MIMEも変換前に拒否するため、
-保存形式にJPEGやPNGを指定しても、不正な入力を画像として保存できるわけではない。
+全項目の未指定値は`None`。空のオプションやフックの`None`は前段の条件を解除しない。例えば1920×1080・品質90と800×600・ロスレスは、1920×1080以上・品質90以上・追加劣化なしへ集約する。
 
-`ORIGINAL` は HTTP 応答の raw-download モードではなく、site transform と processor
-chain 後の最終 artifact のバイト列を core が再エンコードせず保存するモードである。
-`media.input_validation` は維持され、検証のためのデコードは行い得る。
-ダウンロード直後のデータに戻す指定ではない。
+寸法条件だけで拡大・縮小せず、品質下限だけでも再エンコードしない。JPEGを含めバイト列維持は追加劣化なしとみなす。既にプラグインが行った縮小・劣化を巻き戻さない。補助設定のためだけにロスレス要求を破ることも避ける。
+
+`--image-quality 80` / `image_quality=80`はJPEG・WEBPでの非可逆再エンコード要求であり、プラグインの品質90やロスレス要求より優先する。品質非対応形式では形式を維持して非適用を記録する。`--image-format ORIGINAL`と品質指定の併用は入力エラー。JPEGへの変換でロスレス要求を満たせない場合、CLI品質未指定なら品質100を使う。
+
+寸法不足・判定不能・CLIによる品質低下・適用できない補助設定は通常ログと章ログの`image_save_policy_unmet`へ記録する。`field`、`requested`、`actual`、`reason`と安全な画像識別情報を含め、保存は成功扱いとし、不足だけでは再試行しない。不正なフック戻り値は`PluginError`、デコード・エンコード失敗は通常の処理エラーとする。
+
+`ORIGINAL` は全変換後のバイト列を維持する指定で、HTTP応答へ戻すものではない。明示指定時はエンコード設定を適用しないが、画像検証は行う。
 
 `ORIGINAL` の保存拡張子は、最終artifactの次の情報から順に決める。
 
@@ -248,8 +237,8 @@ locatorであり、リダイレクト後の応答URLではない。例えば実�
 コアは `ORIGINAL` の拡張子を自動補正しない。
 
 形式指定も宣言MIMEもなく、データが画像としてデコードできない場合は、既定の`both`で
-`ImageDecodeError`になり、保存しない。保存形式未指定時の既定は`ORIGINAL`であって、
-形式不明のデータを自動的にJPEGへ変換する処理はない。
+`ImageDecodeError`になり、保存しない。形式不明のデータを自動的にJPEGへ変換する処理はない。
+設定も操作引数も形式未指定なら、必要なエンコード設定がない限り最終バイト列を維持する。
 `media.input_validation: content_type` と既定の `content_type_mismatch: accept` を明示的に使う場合は、
 非空本文と空のMIMEでも検証を通る。有効な保存形式が`ORIGINAL`ならそのbytesを保存し、
 拡張子の手掛かりもなければ `.bin` になる。空本文はこの場合も拒否する。
