@@ -61,7 +61,15 @@ def prepare(work: Path, origin: str, asset_origin: str) -> Path:
         },
     }
     for slug in SECRET_UNITS:
-        config["plugin_settings"][plugin_id(slug)]["secrets"] = {"api_token": "LAB_TOKEN"}
+        config["plugin_settings"][plugin_id(slug)]["auth_access"] = {
+            "sites": {
+                "lab": {
+                    "origins": [origin, asset_origin] if slug == "origin-auth-gallery" else [origin],
+                    "secrets": {"api_token": "LAB_TOKEN"},
+                    "login": "deny",
+                }
+            }
+        }
     config["plugin_settings"][plugin_id("origin-auth-gallery")]["endpoints"] = {
         "assets": {"origin": asset_origin},
     }

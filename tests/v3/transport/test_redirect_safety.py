@@ -5,6 +5,7 @@ from dataclasses import replace
 
 import httpx
 import pytest
+from support.auth import approved_operation
 
 from image_downloader import AuthContext, AuthLease, AuthMode, BaseAuthFlow
 from image_downloader.config import AppConfig
@@ -42,13 +43,15 @@ def test_authenticated_redirect_to_unlisted_origin_never_sends_secret() -> None:
             return httpx.Response(302, headers={"Location": "https://other.test/target"}, request=request)
 
         gateway = await _gateway(AppConfig(), handler)
-        session = gateway.operation(
+        session = approved_operation(
+            gateway,
+            origins=(),
             plugin_id="com.example.site",
             operation_url="https://origin.test/gallery",
             auth_flow_factory=lambda _: _HeaderFlow(),
         )
         try:
-            with pytest.raises(AuthScopeError, match="outside the configured origins"):
+            with pytest.raises(AuthScopeError, match="undeclared"):
                 await session.execute(RequestSpec("https://origin.test/start"))
             assert seen == [("https://origin.test/start", "credential")]
         finally:
@@ -70,7 +73,9 @@ def test_allowlisted_authenticated_redirect_and_same_origin_hops_keep_auth() -> 
             return httpx.Response(200, content=b"image", request=request)
 
         gateway = await _gateway(AppConfig(), handler)
-        session = gateway.operation(
+        session = approved_operation(
+            gateway,
+            origins=(),
             plugin_id="com.example.site",
             operation_url="https://origin.test/gallery",
             auth_flow_factory=lambda _: _HeaderFlow(),
@@ -102,7 +107,9 @@ def test_authenticated_https_to_http_downgrade_is_rejected_even_if_allowlisted()
             return httpx.Response(302, headers={"Location": "http://cdn.test/image"}, request=request)
 
         gateway = await _gateway(AppConfig(), handler)
-        session = gateway.operation(
+        session = approved_operation(
+            gateway,
+            origins=(),
             plugin_id="com.example.site",
             operation_url="https://origin.test/gallery",
             auth_flow_factory=lambda _: _HeaderFlow(),
@@ -250,7 +257,9 @@ def test_each_redirect_hop_checks_the_auth_origin() -> None:
             return httpx.Response(302, headers={"Location": target}, request=request)
 
         gateway = await _gateway(AppConfig(), handler)
-        session = gateway.operation(
+        session = approved_operation(
+            gateway,
+            origins=(),
             plugin_id="com.example.site",
             operation_url="https://origin.test/gallery",
             auth_flow_factory=lambda _: _HeaderFlow(),
@@ -259,7 +268,7 @@ def test_each_redirect_hop_checks_the_auth_origin() -> None:
             ),
         )
         try:
-            with pytest.raises(AuthScopeError, match="outside the configured origins"):
+            with pytest.raises(AuthScopeError, match="undeclared"):
                 await session.execute(RequestSpec("https://origin.test/start"))
             assert seen == ["https://origin.test/start", "https://cdn.test/middle"]
         finally:

@@ -408,11 +408,20 @@ class PluginInvoker:
         assert isinstance(value, RequestSpec)
         return value
 
-    async def initialize_auth(self, flow: AuthFlow, context: AuthContext) -> AuthLease:
+    async def initialize_auth(self, flow: AuthFlow, context: AuthContext) -> AuthLease | None:
         value = await self._invoke_async("auth_initialize", lambda: flow.initialize(context))
+        if value is None:
+            return None
         if not isinstance(value, AuthLease):
             raise self._error("auth_initialize", "initialize must return AuthLease")
         validation.validate_auth_data(self.plugin_id, "auth_initialize", value)
+        return value
+
+    async def login_auth(self, flow: AuthFlow, context: AuthContext) -> AuthLease:
+        value = await self._invoke_async("auth_login", lambda: flow.login(context))
+        if not isinstance(value, AuthLease):
+            raise self._error("auth_login", "login must return AuthLease")
+        validation.validate_auth_data(self.plugin_id, "auth_login", value)
         return value
 
     async def refresh_auth(self, flow: AuthFlow, context: AuthContext) -> AuthLease:

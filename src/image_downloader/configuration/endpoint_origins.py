@@ -11,6 +11,7 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from ..exceptions import ConfigurationError
+from .host_groups import EMPTY_HOST_GROUPS, HOST_GROUP_REFERENCE, HostGroupError, resolve_host_group
 from .hosts import normalize_host
 
 try:
@@ -108,6 +109,12 @@ def template_tokens(value: str) -> tuple[re.Match[str], ...]:
         raise ValueError("malformed endpoint variable reference")
     for match in matches:
         reference = match.group(1)
+        if reference == "allowed_hosts":
+            raise HostGroupError("legacy")
+        if HOST_GROUP_REFERENCE.fullmatch(reference):
+            continue
+        if reference == "host_groups" or reference.startswith("host_groups."):
+            raise HostGroupError("reference")
         if reference.startswith("operation.") and reference[10:] in _OPERATION_NAMES:
             continue
         if not _CONFIG_REFERENCE.fullmatch(reference):
@@ -143,16 +150,32 @@ def expand_origins(
     value: str | tuple[str, ...],
     config: Mapping[str, object],
     operation_url: str | None,
+    *,
+    host_groups: Mapping[str, tuple[str, ...]] | None = EMPTY_HOST_GROUPS,
 ) -> tuple[str, ...]:
-    """Expand one array reference per template; None leaves operation references for doctor."""
+    """Expand arrays once; absent operation/deferred groups retain declaration templates."""
     operation = OriginPattern.parse(_url_origin(operation_url), allow_wildcard=False) if operation_url else None
     result: list[str] = []
     for template in (value,) if isinstance(value, str) else value:
         candidates = [""]
         position = arrays = 0
-        for match in template_tokens(template):
+        tokens = template_tokens(template)
+        groups = [
+            matched_group.group(1)
+            for match in tokens
+            if (matched_group := HOST_GROUP_REFERENCE.fullmatch(match.group(1)))
+        ]
+        for match in tokens:
             reference = match.group(1)
-            if reference.startswith("config."):
+            replacement: str | tuple[str, ...]
+            group_reference = HOST_GROUP_REFERENCE.fullmatch(reference)
+            if group_reference is not None:
+                group = group_reference.group(1)
+                if host_groups is None:
+                    replacement = match.group(0)
+                else:
+                    replacement = resolve_host_group(group, host_groups)
+            elif reference.startswith("config."):
                 replacement = _config_value(config, reference)
             elif operation is None:
                 replacement = match.group(0)
@@ -161,7 +184,7 @@ def expand_origins(
             if isinstance(replacement, tuple):
                 arrays += 1
                 if arrays > 1:
-                    raise ValueError("endpoint templates allow at most one array reference")
+                    raise HostGroupError("arrays")
                 replacements = replacement
             else:
                 replacements = (replacement,)
@@ -171,7 +194,12 @@ def expand_origins(
             position = match.end()
         for candidate in candidates:
             expanded = candidate + template[position:]
-            result.append(validate_origin(expanded))
+            try:
+                result.append(validate_origin(expanded))
+            except ValueError as exc:
+                if groups:
+                    raise HostGroupError("expansion", groups[0]) from exc
+                raise
     return tuple(dict.fromkeys(result))
 
 
@@ -192,3 +220,12 @@ def _operation_value(operation: OriginPattern, name: str) -> str:
     if name == "port":
         return str(operation.port)
     return operation.scheme
+
+
+def referenced_host_groups(value: str | tuple[str, ...]) -> frozenset[str]:
+    return frozenset(
+        group.group(1)
+        for template in ((value,) if isinstance(value, str) else value)
+        for token in template_tokens(template)
+        if (group := HOST_GROUP_REFERENCE.fullmatch(token.group(1))) is not None
+    )

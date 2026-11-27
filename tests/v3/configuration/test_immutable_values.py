@@ -69,7 +69,7 @@ def test_idr_033_dto_config_and_plugin_context_share_the_utility() -> None:
     config = AppConfig.model_validate(
         {"plugin_settings": {"com.example.site": {"config": {"payload": _nested_value()}}}}
     )
-    context = PluginExecutionContext(_nested_value(), _nested_value(), _nested_value(), None, _Secrets(), _Requests())
+    context = PluginExecutionContext(_nested_value(), _nested_value(), _nested_value(), None, _Requests())
     image = ImageResource("https://example.test/image.png")
     chapter = Chapter(1, "chapter", images=(image,))
     manifest = DownloadManifest("title", (chapter,))

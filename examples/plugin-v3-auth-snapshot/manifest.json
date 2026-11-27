@@ -1,0 +1,12 @@
+{
+  "manifest": {
+    "id": "local.image-downloader.auth-snapshot-gallery",
+    "kind": "site_plugin",
+    "api_version": "3",
+    "entry": {
+      "file": "plugin.py",
+      "class": "AuthSnapshotGallery"
+    },
+    "config_file": "plugin.yaml"
+  }
+}

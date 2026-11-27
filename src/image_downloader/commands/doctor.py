@@ -14,7 +14,14 @@ from ..plugins.plugin_manifest import effective_verification_mode
 from .constants import EXIT_PLUGIN, EXIT_SUCCESS
 from .outcome import CommandOutcome
 from .prepared import DoctorArguments, PreparedCommand
-from .reporting import _application_version, _doctor_plugin_details, _doctor_redact, _print_doctor_report
+from .reporting import (
+    _application_version,
+    _doctor_host_connections,
+    _doctor_plugin_details,
+    _doctor_redact,
+    _print_doctor_report,
+    _unused_host_group_warnings,
+)
 from .setup import (
     _app_override,
     _fallback,
@@ -74,6 +81,7 @@ def _doctor(command: PreparedCommand, outcome: CommandOutcome) -> int:
             fallback_enabled = config.fallback.generic_html.enabled if fallback_override is None else fallback_override
             selected, _ = registry.resolve(selection_url, fallback_enabled=fallback_enabled, overrides=overrides)
             registry.validate_operation_overrides(selected, overrides)
+        connections = _doctor_host_connections(registry, overrides)
         diagnostics = registry.diagnostics
         healthy = not any(not item.loaded and not item.warning for item in diagnostics)
         library_root = Path(__file__).resolve().parents[1]
@@ -101,7 +109,8 @@ def _doctor(command: PreparedCommand, outcome: CommandOutcome) -> int:
                 "selected_profile": config.profile.default,
                 "target_host": site,
                 "target_has_url_path": selection_url is not None,
-                "effective": _doctor_redact(config.model_dump(by_alias=True, warnings=False)),
+                "effective": _doctor_redact(config, origins=resolved.origins, connections=connections),
+                "warnings": _unused_host_group_warnings(config, connections),
                 "runtime": {
                     "application_overrides": _doctor_redact(_app_override(args)),
                     "plugin_overrides": _doctor_redact(overrides),
@@ -120,7 +129,7 @@ def _doctor(command: PreparedCommand, outcome: CommandOutcome) -> int:
                 "origins": dict(resolved.origins),
             },
             "paths": {name: str(path) for name, path in paths.items()},
-            "loaded_plugins": _doctor_plugin_details(registry, overrides),
+            "loaded_plugins": _doctor_plugin_details(registry, overrides, connections),
             "plugins": [
                 {
                     "name": item.name,

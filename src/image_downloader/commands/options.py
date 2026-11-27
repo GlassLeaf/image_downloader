@@ -102,6 +102,7 @@ OPTIONS: tuple[OptionDefinition, ...] = (
     ),
     OptionDefinition("passphrase-stdin", frozenset({"vault backup", "vault restore"}), default=False, flag=True),
     OptionDefinition("resume", frozenset({"vault rotate-key"}), default=False, flag=True),
+    OptionDefinition("plugin-auth-access", _DOWNLOAD | _INSPECT, repeat=True, metavar="ID=JSON"),
     OptionDefinition("plugin-config", _OVERRIDES, repeat=True, metavar="ID=JSON"),
     OptionDefinition("plugin-config-file", _OVERRIDES, Path, repeat=True, metavar="ABSOLUTE_PATH"),
     OptionDefinition("fallback-generic", _OVERRIDES, default="auto", choices=("auto", "enabled", "disabled")),

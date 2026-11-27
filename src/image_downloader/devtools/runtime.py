@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ast
 import inspect
+from http.cookiejar import CookieJar
 from pathlib import Path
 from typing import Any, cast
 
@@ -15,8 +16,8 @@ from ..application.service import DownloadService
 from ..configuration.merging import deep_merge
 from ..configuration.models import AppConfig
 from ..configuration.paths import default_data_root, resolve_paths
+from ..credentials.access import resolve_auth_access
 from ..credentials.keyring import MasterKeyStore
-from ..credentials.plugin_secrets import RuntimeSecrets
 from ..credentials.profile_store import ProfileCredentialStore
 from ..credentials.vault import CredentialVault
 from ..exceptions import SecretNotFoundError
@@ -225,10 +226,6 @@ class DevelopmentSession:
                     supplied = read_document(Path(self.options["config"])) or {}
                     configured = deep_merge(configured, supplied.get("config", supplied))
             private["config"] = configured
-            names = self.settings.get("secret_references", {}) if record.id == self.record.id else {}
-            private["secrets"] = {**private.get("secrets", {}), **names}
-            for name in self.secret_values() if record.id == self.record.id else ():
-                private["secrets"].setdefault(name, name.upper())
         return AppConfig.model_validate(application)
 
     async def open(self) -> None:
@@ -240,7 +237,12 @@ class DevelopmentSession:
         self.registry.registry = PluginRegistry(tuple(self.records))
         self.registry.register_builtin(GenericHtmlPlugin)
         self.logger = DevelopmentLogger(self.output)
-        self.gateway = RequestGateway(self.config, transport_factory=self._transport, logger=self.logger)
+        self.gateway = RequestGateway(
+            self.config,
+            transport_factory=self._transport,
+            logger=self.logger,
+            cookie_loader=CookieJar,
+        )
         vault = CredentialVault(self.output.directory / "data", keys=DevelopmentKeys(self.output.directory / "keys"))
         source = None
         if self.options.get("profile"):
@@ -250,8 +252,8 @@ class DevelopmentSession:
         cookie_store = CookieStore(FileSystem(paths["cookie"]), store=self.credentials)
         if source is not None:
             cookie_root = source.vault.filesystem.path(source.vault.relative(source.profile, "cookies")).parent
-            jar = CookieStore(FileSystem(cookie_root), store=source).load()
-            self.gateway.client.cookies = httpx.Cookies(jar)
+            self.gateway._cookie_loader = CookieStore(FileSystem(cookie_root), store=source).load
+            self.gateway.cookies_loaded = False
         self._load_cookies(self.settings.get("cookies", []))
         self._load_secrets()
         events = EventBus(self.logger)
@@ -264,7 +266,7 @@ class DevelopmentSession:
             notifications=NotificationService(self.config.notification, self.logger, events, {}),
             cookie_store=cookie_store,
             credentials=self.credentials,
-            cookie_baseline={},
+            cookie_baseline=self.gateway.cookie_baseline,
             gateway=self.gateway,
             image_processor=ImageProcessor(),
             transform_executor=TransformExecutor(self.config.media.transform_workers),
@@ -285,8 +287,16 @@ class DevelopmentSession:
             )
 
     def _load_secrets(self) -> None:
+        access = resolve_auth_access(
+            self.record.id,
+            self.options.get("url") or self.settings.get("sample_url", "https://example.test/"),
+            self.config.plugin_settings[self.record.id].auth_access,
+            host_groups=self.config.plugin_settings[self.record.id].host_groups,
+        )
         for name, value in self.secret_values().items():
-            reference = self.config.plugin_settings[self.record.id].secrets[name]
+            reference = access.site.secrets.get(name)
+            if reference is None:
+                continue
             self.credentials.set_plugin(self.record.id, reference, str(value))
 
     def secret_values(self) -> dict[str, str]:
@@ -303,13 +313,11 @@ class DevelopmentSession:
     def execution_context(self) -> PluginExecutionContext:
         instance = self.ensure_instance()
         if self.context is None:
-            private = self.config.plugin_settings[self.record.id]
             self.context = PluginExecutionContext(
                 self.registry.effective_config(self.record),
                 safe_app_settings(self.config),
                 self.record.manifest.value,
                 None,
-                RuntimeSecrets(self.record.id, private.secrets, store=self.credentials),
                 self.gateway,
                 cookie_provider=self.gateway,
             )

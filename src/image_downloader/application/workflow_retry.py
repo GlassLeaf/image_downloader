@@ -21,7 +21,14 @@ from ..models import (
 
 
 def retryable(code: str, http_status: int | None = None) -> bool:
-    if code in {"auth_scope_error", "auth_reentry_error", "auth_state_unknown"}:
+    if code in {
+        "auth_scope_error",
+        "auth_reentry_error",
+        "auth_state_unknown",
+        "credential_access_denied",
+        "login_denied",
+        "login_approval_required",
+    }:
         return False
     if code == "http_status_error":
         return http_status in {401, 403, 408, 429} or (http_status is not None and 500 <= http_status < 600)

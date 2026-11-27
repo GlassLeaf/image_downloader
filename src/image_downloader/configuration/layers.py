@@ -26,6 +26,8 @@ from ..storage.path_safety import canonical_path, existing_directory, existing_r
 from .hosts import normalize_host, registrable_domain, site_file_name
 from .models import DEFAULT_CONFIG, AppConfig
 from .paths import default_data_root, default_plugin_root
+from .plugin_layers import partial_plugin_layer
+from .yaml_input import DuplicateYamlKeyError, safe_load_unique
 
 LayerStatus = Literal["applied", "missing", "not_applicable"]
 
@@ -75,8 +77,16 @@ def validate_config(value: Mapping[str, Any] | AppConfig) -> AppConfig:
 def _read_yaml_document(resolved: Path, original: Path) -> tuple[dict[str, Any], bytes]:
     try:
         source = resolved.read_bytes()
-        decoded = yaml.safe_load(source.decode("utf-8"))
+        decoded = safe_load_unique(source.decode("utf-8"))
         result = {} if decoded is None else decoded
+    except DuplicateYamlKeyError as exc:
+        raise configuration_error(
+            "configuration YAML contains a duplicate explicit key",
+            "configuration_duplicate_key",
+            source=configuration_source(original),
+            line=exc.problem_mark.line + 1,
+            column=exc.problem_mark.column + 1,
+        ) from exc
     except yaml.YAMLError as exc:
         details: dict[str, object] = {"source": configuration_source(original)}
         mark = getattr(exc, "problem_mark", None)
@@ -176,7 +186,9 @@ def _validate_layer_role(raw: Mapping[str, Any], path: Path, role: str) -> None:
 def _validate_layer_values(raw: Mapping[str, Any], path: Path, role: str) -> None:
     _validate_layer_role(raw, path, role)
     try:
-        AppConfig.model_validate(deep_merge(DEFAULT_CONFIG.model_dump(by_alias=True, warnings=False), raw))
+        AppConfig.model_validate(
+            deep_merge(DEFAULT_CONFIG.model_dump(by_alias=True, warnings=False), partial_plugin_layer(raw))
+        )
     except ValidationError as exc:
         issue = exc.errors()[0]
         error = validation_diagnostic(issue, source=configuration_source(path, role), model=AppConfig)
@@ -199,6 +211,7 @@ def _read_layer(
     role: str,
     config_root: Path | None,
     cleanups: list[_LayerCleanup] | None = None,
+    locations: dict[str, tuple[str, bytes]] | None = None,
     required: bool = False,
 ) -> tuple[dict[str, Any], ConfigurationLayer]:
     source: bytes | None = None
@@ -207,6 +220,8 @@ def _read_layer(
         if resolved is None:
             return {}, ConfigurationLayer(role, path, "missing")
         raw, source = _read_yaml_document(resolved, path)
+        if locations is not None:
+            locations[str(resolved)] = (configuration_source(path, role), source)
         if role in {"app", "profile_app", "site"}:
             raw, removals = _sanitize_user_layer(raw)
             if cleanups is not None and removals:
@@ -228,16 +243,40 @@ def _read_layer(
 def _field_mark(source: bytes, field: str) -> dict[str, int]:
     """Retain a field's location, never its value or YAML excerpt."""
     node = yaml.compose(source.decode("utf-8"))
-    for name in field.split("."):
-        if not isinstance(node, yaml.MappingNode):
+    while field and isinstance(node, yaml.MappingNode):
+        matches = [
+            (key.value, value) for key, value in node.value if field == key.value or field.startswith(key.value + ".")
+        ]
+        if not matches:
             break
-        child = next((value for key, value in node.value if key.value == name), None)
-        if child is None:
-            break
-        node = child
+        name, node = max(matches, key=lambda pair: len(pair[0]))
+        field = field[len(name) :].lstrip(".")
     if node is None:
         return {}
     return {"line": node.start_mark.line + 1, "column": node.start_mark.column + 1}
+
+
+def _locate_effective_error(
+    error: ConfigurationError, origins: Mapping[str, str], locations: Mapping[str, tuple[str, bytes]]
+) -> None:
+    """Locate merged-policy failures using retained input, without exposing mapping keys."""
+    diagnostic = diagnostic_for(error)
+    if diagnostic is None:
+        return
+    details = dict(diagnostic.details)
+    fields = [details.get("field")]
+    path = getattr(error, "_core_configuration_path", ())
+    if isinstance(path, tuple) and all(isinstance(part, str) for part in path):
+        fields.append(".".join(path))
+    for field in fields:
+        if not isinstance(field, str):
+            continue
+        location = locations.get(origins.get(field, ""))
+        if location is not None:
+            label, source = location
+            details.update(source=label, **_field_mark(source, field))
+            error._core_diagnostic = Diagnostic(diagnostic.message, MappingProxyType(details))
+            return
 
 
 def _materialize_automatic_roots(data: dict[str, Any], origins: dict[str, str]) -> dict[str, Any]:
@@ -270,8 +309,11 @@ def resolve_application_config(
         _validate_layer_values(runtime_override, Path("<runtime override>"), "runtime")
 
     cleanups: list[_LayerCleanup] | None = [] if rewrite_user_layers else None
+    locations: dict[str, tuple[str, bytes]] = {}
     bundled = Path(__file__).parents[1] / "app.yaml"
-    baseline, baseline_layer = _read_layer(bundled, role="baseline", config_root=None, required=True)
+    baseline, baseline_layer = _read_layer(
+        bundled, role="baseline", config_root=None, locations=locations, required=True
+    )
     layers: list[ConfigurationLayer] = [ConfigurationLayer("schema_default", None, "applied"), baseline_layer]
     data = DEFAULT_CONFIG.model_dump(by_alias=True, warnings=False)
     origins = {".".join(item): "schema default" for item in _flatten(data) if item}
@@ -293,6 +335,7 @@ def resolve_application_config(
                 role="app",
                 config_root=root,
                 cleanups=cleanups,
+                locations=locations,
                 required=require_config,
             )
             layers.append(main_layer)
@@ -320,6 +363,7 @@ def resolve_application_config(
         role="profile_app",
         config_root=root,
         cleanups=cleanups,
+        locations=locations,
         required=explicit_alternate_profile,
     )
     layers.append(layer)
@@ -330,6 +374,7 @@ def resolve_application_config(
             role="site",
             config_root=root,
             cleanups=cleanups,
+            locations=locations,
             required=False,
         )
         layers.append(layer)
@@ -338,7 +383,11 @@ def resolve_application_config(
     if runtime_override:
         data = _merge_layer(data, origins, runtime_override, "runtime override")
     data = _materialize_automatic_roots(data, origins)
-    config = validate_config(data)
+    try:
+        config = _validate_effective_auth_access(validate_config(data))
+    except ConfigurationError as exc:
+        _locate_effective_error(exc, origins, locations)
+        raise
     if cleanups:
         for cleanup in cleanups:
             _apply_cleanup(cleanup)
@@ -374,7 +423,47 @@ def load_application_config(
     ).config
 
 
+def _validate_effective_auth_access(config: AppConfig) -> AppConfig:
+    from ..credentials.access import compile_auth_access
+    from ..diagnostics import host_group_diagnostic
+    from .endpoint_origins import expand_origins, referenced_host_groups
+    from .host_groups import HostGroupError, resolve_host_group
+
+    for plugin_id, setting in config.plugin_settings.items():
+        compile_auth_access(plugin_id, setting.auth_access, setting.host_groups)
+        for endpoint_name, endpoint in setting.endpoints.items():
+            origins = endpoint.get("origin", ())
+            if not isinstance(origins, (str, list, tuple)):
+                continue
+            try:
+                for group in referenced_host_groups(origins if isinstance(origins, str) else tuple(origins)):
+                    resolve_host_group(group, setting.host_groups)
+                expand_origins(
+                    origins if isinstance(origins, str) else tuple(origins),
+                    setting.config,
+                    None,
+                    host_groups=setting.host_groups,
+                )
+            except HostGroupError as exc:
+                error = host_group_diagnostic(exc, plugin_id=plugin_id, reference_field="endpoints.<endpoint>.origin")
+                error._core_configuration_path = ("plugin_settings", plugin_id, "endpoints", endpoint_name, "origin")
+                raise error from exc
+            except ValueError:
+                # Author config and operation variables may not yet be available.
+                # Their final expansion is validated before opening a session.
+                pass
+    return config
+
+
 def apply_overrides(config: AppConfig, override: Mapping[str, Any]) -> AppConfig:
     _reject_profile_override(override, "apply_overrides()")
     _validate_layer_values(override, Path("<runtime override>"), "runtime")
-    return validate_config(deep_merge(config.model_dump(by_alias=True, warnings=False), override))
+    base = config.model_dump(by_alias=True, warnings=False)
+    # Pydantic's Python serializer preserves models inside immutable mappings.
+    # Merge their explicit fields so a partial override retains existing sites
+    # and does not turn inherited site defaults into explicit permissions.
+    base["plugin_settings"] = {
+        plugin_id: setting.model_dump(exclude_unset=True, warnings=False)
+        for plugin_id, setting in config.plugin_settings.items()
+    }
+    return _validate_effective_auth_access(validate_config(deep_merge(base, override)))

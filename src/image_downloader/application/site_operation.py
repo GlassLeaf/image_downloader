@@ -2,13 +2,18 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator, Mapping
+from contextlib import AsyncExitStack, asynccontextmanager
 from dataclasses import dataclass, field, replace
 
-from ..configuration.models import AppConfig, PluginDownloadPolicy
+from pydantic import ValidationError
+
+from ..configuration.merging import deep_merge
+from ..configuration.models import AppConfig, PluginAuthAccess, PluginConnections, PluginDownloadPolicy
+from ..credentials.access import CommandAuthAccess, LoginApprover, ResolvedAuthAccess, resolve_auth_access
 from ..credentials.plugin_secrets import RuntimeSecrets
 from ..credentials.profile_store import ProfileCredentialStore
+from ..diagnostics import validation_diagnostic
 from ..exceptions import (
     ConfigurationError,
 )
@@ -22,10 +27,12 @@ from ..observability.diagnostic_safety import best_effort_diagnostic
 from ..observability.logging import DownloadLogger
 from ..plugins.lifecycle import PluginRecord
 from ..plugins.plugin_invoker import PluginInvoker
-from ..plugins.plugin_manifest import PluginConfigOverrides, PluginDownloadPolicyOverrides
+from ..plugins.plugin_manifest import PluginAuthAccessOverrides, PluginConfigOverrides, PluginDownloadPolicyOverrides
 from ..plugins.runtime import PluginRuntime, safe_app_settings
 from ..ports import PluginExecutionContext, SitePlugin
-from ..transport.gateway import OperationRequestGateway, RequestGateway
+from ..storage.cookies import CookieStore
+from ..transport.endpoint_rules import expand_connections
+from ..transport.gateway import OperationRequestGateway, RequestGateway, closing_gateway
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,6 +81,9 @@ class _PluginAuth:
     async def ensure_ready(self, *, check: bool = False) -> None:
         await self._gateway.auth.ensure_ready(check=check)
 
+    async def request_login(self, reason: str) -> bool:
+        return await self._gateway.auth.request_login(reason)
+
     def invalidate(self, response: RequestResponse) -> bool:
         return self._gateway.auth.invalidate(response)
 
@@ -116,12 +126,64 @@ class SiteOperationFactory:
         gateway: RequestGateway,
         logger: DownloadLogger,
         credentials: ProfileCredentialStore,
+        login_approver: LoginApprover | None = None,
     ):
         self.config = config
         self.registry = registry
         self.gateway = gateway
         self.logger = logger
         self.credentials = credentials
+        self.consent = CommandAuthAccess(login_approver)
+        self._anonymous: dict[tuple[object, ...], RequestGateway] = {}
+
+    def resolve_access(
+        self,
+        plugin_id: str,
+        url: str,
+        overrides: PluginAuthAccessOverrides | None = None,
+    ) -> ResolvedAuthAccess:
+        setting = self.config.plugin_settings.get(plugin_id)
+        base = setting.auth_access.model_dump(exclude_unset=True) if setting else {}
+        if overrides:
+            if not isinstance(overrides, Mapping) or set(overrides) != {plugin_id}:
+                raise ConfigurationError("auth access override must target the selected site plugin")
+            incoming = overrides[plugin_id]
+            if not isinstance(incoming, Mapping):
+                raise ConfigurationError("auth access override must be a mapping")
+            base = deep_merge(base, incoming)
+        try:
+            return resolve_auth_access(
+                plugin_id,
+                url,
+                PluginAuthAccess.model_validate(base),
+                host_groups=setting.host_groups if setting else {},
+            )
+        except ConfigurationError:
+            raise
+        except ValidationError as exc:
+            issue = exc.errors(include_url=False, include_input=False)[0]
+            issue["loc"] = ("plugin_settings", plugin_id, "auth_access", *issue["loc"])
+            raise validation_diagnostic(issue) from exc
+        except ValueError as exc:
+            raise ConfigurationError("invalid plugin auth_access configuration") from exc
+
+    def session(self, access: ResolvedAuthAccess, *, detached: bool = False) -> RequestGateway:
+        if access.site.mode == "anonymous":
+            if access.session_key not in self._anonymous:
+                self._anonymous[access.session_key] = self.gateway._fork()
+            selected = self._anonymous[access.session_key]
+        else:
+            self.gateway._ensure_cookies()
+            selected = self.gateway
+        return (
+            selected._fork(CookieStore.clone_jar(selected.client.cookies.jar), diagnostics=False)
+            if detached
+            else selected
+        )
+
+    def clear(self) -> None:
+        self._anonymous.clear()
+        self.consent.clear()
 
     def select(
         self,
@@ -180,6 +242,15 @@ class SiteOperationFactory:
         else:
             await self.cleanup_after_failure(invoker, plugin, primary, logger)
 
+    def _connections(self, url: str, record: PluginRecord, plugin_config: Mapping[str, object]) -> PluginConnections:
+        setting = self.config.plugin_settings.get(record.id)
+        return expand_connections(
+            self.registry.effective_connections(record, plugin_config=plugin_config),
+            plugin_config,
+            url,
+            host_groups=setting.host_groups if setting else {},
+        )
+
     def build(
         self,
         url: str,
@@ -189,6 +260,8 @@ class SiteOperationFactory:
         overrides: PluginConfigOverrides | None,
         download_policy_overrides: PluginDownloadPolicyOverrides | None,
         request_gateway: RequestGateway | None = None,
+        auth_access_overrides: PluginAuthAccessOverrides | None = None,
+        detached: bool = False,
     ) -> tuple[PluginExecutionContext, OperationRequestGateway, _OperationDownloadPolicy]:
         self.registry.validate_operation_overrides(record, overrides)
         self.registry.validate_download_policy_overrides(record, download_policy_overrides)
@@ -196,23 +269,29 @@ class SiteOperationFactory:
             self.config,
             self.registry.effective_download_policy(record, download_policy_overrides),
         )
-        settings = self.config.plugin_settings.get(record.id)
-        secrets = RuntimeSecrets(record.id, settings.secrets if settings else {}, store=self.credentials)
+        access = self.resolve_access(record.id, url, auth_access_overrides)
         context: PluginExecutionContext | None = None
         plugin_config = self.registry.effective_config(record, overrides)
-        connections = self.registry.effective_connections(record, plugin_config=plugin_config)
+        connections = self._connections(url, record, plugin_config)
+        request_gateway = request_gateway or self.session(access, detached=detached)
 
         def auth_flow_factory(session: OperationRequestGateway) -> object | None:
             nonlocal context
+            secrets = RuntimeSecrets(
+                record.id,
+                access.site.secrets,
+                store=self.credentials,
+                allowed=access.site.provides_credentials,
+                guard=session.auth.check_credentials,
+            )
             session.bind_auth_context(plugin_config, secrets)
             context = PluginExecutionContext(
                 plugin_config,
                 safe_app_settings(self.config),
                 record.manifest.value,
                 record.catalog.as_json() if record.catalog else None,
-                secrets,
                 _PluginRequests(session),
-                cookie_provider=request_gateway or self.gateway,
+                cookie_provider=session,
                 auth=_PluginAuth(session),
                 endpoints=session.endpoints,
             )
@@ -226,6 +305,11 @@ class SiteOperationFactory:
             request_concurrency=policy.request_concurrency,
             settings=connections,
             plugin_config=plugin_config,
+            access=access,
+            consent=self.consent,
+            host_groups=self.config.plugin_settings[record.id].host_groups
+            if record.id in self.config.plugin_settings
+            else {},
         )
         if context is None:
             raise RuntimeError("operation context was not initialized")
@@ -243,6 +327,8 @@ class SiteOperationFactory:
         request_gateway: RequestGateway | None = None,
         diagnostics_enabled: bool = True,
         selected_plugin: SiteSelection | None = None,
+        auth_access_overrides: PluginAuthAccessOverrides | None = None,
+        detached: bool = False,
     ) -> AsyncIterator[SiteOperation]:
         record, plugin = (
             selected_plugin.claim()
@@ -251,28 +337,43 @@ class SiteOperationFactory:
         )
         logger: DownloadLogger | None = self.logger if diagnostics_enabled else None
         invoker = PluginInvoker(record.id, logger)
-        try:
-            context, operation_gateway, policy = self.build(
-                url,
-                record,
-                plugin,
-                invoker,
-                overrides,
-                download_policy_overrides,
-                request_gateway,
-            )
-        except BaseException as primary:
-            await self.cleanup_after_failure(invoker, plugin, primary, logger)
-            raise
-        try:
-            yield SiteOperation(record, plugin, context, operation_gateway, policy, invoker)
-        except BaseException as primary:
-            await self.cleanup_after_failure(invoker, plugin, primary, logger)
-            raise
-        else:
-            await invoker.cleanup_after_use(plugin)
-        finally:
-            await operation_gateway.close()
+        async with AsyncExitStack() as resources:
+            try:
+                if detached:
+                    self.registry.validate_operation_overrides(record, overrides)
+                    self.registry.validate_download_policy_overrides(record, download_policy_overrides)
+                    self._connections(url, record, self.registry.effective_config(record, overrides))
+                    access = self.resolve_access(record.id, url, auth_access_overrides)
+                    temporary = (
+                        self.session(access, detached=True)
+                        if request_gateway is None
+                        else request_gateway._fork(
+                            CookieStore.clone_jar(request_gateway.client.cookies.jar), diagnostics=False
+                        )
+                    )
+                    request_gateway = await resources.enter_async_context(closing_gateway(temporary))
+                context, operation_gateway, policy = self.build(
+                    url,
+                    record,
+                    plugin,
+                    invoker,
+                    overrides,
+                    download_policy_overrides,
+                    request_gateway,
+                    auth_access_overrides,
+                )
+            except BaseException as primary:
+                await self.cleanup_after_failure(invoker, plugin, primary, logger)
+                raise
+            try:
+                yield SiteOperation(record, plugin, context, operation_gateway, policy, invoker)
+            except BaseException as primary:
+                await self.cleanup_after_failure(invoker, plugin, primary, logger)
+                raise
+            else:
+                await invoker.cleanup_after_use(plugin)
+            finally:
+                await operation_gateway.close()
 
     async def cleanup_after_failure(
         self,

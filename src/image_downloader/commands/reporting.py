@@ -8,9 +8,14 @@ from collections.abc import Mapping
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as distribution_version
 from pathlib import Path
+from typing import Any, cast
 
+from ..configuration.endpoint_origins import expand_origins, referenced_host_groups
+from ..configuration.models import AppConfig, PluginConnections, PluginSettings
+from ..credentials.access import compile_auth_access
 from ..plugins.runtime import PluginRuntime
-from ..privacy.sensitive_values import redact_sensitive_values
+from ..privacy.sensitive_values import REDACTED, redact_sensitive_values
+from ..transport.endpoint_rules import expand_connections
 
 
 def _application_version() -> str:
@@ -30,13 +35,133 @@ def _application_version() -> str:
         return source_version if isinstance(source_version, str) else "unknown"
 
 
-def _doctor_redact(value: object) -> object:
+def _doctor_redact(
+    value: object,
+    *,
+    origins: Mapping[str, str] | None = None,
+    connections: Mapping[str, PluginConnections] | None = None,
+) -> object:
     """Make an inspectable doctor report without printing credentials."""
-    return redact_sensitive_values(value)
+    if not isinstance(value, AppConfig):
+        return redact_sensitive_values(value)
+    safe = cast(dict[str, Any], redact_sensitive_values(value.model_dump(by_alias=True, warnings=False)))
+    # Only typed host-owned policies can bypass generic sensitive-key masking.
+    # Arbitrary plugin data named auth_access remains subject to normal redaction.
+    for plugin_id, settings in value.plugin_settings.items():
+        plugins = safe.setdefault("plugin_settings", {})
+        if not isinstance(plugins.get(plugin_id), dict):
+            plugins[plugin_id] = {}
+        plugins[plugin_id]["resolved_endpoints"] = _user_endpoint_previews(settings)
+        access = settings.auth_access
+        compiled = compile_auth_access(plugin_id, access, settings.host_groups)
+        references = _host_group_references(settings, (connections or {}).get(plugin_id))
+        plugins[plugin_id]["host_groups"] = {name: list(hosts) for name, hosts in settings.host_groups.items()}
+        sites: dict[str, dict[str, Any]] = {}
+        for name, site in access.sites.items():
+            sites[name] = {
+                "origins": list(site.origins),
+                "resolved_origins": list(compiled.sites[name].origins),
+                "mode": site.mode if "mode" in site.model_fields_set else access.mode,
+                "credential_access": "allow" if site.provides_credentials else "deny",
+                "login": site.login_policy,
+                "secrets": {key: REDACTED for key in site.secrets},
+            }
+        plugins[plugin_id]["auth_access"] = {
+            "mode": access.mode,
+            "sites": sites,
+            "variables": {
+                "host_groups": {
+                    name: {
+                        "field": "plugin_settings." + plugin_id + ".host_groups." + name,
+                        "source": (origins or {}).get(
+                            "plugin_settings." + plugin_id + ".host_groups." + name, "user plugin_settings"
+                        ),
+                        "values": list(hosts),
+                        "referenced_by": sorted(references.get(name, ())),
+                        "usage_complete": plugin_id in (connections or {}),
+                    }
+                    for name, hosts in settings.host_groups.items()
+                }
+            },
+        }
+    return safe
+
+
+def _user_endpoint_previews(settings: PluginSettings) -> dict[str, object]:
+    result: dict[str, object] = {}
+    for name, item in settings.endpoints.items():
+        origin = item.get("origin")
+        if not isinstance(origin, (str, list, tuple)):
+            continue
+        value = origin if isinstance(origin, str) else tuple(origin)
+        try:
+            expanded = expand_origins(value, settings.config, None, host_groups=settings.host_groups)
+            result[name] = {
+                "origin": value,
+                "resolved_origins": expanded,
+                "complete": all("$" + "{" not in item for item in expanded),
+            }
+        except ValueError:
+            result[name] = {"origin": value, "resolved_origins": None, "complete": False}
+    return result
+
+
+def _host_group_references(settings: PluginSettings, connections: PluginConnections | None) -> dict[str, set[str]]:
+    references: dict[str, set[str]] = {}
+    entries: list[tuple[str, str | tuple[str, ...]]] = [
+        (f"auth_access.sites.{name}.origins", site.origins) for name, site in settings.auth_access.sites.items()
+    ]
+    if connections is not None:
+        entries.extend((f"endpoints.{name}.origin", item.origin) for name, item in connections.endpoints.items())
+    else:
+        for name, item in settings.endpoints.items():
+            origin = item.get("origin")
+            if isinstance(origin, str):
+                entries.append((f"endpoints.{name}.origin", origin))
+            elif isinstance(origin, (list, tuple)) and all(isinstance(value, str) for value in origin):
+                entries.append((f"endpoints.{name}.origin", tuple(origin)))
+    for field, origins in entries:
+        for group in referenced_host_groups(origins):
+            references.setdefault(group, set()).add(field)
+    return references
+
+
+def _doctor_host_connections(
+    registry: PluginRuntime, overrides: Mapping[str, Mapping[str, object]]
+) -> dict[str, PluginConnections]:
+    failed = {item.name for item in registry.diagnostics if not item.loaded and not item.warning}
+    return {
+        record.id: registry.effective_connections(record, plugin_config=registry.effective_config(record, overrides))
+        for record in registry.records.values()
+        if record.kind == "site_plugin" and record.id not in failed
+    }
+
+
+def _unused_host_group_warnings(
+    config: AppConfig, connections: Mapping[str, PluginConnections]
+) -> list[dict[str, str]]:
+    warnings: list[dict[str, str]] = []
+    for plugin_id, settings in config.plugin_settings.items():
+        if plugin_id not in connections:
+            continue
+        references = _host_group_references(settings, connections[plugin_id])
+        warnings.extend(
+            {
+                "kind": "unused_host_group",
+                "plugin_id": plugin_id,
+                "field": "plugin_settings." + plugin_id + ".host_groups." + name,
+                "message": "host group is not referenced by the effective authentication or endpoint settings",
+            }
+            for name in settings.host_groups
+            if name not in references
+        )
+    return warnings
 
 
 def _doctor_plugin_details(
-    registry: PluginRuntime, overrides: Mapping[str, Mapping[str, object]]
+    registry: PluginRuntime,
+    overrides: Mapping[str, Mapping[str, object]],
+    connections: Mapping[str, PluginConnections] | None = None,
 ) -> list[dict[str, object]]:
     """Return provenance and effective settings for each accepted plugin unit."""
     failed_ids = {item.name for item in registry.diagnostics if not item.loaded and not item.warning}
@@ -73,11 +198,36 @@ def _doctor_plugin_details(
                         "file_tree_sha256": catalog.file_tree_sha256,
                     }
                 ),
+                "endpoints": _endpoint_display(registry, record.id, (connections or {}).get(record.id), overrides),
                 "author_defaults": _doctor_redact(record.author_defaults),
                 "effective_config": _doctor_redact(registry.effective_config(record, overrides)),
             }
         )
     return details
+
+
+def _endpoint_display(
+    registry: PluginRuntime,
+    plugin_id: str,
+    connections: PluginConnections | None,
+    overrides: Mapping[str, Mapping[str, object]],
+) -> dict[str, object] | None:
+    if connections is None:
+        return None
+    settings = registry.config.plugin_settings.get(plugin_id)
+    expanded = expand_connections(
+        connections,
+        registry.effective_config(registry.records[plugin_id], overrides),
+        host_groups=settings.host_groups if settings else {},
+    )
+    return {
+        name: {
+            "origin": item.origin,
+            "resolved_origins": expanded.endpoints[name].origin,
+            "host_groups": sorted(referenced_host_groups(item.origin)),
+        }
+        for name, item in connections.endpoints.items()
+    }
 
 
 def _print_json_block(label: str, value: object, *, indent: str = "") -> None:
@@ -122,6 +272,8 @@ def _print_doctor_report(payload: Mapping[str, object]) -> None:
         entry = detail["entry"]
         assert isinstance(entry, Mapping)
         print(f"  source={detail['source']} entry={entry['file']}:{entry['class']} config={detail['config_file']}")
+        if detail["endpoints"] is not None:
+            _print_json_block("endpoints", detail["endpoints"], indent="  ")
         _print_json_block("author defaults", detail["author_defaults"], indent="  ")
         _print_json_block("effective config", detail["effective_config"], indent="  ")
     print("plugin diagnostics:")

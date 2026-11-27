@@ -99,16 +99,30 @@ foreach ($unit in $units) {
 ```yaml
 plugin_settings:
   local.image-downloader.csrf-login-gallery:
-    secrets:
-      username: EXAMPLE_GALLERY_USERNAME
-      password: EXAMPLE_GALLERY_PASSWORD
+    auth_access:
+      sites:
+        gallery:
+          origins: [https://csrf-login.example.test]
+          login: ask
+          secrets:
+            username: EXAMPLE_GALLERY_USERNAME
+            password: EXAMPLE_GALLERY_PASSWORD
   local.image-downloader.cursor-api-gallery:
-    secrets:
-      api_token: EXAMPLE_GALLERY_API_TOKEN
+    auth_access:
+      sites:
+        gallery:
+          origins: [https://cursor-api.example.test]
+          secrets:
+            api_token: EXAMPLE_GALLERY_API_TOKEN
   local.image-downloader.oauth-media-api:
-    secrets:
-      access_token: EXAMPLE_OAUTH_ACCESS_TOKEN
-      refresh_token: EXAMPLE_OAUTH_REFRESH_TOKEN
+    auth_access:
+      sites:
+        gallery:
+          origins: [https://oauth-media.example.test]
+          login: ask
+          secrets:
+            access_token: EXAMPLE_OAUTH_ACCESS_TOKEN
+            refresh_token: EXAMPLE_OAUTH_REFRESH_TOKEN
 ```
 
 ```powershell
@@ -130,7 +144,7 @@ image-downloader download 'https://csrf-login.example.test/works/1' --config $co
 資格情報本体はデータルートの`profiles/default/credentials/credentials.enc`へ暗号化保存します。
 環境変数・旧keyring資格情報へのフォールバックはありません。管理・一覧・削除は[資格情報保管庫](../docs/v3/reference/credential-vault.md)を参照してください。
 
-プラグインの`context.secrets.get(name)`契約と署名形式は変わりません。この保存方式の切替だけでプラグインの再署名は不要です。
+プラグインは認証フック内の `auth_context.credentials.get(name)` へ移行し、再署名してください。[認証アクセス設定](../docs/v3/how-to/auth-access-and-ephemeral-sessions.md)を参照してください。
 OAuth例で更新したaccess tokenはAuthFlowのメモリー内だけに保持し、access token・refresh tokenを保管庫へ自動保存しません。
 
 ## 同期画像変換への移行

@@ -110,7 +110,7 @@
 | `ChapterReporter.start` <!-- api-contract: image_downloader.runtime.ChapterReporter.start --> | `async start(self) -> None` |
 | `ChapterReporter.record` <!-- api-contract: image_downloader.runtime.ChapterReporter.record --> | `async record(self, position: int, outcome: ImageOutcome) -> None` |
 | `ChapterReporter.finish` <!-- api-contract: image_downloader.runtime.ChapterReporter.finish --> | `async finish(self, outcomes: tuple[ImageOutcome, ...] | None = None) -> None` |
-| `DownloadService` <!-- api-contract: image_downloader.runtime.DownloadService --> | `DownloadService(config: AppConfig, registry: PluginRuntime, dependencies: _RuntimeDependencies)` |
+| `DownloadService` <!-- api-contract: image_downloader.runtime.DownloadService --> | `DownloadService(config: AppConfig, registry: PluginRuntime, dependencies: _RuntimeDependencies, *, login_approver: LoginApprover | None = None) -> None` |
 | `DownloadService.download` <!-- api-contract: image_downloader.runtime.DownloadService.download --> | `async download(self, request: DownloadRequest) -> DownloadResult` |
 | `DownloadService.inspect` <!-- api-contract: image_downloader.runtime.DownloadService.inspect --> | `async inspect(self, request: InspectRequest) -> ManifestInspectionResult` |
 | `DownloadService.check_updates` <!-- api-contract: image_downloader.runtime.DownloadService.check_updates --> | `async check_updates(self, request: UpdateCheckRequest) -> UpdateResult` |
@@ -128,15 +128,15 @@
 | `OutputAllocator.chapter_directory` <!-- api-contract: image_downloader.runtime.OutputAllocator.chapter_directory --> | `chapter_directory(self, context: OutputFormatContext) -> Path` |
 | `OutputAllocator.allocate` <!-- api-contract: image_downloader.runtime.OutputAllocator.allocate --> | `async allocate(self, chapter_directory: Path, context: OutputFormatContext) -> OutputAllocation` |
 | `OutputAllocator.allocate_relative` <!-- api-contract: image_downloader.runtime.OutputAllocator.allocate_relative --> | `async allocate_relative(self, base: Path) -> OutputAllocation` |
-| `RequestGateway` <!-- api-contract: image_downloader.runtime.RequestGateway --> | `RequestGateway(config: AppConfig, cookie_jar: CookieJar | None = None, *, logger: DownloadLogger | None = None, transport_factory: Callable[[], httpx.AsyncBaseTransport] | None = None)` |
-| `RequestGateway.operation` <!-- api-contract: image_downloader.runtime.RequestGateway.operation --> | `operation(self, *, plugin_id: str | None, operation_url: str, auth_flow_factory: Callable[[OperationRequestGateway], object | None] | None = None, invoker: PluginInvoker | None = None, request_concurrency: int | None = None, settings: PluginSettings | PluginConnections | None = None, plugin_config: Mapping[str, object] | None = None) -> OperationRequestGateway` |
+| `RequestGateway` <!-- api-contract: image_downloader.runtime.RequestGateway --> | `RequestGateway(config: AppConfig, cookie_jar: CookieJar | None = None, *, logger: DownloadLogger | None = None, transport_factory: Callable[[], httpx.AsyncBaseTransport] | None = None, cookie_loader: Callable[[], CookieJar] | None = None, limit_parent: RequestGateway | None = None) -> None` |
+| `RequestGateway.operation` <!-- api-contract: image_downloader.runtime.RequestGateway.operation --> | `operation(self, *, plugin_id: str | None, operation_url: str, auth_flow_factory: Callable[[OperationRequestGateway], object | None] | None = None, invoker: PluginInvoker | None = None, request_concurrency: int | None = None, settings: PluginSettings | PluginConnections | None = None, plugin_config: Mapping[str, object] | None = None, access: ResolvedAuthAccess | None = None, consent: CommandAuthAccess | None = None, host_groups: Mapping[str, tuple[str, ...]] | None = None) -> OperationRequestGateway` |
 | `RequestGateway.execute` <!-- api-contract: image_downloader.runtime.RequestGateway.execute --> | `async execute(self, spec: RequestSpec) -> RequestResponse` |
-| `RequestGateway.get_cookie_snapshot` <!-- api-contract: image_downloader.runtime.RequestGateway.get_cookie_snapshot --> | `get_cookie_snapshot(self) -> dict[str, dict[str, dict[str, str]]]`。有効なCookieをdomain/path/name別にコピーする。 |
+| `RequestGateway.get_cookie_snapshot` <!-- api-contract: image_downloader.runtime.RequestGateway.get_cookie_snapshot --> | `get_cookie_snapshot(self) -> dict[str, dict[str, dict[str, str]]]` |
 | `RequestGateway.close` <!-- api-contract: image_downloader.runtime.RequestGateway.close --> | `async close(self) -> None` |
-| `RuntimeComposer` <!-- api-contract: image_downloader.runtime.RuntimeComposer --> | `RuntimeComposer(config: AppConfig, *, config_root: Path, plugin_root: Path, output_root: Path | None = None, plugin_verification_override: PluginVerificationOverride | None = None)` |
+| `RuntimeComposer` <!-- api-contract: image_downloader.runtime.RuntimeComposer --> | `RuntimeComposer(config: AppConfig, *, config_root: Path, plugin_root: Path, output_root: Path | None = None, plugin_verification_override: PluginVerificationOverride | None = None, login_approver: LoginApprover | None = None) -> None` |
 | `RuntimeComposer.compose` <!-- api-contract: image_downloader.runtime.RuntimeComposer.compose --> | `compose(self) -> DownloadService` |
 | `RuntimeComposer.compose_registry` <!-- api-contract: image_downloader.runtime.RuntimeComposer.compose_registry --> | `compose_registry(self) -> PluginRuntime` |
-| `RuntimeSecrets` <!-- api-contract: image_downloader.runtime.RuntimeSecrets --> | `RuntimeSecrets(plugin_id: str, references: Mapping[str, str], *, store: ProfileCredentialStore)` |
+| `RuntimeSecrets` <!-- api-contract: image_downloader.runtime.RuntimeSecrets --> | `RuntimeSecrets(plugin_id: str, references: Mapping[str, str], *, store: ProfileCredentialStore, allowed: bool = True, guard: Callable[[], None] | None = None) -> None` |
 | `RuntimeSecrets.get` <!-- api-contract: image_downloader.runtime.RuntimeSecrets.get --> | `get(self, name: str) -> str` |
 | `UpdateState` <!-- api-contract: image_downloader.runtime.UpdateState --> | `UpdateState(filesystem: FileSystem, *, lock_timeout_seconds: float = 30.0)` |
 | `UpdateState.records` <!-- api-contract: image_downloader.runtime.UpdateState.records --> | `records(self) -> dict[str, _Record]` |
@@ -316,11 +316,11 @@
 
 | 型 | コンストラクター |
 | --- | --- |
-| `DownloadRequest` | `DownloadRequest(*, url: str, plugin_overrides: PluginConfigOverrides | None = None, fallback_override: bool | None = None, plugin_id: str | None = None, force_plugin: bool = False, plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None, image_format: ImageFormat | None = None, image_quality: int | None = None) -> None` |
-| `InspectRequest` | `InspectRequest(*, url: str, plugin_overrides: PluginConfigOverrides | None = None, fallback_override: bool | None = None, plugin_id: str | None = None, force_plugin: bool = False, resolve_image_requests: bool = True) -> None` |
-| `UpdateCheckRequest` | `UpdateCheckRequest(*, url: str, plugin_overrides: PluginConfigOverrides | None = None, fallback_override: bool | None = None, plugin_id: str | None = None, force_plugin: bool = False, plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None) -> None` |
-| `WorkflowPlanRequest` | `WorkflowPlanRequest(*, url: str, download_scope: Literal['all', 'updated'] = 'updated', plugin_overrides: PluginConfigOverrides | None = None, fallback_override: bool | None = None, plugin_id: str | None = None, force_plugin: bool = False, plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None) -> None` |
-| `WorkflowRequest` | `WorkflowRequest(*, url: str, download_scope: Literal['all', 'updated'] = 'updated', workflow_retries: int = 1, workflow_retry_delay: float = 600.0, workflow_retry_timeout: float | None = None, workflow_progress_log: bool | None = None, plugin_overrides: PluginConfigOverrides | None = None, fallback_override: bool | None = None, plugin_id: str | None = None, force_plugin: bool = False, plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None, image_format: ImageFormat | None = None, image_quality: int | None = None) -> None` |
+| `DownloadRequest` | `DownloadRequest(*, url: str, plugin_overrides: PluginConfigOverrides | None = None, plugin_auth_access_overrides: PluginAuthAccessOverrides | None = None, fallback_override: bool | None = None, plugin_id: str | None = None, force_plugin: bool = False, plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None, image_format: ImageFormat | None = None, image_quality: int | None = None) -> None` |
+| `InspectRequest` | `InspectRequest(*, url: str, plugin_overrides: PluginConfigOverrides | None = None, plugin_auth_access_overrides: PluginAuthAccessOverrides | None = None, fallback_override: bool | None = None, plugin_id: str | None = None, force_plugin: bool = False, resolve_image_requests: bool = True) -> None` |
+| `UpdateCheckRequest` | `UpdateCheckRequest(*, url: str, plugin_overrides: PluginConfigOverrides | None = None, plugin_auth_access_overrides: PluginAuthAccessOverrides | None = None, fallback_override: bool | None = None, plugin_id: str | None = None, force_plugin: bool = False, plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None) -> None` |
+| `WorkflowPlanRequest` | `WorkflowPlanRequest(*, url: str, download_scope: Literal['all', 'updated'] = 'updated', plugin_overrides: PluginConfigOverrides | None = None, plugin_auth_access_overrides: PluginAuthAccessOverrides | None = None, fallback_override: bool | None = None, plugin_id: str | None = None, force_plugin: bool = False, plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None) -> None` |
+| `WorkflowRequest` | `WorkflowRequest(*, url: str, download_scope: Literal['all', 'updated'] = 'updated', workflow_retries: int = 1, workflow_retry_delay: float = 600.0, workflow_retry_timeout: float | None = None, workflow_progress_log: bool | None = None, plugin_overrides: PluginConfigOverrides | None = None, plugin_auth_access_overrides: PluginAuthAccessOverrides | None = None, fallback_override: bool | None = None, plugin_id: str | None = None, force_plugin: bool = False, plugin_download_policy_overrides: PluginDownloadPolicyOverrides | None = None, image_format: ImageFormat | None = None, image_quality: int | None = None) -> None` |
 
 | 例外 | シグネチャ |
 | --- | --- |
@@ -367,13 +367,13 @@
 | `AuthSnapshot` | `AuthSnapshot(flow_configured: bool = False, credentials_ready: bool = False, last_verified_status: AuthStatus = AuthStatus.UNKNOWN, generation: int = 0, remaining_seconds: float | None = None, public_data: Mapping[str, object] = <factory: freeze_mapping>)` |
 | `AuthVerification` | `AuthVerification(status: AuthStatus, lease: AuthLease | None = None)` |
 | `AuthReceipt` | `AuthReceipt(operation_id: str, generation: int)` |
-| `AuthContext` | `AuthContext(config: Mapping[str, object], secrets: SecretProvider, endpoints: Mapping[str, Endpoint], requests: RequestPort)` |
+| `AuthContext` | `AuthContext(config: Mapping[str, object], credentials: SecretProvider, endpoints: Mapping[str, Endpoint], requests: RequestPort)` |
 | `Endpoint` | `Endpoint(origin: str | tuple[str, ...])`、`origins: tuple[str, ...]`、`origin: str`、`for_origin(self, origin: str) -> Endpoint`、`request(self, path: str, **kwargs: Any) -> RequestSpec` |
 | `AuthMode` | `AUTO="auto"`, `NONE="none"`, `REQUIRED="required"` |
 | `AuthDecision` | `AUTH_FAILURE="auth_failure"`, `NOT_AUTH_FAILURE="not_auth_failure"`, `UNKNOWN="unknown"` |
 | `AuthStatus` | `VALID="valid"`, `INVALID="invalid"`, `UNKNOWN="unknown"` |
 
-`PluginExecutionContext` の追加keyword引数は `auth: AuthPort | None = None`、`endpoints: Mapping[str, Endpoint] | None = None`、`plugin_data: PluginDataView | None = None`。`.plugin_data`は空が既定の`PluginDataView`、`.plugin_manifest`は既存`.manifest`の別名。`context.auth` は `async ensure_ready(*, check: bool = False) -> None`、`invalidate(response: RequestResponse) -> bool`、同期・通信なしの`snapshot() -> AuthSnapshot`、`context.endpoints` は読み取り専用mappingを提供する。`TransformContext.plugin_data`は引数の作品・章・画像DTOから構築する。`AuthFlow` と `BaseAuthFlow` のフックは[認証契約](plugin-hooks.md)を参照する。公開定数`PLUGIN_API_FEATURES: frozenset[str]`は`structured_plugin_data`・`auth_snapshot`・`endpoint_patterns`を含む。
+`PluginExecutionContext` の追加keyword引数は `auth: AuthPort | None = None`、`endpoints: Mapping[str, Endpoint] | None = None`、`plugin_data: PluginDataView | None = None`。`.plugin_data`は空が既定の`PluginDataView`、`.plugin_manifest`は既存`.manifest`の別名。`context.auth` は `async request_login(reason: str) -> bool`、 `async ensure_ready(*, check: bool = False) -> None`、`invalidate(response: RequestResponse) -> bool`、同期・通信なしの`snapshot() -> AuthSnapshot`、`context.endpoints` は読み取り専用mappingを提供する。`TransformContext.plugin_data`は引数の作品・章・画像DTOから構築する。`AuthFlow` と `BaseAuthFlow` のフックは[認証契約](plugin-hooks.md)を参照する。公開定数`PLUGIN_API_FEATURES: frozenset[str]`は`structured_plugin_data`・`auth_snapshot`・`endpoint_patterns`を含む。
 
 `Endpoint.origins` は展開・正規化・重複除去済みの読み取り専用候補で、ワイルドカードを含み得る。`.origin` と `.request()` は単一の具体originの場合だけ利用可能で、複数候補またはワイルドカードでは `ValueError`。`.for_origin()` は候補と一致する具体originのEndpointを返し、不一致・パス付きURL・ワイルドカード入力は `ValueError`。要求構築だけでは通信せず、送信時は操作全体の最優先ルールを適用する。
 
@@ -382,3 +382,11 @@
 ### 画像保存の任意フック
 
 `ImageSaveOptionsProvider.image_save_options(self, artifact: ImageArtifact, context: TransformContext) -> ImageSaveOptions | None`。同期・任意実装で、サイトとプロセッサーの両方に利用できる。最終Artifactに対する最低条件を返す。API番号・マニフェストのスキーマ番号は変更しない。
+
+`DownloadRequest`、`InspectRequest`、`UpdateCheckRequest`、`WorkflowPlanRequest`、`WorkflowRequest`は、ユーザーの認証設定の実行時上書き`plugin_auth_access_overrides: Mapping[str, Mapping[str, Any]] | None = None`を受け付けます。`RuntimeComposer`は任意の`login_approver: LoginApprover | None = None`を受け付けます。[認証アクセス設定](../how-to/auth-access-and-ephemeral-sessions.md)。
+
+| DTO | コンストラクター・フィールド |
+| --- | --- |
+| `LoginApprovalRequest` | `LoginApprovalRequest(plugin_id: str, site_id: str, origins: tuple[str, ...], provides_credentials: bool, reason: str) -> None` |
+
+`PluginSettings.host_groups: Mapping[str, tuple[str, ...]]`はユーザー専用のグループ名からDNSホスト配列への不変マッピングです。`${host_groups.<name>}`で参照します。旧`allowed_hosts`引数・設定・変数参照は廃止しました。`SiteAuthAccess.origins`は文字列入力を配列へ正規化し、原文のテンプレートを保持します。実行時にユーザー一覧から展開し、同じサイト内の認証共有範囲へ束縛します。`AuthContext.endpoints`・`context.endpoints`には展開後のorigin／パターンが入り、複数・ワイルドカードの選択には`Endpoint.for_origin()`を使用します。API番号3を維持します。

@@ -99,7 +99,19 @@ def _compose(tmp_path, plugin_sources, unit, *, references=None):
             "network": {"max_attempts": 1},
             "download": {"allow_empty_chapter_manifest": True},
             "security": {"plugin_verification": "strict"},
-            "plugin_settings": {plugin_id: {"secrets": references}},
+            "plugin_settings": {
+                plugin_id: {
+                    "auth_access": {
+                        "sites": {
+                            "gallery": {
+                                "origins": [f"https://{UNIT_HOST[unit]}.example.test"],
+                                "login": "allow",
+                                "secrets": references,
+                            }
+                        }
+                    }
+                }
+            },
         }
     )
     service = RuntimeComposer(config, config_root=tmp_path, plugin_root=root).compose()
@@ -188,7 +200,7 @@ def test_signed_auth_plugins_resolve_secrets_in_runtime_contexts_and_multiple_ru
 
     asyncio.run(scenario())
     assert len(observed) == sum(
-        {"cursor-api-gallery": 1, "oauth-media-api": 3, "csrf-login-gallery": 3}[u] for u in units
+        {"cursor-api-gallery": 1, "oauth-media-api": 3, "csrf-login-gallery": 4}[u] for u in units
     )
     logs = "\n".join(path.read_text(encoding="utf-8") for path in tmp_path.rglob("*.log"))
     assert logs.count("operation_started") == len(units)
@@ -211,7 +223,10 @@ def test_documented_registrations_and_yaml_feed_signed_auth_samples(
     data = tmp_path / "data"
     config.write_text(yaml.safe_dump({"plugin_settings": settings}), encoding="utf-8")
     values = {
-        ("local.image-downloader." + unit, settings["local.image-downloader." + unit]["secrets"][name]): value
+        (
+            "local.image-downloader." + unit,
+            settings["local.image-downloader." + unit]["auth_access"]["sites"]["gallery"]["secrets"][name],
+        ): value
         for unit in UNIT_SECRETS
         for name, _, _, value in UNIT_SECRETS[unit]
     }
@@ -230,7 +245,7 @@ def test_documented_registrations_and_yaml_feed_signed_auth_samples(
 
     async def scenario():
         for unit in UNIT_SECRETS:
-            references = settings["local.image-downloader." + unit]["secrets"]
+            references = settings["local.image-downloader." + unit]["auth_access"]["sites"]["gallery"]["secrets"]
             async with _compose(tmp_path, plugin_sources, unit, references=references) as service:
                 result = await service.download(DownloadRequest(url=f"https://{UNIT_HOST[unit]}.example.test/works/1"))
                 assert not result.failures

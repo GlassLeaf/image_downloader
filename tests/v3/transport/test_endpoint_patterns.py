@@ -5,6 +5,7 @@ from dataclasses import replace
 
 import httpx
 import pytest
+from support.auth import approved_operation
 
 from image_downloader import (
     AuthContext,
@@ -20,6 +21,16 @@ from image_downloader import (
 from image_downloader.config import AppConfig, PluginSettings
 from image_downloader.exceptions import AuthScopeError, ConfigurationError
 from image_downloader.transport.gateway import RequestGateway
+
+AUTHORIZED_ORIGINS = (
+    "https://cdn.host1.com",
+    "https://cdn.host2.com",
+    "https://a.images.example.com",
+    "https://cdn.example.com",
+    "https://other.example.com",
+    "https://login.example.com",
+    "https://public.example.com",
+)
 
 
 class Flow(BaseAuthFlow):
@@ -58,14 +69,18 @@ def test_operation_scopes_are_compiled_before_auth_factory_and_frozen_per_operat
             return Flow()
 
         try:
-            first = shared.operation(
+            first = approved_operation(
+                shared,
+                origins=AUTHORIZED_ORIGINS,
                 plugin_id="test.one",
                 operation_url="https://www.host1.com/page",
                 settings=settings,
                 plugin_config=config,
                 auth_flow_factory=factory,
             )
-            second = shared.operation(
+            second = approved_operation(
+                shared,
+                origins=AUTHORIZED_ORIGINS,
                 plugin_id="test.two",
                 operation_url="https://www.host2.com/page",
                 settings=settings,
@@ -97,13 +112,17 @@ def test_config_defaults_and_explicit_config_override_expand_all_hosts():
             }
         )
         try:
-            default = shared.operation(
+            default = approved_operation(
+                shared,
+                origins=AUTHORIZED_ORIGINS,
                 plugin_id=None,
                 operation_url="https://example.com",
                 settings=settings,
                 auth_flow_factory=lambda _: Flow(),
             )
-            override = shared.operation(
+            override = approved_operation(
+                shared,
+                origins=AUTHORIZED_ORIGINS,
                 plugin_id=None,
                 operation_url="https://example.com",
                 settings=settings,
@@ -116,7 +135,9 @@ def test_config_defaults_and_explicit_config_override_expand_all_hosts():
             await override.execute(RequestSpec("https://cdn.host2.com/image"))
             assert override.auth.flow.initializations == 1
             with pytest.raises(ConfigurationError, match="undefined endpoint variable"):
-                shared.operation(
+                approved_operation(
+                    shared,
+                    origins=AUTHORIZED_ORIGINS,
                     plugin_id=None,
                     operation_url="https://example.com",
                     settings=settings,
@@ -157,13 +178,15 @@ def test_wildcard_and_exact_none_apply_consistently_to_execute_preview_and_image
                 return RequestSpec(image.url)
 
         try:
-            session = shared.operation(
+            session = approved_operation(
+                shared,
+                origins=AUTHORIZED_ORIGINS,
                 plugin_id=None,
                 operation_url="https://www.example.com/page",
                 settings=settings,
                 auth_flow_factory=lambda _: flow,
             )
-            context = PluginExecutionContext({}, {}, {}, None, None, session, endpoints=session.endpoints)
+            context = PluginExecutionContext({}, {}, {}, None, session, endpoints=session.endpoints)
             for host, token in (("a.images.example.com", "Bearer test-token"), ("public.images.example.com", None)):
                 url = f"https://{host}/image"
                 preview = await session.preview(RequestSpec(url))
@@ -208,7 +231,9 @@ def test_authenticated_redirect_rejects_exceptions_and_unmatched_hops_before_sen
 
         shared = gateway(handler)
         try:
-            session = shared.operation(
+            session = approved_operation(
+                shared,
+                origins=AUTHORIZED_ORIGINS,
                 plugin_id=None,
                 operation_url="https://www.example.com/page",
                 auth_flow_factory=lambda _: Flow(),
@@ -245,7 +270,9 @@ def test_authenticated_redirect_checks_every_hop_without_reapplying_or_reverifyi
         shared = gateway(handler)
         flow = Flow()
         try:
-            session = shared.operation(
+            session = approved_operation(
+                shared,
+                origins=AUTHORIZED_ORIGINS,
                 plugin_id=None,
                 operation_url="https://www.example.com/page",
                 auth_flow_factory=lambda _: flow,
@@ -284,6 +311,9 @@ def test_auth_hook_uses_declared_wildcards_none_and_operation_but_rejects_unknow
 
         class Login(Flow):
             async def initialize(self, context):
+                return None
+
+            async def login(self, context):
                 assert context.endpoints["operation"].origin == "https://example.com:443"
                 await context.requests.execute(RequestSpec("https://example.com/bootstrap"))
                 await context.requests.execute(RequestSpec("https://login.example.com/login", auth=AuthMode.NONE))
@@ -296,7 +326,9 @@ def test_auth_hook_uses_declared_wildcards_none_and_operation_but_rejects_unknow
 
         shared = gateway(handler)
         try:
-            session = shared.operation(
+            session = approved_operation(
+                shared,
+                origins=AUTHORIZED_ORIGINS,
                 plugin_id=None,
                 operation_url="https://example.com/page",
                 auth_flow_factory=lambda _: Login(),
@@ -309,7 +341,7 @@ def test_auth_hook_uses_declared_wildcards_none_and_operation_but_rejects_unknow
                     }
                 ),
             )
-            await session.execute(RequestSpec("https://cdn.example.com/image"))
+            await session.execute(RequestSpec("https://cdn.example.com/image", auth=AuthMode.REQUIRED))
             assert sent == [
                 "example.com",
                 "login.example.com",
@@ -329,7 +361,9 @@ def test_explicit_wildcard_policy_overrides_implicit_operation_default():
         sent = []
         shared = gateway(lambda request: sent.append(request.headers.get("Authorization")) or httpx.Response(200))
         try:
-            session = shared.operation(
+            session = approved_operation(
+                shared,
+                origins=AUTHORIZED_ORIGINS,
                 plugin_id=None,
                 operation_url="https://www.example.com/page",
                 auth_flow_factory=lambda _: flow,
@@ -359,7 +393,9 @@ def test_reserved_operation_name_requires_one_concrete_origin(origin):
         shared = gateway(lambda request: httpx.Response(200))
         try:
             with pytest.raises(AuthScopeError, match="reserved"):
-                shared.operation(
+                approved_operation(
+                    shared,
+                    origins=AUTHORIZED_ORIGINS,
                     plugin_id=None,
                     operation_url="https://example.com/page",
                     settings=PluginSettings.model_validate(
@@ -379,7 +415,9 @@ def test_invalid_expansion_fails_before_auth_factory_and_session_declarations_re
         shared = gateway(lambda request: pytest.fail("must not send"))
         try:
             with pytest.raises(ConfigurationError, match="endpoints.images.origin"):
-                shared.operation(
+                approved_operation(
+                    shared,
+                    origins=AUTHORIZED_ORIGINS,
                     plugin_id=None,
                     operation_url="https://example.com",
                     settings=PluginSettings.model_validate(
@@ -392,7 +430,9 @@ def test_invalid_expansion_fails_before_auth_factory_and_session_declarations_re
                     auth_flow_factory=lambda _: pytest.fail("invalid rules must precede auth_flow"),
                 )
             with pytest.raises(AuthScopeError, match="auth_flow returned None"):
-                shared.operation(
+                approved_operation(
+                    shared,
+                    origins=AUTHORIZED_ORIGINS,
                     plugin_id=None,
                     operation_url="https://example.com",
                     settings=PluginSettings.model_validate(
@@ -403,7 +443,9 @@ def test_invalid_expansion_fails_before_auth_factory_and_session_declarations_re
                         }
                     ),
                 )
-            session = shared.operation(
+            session = approved_operation(
+                shared,
+                origins=AUTHORIZED_ORIGINS,
                 plugin_id=None,
                 operation_url="https://example.com",
                 settings=PluginSettings.model_validate(

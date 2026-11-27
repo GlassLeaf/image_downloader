@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from pathlib import Path
 from typing import Literal, Protocol, cast
 
@@ -196,8 +196,10 @@ class PreparedCommand:
     arguments: CommandArguments
     plugin_config: PluginConfigOverrides
     download_policy: PluginDownloadPolicyOverrides
+    auth_access: PluginConfigOverrides = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "auth_access", cast(PluginConfigOverrides, freeze_json(self.auth_access)))
         object.__setattr__(self, "plugin_config", cast(PluginConfigOverrides, freeze_json(self.plugin_config)))
         object.__setattr__(
             self, "download_policy", cast(PluginDownloadPolicyOverrides, freeze_json(self.download_policy))

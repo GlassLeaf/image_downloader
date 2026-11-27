@@ -4,10 +4,15 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
+from dataclasses import replace
 from urllib.parse import urlparse
 
 from image_downloader import (
+    AuthContext,
     AuthFlow,
+    AuthLease,
+    AuthMode,
+    BaseAuthFlow,
     Chapter,
     DownloadManifest,
     ImageArtifact,
@@ -34,6 +39,15 @@ def _json(body: bytes) -> Mapping[str, object]:
     if not isinstance(value, Mapping):
         raise PluginError("cursor gallery response is invalid")
     return value
+
+
+class ApiTokenFlow(BaseAuthFlow):
+    async def initialize(self, auth_context: AuthContext) -> AuthLease:
+        self.token = auth_context.credentials.get("api_token")
+        return AuthLease()
+
+    def apply(self, request: RequestSpec) -> RequestSpec:
+        return replace(request, headers={**request.headers, "X-Api-Key": self.token})
 
 
 class CursorApiGalleryPlugin:
@@ -66,7 +80,7 @@ class CursorApiGalleryPlugin:
                 RequestSpec(
                     api,
                     method="POST",
-                    headers={"Accept": "application/json", "X-Api-Key": context.secrets.get("api_token")},
+                    headers={"Accept": "application/json"},
                     json={"cursor": cursor},
                 )
             )
@@ -93,7 +107,7 @@ class CursorApiGalleryPlugin:
 
     async def create_image_request(self, image: ImageResource, context: PluginExecutionContext) -> RequestSpec:
         del context
-        return RequestSpec(image.url, referer=image.referer)
+        return RequestSpec(image.url, referer=image.referer, auth=AuthMode.NONE)
 
     async def recover_image_request(
         self,
@@ -107,7 +121,7 @@ class CursorApiGalleryPlugin:
 
     def auth_flow(self, context: PluginExecutionContext) -> AuthFlow | None:
         del context
-        return None
+        return ApiTokenFlow()
 
     def transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:
         del context

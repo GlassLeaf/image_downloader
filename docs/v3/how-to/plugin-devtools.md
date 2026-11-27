@@ -61,11 +61,20 @@ cookies:
 application:
   network:
     max_attempts: 2
+  plugin_settings:
+    com.example.gallery:
+      auth_access:
+        sites:
+          development:
+            origins: https://example.test
+            secrets: {api_token: API_TOKEN}
+            login: allow
 scenarios: []
 ```
 
 設定値は作者既定値、`application.plugin_settings`、開発設定の`config`、`--config`の順に重ねます。
 `--app-config`は開発設定の`application`に重ねます。
+開発ツールが読み込むYAML全体（回答設定、fixture、シナリオを含む）で、同じマッピング内の明示キー重複はエラーです。アンカーと通常のマージは利用できます。
 試験用のデータ・プラグインルートと通知の無効化は開発ツールが設定します。
 
 HTML抽出とCSRFログインのCSS解析には `parser` extraが必要です。
@@ -158,7 +167,7 @@ kwargs:
 `context`は型名ではなく参照名です。引数名が`ctx`などの場合は、
 `PluginExecutionContext`という型注釈だけではこの参照を新たに用意しません。
 `{$type: PluginExecutionContext}`だけでは必須引数が不足します。
-構築には`config`、`app_settings`、`manifest`、`catalog`、`secrets`、`requests`の指定が必要です。
+構築には`config`、`app_settings`、`manifest`、`catalog`、`requests`の指定が必要です。
 `$type`が通信や秘密情報のサービスを自動で準備するわけではないため、
 ツールが準備済みのコンテキストを使う場合は`{$ref: context}`を指定します。
 
@@ -300,6 +309,8 @@ image-downloader-dev sign C:\work\my-gallery --key C:\work\keys\publisher.pem --
 署名鍵はプラグインのソースツリー外に指定します。
 
 ## 認証データ・出力・終了コード
+
+資格情報提供とログインには、`application.plugin_settings.<id>.auth_access`か`--app-config`でユーザー許可を明示します。作者のconfig・secret_references・fixtureからサイト、参照設定、許可を補完しません。認証付きの生成replayテストは明示設定がある場合だけ生成します。`${host_groups.default}`・ワイルドカードも[通常の認証設定](auth-access-and-ephemeral-sessions.md)と同じ規則です。
 
 通常は開発設定の`secrets`と`cookies`を使います。
 `--profile NAME --profile-data-root PATH`を明示すると、既存保管庫の秘密値を必要時に読み、

@@ -44,6 +44,7 @@ class UpdateExecutor:
                 request.plugin_id,
                 request.force_plugin,
                 request.plugin_download_policy_overrides,
+                auth_access_overrides=request.plugin_auth_access_overrides,
                 selected_plugin=selected_plugin,
             ) as site:
                 record, plugin, context, invoker = site.record, site.plugin, site.context, site.invoker

@@ -8,6 +8,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from support.auth import approved_operation
 
 from image_downloader import AuthenticationError, HttpStatusError, PluginError, PluginExecutionContext, RequestSpec
 from image_downloader.config import AppConfig
@@ -159,7 +160,7 @@ def operation(plugin_record, plugin_class):
             nonlocal context
             session.bind_auth_context({}, secrets)
             context = PluginExecutionContext(
-                {}, {}, plugin_record.manifest.value, None, secrets, session, cookie_provider=gateway
+                {}, {}, plugin_record.manifest.value, None, session, cookie_provider=session, auth=session.auth
             )
             return plugin.auth_flow(context)
 
@@ -169,8 +170,20 @@ def operation(plugin_record, plugin_class):
                 "authentication": authentication or {},
             }
         )
-        session = gateway.operation(
-            plugin_id=plugin_record.id, operation_url=url, auth_flow_factory=factory, settings=settings
+        session = approved_operation(
+            gateway,
+            origins=(
+                "https://www.example.co.jp",
+                "https://example.com",
+                "http://example.com",
+                "https://www.example.com",
+                "http://www.example.com",
+                "https://cdn-image.example.co.jp",
+            ),
+            plugin_id=plugin_record.id,
+            operation_url=url,
+            auth_flow_factory=factory,
+            settings=settings,
         )
         try:
             yield plugin, context, gateway, session, secrets
@@ -232,6 +245,7 @@ def test_unauthorized_response_refreshes_session(operation):
     async def scenario():
         site = _Site()
         async with operation(site) as (_plugin, _context, gateway, session, _secrets):
+            assert await session.auth.request_login("prepare session for renewal test")
             await session.execute(RequestSpec(DOMAIN + WORK))
             gateway.client.cookies.delete("session", domain=".example.co.jp", path="/")
             response = await session.execute(RequestSpec(DOMAIN + CHAPTER))

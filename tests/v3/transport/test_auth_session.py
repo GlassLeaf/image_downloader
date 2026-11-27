@@ -5,6 +5,7 @@ from dataclasses import replace
 
 import httpx
 import pytest
+from support.auth import approved_access
 
 from image_downloader import (
     AuthContext,
@@ -60,6 +61,13 @@ def operation(flow, *, handler=None, settings=None, attempts=1):
         operation_url="https://site.test/gallery",
         auth_flow_factory=lambda _: flow,
         settings=PluginSettings.model_validate(settings or {}),
+        access=approved_access(
+            origins=tuple(
+                item["origin"]
+                for item in (settings or {}).get("endpoints", {}).values()
+                if isinstance(item["origin"], str)
+            )
+        ),
     )
     return gateway, session
 
@@ -74,6 +82,40 @@ def test_public_site_does_not_run_authentication(status):
             assert error.value.status == status
             with pytest.raises(AuthScopeError):
                 await session.execute(RequestSpec("https://site.test/file", auth=AuthMode.REQUIRED))
+        finally:
+            await gateway.close()
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("trigger", ["required", "explicit"])
+def test_verify_on_start_is_deferred_until_login_when_initialize_has_no_lease(trigger):
+    class Flow(BaseAuthFlow):
+        initialized = logged_in = verified = 0
+
+        async def initialize(self, context):
+            self.initialized += 1
+            return None
+
+        async def login(self, context):
+            self.logged_in += 1
+            return AuthLease()
+
+        async def verify(self, context):
+            self.verified += 1
+            return AuthVerification(AuthStatus.VALID)
+
+    async def scenario():
+        flow = Flow()
+        gateway, session = operation(flow, settings={"authentication": {"verify_on_start": True}})
+        try:
+            if trigger == "explicit":
+                assert await session.auth.request_login("protected content")
+            else:
+                await session.execute(RequestSpec("https://site.test/work", auth=AuthMode.REQUIRED))
+            await session.auth.ensure_ready()
+            assert (flow.initialized, flow.logged_in, flow.verified) == (1, 1, 1)
+            assert session.auth.snapshot().last_verified_status is AuthStatus.VALID
         finally:
             await gateway.close()
 
@@ -223,7 +265,10 @@ def test_non_idempotent_replay_requires_opt_in(allow):
 
 def test_dedicated_auth_requests_return_errors_and_share_cookies_without_reentry():
     class Flow(CountingFlow):
-        async def initialize(self, auth_context: AuthContext):
+        async def initialize(self, auth_context):
+            return None
+
+        async def login(self, auth_context: AuthContext):
             response = await auth_context.requests.execute(RequestSpec("https://site.test/login"))
             assert response.status == 401
             assert response.body == b"denied"
@@ -240,7 +285,7 @@ def test_dedicated_auth_requests_return_errors_and_share_cookies_without_reentry
         flow = Flow()
         gateway, session = operation(flow, handler=handler)
         try:
-            await asyncio.wait_for(session.execute(RequestSpec("https://site.test/file")), 2)
+            await asyncio.wait_for(session.execute(RequestSpec("https://site.test/file", auth=AuthMode.REQUIRED)), 2)
             assert flow.refreshed == 0
         finally:
             await gateway.close()
@@ -329,7 +374,7 @@ def test_cancelling_a_waiter_keeps_initialization_alive_and_close_collects_it():
             await task
         finally:
             await gateway.close()
-        assert session.auth._task.done()
+        assert session.auth._task is None
 
     asyncio.run(scenario())
 
@@ -384,7 +429,7 @@ def test_endpoint_scope_and_public_endpoint_do_not_leak_bearer_tokens():
             assert seen == [("api.test", "Bearer 0"), ("cdn.test", None)]
             with pytest.raises(AuthScopeError):
                 await session.execute(RequestSpec("https://unknown.test/file"))
-            with pytest.raises(AuthScopeError):
+            with pytest.raises(AuthReentryError):
                 await session.auth.context.requests.execute(RequestSpec("https://unknown.test/login"))
             with pytest.raises(ValueError):
                 session.endpoints["api"].request("//unknown.test/file")

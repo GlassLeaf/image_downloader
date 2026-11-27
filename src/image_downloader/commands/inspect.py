@@ -58,6 +58,7 @@ async def inspect_command(command: PreparedCommand, outcome: CommandOutcome) -> 
                 InspectRequest(
                     url=args.url,
                     plugin_overrides=overrides,
+                    plugin_auth_access_overrides=command.auth_access,
                     fallback_override=_fallback(args),
                     plugin_id=plugin_id,
                     force_plugin=force_plugin,

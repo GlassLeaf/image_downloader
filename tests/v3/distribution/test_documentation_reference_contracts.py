@@ -201,7 +201,7 @@ def test_configuration_plugin_and_runtime_references_cover_high_risk_semantics(
         "notification.email.smtp_port",
         "security.plugin_verification",
         "image_processors.chain",
-        "plugin_settings.<id>.secrets",
+        "plugin_settings.<id>.auth_access.sites.<site>.secrets",
         "fallback.generic_html.enabled",
     ):
         assert key in configuration

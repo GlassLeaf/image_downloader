@@ -15,7 +15,7 @@ from typing import Annotated, Union, get_args, get_origin
 
 from pydantic import BaseModel
 
-from .exceptions import ArgumentError, ConfigurationError
+from .exceptions import ArgumentError, AuthScopeError, ConfigurationError
 
 
 @dataclass(frozen=True)
@@ -38,6 +38,46 @@ def argument_error(message: str, kind: str, **details: object) -> ArgumentError:
 def configuration_error(message: str, kind: str, **details: object) -> ConfigurationError:
     error = ConfigurationError(message)
     error._core_diagnostic = Diagnostic(message, MappingProxyType({"kind": kind, **details}))
+    return error
+
+
+def host_group_diagnostic(
+    error: ValueError,
+    *,
+    plugin_id: str | None = None,
+    reference_field: str | None = None,
+    source: str | None = None,
+) -> ConfigurationError:
+    from .configuration.host_groups import HostGroupError
+
+    if not isinstance(error, HostGroupError):
+        raise TypeError("host group diagnostic requires a host group error")
+    prefix = "plugin_settings." + plugin_id + "." if plugin_id is not None else ""
+    field = prefix + ("allowed_hosts" if error.kind == "legacy" else "host_groups")
+    details: dict[str, object] = {"field": field}
+    if error.group is not None:
+        details.update(group=error.group, field=field + "." + error.group)
+    if plugin_id is not None:
+        details["plugin_id"] = plugin_id
+    if reference_field is not None:
+        details["reference_field"] = prefix + reference_field
+    if source is not None:
+        details["source"] = source
+    return configuration_error(str(error), "host_groups_" + error.kind, **details)
+
+
+def auth_scope_error(message: str, kind: str, *, plugin_id: str, field: str) -> AuthScopeError:
+    error = AuthScopeError(message)
+    error._core_diagnostic = Diagnostic(
+        message,
+        MappingProxyType(
+            {
+                "kind": kind,
+                "plugin_id": plugin_id,
+                "field": field,
+            }
+        ),
+    )
     return error
 
 
@@ -95,6 +135,34 @@ def validation_diagnostic(
         from .configuration.models import AppConfig
 
         model = AppConfig
+    from .configuration.auth_origins import AuthOriginError
+    from .configuration.host_groups import HostGroupError
+
+    context = issue.get("ctx")
+    origin_error = context.get("error") if isinstance(context, Mapping) else None
+    if isinstance(origin_error, HostGroupError):
+        location = issue.get("loc", ())
+        plugin_id = (
+            location[1]
+            if isinstance(location, (tuple, list))
+            and len(location) > 1
+            and location[0] == "plugin_settings"
+            and isinstance(location[1], str)
+            and re.fullmatch(r"[a-z0-9-]+(?:\.[a-z0-9-]+)+", location[1])
+            else None
+        )
+        return host_group_diagnostic(origin_error, plugin_id=plugin_id, source=source)
+    if isinstance(origin_error, AuthOriginError):
+        location = issue.get("loc", ())
+        origin_details: dict[str, object] = {"field": "auth_access.sites.<site>.origins"}
+        if isinstance(location, (tuple, list)) and len(location) > 1 and location[0] == "plugin_settings":
+            plugin_id = location[1]
+            if isinstance(plugin_id, str) and re.fullmatch(r"[a-z0-9-]+(?:\.[a-z0-9-]+)+", plugin_id):
+                origin_details["plugin_id"] = plugin_id
+                origin_details["field"] = "plugin_settings." + plugin_id + ".auth_access.sites.<site>.origins"
+        if source is not None:
+            origin_details["source"] = source
+        return configuration_error(str(origin_error), "auth_origins_" + origin_error.kind, **origin_details)
     field = _model_owned_field(model, issue.get("loc", ()))
     kind = str(issue.get("type", ""))
     ctx = issue.get("ctx")

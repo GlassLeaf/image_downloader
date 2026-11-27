@@ -169,6 +169,7 @@ def values(tmp_path):
         "data-root": str(tmp_path),
         "plugin-verification-override": "bypass-signature",
         "plugin-config": "com.example.gallery={}",
+        "plugin-auth-access": 'com.example.gallery={"mode":"anonymous"}',
         "plugin-config-file": str(config),
         "fallback-generic": "auto",
         "existing-file": "skip",

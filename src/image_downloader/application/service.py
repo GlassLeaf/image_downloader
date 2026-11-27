@@ -7,6 +7,7 @@ from functools import partial
 from types import TracebackType
 
 from ..configuration.models import AppConfig
+from ..credentials.access import LoginApprover
 from ..models import (
     DownloadResult,
     ManifestInspectionResult,
@@ -48,6 +49,8 @@ class DownloadService:
         config: AppConfig,
         registry: PluginRuntime,
         dependencies: _RuntimeDependencies,
+        *,
+        login_approver: LoginApprover | None = None,
     ) -> None:
         self.config, self.registry = config, registry
         self.outputs = dependencies.outputs
@@ -67,7 +70,14 @@ class DownloadService:
         self._closed = False
         self._close_task: asyncio.Task[BaseException | None] | None = None
 
-        self._operations = SiteOperationFactory(config, registry, self.gateway, self.logger, dependencies.credentials)
+        self._operations = SiteOperationFactory(
+            config,
+            registry,
+            self.gateway,
+            self.logger,
+            dependencies.credentials,
+            login_approver,
+        )
         self._downloads = DownloadExecutor(config, registry, dependencies, self._operations)
         self._inspection = InspectionExecutor(config, self.cookie_store, self.gateway, self._operations)
         self._updates = UpdateExecutor(self.state, self.events, self.logger, self._operations)
@@ -186,17 +196,23 @@ class DownloadService:
         # thread, has finished. Cancelling a waiter never cancels this task.
         async with self._operation_lock:
             self._closed = True
-            return await shutdown_resources(
-                persist_cookies=self._persist_cookies if self._persist_cookies_on_close else None,
-                gateway=self.gateway,
-                image_processor=self.image_processor,
-                transform_executor=self.transform_executor,
-                registry=self.registry,
-                logger=self.logger,
-            )
+            try:
+                return await shutdown_resources(
+                    persist_cookies=self._persist_cookies if self._persist_cookies_on_close else None,
+                    gateway=self.gateway,
+                    image_processor=self.image_processor,
+                    transform_executor=self.transform_executor,
+                    registry=self.registry,
+                    logger=self.logger,
+                )
+            finally:
+                self._operations.clear()
 
     async def _persist_cookies(self) -> None:
         # Persistence can hold the cookie lock; closing the client must wait for it.
+        await self.gateway._finish_operations()
+        if not self.gateway.cookies_loaded:
+            return
         await finish_transaction(
             partial(
                 self.cookie_store.persist_delta,

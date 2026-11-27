@@ -59,7 +59,6 @@ def _context(
         {},
         record.manifest.value,
         catalog,
-        _Secrets(),
         requests,
     )
 

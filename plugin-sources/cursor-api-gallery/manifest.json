@@ -17,14 +17,14 @@
     },
     "config_file": "plugin.yaml",
     "api_version": "3",
-    "public_key": "nXreC2mAtFSh+eqWrRPeKM4Aps7QLf4UUQ7TE3tCCmQ=",
-    "key_id": "6861a70e3992291678e776ca440f0ced984b1e4d43755551c1ff3f5a2773fb41",
+    "public_key": "5sovEl2T8izY3Pak8kv4imlXf8j2xYY+yzgtAHBPdRk=",
+    "key_id": "3c903f78c196945408283eff44652e7904843b1da75f1994463d7c004b732bb1",
     "file_tree": {
-      "cursor_api_gallery.py": "30c6019de16541ac55db7b965bc80ec5d2c8f94050912982eee7949444135ee7",
+      "cursor_api_gallery.py": "5c83bfa5fb344d3908730a7583daf9157e00a885c29a66a96ae02ae4881d538c",
       "plugin-metadata.json": "db8266b86531106c37fb6ea5467a713e0f7cc0b433150dc45148734e325368d2",
       "plugin.yaml": "009c4672fda30d3313d1e114efe92407bd27fdbf08ca7f85b781afacad87e96a"
     },
-    "file_tree_sha256": "da902a4d7938f1d2b1c5682454ac1b9451bbe663c419e46d28d2820edeb77b79"
+    "file_tree_sha256": "d258b4196ef650efa4b34074a907994bc1baf621b498b9898e933f274c09b64a"
   },
-  "signature": "Mp2ucAeB8rw3k3UPauF4XaQYMC+BNskQLprmEyXjeimTgmF9kMIskXyqNHyPSDBzwTB/0yhOnCLqN7StDZlSDg=="
+  "signature": "D5q9m1pAiquKstYBFJ/fQLgaRrqevndbED6v3SgiBMZyQC3QpPtMv/3N2Sm6N8Vo/4RcTfWF7Lfgm6yzGeDkCA=="
 }

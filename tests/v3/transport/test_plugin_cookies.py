@@ -10,6 +10,7 @@ from inspect import signature
 
 import httpx
 import pytest
+from support.auth import approved_operation
 
 from image_downloader import (
     AuthContext,
@@ -36,9 +37,7 @@ class _Secrets:
 
 
 def _context(gateway: RequestGateway, *, with_provider: bool = True) -> PluginExecutionContext:
-    return PluginExecutionContext(
-        {}, {}, {}, None, _Secrets(), gateway, cookie_provider=gateway if with_provider else None
-    )
+    return PluginExecutionContext({}, {}, {}, None, gateway, cookie_provider=gateway if with_provider else None)
 
 
 def _cookie(name, value, domain, path="/", *, expires=None, secure=False, rest=None):
@@ -248,8 +247,12 @@ def test_auth_refresh_can_read_cookies_from_failed_response():
                 assert context.get_cookies(domain="example.test", path="/") == {"session": "challenge"}
                 return AuthLease()
 
-        session = gateway.operation(
-            plugin_id="example.plugin", operation_url="https://example.test/", auth_flow_factory=lambda _: Flow()
+        session = approved_operation(
+            gateway,
+            origins=(),
+            plugin_id="example.plugin",
+            operation_url="https://example.test/",
+            auth_flow_factory=lambda _: Flow(),
         )
         try:
             response = await session.execute(RequestSpec("https://example.test/login"))

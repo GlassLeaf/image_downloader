@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import base64
 import re
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Literal, cast
@@ -21,6 +21,7 @@ from ..storage.path_safety import existing_directory
 PluginKind = Literal["site_plugin", "image_processor_plugin"]
 PluginConfigOverrides = Mapping[str, Mapping[str, Any]]
 PluginDownloadPolicyOverrides = Mapping[str, Mapping[str, Any]]
+PluginAuthAccessOverrides = Mapping[str, Mapping[str, Any]]
 PluginVerificationMode = Literal[
     "strict",
     "warn",
@@ -271,7 +272,7 @@ def read_manifest(directory: Path, *, mode: PluginVerificationMode = "strict") -
     )
 
 
-def author_settings(manifest: PluginManifest) -> Mapping[str, Any]:
+def author_settings(manifest: PluginManifest, *, read_yaml: Callable[[Path], Any] | None = None) -> Mapping[str, Any]:
     config_file = manifest.value.get("config_file")
     if config_file is None:
         return cast(Mapping[str, Any], freeze_json({"config": {}}))
@@ -280,7 +281,7 @@ def author_settings(manifest: PluginManifest) -> Mapping[str, Any]:
     path = manifest.directory / config_file
     _require_regular(path, "plugin author config must be a regular non-link file")
     try:
-        value = yaml.safe_load(path.read_text(encoding="utf-8"))
+        value = read_yaml(path) if read_yaml is not None else yaml.safe_load(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, yaml.YAMLError) as exc:
         raise PluginError("plugin author YAML is invalid") from exc
     if (

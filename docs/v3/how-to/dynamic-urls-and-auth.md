@@ -16,7 +16,7 @@ CLI は `--inspection-data url|http|all` で stdout の露出範囲を選ぶ。�
 
 呼出回数、auth/recovery 順、並行性、完全な signature は [実行ライフサイクル](../explanation/execution-lifecycle.md) と [プラグインフックリファレンス](../reference/plugin-hooks.md) を使用する。
 
-認証付きサンプルの`context.secrets.get(name)`には、利用者が対象プロファイルの保管庫へ登録した値を渡す。
+認証付きサンプルの`auth_context.credentials.get(name)`には、利用者が対象プロファイルの保管庫へ登録した値を渡す。
 YAMLの参照名・`credential plugin set`・実行先の対応は[サンプルの登録手順](../../../plugin-sources/README.md#migrated-v2-pattern-samples)を参照する。
 登録と実行でデータルート・プロファイルを揃える。OAuth更新結果の自動保存は行わない。
 

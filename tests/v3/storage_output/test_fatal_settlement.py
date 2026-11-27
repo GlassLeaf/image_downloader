@@ -66,6 +66,8 @@ PROBE = textwrap.dedent(
 
                     service.logger.close = close_logger
                 else:
+                    # Select persistent state before injecting a persistence failure.
+                    service.gateway._ensure_cookies()
                     service.cookie_store.persist_delta = fail_sync
                 if mode.endswith("_primary"):
                     async with service:
@@ -101,8 +103,17 @@ PROBE = textwrap.dedent(
 @pytest.mark.parametrize("kind", ["exit", "interrupt", "cancel"])
 @pytest.mark.parametrize(
     "mode",
-    ["transaction", "history", "allocation", "bounded", "factory", "service", "service_primary",
-     "service_logger", "service_logger_primary"],
+    [
+        "transaction",
+        "history",
+        "allocation",
+        "bounded",
+        "factory",
+        "service",
+        "service_primary",
+        "service_logger",
+        "service_logger_primary",
+    ],
 )
 def test_fatal_failures_do_not_escape_the_owners_event_loop(tmp_path, kind, mode):
     # A regression can stop asyncio.run itself. Isolate it from pytest so the
@@ -114,9 +125,11 @@ def test_fatal_failures_do_not_escape_the_owners_event_loop(tmp_path, kind, mode
         timeout=30,
     )
     assert result.returncode == 0, result.stdout + result.stderr
-    expected = "ValueError" if mode.endswith("_primary") else {
-        "exit": "SystemExit", "interrupt": "KeyboardInterrupt", "cancel": "CancelledError"
-    }[kind]
+    expected = (
+        "ValueError"
+        if mode.endswith("_primary")
+        else {"exit": "SystemExit", "interrupt": "KeyboardInterrupt", "cancel": "CancelledError"}[kind]
+    )
     assert json.loads(result.stdout) == {"caught": expected}
 
 

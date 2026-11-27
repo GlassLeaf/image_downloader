@@ -18,7 +18,7 @@
 | 検査 | `async inspect(self, url: str, context: PluginExecutionContext) -> DownloadManifest` | operation ごとに一回、有限で完全な manifest。pagination はここで完結し、JS/DOM/browser execution はない。画像の論理的な元名が分かる site plugin は `ImageResource.original_filename` に非秘密な単一ファイル名を設定できる。 |
 | 画像要求 | `async create_image_request(self, image: ImageResource, context: PluginExecutionContext) -> RequestSpec | ImageFetchRequest` | image fetch 直前に一回。`image.url` の locator（canonical URL、ID、placeholder のいずれでもよい）と `image_id` から header/referer/直前 API 解決を行い、実際に送信する absolute HTTP(S) `RequestSpec.url` を返す。request-time の transform data が必要なら `ImageFetchRequest(request, plugin_data)` を返せる。locator 自体は transport に送られない。 |
 | 回復 | `async recover_image_request(self, image: ImageResource, failed: RequestSpec, response: RequestResponse, context: PluginExecutionContext) -> RequestSpec | ImageFetchRequest | None` | AuthFlow refresh 後にも HTTP `status >=400` が残るときだけ最大一回。transport failure には呼ばれない。short-lived URL を再発行するか `None`。bare `RequestSpec` は直前の `plugin_data` を維持し、`ImageFetchRequest` はそれを置換する。 |
-| 認証 | `auth_flow(self, context: PluginExecutionContext) -> AuthFlow | None` | async `initialize(auth_context: AuthContext) -> AuthLease`、同期 `apply(request: RequestSpec) -> RequestSpec`、同期 `classify_response(request: RequestSpec, response: RequestResponse) -> AuthDecision`、async `verify(auth_context: AuthContext) -> AuthVerification`、async `refresh(auth_context: AuthContext) -> AuthLease`。`BaseAuthFlow` が既定実装を提供する。 |
+| 認証 | `auth_flow(self, context: PluginExecutionContext) -> AuthFlow | None` | async `initialize(auth_context: AuthContext) -> AuthLease | None`、async `login(auth_context: AuthContext) -> AuthLease`、同期 `apply(request: RequestSpec) -> RequestSpec`、同期 `classify_response(request: RequestSpec, response: RequestResponse) -> AuthDecision`、async `verify(auth_context: AuthContext) -> AuthVerification`、async `refresh(auth_context: AuthContext) -> AuthLease`。`BaseAuthFlow` が既定実装を提供する。 |
 | サイト側の画像変換 | `transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact` | 通信・秘密情報へのアクセス権限なし。 |
 | 更新確認 | `async check_updates(self, url: str, context: PluginExecutionContext) -> UpdateSnapshot` | 任意。部分的な差分ではなく、完全なスナップショットを返す。 |
 | プロセッサーの画像変換 | `transform(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact` | 設定済みの処理チェーンの順に実行する。 |
@@ -212,7 +212,7 @@ template は `%CHAPTER_NUMBER%` と `%IMAGE_INDEX%` にその値を四桁ゼロ�
 | `.plugin_manifest` | `Mapping[str, object]` | 既存`.manifest`と同じパッケージ情報の別名 |
 | `.plugin_data` | `PluginDataView` | 対象作品・章・画像の構造化データ。下記の階層別ビューを参照 |
 | `.catalog` | `Mapping[str, object] | None` | 選択したプラグインのカタログのpin。pinなし・組込みの場合は`None`。 |
-| `.secrets` | `SecretProvider` | `get(name: str) -> str`。参照の未構成・未登録は`SecretNotFoundError`、鍵欠損・破損などの保管庫障害は`VaultError`。読取り専用。[登録方法](credential-vault.md#登録一覧削除)。 |
+| `AuthContext.credentials`（認証フック専用） | `SecretProvider` | `get(name: str) -> str`。参照の未構成・未登録は`SecretNotFoundError`、鍵欠損・破損などの保管庫障害は`VaultError`。読取り専用。[登録方法](credential-vault.md#登録一覧削除)。 |
 | `.requests` | `RequestPort` | `await execute(RequestSpec) -> RequestResponse`。提供する通信権限はこれだけです。 |
 | `.auth` | `AuthPort` | `await ensure_ready(check=False)` で必要な初期化・更新、`check=True` で追加確認も要求する。`invalidate(response)` は同一operationの現在世代だけを無効化する。同期の`snapshot()`は通信せず現在の認証結果を返す。 |
 | `.endpoints` | `Mapping[str, Endpoint]` | 宣言済み接続先の読取り専用mapping。`.request(path, **kwargs)` で `RequestSpec` を構築する。`operation` は自動的に用意する。 |
@@ -241,13 +241,13 @@ template は `%CHAPTER_NUMBER%` と `%IMAGE_INDEX%` にその値を四桁ゼロ�
 
 | `AuthFlow` のメソッド | 責務と既定実装 |
 | --- | --- |
-| `async initialize(auth_context) -> AuthLease` | 初回のtoken読込み・ログイン等。`BaseAuthFlow` では実装必須。 |
+| `async initialize(auth_context) -> AuthLease | None` | 通信なしの既存状態の準備。既定はNone。 |
 | `apply(request) -> RequestSpec` | 準備済み資格情報を同期で付与する。通信不可。既定は要求をそのまま返す。origin・authモードは変更不可。 |
 | `classify_response(request, response) -> AuthDecision` | 通信なしで応答を分類する。既定は401がAUTH_FAILURE、403がUNKNOWN、その他はNOT_AUTH_FAILURE。 |
 | `async verify(auth_context) -> AuthVerification` | 必要なら追加通信で状態確認する。既定はUNKNOWN。設定で確認を有効にするサイトは実装が必要。 |
 | `async refresh(auth_context) -> AuthLease` | 再ログイン・token更新を行う。要求ではなくleaseを返す。既定は更新未対応の `AuthenticationError`。 |
 
-`AuthContext` は固有の `config`、`secrets`、`endpoints`、認証用の `requests` を持つ。認証通信は引数の `auth_context.requests` を使い、通常の `PluginExecutionContext.requests` / `.auth` へ再入すると、ロック待ちの前に `AuthReentryError` となる。専用の入口は共有のHTTPクライアント・Cookie jar・プール・タイムアウト・通信制限・transport再試行を使うが、自動apply・応答分類・認証確認・認証更新は行わない。HTTPエラー応答も本文付きで返すため、フロー側で必要な成功判定を行う。
+`AuthContext` は固有の `config`、`credentials`、`endpoints`、認証用の `requests` を持つ。認証通信は引数の `auth_context.requests` を使い、通常の `PluginExecutionContext.requests` / `.auth` へ再入すると、ロック待ちの前に `AuthReentryError` となる。専用の入口は共有のHTTPクライアント・Cookie jar・プール・タイムアウト・通信制限・transport再試行を使うが、自動apply・応答分類・認証確認・認証更新は行わない。HTTPエラー応答も本文付きで返すため、フロー側で必要な成功判定を行う。
 
 認証用通信の送信先はoperationの既定originを含む宣言済みoriginに限り、リダイレクト先も制限する。`AuthMode.NONE` でもこの制限は外れない。cross-origin redirectでは通常の非認証経路と同じヘッダー除去・本文転送制限を使う。Bearer等が必要なら認証フック側で明示し、Cookieは共有jarから通常どおり送信する。[Cookieログインの更新経路](../how-to/authentication-migration.md#cookie-session-refresh)を参照する。
 
@@ -332,7 +332,7 @@ pathのみでは `{domain: {name: value}}`、両方では `{name: value}` を返
 
 Cookieの保存・後続要求への付与は共有HTTPクライアントが自動的に行う。認証用の `AuthContext.requests` も同じjarを使うため、ログインPOSTの応答オブジェクトを保持しなくても、受信したCookieは後続の通常要求に反映される。`get_cookies()` / `set_cookies()` の呼出しや手動コピーは更新のために不要で、応答がHTTP成功でもログイン成功を保証するものではない。`AuthLease()` はコアの認証世代・期限のための戻り値で、Cookie保存を行わない。[CSRFサンプルの説明](../how-to/authentication-migration.md#cookie-session-refresh)を参照する。
 
-手動で構築する `PluginExecutionContext` は従来の位置引数を維持し、任意のkeyword-only引数
+手動で構築する `PluginExecutionContext` は位置引数のsecretsを削除し、任意のkeyword-only引数
 `cookie_provider: CookieProvider | None = None` を追加する。
 `CookieProvider.get_cookie_snapshot() -> dict[str, dict[str, dict[str, str]]]` は有効なCookieのコピーを返す。
 未注入時の `get_cookies()` は `UnsupportedSiteFeatureError`。本体と開発ツールはproviderを注入する。
@@ -482,3 +482,5 @@ BEFORE_MANIFESTの受信は空、manifest確定後の各章への保存コール
 新機能を使うプラグインはvalidate_configなど通信前の段階で対応を確認する。
 既存プラグインの一斉移行や非推奨警告は行わない。
 配置表・新旧コード例・配布順序は[移行ガイド](../how-to/structured-data-and-auth-snapshot-migration.md)を参照する。
+
+サイトの選択、ログイン許可、コマンド単位の非保存は[サイト別認証アクセス](../how-to/auth-access-and-ephemeral-sessions.md)を参照してください。`AuthPort.request_login(reason: str) -> bool`は許可・成功でTrue、拒否でFalseを返します。

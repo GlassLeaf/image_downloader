@@ -20,6 +20,7 @@ import httpx
 
 from ..configuration.hosts import normalize_host, registrable_domain
 from ..configuration.models import AppConfig, PluginConnections, PluginSettings
+from ..credentials.access import CommandAuthAccess, ResolvedAuthAccess
 from ..exceptions import (
     AuthScopeError,
     HttpTransportError,
@@ -34,6 +35,7 @@ from ..models import (
 )
 from ..observability.logging import DownloadLogger
 from ..plugins.plugin_invoker import PluginInvoker
+from .cookie_scope import COOKIE_ORIGINS
 from .metadata import (
     _GatewayLogFields,
     _request_metadata,
@@ -43,8 +45,20 @@ from .metadata import (
 from .operation import OperationRequestGateway
 
 
+class _SharedTransport(httpx.AsyncBaseTransport):
+    """Reuse the owner's pool/proxy routing without sharing client cookies or closing its pool."""
+
+    def __init__(self, client: httpx.AsyncClient) -> None:
+        self.client = client
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        return await self.client._transport_for_url(request.url).handle_async_request(request)
+
+
 class RequestGateway:
     """Service-owned HTTP pool, Cookie jar, retry policy, and rate limiters."""
+
+    client: httpx.AsyncClient
 
     def __init__(
         self,
@@ -53,6 +67,8 @@ class RequestGateway:
         *,
         logger: DownloadLogger | None = None,
         transport_factory: Callable[[], httpx.AsyncBaseTransport] | None = None,
+        cookie_loader: Callable[[], CookieJar] | None = None,
+        limit_parent: RequestGateway | None = None,
     ) -> None:
         self.config = config
         network = config.network
@@ -70,11 +86,24 @@ class RequestGateway:
             lambda: asyncio.Semaphore(network.registrable_domain_request_concurrency or network.request_concurrency)
         )
         self._interval_lock = asyncio.Lock()
-        self._last_request = 0.0
+        self._last_request = [0.0]
+        self._connections = asyncio.Semaphore(network.pool_max_connections)
+        self._parent = limit_parent
+        self._children: set[RequestGateway] = set()
+        self._closed = False
+        self._cookie_loader = cookie_loader
+        self.cookies_loaded = cookie_loader is None
+        self.cookie_baseline: dict = {}
+        if limit_parent is not None:
+            for name in ("_global", "_hosts", "_sites", "_interval_lock", "_last_request", "_connections"):
+                setattr(self, name, getattr(limit_parent, name))
+            limit_parent._children.add(self)
         self._logger = logger
         self.transport_factory = transport_factory
         self._operations: WeakSet[OperationRequestGateway] = WeakSet()
         transport_options: dict[str, Any] = {"transport": transport_factory()} if transport_factory is not None else {}
+        if limit_parent is not None and transport_factory is None:
+            transport_options["transport"] = _SharedTransport(limit_parent.client)
         self.client = httpx.AsyncClient(
             http2=network.http2,
             timeout=timeout,
@@ -84,10 +113,32 @@ class RequestGateway:
             ),
             # Redirects are followed by this gateway so every hop is checked first.
             follow_redirects=False,
-            proxy=network.proxy if transport_factory is None else None,
+            proxy=network.proxy if transport_factory is None and limit_parent is None else None,
             headers=dict(network.headers),
             cookies=cookie_jar,
             **transport_options,
+        )
+
+    def _ensure_cookies(self) -> None:
+        if not self.cookies_loaded:
+            from ..storage.cookies import CookieStore
+
+            assert self._cookie_loader is not None
+            loaded = httpx.Cookies(self._cookie_loader())
+            self.cookie_baseline.clear()
+            self.cookie_baseline.update(CookieStore.snapshot(loaded.jar))
+            for cookie in self.client.cookies.jar:
+                loaded.jar.set_cookie(cookie)
+            self.client.cookies = loaded
+            self.cookies_loaded = True
+
+    def _fork(self, cookies: CookieJar | None = None, *, diagnostics: bool = True) -> RequestGateway:
+        return RequestGateway(
+            self.config,
+            cookies,
+            logger=self._logger if diagnostics else None,
+            transport_factory=self.transport_factory,
+            limit_parent=self,
         )
 
     def operation(
@@ -100,6 +151,9 @@ class RequestGateway:
         request_concurrency: int | None = None,
         settings: PluginSettings | PluginConnections | None = None,
         plugin_config: Mapping[str, object] | None = None,
+        access: ResolvedAuthAccess | None = None,
+        consent: CommandAuthAccess | None = None,
+        host_groups: Mapping[str, tuple[str, ...]] | None = None,
     ) -> OperationRequestGateway:
         session = OperationRequestGateway(
             self,
@@ -109,6 +163,9 @@ class RequestGateway:
             request_concurrency=request_concurrency,
             settings=settings,
             plugin_config=plugin_config,
+            access=access,
+            consent=consent,
+            host_groups=host_groups,
         )
         self._operations.add(session)
         flow = auth_flow_factory(session) if auth_flow_factory is not None else None
@@ -124,6 +181,7 @@ class RequestGateway:
 
     def get_cookie_snapshot(self) -> dict[str, dict[str, dict[str, str]]]:
         """Read the current jar without exposing or mutating its Cookie objects."""
+        self._ensure_cookies()
         now = int(time.time())
         snapshot: dict[str, dict[str, dict[str, str]]] = {}
         for cookie in self.client.cookies.jar:
@@ -149,7 +207,11 @@ class RequestGateway:
             retry_after = None
             try:
                 if allowed_endpoint_origins is not None:
-                    response = await self._once(spec, allowed_endpoint_origins=allowed_endpoint_origins)
+                    response = await self._once(
+                        spec,
+                        allowed_endpoint_origins=allowed_endpoint_origins,
+                        allowed_redirect_origins=allowed_redirect_origins,
+                    )
                 elif trace is not None:
                     trace.clear()
                     response = await self._once(spec, allowed_redirect_origins=allowed_redirect_origins, trace=trace)
@@ -208,6 +270,9 @@ class RequestGateway:
         initial_request = _request_metadata(request)
         redirects = 0
         while True:
+            cookie_origins = COOKIE_ORIGINS.get()
+            if cookie_origins is not None and not cookie_origins.matches(_request_origin(str(request.url))):
+                request.headers.pop("Cookie", None)
             if allowed_endpoint_origins is not None and not allowed_endpoint_origins(_request_origin(str(request.url))):
                 raise AuthScopeError("authentication redirect targets an undeclared endpoint")
             async with self._send_one_hop(request) as response:
@@ -243,7 +308,7 @@ class RequestGateway:
         headers = dict(spec.headers)
         if spec.referer and not any(key.lower() == "referer" for key in headers):
             headers["Referer"] = spec.referer
-        return self.client.build_request(
+        request = self.client.build_request(
             spec.method,
             spec.url,
             headers=headers,
@@ -252,6 +317,10 @@ class RequestGateway:
             data=dict(spec.form) or None,
             json=thaw_json(spec.json),
         )
+        cookie_origins = COOKIE_ORIGINS.get()
+        if cookie_origins is not None and not cookie_origins.matches(_request_origin(spec.url)):
+            request.headers.pop("Cookie", None)
+        return request
 
     @asynccontextmanager
     async def _send_one_hop(self, request: httpx.Request) -> AsyncIterator[httpx.Response]:
@@ -260,22 +329,22 @@ class RequestGateway:
         parsed = urlparse(url)
         normalized_host, is_ip = normalize_host(parsed.hostname or "")
         site = normalized_host if is_ip else registrable_domain(normalized_host)
-        async with self._global, self._hosts[origin], self._sites[site]:
+        async with self._global, self._hosts[origin], self._sites[site], self._connections:
             async with self._interval_lock:
                 remaining = self.config.network.global_request_interval_seconds - (
-                    time.monotonic() - self._last_request
+                    time.monotonic() - self._last_request[0]
                 )
                 if remaining > 0:
                     await asyncio.sleep(remaining)
-                self._last_request = time.monotonic()
+                self._last_request[0] = time.monotonic()
             response = await self.client.send(request, stream=True, auth=None, follow_redirects=False)
             try:
                 yield response
             finally:
                 await response.aclose()
 
-    @staticmethod
     def _checked_redirect(
+        self,
         previous: httpx.Request,
         next_request: httpx.Request,
         spec: RequestSpec,
@@ -302,6 +371,9 @@ class RequestGateway:
         next_request.headers.clear()
         next_request.headers["Host"] = host
         next_request.headers["Accept"] = "*/*"
+        cookie_origins = COOKIE_ORIGINS.get()
+        if cookie_origins is not None and cookie_origins.matches(next_origin):
+            self.client.cookies.set_cookie_header(next_request)
         return next_request
 
     async def _read_response(self, response: httpx.Response) -> RequestResponse:
@@ -374,10 +446,36 @@ class RequestGateway:
         if "text/event-stream" in spec.headers.get("Accept", "").lower():
             raise UnsupportedSiteFeatureError("server-sent events are not supported")
 
-    async def close(self) -> None:
+    async def _finish_operations(self) -> None:
         for operation in list(self._operations):
             await operation.close()
-        await self.client.aclose()
+        for child in list(self._children):
+            await child._finish_operations()
+
+    async def close(self) -> None:
+        if self._closed:
+            return
+        self._closed = True
+        failures: list[BaseException] = []
+        try:
+            callbacks = [operation.close for operation in list(self._operations)]
+            callbacks.extend(child.close for child in list(self._children))
+            callbacks.append(self.client.aclose)
+            for close in callbacks:
+                try:
+                    await close()
+                except BaseException as exc:
+                    failures.append(exc)
+        finally:
+            self.client.cookies.clear()
+            self._children.clear()
+            self._operations.clear()
+            self._cookie_loader = None
+            if self._parent is not None:
+                self._parent._children.discard(self)
+                self._parent = None
+        if failures:
+            raise next((error for error in failures if not isinstance(error, Exception)), failures[0])
 
 
 @asynccontextmanager

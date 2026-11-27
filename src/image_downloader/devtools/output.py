@@ -19,18 +19,31 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, TextIO
 
+from ..configuration.yaml_input import DuplicateYamlKeyError, safe_load_unique
+from ..diagnostics import configuration_error, configuration_source
 from .display import LEVELS, ConsoleOutput, DisplayPolicy, event_level
 
 
 def read_document(path: Path) -> Any:
-    import yaml
-
-    return yaml.safe_load(path.read_text(encoding="utf-8"))
+    try:
+        return safe_load_unique(path.read_text(encoding="utf-8"))
+    except DuplicateYamlKeyError as exc:
+        raise configuration_error(
+            "development YAML contains a duplicate explicit key",
+            "configuration_duplicate_key",
+            source=configuration_source(path, "development"),
+            line=exc.problem_mark.line + 1,
+            column=exc.problem_mark.column + 1,
+        ) from exc
 
 
 class RawOutput:
     def __init__(
-        self, directory: Path, *, binary: str = "file", stream: TextIO | None = None,
+        self,
+        directory: Path,
+        *,
+        binary: str = "file",
+        stream: TextIO | None = None,
         policy: DisplayPolicy | None = None,
     ) -> None:
         self.directory, self.binary = directory, binary
@@ -86,7 +99,7 @@ class RawOutput:
                 **{
                     name: self.value(getattr(value, name), visited)
                     for name in names
-                    if name not in {"requests", "secrets"}
+                    if name not in {"requests", "credentials"}
                 },
             }
         return {"$type": type(value).__name__, "repr": repr(value)}

@@ -7,6 +7,8 @@ from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any, cast
 
+from pydantic import ValidationError
+
 from image_downloader.configuration.merging import deep_merge
 from image_downloader.plugins.plugin_catalog import PluginCatalog
 from image_downloader.plugins.plugin_files import _sha256, canonical_jcs
@@ -18,6 +20,8 @@ from image_downloader.plugins.plugin_manifest import (
 )
 
 from ..configuration.models import AppConfig, PluginConnections, PluginDownloadPolicy, PluginSettings
+from ..credentials.access import compile_auth_access
+from ..diagnostics import configuration_error, diagnostic_for, validation_diagnostic
 from ..exceptions import ConfigurationError, PluginError
 from ..immutable import freeze_json
 from ..ports import ImageProcessor, SitePlugin
@@ -182,12 +186,19 @@ class PluginRuntime:
         invalid = set(self.config.plugin_settings) - set(self.records)
         if invalid:
             raise ConfigurationError(f"plugin_settings contains unknown plugin ID: {sorted(invalid)[0]}")
-        if "core.generic-html" in self.config.plugin_settings:
-            raise ConfigurationError("core.generic-html does not accept plugin_settings")
+        generic = self.config.plugin_settings.get("core.generic-html")
+        if generic is not None and not generic.model_fields_set.issubset({"auth_access", "host_groups"}):
+            raise ConfigurationError("core.generic-html accepts only auth_access and host_groups in plugin_settings")
         for record in self.records.values():
             settings = self._setting(record.id)
-            if settings and settings.secrets and record.kind != "site_plugin":
-                raise ConfigurationError(f"image processor {record.id} cannot declare secrets")
+            if (
+                settings
+                and record.kind != "site_plugin"
+                and (settings.auth_access.model_dump(exclude_unset=True) or "host_groups" in settings.model_fields_set)
+            ):
+                raise ConfigurationError(f"image processor {record.id} cannot declare auth_access or host_groups")
+            if settings:
+                compile_auth_access(record.id, settings.auth_access, settings.host_groups)
         for plugin_id in self.config.image_processors.chain:
             configured_record = self.records.get(plugin_id)
             if configured_record is None or configured_record.kind != "image_processor_plugin":
@@ -255,8 +266,24 @@ class PluginRuntime:
             expand_connections(
                 connections,
                 self.effective_config(record) if plugin_config is None else plugin_config,
+                host_groups=setting.host_groups if setting else {},
             )
             return connections
+        except ConfigurationError as exc:
+            diagnostic = diagnostic_for(exc)
+            if diagnostic is not None:
+                details = dict(diagnostic.details)
+                kind = str(details.pop("kind"))
+                details.update(plugin_id=record.id)
+                details["field"] = "plugin_settings." + record.id + "." + str(details.get("field", "host_groups"))
+                if "reference_field" in details:
+                    details["reference_field"] = "plugin_settings." + record.id + "." + str(details["reference_field"])
+                raise configuration_error(diagnostic.message, kind, **details) from exc
+            raise
+        except ValidationError as exc:
+            issue = exc.errors(include_input=False, include_url=False)[0]
+            issue["loc"] = ("plugin_settings", record.id, *issue["loc"])
+            raise validation_diagnostic(issue) from exc
         except ValueError as exc:
             raise ConfigurationError(f"authentication/endpoints configuration for {record.id} is invalid") from exc
 

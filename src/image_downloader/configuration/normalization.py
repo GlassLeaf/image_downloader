@@ -137,6 +137,9 @@ def _prune_obsolete_and_unknown(
 
 
 def _sanitize_user_layer(raw: Mapping[str, Any]) -> tuple[dict[str, Any], tuple[tuple[object, ...], ...]]:
+    from .plugin_layers import validate_plugin_keys
+
+    validate_plugin_keys(raw)
     clean, removals = _prune_obsolete_and_unknown(raw, _APP_CONFIG_SHAPE)
     assert isinstance(clean, dict)
     return clean, removals

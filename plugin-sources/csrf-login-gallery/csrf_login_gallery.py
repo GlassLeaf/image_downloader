@@ -26,14 +26,14 @@ from image_downloader import (
 
 class _CsrfFlow(BaseAuthFlow):
     async def initialize(self, auth_context: AuthContext) -> AuthLease:
-        return await self.refresh(auth_context)
+        return AuthLease()
 
     def classify_response(self, request: RequestSpec, response: RequestResponse) -> AuthDecision:
         if response.status == 200 and b"login-required" in response.body.lower():
             return AuthDecision.AUTH_FAILURE
         return super().classify_response(request, response)
 
-    async def refresh(self, auth_context: AuthContext) -> AuthLease:
+    async def login(self, auth_context: AuthContext) -> AuthLease:
         origin = auth_context.endpoints["operation"].origin
         page = await auth_context.requests.execute(RequestSpec(f"{origin}/login"))
         match = re.search(r"name=['\"]csrf['\"]\s+value=['\"]([^'\"]+)['\"]", page.body.decode("utf-8", "replace"))
@@ -44,8 +44,8 @@ class _CsrfFlow(BaseAuthFlow):
                 f"{origin}/session",
                 method="POST",
                 form={
-                    "username": auth_context.secrets.get("username"),
-                    "password": auth_context.secrets.get("password"),
+                    "username": auth_context.credentials.get("username"),
+                    "password": auth_context.credentials.get("password"),
                     "csrf": match.group(1),
                 },
             )

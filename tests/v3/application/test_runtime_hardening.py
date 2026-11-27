@@ -12,6 +12,7 @@ from pathlib import Path
 import httpx
 import pytest
 from PIL import Image
+from support.auth import approved_operation
 from support.operations import build_site
 
 from image_downloader import (
@@ -164,7 +165,8 @@ def test_authentication_is_scoped_to_the_operation_origin() -> None:
             transport=httpx.MockTransport(lambda request: httpx.Response(200, content=b"ok", request=request))
         )
         flow = Flow()
-        session = gateway.operation(
+        session = approved_operation(
+            gateway,
             plugin_id="com.example.gallery",
             operation_url="https://example.test/gallery",
             auth_flow_factory=lambda _: flow,
@@ -197,7 +199,8 @@ def test_base_auth_flow_uses_implicit_operation_origin() -> None:
     async def scenario() -> None:
         gateway = RequestGateway(AppConfig())
         flow = Flow()
-        gateway.operation(
+        approved_operation(
+            gateway,
             plugin_id="com.example.gallery",
             operation_url="https://example.test/gallery",
             auth_flow_factory=lambda _: flow,
@@ -212,7 +215,8 @@ def test_auth_flow_boundary_rejects_an_incomplete_implementation() -> None:
         gateway = RequestGateway(AppConfig())
         try:
             with pytest.raises(PluginError, match="AuthFlow"):
-                gateway.operation(
+                approved_operation(
+                    gateway,
                     plugin_id="com.example.gallery",
                     operation_url="https://example.test/gallery",
                     auth_flow_factory=lambda _: object(),
@@ -482,7 +486,8 @@ def test_concurrent_auth_refresh_applies_credentials_once_per_retry() -> None:
     async def scenario() -> None:
         gateway = RequestGateway(AppConfig())
         flow = Flow()
-        session = gateway.operation(
+        session = approved_operation(
+            gateway,
             plugin_id="com.example.gallery",
             operation_url="https://example.test/gallery",
             auth_flow_factory=lambda _: flow,
@@ -498,7 +503,8 @@ def test_concurrent_auth_refresh_applies_credentials_once_per_retry() -> None:
             assert plugin_id == "com.example.gallery"
             assert allowed_redirect_origins is not None
             assert allowed_redirect_origins("https://example.test:443")
-            assert not allowed_redirect_origins("https://other.test:443")
+            with pytest.raises(AuthScopeError, match="undeclared"):
+                allowed_redirect_origins("https://other.test:443")
             nonlocal initial_requests
             if request.headers.get("Authorization") == "Bearer 0":
                 initial_requests += 1
@@ -548,19 +554,22 @@ def test_concurrent_operation_sessions_do_not_share_auth_or_plugin_identity() ->
         ) -> RequestResponse:
             assert allowed_redirect_origins is not None
             assert allowed_redirect_origins("https://example.test:443")
-            assert not allowed_redirect_origins("https://other.test:443")
+            with pytest.raises(AuthScopeError, match="undeclared"):
+                allowed_redirect_origins("https://other.test:443")
             await asyncio.sleep(0)
             token = request.headers.get("Authorization")
             observed.append((plugin_id, token))
             return RequestResponse(request.url, 200, {}, (token or "").encode())
 
         gateway._transport = transport  # type: ignore[method-assign]
-        first = gateway.operation(
+        first = approved_operation(
+            gateway,
             plugin_id="com.example.first",
             operation_url="https://example.test/first",
             auth_flow_factory=lambda _: Flow("first-token"),
         )
-        second = gateway.operation(
+        second = approved_operation(
+            gateway,
             plugin_id="com.example.second",
             operation_url="https://example.test/second",
             auth_flow_factory=lambda _: Flow("second-token"),
@@ -620,6 +629,7 @@ def test_close_releases_gateway_and_logger_when_cookie_delta_persistence_fails(
             }
         )
         service = RuntimeComposer(config, config_root=tmp_path.resolve(), plugin_root=plugin_root).compose()
+        service.gateway._ensure_cookies()
         service.gateway.client.cookies.set("session", "secret", domain="example.test")
         closed: list[str] = []
 

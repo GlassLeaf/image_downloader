@@ -20,8 +20,15 @@ def _flatten(value: Any, prefix: tuple[str, ...] = ()) -> tuple[tuple[str, ...],
     return (prefix,)
 
 
-def _record_origins(origins: dict[str, str], value: Mapping[str, Any], label: str) -> None:
+def _record_origins(origins: dict[str, str], value: Mapping[str, Any], label: str, base: Mapping[str, Any]) -> None:
     for path in _flatten(value):
+        incoming: object = value
+        previous: object = base
+        for part in path:
+            incoming = incoming.get(part) if isinstance(incoming, Mapping) else None
+            previous = previous.get(part) if isinstance(previous, Mapping) else None
+        if isinstance(incoming, Mapping) and not incoming and isinstance(previous, Mapping):
+            continue
         dotted = _dotted(path)
         for current in tuple(origins):
             if current == dotted or current.startswith(f"{dotted}."):
@@ -34,5 +41,5 @@ def _merge_layer(
 ) -> dict[str, Any]:
     if not raw:
         return dict(data)
-    _record_origins(origins, raw, label)
+    _record_origins(origins, raw, label, data)
     return deep_merge(data, raw)

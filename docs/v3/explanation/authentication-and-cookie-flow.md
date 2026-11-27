@@ -13,7 +13,7 @@
 | 状態 | 管理単位・管理する場所 | 主な処理位置 |
 | --- | --- | --- |
 | 保存済みCookie | データルート・プロファイル単位の暗号化ファイル | ①②③⑧ |
-| 通信中のCookie | サービス単位の共有Cookie jar。メモリ上で更新する | ④⑥⑦ |
+| 通信中のCookie | 通常用とサイト別匿名用のCookie jar。メモリ上で更新する | ④⑥⑦ |
 | 認証の準備状態・世代・期限 | operation単位のコア認証セッション | ⑤ |
 
 **Cookieを読み込んだこと、サーバーで認証できたこと、Cookieをディスクへ保存したことは別の出来事である。** 保存済みCookieが利用可能かはサーバーの状態にも依存する。認証フローの成功が、直ちにCookieファイルへの保存を意味するわけでもない。
@@ -26,7 +26,7 @@
 
 ![①〜⑨を示すCookieの保存・共有・認証通信・検査の全体図](assets/authentication-cookie-lifecycle.svg)
 
-図1を個別に開く：[SVG](assets/authentication-cookie-lifecycle.svg) / [PNG](assets/authentication-cookie-lifecycle.png)。図中の矢印はデータや処理の受渡しを示す。③のサービス構築と、その後の⑤のoperation開始は別のタイミングである。
+図1を個別に開く：[SVG](assets/authentication-cookie-lifecycle.svg) / [PNG](assets/authentication-cookie-lifecycle.png)。図中の矢印はデータや処理の受渡しを示す。図中の「構築時」は現行実装では初回の通常セッション選択時を指す。③は通常セッションを初めて選択した時の遅延読込みである。匿名セッションでは②を読み込まない。図の共有jarは選択セッションごとに区別する。
 
 <a id="phase-legend"></a>
 
@@ -35,8 +35,8 @@
 | 番号 | 図中の位置 | 何をするか・いつ使うか |
 | --- | --- | --- |
 | ① | ブラウザインポート | ブラウザからCookieを読み、②の既存保存内容へ合成する。通常downloadが自動で行う処理ではない。 |
-| ② | プロファイルの暗号化ファイル | 次のサービス構築時に読めるCookieの保管場所。通信中のjarそのものではない。 |
-| ③ | サービス構築 | ②を読み、④へ渡す。後の差分保存に使う初期状態baselineも取得する。 |
+| ② | プロファイルの暗号化ファイル | 通常セッションを初めて選択した時に読めるCookieの保管場所。通信中のjarそのものではない。 |
+| ③ | 通常セッションの初回選択 | ②を読み、④へ渡し、差分保存用baselineを取得する。匿名では読み込まない。 |
 | ④ | 共有Cookie jar | 通常要求と認証用要求が共有する、メモリ上のCookie。サービスが所有する。 |
 | ⑤ | operationの認証処理 | 接続先・要求モード・確認方針を解決し、初期化・確認・資格情報付与・更新を管理する。 |
 | ⑥ | HTTPクライアント | 要求を送信し、応答を受信する。④から送信先に適用可能なCookieを付ける。 |
@@ -70,17 +70,17 @@
 
 ### ③ 既存Cookieの読込みとbaseline
 
-標準のサービス構築では `CookieStore.load()` で②を読み、期限切れCookieを除いて⑥のHTTPクライアントへ渡す。さらに `CookieStore.snapshot()` で初期状態baselineを取得する。
+通常セッションを初めて選択した時に `CookieStore.load()` で②を読み、期限切れCookieを除いて⑥のHTTPクライアントへ渡す。さらに `CookieStore.snapshot()` で初期状態baselineを取得する。匿名セッションは空のjarを作り、②へアクセスしない。
 
-読込みはサービス構築時であり、各URLへのアクセスやoperation開始のたびにディスクを読み直さない。同じサービスで複数operationを行う場合は、更新済みの④を引き続き使う。各operationの⑤は別の認証セッションであり、④の共有期間とは異なる。
+読込みは最初の通常セッション選択時だけ行い、各URLへのアクセスやoperation開始のたびにディスクを読み直さない。同じサービスで複数operationを行う場合は、更新済みの④を引き続き使う。各operationの⑤は別の認証セッションであり、④の共有期間とは異なる。
 
 <a id="phase-4"></a>
 
 ### ④ サービス単位の共有Cookie jar
 
-通常のページ・API・画像・補助ファイル要求と、認証フックの専用要求は、同じサービス内では共有jarを使う。⑥は送信先のdomain・path・secure・有効期限等に従ってCookieを選択する。
+通常のページ・API・画像・補助ファイル要求と、認証フックの専用要求は、選択セッションのjarを共有する。通常用と匿名用は分離し、匿名用は同じプラグイン・サイト・参照設定でコマンド中に共有する。⑥は送信先のdomain・path・secure・有効期限等に従ってCookieを選択する。
 
-`context.get_cookies()` はjarの現在値のコピーを返す読取りAPIで、送信や保存を行わない。`auth: none` / `AuthMode.NONE` は認証フローを通さない指定であり、jarを無効にする指定ではない。要求に明示した資格情報を全面的に除去する意味もない。
+`context.get_cookies()` は選択セッションのうち、対象サイトのoriginへ適用可能なCookieのコピーを返す読取りAPIで、送信や保存を行わない。`auth: none` / `AuthMode.NONE` は認証フローを通さない指定であり、jarを無効にする指定ではない。要求に明示した資格情報を全面的に除去する意味もない。
 
 <a id="phase-5"></a>
 
@@ -88,7 +88,7 @@
 
 コア内部の `OperationAuthSession` は、準備済みか、無効化済みか、資格情報の世代、leaseの期限、最後の追加確認時刻を保持する。Cookieを別途保管する場所ではない。
 
-最初の認証対象要求前に `initialize()` を実行する。既存Cookieが存在しても、この呼出し自体は省略しない。Cookieを再利用するか、状態を確認するか、初回からログインするかはプラグインが決める。`authentication` と `endpoints` は省略できるが、省略は認証全体の無効化ではない。
+最初の認証対象要求前に `initialize()` を実行する。既存Cookieが存在しても、この呼出し自体は省略しない。`initialize()` は通信せず既存状態の準備だけを行う。新規ログインはコアがユーザーの `auth_access` を判定した後、`login()` で実行する。`authentication` と `endpoints` は省略できるが、省略は認証全体の無効化ではない。
 
 接続先の `auth: session` と要求の `AuthMode` で認証対象を判定する。認証対象では必要な初期化・確認・更新と `apply()` を行う。フローなしの `AUTO` は通常のHTTP処理で、④のCookieは利用できる。追加originやREQUIREDの条件は[適用範囲](../reference/configuration.md#config-authentication-scope)を参照する。
 
@@ -98,7 +98,7 @@
 
 通常要求は⑤の認証準備・同期 `apply()` の後、⑥へ進む。認証フックの `AuthContext.requests.execute()` は⑤へ再入しない専用の入口から⑥へ進み、HTTPエラー応答も本文付きで返す。
 
-専用の入口でも④のjar、プール、タイムアウト、通信制限、transport再試行を共有する。ただし自動apply・応答分類・認証確認・認証更新は行わない。送信先はoperationの既定originを含む宣言済みoriginに限る。Bearerヘッダー等が必要なら認証フック側が明示する。
+専用の入口でも④のjar、プール、タイムアウト、通信制限、transport再試行を共有する。ただし自動apply・応答分類・認証確認・認証更新は行わない。送信先はoperationの既定originを含む作者の宣言と、ユーザーのサイトグループの両方に含まれるoriginに限る。initialize中の通信は禁止する。Bearerヘッダー等が必要なら認証フック側が明示する。
 
 <a id="phase-7"></a>
 
@@ -112,7 +112,9 @@ HTTPXは受信した `Set-Cookie` を④へ反映する。その後、コアは�
 
 ### ⑧ サービス終了時の差分保存
 
-標準の自動保存タイミングはoperation終了ではなく、`DownloadService.close()` / 非同期コンテキスト終了時である。baselineと現在の④を比較し、このサービスで追加・変更・削除した分を、保存直前に読み直した最新②へ合成する。プロセス間ロック下で合成・保存し、暗号化ファイルを更新する。
+通常セッションの自動保存タイミングはoperation終了ではなく、`DownloadService.close()` / 非同期コンテキスト終了時である。baselineと現在の④を比較し、このサービスで追加・変更・削除した分を、保存直前に読み直した最新②へ合成する。プロセス間ロック下で合成・保存し、暗号化ファイルを更新する。
+
+匿名セッションは差分保存に含めず、終了時にCookie・取得トークン・フロー参照を破棄する。通常セッションを一度も選択しなければCookie保存処理も実行しない。ダウンロード結果・実行履歴・ログ・更新状態は通常どおり保存する。
 
 通常CLIは終了処理で保存する。ライブラリ利用では `async with service` または `await service.close()` を使う。後始末に到達しない強制終了等では、メモリ上の変更が保存されるとは限らない。通常経路は失敗時にもcloseするため、要求失敗だけを理由にCookie変更を破棄する処理ではない。
 
@@ -132,14 +134,14 @@ HTTPXは受信した `Set-Cookie` を④へ反映する。その後、コアは�
 
 ## 認証対象要求の順序
 
-図2は⑤⑥⑦を展開している。認証フックの通信は必要な場合だけ行う。保存済みtokenをメモリへ読むだけの `initialize()` も実装できる。`AuthMode.NONE` 等の通常要求は、認証フローの部分を通らず⑥⑦へ進む。
+図2は⑤⑥⑦を展開している。図のinitialize/refresh枠のうち、通信は許可後のlogin/refreshとverifyだけが行う。認証フックの通信は必要な場合だけ行う。保存済みtokenをメモリへ読むだけの `initialize()` も実装できる。`AuthMode.NONE` 等の通常要求は、認証フローの部分を通らず⑥⑦へ進む。
 
 ![⑤の認証準備、⑥の認証用・通常通信、⑦のCookie更新と応答分類を示すシーケンス図](assets/authentication-request-sequence.svg)
 
 図2を個別に開く：[SVG](assets/authentication-request-sequence.svg) / [PNG](assets/authentication-request-sequence.png)。図中の④は⑥が使う共有jarで、通常通信と認証用通信で分かれていない。
 
 1. 要求のoriginと `AuthMode` を解決する。`context.endpoints` から構築した要求も、絶対URLの要求も同じ解決を通る。
-2. 初回なら `initialize()`、初期化済みで期限切れ・無効化済みなら `refresh()` を実行する。
+2. 初回は通信なしの `initialize()` で既存状態を準備する。AUTOは準備できなければ認証付与なしで送信する。REQUIRED、認証失敗、期限切れ、明示要求では許可判定後に `login()` / `refresh()` を実行する。
 3. 方針や明示操作で必要なら `verify()` を実行する。VALIDなら続行、INVALIDなら更新、UNKNOWNなら専用エラーで停止する。
 4. 同期 `apply()` で資格情報を付け、使用する認証世代を記録する。⑥で適用可能な④のCookieを付けて送信する。
 5. ⑦でCookieを更新した後、応答にreceiptを付けて分類する。AUTH_FAILUREなら必要な更新・回数制限付き再送へ進む。UNKNOWNなら追加verifyで判断する。
@@ -165,7 +167,7 @@ HTTPXは受信した `Set-Cookie` を④へ反映する。その後、コアは�
 | 場面 | 現行の動作 |
 | --- | --- |
 | サービス構築前にブラウザインポート | ③がインポート後の②を読み込む。 |
-| サービス構築後に別コマンドでインポート | ②は変わるが、実行中の④へ自動反映しない。次のサービス構築時に読み込む。 |
+| サービス構築後に別コマンドでインポート | ②は変わるが、実行中の④へ自動反映しない。次の未読込み通常セッションの初回選択時に読み込む。 |
 | サービスが変更していないCookie | ⑧ではそのCookieを差分として書かず、他操作による保存更新を保持する。 |
 | ①や⑧で同じCookieを合成 | 識別キーは `(domain, path, name)`。異なるキーのCookieを保持し、同一キーで値が異なれば合成時の入力側の更新を採用する。同値なら長い有効期限を維持する。 |
 | 期限切れのインポートCookie | 取り込まない。自然な期限切れを、別プロセスが更新したCookieの無条件削除としては扱わない。 |
@@ -178,11 +180,12 @@ Cookieキーのdomain/pathは保存属性の文字列を使う。同じ名前で
 
 ## CSRFサンプルで既存Cookieはどう使われるか
 
-`csrf_login_gallery` の `initialize()` は `refresh()` を呼ぶ。そのため、既存Cookieを読み込んでいても初回にログイン用処理を実行する。インポート済みCookieがあることを根拠に、コアが自動的にログインを省略するわけではない。
+`csrf_login_gallery` の `initialize()` は通信せず `AuthLease()` を返し、既存Cookieを先に試す。認証失敗が判明した時はコアがログイン許可を判定し、`login()` / `refresh()` がCSRF付きログインを実行する。匿名モードでもこの手順は同じだが、最初のCookieは空で終了時に保存しない。
 
 ```text
 ③ 保存済みCookieを読み、④へ保持
-⑤ initialize() → refresh()
+⑤ initialize() → 既存Cookieで通常要求
+⑤ 認証失敗 → 許可判定 → login() / refresh()
   ⑥ GET /login       : 適用可能な既存Cookieを送信
   ⑦ 応答Cookieを保存 : 事前セッションCookie等
   ⑥ POST /session    : 資格情報・CSRF token・適用可能なCookieを送信
@@ -209,22 +212,24 @@ Cookieキーのdomain/pathは保存属性の文字列を使う。同じ名前で
 | API | 位置 | 役割 |
 | --- | --- | --- |
 | `auth_flow(context) -> AuthFlow または None` | ⑤の構成時 | operationで使うフローを生成する。Noneなら認証フローを使わない。 |
-| `AuthFlow` / `BaseAuthFlow` | ⑤ | 認証手順の契約と既定実装。initializeは実装必須。既定applyは要求をそのまま返す。 |
-| `initialize(auth_context) -> AuthLease` | ⑤初回 | 保存tokenの読込み、Cookie再利用判断、初回ログイン等。 |
+| `AuthFlow` / `BaseAuthFlow` | ⑤ | 認証手順の契約と既定実装。既定initializeはNone、既定applyは要求をそのまま返す。 |
+| `initialize(auth_context) -> AuthLease または None` | ⑤初回 | 通信なしで保存tokenの読込み・Cookie再利用の準備を行う。 |
+| `login(auth_context) -> AuthLease` | ⑤許可後 | 新規ログインを行う。 |
 | `apply(request) -> RequestSpec` | ⑤→⑥ | 資格情報を同期付与する。通信せず、origin・authモードを変更しない。 |
 | `classify_response(request, response) -> AuthDecision` | ⑦の後 | 通信なしで応答を分類する。既定は401がAUTH_FAILURE、403がUNKNOWN、その他がNOT_AUTH_FAILURE。 |
 | `verify(auth_context) -> AuthVerification` | ⑤・⑦の後 | 必要なら追加通信で状態確認する。既定はUNKNOWNなので、確認を有効にするサイトは実装する。 |
-| `refresh(auth_context) -> AuthLease` | ⑤・認証再試行前 | 再ログイン・token更新を行う。既定は更新未対応のAuthenticationError。 |
-| `AuthContext` | ⑤のフック内 | 固有config、secrets、endpoints、専用requestsを提供する。 |
+| `refresh(auth_context) -> AuthLease` | ⑤・認証再試行前 | 再ログイン・token更新を行う。既定はloginへの委譲。 |
+| `AuthContext` | ⑤のフック内 | 固有config、サイトに束縛したcredentials、endpoints、専用requestsを提供する。 |
 | `AuthContext.requests.execute()` | ⑤→⑥ | 再入しない認証用通信。④を共有し、自動の認証付与・分類・確認・更新を行わない。 |
 | `PluginExecutionContext.auth: AuthPort` | ⑤への入口 | 明示的な準備・確認・無効化を提供する。 |
 | `await context.auth.ensure_ready(check=False)` | ⑤ | 必要な初期化・期限更新・無効化後の更新。check=Trueなら追加確認も要求する。 |
+| `await context.auth.request_login(reason)` | ⑤ | 許可判定後にログインする。拒否はFalse、成功はTrue、失敗は例外。 |
 | `context.auth.invalidate(response)` | ⑦の後→次回⑤ | 同一operationの現在世代を無効化する。Cookie削除や即時ログインは行わない。古い世代は無視する。 |
 | `Endpoint` / `context.endpoints` | ⑤より前の要求構築 | originを名前で参照する。AuthContextにも提供し、operationを自動的に用意する。 |
 | `Endpoint.request(path, **kwargs)` | ⑤より前の要求構築 | 通信せずRequestSpecを構築する。画像要求フックでも利用できる。 |
 | `RequestSpec.auth` / `AuthMode` | ⑤入口 | AUTOは接続先に従い、NONEは認証フローを通さず、REQUIREDはフローと認証対象originを必須にする。 |
 
-`initialize()` / `verify()` / `refresh()` / `ensure_ready()` は非同期、`apply()` / `classify_response()` / `invalidate()` / `Endpoint.request()` は同期である。`.request()` を呼んだだけでは⑥へ進まない。通常の実行では `context.requests.execute()` へ渡すか、画像要求フックから返す。
+`initialize()` / `login()` / `verify()` / `refresh()` / `ensure_ready()` / `request_login()` は非同期、`apply()` / `classify_response()` / `invalidate()` / `Endpoint.request()` は同期である。`.request()` を呼んだだけでは⑥へ進まない。通常の実行では `context.requests.execute()` へ渡すか、画像要求フックから返す。
 
 ### 値型・応答情報
 
@@ -246,6 +251,7 @@ Cookieキーのdomain/pathは保存属性の文字列を使う。同じ名前で
 | `EndpointSettings` / `endpoints` | originとauth: session / noneの宣言。 |
 | `EndpointVerification` / `verification` | originごとのbefore_request・interval_secondsの部分上書き。 |
 | `PluginConnections` | 作者設定と利用者設定をマージした接続先・認証方針の検証。 |
+| `PluginAuthAccess` / `SiteAuthAccess` | 作者設定と分離したユーザー専用の資格情報提供・ログイン許可・セッション保存方針。 |
 
 共通の `verify_before_request` と接続先の `verification.before_request` は同じverifyの呼出しを制御し、後者をそのoriginの上書きとして使う。省略すれば継承する。before_requestのfalseだけでは継承した間隔は止まらず、間隔を無効にするにはinterval_secondsにnullを明示する。
 
@@ -297,3 +303,5 @@ Cookieキーのdomain/pathは保存属性の文字列を使う。同じ名前で
 | 設定とAPI契約 | [設定リファレンス](../reference/configuration.md#config-plugin-connections)、[フックリファレンス](../reference/plugin-hooks.md#plugin-authentication)、[公開シグネチャ](../reference/api-signatures.md) |
 
 HTML版の本文と図は外部通信なしで表示できる。SVG/PNGの個別参照リンクを含めて配布する場合は、この文書とHTMLに加えて同じディレクトリの `assets` 内の図も同梱する。
+
+[サイト別の認証許可と匿名セッション](../how-to/auth-access-and-ephemeral-sessions.md)

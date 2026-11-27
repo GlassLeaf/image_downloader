@@ -8,7 +8,7 @@ from typing import cast
 
 import pytest
 
-from image_downloader import AuthContext, AuthLease, BaseAuthFlow, DownloadRequest, RequestPort, SecretProvider
+from image_downloader import AuthContext, AuthLease, BaseAuthFlow, DownloadRequest, RequestPort
 from image_downloader.config import AppConfig
 from image_downloader.exceptions import HttpTransportError, PluginError
 from image_downloader.media import TransformExecutor
@@ -37,7 +37,7 @@ from image_downloader.transport.gateway import RequestGateway
 
 
 def _context() -> PluginExecutionContext:
-    return PluginExecutionContext({}, {}, {}, None, cast(SecretProvider, object()), cast(RequestPort, object()))
+    return PluginExecutionContext({}, {}, {}, None, cast(RequestPort, object()))
 
 
 def test_invoker_converts_unexpected_hook_exceptions_with_plugin_and_hook_identity() -> None:
@@ -232,7 +232,7 @@ def test_operation_request_cap_serializes_transport_without_holding_hook_executi
             operation_url="https://example.test/gallery",
             request_concurrency=1,
         )
-        context = PluginExecutionContext({}, {}, {}, None, cast(object, object()), session)
+        context = PluginExecutionContext({}, {}, {}, None, session)
         try:
             first = asyncio.create_task(session.execute(RequestSpec("https://example.test/one")))
             await entered.wait()
@@ -411,7 +411,6 @@ def test_request_and_auth_hooks_use_the_shared_invocation_boundary() -> None:
         async def refresh(self, auth_context: AuthContext) -> AuthLease:
 
             return AuthLease()
-
 
     async def scenario() -> None:
         gateway = RequestGateway(AppConfig())

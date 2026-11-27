@@ -336,4 +336,6 @@ def validate_arguments(args: argparse.Namespace) -> PreparedCommand:
         raise min(value_errors, key=priority)
     plugin_config, policies = _check_values(args, command)
     name = command.split(" ", 1)[0]
-    return PreparedCommand(name, command_arguments(name, args), plugin_config, policies)
+    from .setup import _auth_access_overrides
+
+    return PreparedCommand(name, command_arguments(name, args), plugin_config, policies, _auth_access_overrides(args))

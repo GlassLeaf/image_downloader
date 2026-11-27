@@ -188,7 +188,9 @@ class WorkflowCommandHandler:
         assert isinstance(args, WorkflowArguments)
         outcome.expect_shutdown()
         if args.dry_run:
-            return await _plan_command(args, command.plugin_config, command.download_policy, outcome)
+            return await _plan_command(
+                args, command.plugin_config, command.download_policy, outcome, command.auth_access
+            )
         config, config_root, _, source = _config_for(
             args,
             urlparse(args.url).hostname,
@@ -221,6 +223,7 @@ class WorkflowCommandHandler:
                         if args.workflow_progress_log is None
                         else args.workflow_progress_log == "enabled",
                         plugin_overrides=command.plugin_config,
+                        plugin_auth_access_overrides=command.auth_access,
                         fallback_override=_fallback(args),
                         plugin_id=args.plugin_id or args.force_plugin_id,
                         force_plugin=args.force_plugin_id is not None,
@@ -336,7 +339,7 @@ def _capture_plan(result: WorkflowPlanResult, root: Path, outcome: CommandOutcom
     outcome.text_handles_error = True
 
 
-async def _plan_command(args: WorkflowArguments, overrides, policies, outcome: CommandOutcome) -> int:
+async def _plan_command(args: WorkflowArguments, overrides, policies, outcome: CommandOutcome, auth_access=None) -> int:
     result = WorkflowPlanResult(args.url, args.download_scope or "updated")
     root = Path.cwd()
     try:
@@ -361,6 +364,7 @@ async def _plan_command(args: WorkflowArguments, overrides, policies, outcome: C
                     url=args.url,
                     download_scope=args.download_scope or "updated",
                     plugin_overrides=overrides,
+                    plugin_auth_access_overrides=auth_access,
                     fallback_override=_fallback(args),
                     plugin_id=args.plugin_id or args.force_plugin_id,
                     force_plugin=args.force_plugin_id is not None,

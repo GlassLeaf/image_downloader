@@ -48,12 +48,10 @@ class GeneratedAuth(BaseAuthFlow):
 
     async def initialize(self, auth_context):
         self.auth_context = auth_context
-        if "csrf" in self.features:
-            await self.login()
         if {"bearer", "oauth"} & self.features:
-            self.token = auth_context.secrets.get("access_token")
+            self.token = auth_context.credentials.get("access_token")
         if "api-key" in self.features:
-            self.token = auth_context.secrets.get("api_token")
+            self.token = auth_context.credentials.get("api_token")
         return AuthLease()
 
     def apply(self, spec):
@@ -65,12 +63,12 @@ class GeneratedAuth(BaseAuthFlow):
             headers["Authorization"] = "Bearer " + token
         return replace(spec, headers=headers)
 
-    async def refresh(self, auth_context):
+    async def login(self, auth_context):
         self.auth_context = auth_context
         if "oauth" in self.features:
             response = await self.auth_context.requests.execute(RequestSpec(
                 self.config["token_url"], method="POST",
-                form={"grant_type": "refresh_token", "refresh_token": auth_context.secrets.get("refresh_token")},
+                form={"grant_type": "refresh_token", "refresh_token": auth_context.credentials.get("refresh_token")},
             ))
             if response.status >= 400:
                 raise AuthenticationError("token refresh failed")
@@ -78,11 +76,11 @@ class GeneratedAuth(BaseAuthFlow):
             return AuthLease(json.loads(response.body).get("expires_in"))
         if "csrf" in self.features:
             self.logged_in = False
-            await self.login()
+            await self._login()
             return AuthLease()
         raise AuthenticationError("authentication refresh is not supported")
 
-    async def login(self):
+    async def _login(self):
         url = self.config["login_url"]
         page = await self.auth_context.requests.execute(RequestSpec(url))
         node = html_tree(page.body).css_first(self.config["csrf_selector"])
@@ -91,8 +89,8 @@ class GeneratedAuth(BaseAuthFlow):
         response = await self.auth_context.requests.execute(RequestSpec(
             url, method="POST", form={
                 self.config["csrf_field"]: node.attributes.get("value", ""),
-                self.config["username_field"]: self.auth_context.secrets.get("username"),
-                self.config["password_field"]: self.auth_context.secrets.get("password"),
+                self.config["username_field"]: self.auth_context.credentials.get("username"),
+                self.config["password_field"]: self.auth_context.credentials.get("password"),
             },
         ))
         if response.status >= 400:
@@ -124,6 +122,8 @@ class GeneratedSupport:
                 and parsed.path.startswith(config.get("path_prefix", "/")))
 
     async def inspect(self, url, context):
+        if "csrf" in self.features and not await context.auth.request_login("Inspect protected content"):
+            raise AuthenticationError("login was denied")
         config = context.config
         next_url = config.get("endpoint") or url
         chapters, seen_pages, seen_images = [], set(), set()

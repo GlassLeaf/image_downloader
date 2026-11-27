@@ -18,7 +18,6 @@ from image_downloader import (
     WorkflowPlanRequest,
     WorkflowRequest,
 )
-from image_downloader.application import inspection
 from image_downloader.exceptions import InterProcessLockError, UpdateStateError
 from image_downloader.storage.workflow import WorkflowState
 from image_downloader.transport.gateway import RequestGateway
@@ -134,7 +133,7 @@ def test_inspection_session_close_preserves_primary_and_closes_client(tmp_path, 
                 await super().close()
                 raise secondary
 
-        monkeypatch.setattr(inspection, "RequestGateway", Session)
+        monkeypatch.setattr("image_downloader.transport.gateway.RequestGateway", Session)
         gallery = Selected()
         async with compose(tmp_path, gallery) as service:
             with pytest.raises(type(primary) if primary is not None else RuntimeError) as caught:

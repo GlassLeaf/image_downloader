@@ -1,3 +1,5 @@
+> サイト単位の資格情報提供・ログイン許可と匿名モードについては[新しい認証アクセス契約](auth-access-and-ephemeral-sessions.md)を併せて適用してください。
+
 # 認証API 3の移行
 
 認証結果の公開情報を参照する追加APIについては[構造化データと認証スナップショットへの移行](structured-data-and-auth-snapshot-migration.md)を参照する。追加APIに対しては現行AuthFlowの無変更互換性を維持し、以下の過去の認証契約変更とは区別する。
@@ -6,7 +8,7 @@
 
 ## 責務と最小実装
 
-`initialize()` は初回の認証準備、同期 `apply()` は保持済み資格情報の付与、`classify_response()` は応答の分類、`verify()` は追加確認、`refresh()` は更新を担当する。`apply()` と分類フックではネットワーク通信しない。
+`initialize()` は通信なしの既存認証準備、`login()` は承認後の新規ログイン、同期 `apply()` は保持済み資格情報の付与、`classify_response()` は応答の分類、`verify()` は追加確認、`refresh()` は更新を担当する。`apply()` と分類フックではネットワーク通信しない。
 
 ```python
 from dataclasses import replace
@@ -16,7 +18,7 @@ from image_downloader import AuthContext, AuthLease, BaseAuthFlow, RequestSpec
 
 class TokenFlow(BaseAuthFlow):
     async def initialize(self, auth_context: AuthContext) -> AuthLease:
-        self.token = auth_context.secrets.get("access_token")
+        self.token = auth_context.credentials.get("access_token")
         return AuthLease()
 
     def apply(self, request: RequestSpec) -> RequestSpec:
@@ -115,7 +117,7 @@ class VerifiedTokenFlow(TokenFlow):
 
 ## Cookieログインを初期化・更新へ移す
 
-[CSRFサンプル](../../../plugin-sources/csrf-login-gallery/csrf_login_gallery.py)の `initialize()` は `refresh()` を呼び、初回要求前にログインする。`refresh()` 内の `session = await auth_context.requests.execute(...)` が受け取るのは `RequestResponse` であり、HTTPクライアントやセッション管理オブジェクトではない。`session.status` でPOSTのHTTPエラーを確認している。説明上は `login_response` と読むと役割が分かりやすい。
+[CSRFサンプル](../../../plugin-sources/csrf-login-gallery/csrf_login_gallery.py)の `initialize()` は既存Cookieを先に利用し、認証が必要になったときにコアの許可後に `login()` を実行する。`refresh()` 内の `session = await auth_context.requests.execute(...)` が受け取るのは `RequestResponse` であり、HTTPクライアントやセッション管理オブジェクトではない。`session.status` でPOSTのHTTPエラーを確認している。説明上は `login_response` と読むと役割が分かりやすい。
 
 Cookie方式では、応答オブジェクトをフロー内に保持しなくても次の順序で認証状態を引き継ぐ。
 

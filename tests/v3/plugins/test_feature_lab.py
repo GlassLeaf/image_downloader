@@ -198,7 +198,7 @@ def test_origin_allowlist_and_denied_redirect(lab, tmp_path, artificial_stores):
             async with RuntimeComposer(
                 config, config_root=tmp_path, plugin_root=tmp_path / "plugins"
             ).compose() as service:
-                with pytest.raises(AuthScopeError, match="outside the configured origins"):
+                with pytest.raises(AuthScopeError, match="undeclared"):
                     await service.inspect(
                         InspectRequest(url=f"{site.origin}/samples/origin-auth-gallery/redirect-denied")
                     )

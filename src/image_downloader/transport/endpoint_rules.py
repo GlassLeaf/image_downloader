@@ -7,7 +7,9 @@ from dataclasses import dataclass
 from typing import Literal
 
 from ..configuration.endpoint_origins import OriginPattern, expand_origins
+from ..configuration.host_groups import HostGroupError
 from ..configuration.models import AuthenticationPolicy, EndpointSettings, PluginConnections
+from ..diagnostics import host_group_diagnostic
 from ..exceptions import ConfigurationError
 from ..ports import Endpoint
 
@@ -33,11 +35,15 @@ def expand_connections(
     connections: PluginConnections,
     config: Mapping[str, object],
     operation_url: str | None = None,
+    *,
+    host_groups: Mapping[str, tuple[str, ...]] | None = None,
 ) -> PluginConnections:
     expanded = {}
     for name, item in connections.endpoints.items():
         try:
-            origins = expand_origins(item.origin, config, operation_url)
+            origins = expand_origins(item.origin, config, operation_url, host_groups=host_groups)
+        except HostGroupError as exc:
+            raise host_group_diagnostic(exc, reference_field="endpoints.<endpoint>.origin") from exc
         except ValueError as exc:
             raise ConfigurationError(f"endpoints.{name}.origin: {exc}") from exc
         expanded[name] = item.model_copy(update={"origin": origins})
@@ -48,8 +54,15 @@ def expand_connections(
 
 
 class EndpointRules:
-    def __init__(self, connections: PluginConnections, config: Mapping[str, object], operation_url: str) -> None:
-        expanded = expand_connections(connections, config, operation_url)
+    def __init__(
+        self,
+        connections: PluginConnections,
+        config: Mapping[str, object],
+        operation_url: str,
+        *,
+        host_groups: Mapping[str, tuple[str, ...]] | None = None,
+    ) -> None:
+        expanded = expand_connections(connections, config, operation_url, host_groups=host_groups or {})
         self.endpoints: dict[str, Endpoint] = {}
         self.requires_session = False
         self._exact: dict[str, ResolvedEndpoint] = {}

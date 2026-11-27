@@ -655,8 +655,7 @@ def test_install_updates_existing_plugin_id_when_source_directory_name_changes(t
     install_plugin(root, renamed_source)
 
     installed = [
-        path for path in (root / "site_plugins").iterdir()
-        if path.is_dir() and path.name != ".id-install-transactions"
+        path for path in (root / "site_plugins").iterdir() if path.is_dir() and path.name != ".id-install-transactions"
     ]
     assert installed == [root / "site_plugins" / source.name]
     assert read_manifest(installed[0]).id == "com.example.gallery"
@@ -693,8 +692,12 @@ def test_doctor_reports_runtime_and_plugin_provenance(tmp_path: Path, capsys: py
             "  com.example.gallery:",
             "    config:",
             "      mode: test",
-            "    secrets:",
-            "      api_key: EXAMPLE_API_KEY",
+            "    auth_access:",
+            "      sites:",
+            "        gallery:",
+            "          origins: [https://example.test]",
+            "          secrets:",
+            "            api_key: EXAMPLE_API_KEY",
             "",
         )
     )
@@ -716,7 +719,9 @@ def test_doctor_reports_runtime_and_plugin_provenance(tmp_path: Path, capsys: py
     assert report["plugin_root"] == str(root)
     assert report["configuration"]["effective"]["network"]["headers"]["Authorization"] == "<redacted>"
     assert (
-        report["configuration"]["effective"]["plugin_settings"]["com.example.gallery"]["secrets"]["api_key"]
+        report["configuration"]["effective"]["plugin_settings"]["com.example.gallery"]["auth_access"]["sites"][
+            "gallery"
+        ]["secrets"]["api_key"]
         == "<redacted>"
     )
     plugin = next(item for item in report["loaded_plugins"] if item["id"] == "com.example.gallery")

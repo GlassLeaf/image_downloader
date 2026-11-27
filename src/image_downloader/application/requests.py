@@ -10,7 +10,7 @@ from ..configuration.models import AppConfig, ImageFormat
 from ..diagnostics import configuration_error
 from ..exceptions import ConfigurationError
 from ..immutable import freeze_json
-from ..plugins.plugin_manifest import PluginConfigOverrides, PluginDownloadPolicyOverrides
+from ..plugins.plugin_manifest import PluginAuthAccessOverrides, PluginConfigOverrides, PluginDownloadPolicyOverrides
 
 
 def _freeze_options(request: object, name: str, value: PluginConfigOverrides | None) -> None:
@@ -76,6 +76,7 @@ class DownloadRequest:
 
     url: str
     plugin_overrides: PluginConfigOverrides | None = None
+    plugin_auth_access_overrides: PluginAuthAccessOverrides | None = None
     fallback_override: bool | None = None
     plugin_id: str | None = None
     force_plugin: bool = False
@@ -86,6 +87,7 @@ class DownloadRequest:
     def __post_init__(self) -> None:
         _validate_selection(self.plugin_id, self.force_plugin, self.fallback_override)
         _freeze_options(self, "plugin_overrides", self.plugin_overrides)
+        _freeze_options(self, "plugin_auth_access_overrides", self.plugin_auth_access_overrides)
         _freeze_options(self, "plugin_download_policy_overrides", self.plugin_download_policy_overrides)
         validate_image_output(self.image_format, self.image_quality)
 
@@ -96,6 +98,7 @@ class InspectRequest:
 
     url: str
     plugin_overrides: PluginConfigOverrides | None = None
+    plugin_auth_access_overrides: PluginAuthAccessOverrides | None = None
     fallback_override: bool | None = None
     plugin_id: str | None = None
     force_plugin: bool = False
@@ -104,6 +107,7 @@ class InspectRequest:
     def __post_init__(self) -> None:
         _validate_selection(self.plugin_id, self.force_plugin, self.fallback_override)
         _freeze_options(self, "plugin_overrides", self.plugin_overrides)
+        _freeze_options(self, "plugin_auth_access_overrides", self.plugin_auth_access_overrides)
         if not isinstance(self.resolve_image_requests, bool):
             raise TypeError("resolve_image_requests must be bool")
 
@@ -114,6 +118,7 @@ class UpdateCheckRequest:
 
     url: str
     plugin_overrides: PluginConfigOverrides | None = None
+    plugin_auth_access_overrides: PluginAuthAccessOverrides | None = None
     fallback_override: bool | None = None
     plugin_id: str | None = None
     force_plugin: bool = False
@@ -122,6 +127,7 @@ class UpdateCheckRequest:
     def __post_init__(self) -> None:
         _validate_selection(self.plugin_id, self.force_plugin, self.fallback_override)
         _freeze_options(self, "plugin_overrides", self.plugin_overrides)
+        _freeze_options(self, "plugin_auth_access_overrides", self.plugin_auth_access_overrides)
         _freeze_options(self, "plugin_download_policy_overrides", self.plugin_download_policy_overrides)
 
 
@@ -132,6 +138,7 @@ class WorkflowPlanRequest:
     url: str
     download_scope: Literal["all", "updated"] = "updated"
     plugin_overrides: PluginConfigOverrides | None = None
+    plugin_auth_access_overrides: PluginAuthAccessOverrides | None = None
     fallback_override: bool | None = None
     plugin_id: str | None = None
     force_plugin: bool = False
@@ -140,6 +147,7 @@ class WorkflowPlanRequest:
     def __post_init__(self) -> None:
         _validate_selection(self.plugin_id, self.force_plugin, self.fallback_override)
         _freeze_options(self, "plugin_overrides", self.plugin_overrides)
+        _freeze_options(self, "plugin_auth_access_overrides", self.plugin_auth_access_overrides)
         _freeze_options(self, "plugin_download_policy_overrides", self.plugin_download_policy_overrides)
         if self.download_scope not in ("all", "updated"):
             raise ValueError("download_scope must be all or updated")
@@ -156,6 +164,7 @@ class WorkflowRequest:
     workflow_retry_timeout: float | None = None
     workflow_progress_log: bool | None = None
     plugin_overrides: PluginConfigOverrides | None = None
+    plugin_auth_access_overrides: PluginAuthAccessOverrides | None = None
     fallback_override: bool | None = None
     plugin_id: str | None = None
     force_plugin: bool = False
@@ -166,6 +175,7 @@ class WorkflowRequest:
     def __post_init__(self) -> None:
         _validate_selection(self.plugin_id, self.force_plugin, self.fallback_override)
         _freeze_options(self, "plugin_overrides", self.plugin_overrides)
+        _freeze_options(self, "plugin_auth_access_overrides", self.plugin_auth_access_overrides)
         _freeze_options(self, "plugin_download_policy_overrides", self.plugin_download_policy_overrides)
         validate_image_output(self.image_format, self.image_quality)
         if self.download_scope not in ("all", "updated"):

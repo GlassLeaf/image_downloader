@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 
-import image_downloader.application.inspection as service_module
 from image_downloader import AuthContext, AuthLease, BaseAuthFlow, InspectRequest
 from image_downloader.config import AppConfig, resolve_paths
 from image_downloader.models import (
@@ -31,6 +30,18 @@ def _service(tmp_path: Path):
             "security": {"plugin_verification": "off"},
             "logging": {"console": {"enabled": False}},
             "notification": {"enabled": False},
+            "plugin_settings": {
+                "core.generic-html": {
+                    "auth_access": {
+                        "sites": {
+                            "test": {
+                                "origins": ["https://example.test", "https://cdn.example.test"],
+                                "login": "allow",
+                            }
+                        }
+                    }
+                }
+            },
         }
     )
     return RuntimeComposer(config, config_root=tmp_path.resolve(), plugin_root=plugin_root).compose()
@@ -207,8 +218,8 @@ def test_manifest_only_skips_request_hooks_and_inspection_cookie_changes_are_dis
         plugin = Plugin()
         record = service.registry.records["core.generic-html"]
         service.registry.resolve = lambda *_args, **_kwargs: (record, plugin)  # type: ignore[method-assign]
-        original = service_module.RequestGateway
-        monkeypatch.setattr(service_module, "RequestGateway", InspectionGateway)
+        original = RequestGateway
+        monkeypatch.setattr("image_downloader.transport.gateway.RequestGateway", InspectionGateway)
         debug_path = resolve_paths(service.config)["logs"] / "debug.log"
         debug_before = debug_path.read_bytes() if debug_path.exists() else None
         try:
@@ -229,7 +240,7 @@ def test_manifest_only_skips_request_hooks_and_inspection_cookie_changes_are_dis
             else:
                 assert debug_path.read_bytes() == debug_before
         finally:
-            monkeypatch.setattr(service_module, "RequestGateway", original)
+            monkeypatch.setattr("image_downloader.transport.gateway.RequestGateway", original)
             await service.close()
 
     asyncio.run(scenario())
@@ -310,8 +321,8 @@ def test_inspection_previews_the_effective_request_without_sending_an_image(
         service.registry.resolve = lambda *_args, **_kwargs: (record, plugin)  # type: ignore[method-assign]
         service.gateway.client.cookies.set("jar", "cookie", domain="example.test")
         service._cookie_baseline = service.cookie_store.snapshot(service.gateway.client.cookies.jar)
-        original = service_module.RequestGateway
-        monkeypatch.setattr(service_module, "RequestGateway", PreviewGateway)
+        original = RequestGateway
+        monkeypatch.setattr("image_downloader.transport.gateway.RequestGateway", PreviewGateway)
         try:
             result = await service.inspect(InspectRequest(url="https://example.test/gallery"))
             resolution, json_resolution = result.image_requests
@@ -340,7 +351,7 @@ def test_inspection_previews_the_effective_request_without_sending_an_image(
             assert json_preview.body == b'{"field":"json value"}'
             assert {cookie.name for cookie in service.gateway.client.cookies.jar} == {"jar"}
         finally:
-            monkeypatch.setattr(service_module, "RequestGateway", original)
+            monkeypatch.setattr("image_downloader.transport.gateway.RequestGateway", original)
             await service.close()
 
     asyncio.run(scenario())

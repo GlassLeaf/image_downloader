@@ -186,6 +186,10 @@ def _runtime_overrides(args: argparse.Namespace) -> dict[str, Mapping[str, objec
     return _plugin_option_overrides(args, "plugin_config", "config")
 
 
+def _auth_access_overrides(args: argparse.Namespace) -> dict[str, Mapping[str, object]]:
+    return _plugin_option_overrides(args, "plugin_auth_access", "auth_access")
+
+
 def _download_policy_overrides(args: argparse.Namespace) -> dict[str, Mapping[str, object]]:
     return _plugin_option_overrides(args, "plugin_download_policy", "download_policy")
 

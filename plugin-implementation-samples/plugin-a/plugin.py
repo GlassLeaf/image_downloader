@@ -54,9 +54,9 @@ class LoginFlow(BaseAuthFlow):
         return urlsplit(url).path.rstrip("/") == "/login"
 
     async def initialize(self, auth_context: AuthContext) -> AuthLease:
-        return await self.refresh(auth_context)
+        return AuthLease()
 
-    async def login(self, auth_context: AuthContext) -> bool:
+    async def _login(self, auth_context: AuthContext) -> bool:
         resp = await auth_context.requests.execute(RequestSpec(f"{ADownloadPlugin.domain}/mypage", auth=AuthMode.NONE))
         if resp.status >= 400:
             return False
@@ -73,8 +73,8 @@ class LoginFlow(BaseAuthFlow):
                 url=f"{ADownloadPlugin.domain}/login",
                 json={
                     "_token": token,
-                    "email": auth_context.secrets.get("email"),
-                    "password": auth_context.secrets.get("password"),
+                    "email": auth_context.credentials.get("email"),
+                    "password": auth_context.credentials.get("password"),
                 },
                 auth=AuthMode.NONE,
             )
@@ -93,8 +93,8 @@ class LoginFlow(BaseAuthFlow):
         valid = response.status < 400 and not self._is_login_url(response.url)
         return AuthVerification(AuthStatus.VALID if valid else AuthStatus.INVALID)
 
-    async def refresh(self, auth_context: AuthContext) -> AuthLease:
-        result = await self.login(auth_context)
+    async def login(self, auth_context: AuthContext) -> AuthLease:
+        result = await self._login(auth_context)
         if not result:
             raise AuthenticationError("login session request failed")
         return AuthLease()
@@ -227,7 +227,13 @@ class ADownloadPlugin:
         except (ValueError, KeyError, TypeError) as exc:
             raise PluginError("invalid plugin-a chapter page response") from exc
 
+    async def _prepare_optional_login(self, context: PluginExecutionContext) -> None:
+        response = await context.requests.execute(RequestSpec(f"{ADownloadPlugin.domain}/mypage", auth=AuthMode.NONE))
+        if LoginFlow._is_login_url(response.url):
+            await context.auth.request_login("Access rented chapters using this site's account")
+
     async def inspect(self, url: str, context: PluginExecutionContext) -> DownloadManifest:
+        await self._prepare_optional_login(context)
         await context.requests.execute(RequestSpec(url))
         chapter_infos = await self.get_chapter_infos(url, context)
         chapters = []
@@ -360,6 +366,7 @@ class ADownloadPlugin:
             raise PluginError("invalid plugin-a transform metadata") from exc
 
     async def check_updates(self, url, context: PluginExecutionContext) -> UpdateSnapshot:
+        await self._prepare_optional_login(context)
         response = await context.requests.execute(RequestSpec(f"{ADownloadPlugin.domain}/manga/official/search"))
         soup = BeautifulSoup(response.body, "html.parser")
         today = datetime.now(timezone(timedelta(hours=9)))

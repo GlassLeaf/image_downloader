@@ -19,6 +19,8 @@ APIの`workflow_progress_log`が上書きする。falseでも周回ごとの実�
 
 この文書は YAML 設定、layer 解決、path safety、secret reference の正本である。完全なコメント付き雛形は [config-template.yaml](../../../src/image_downloader/config-template.yaml) である。`AppConfig` / `validate_config` への直接入力では unknown field を拒否する。user-managed YAML の layer 解決では obsolete/unknown static key を検証前に除外し、下記の rewrite 設定によってファイルから削除する場合がある。
 
+`plugin_settings.<id>`の共通設定項目、`auth_access`と各siteの未知キーは自動削除せず、正規化前にエラーにします。プラグイン独自`config`の任意キーは許容します。廃止した`allowed_hosts`も移行エラーにし、黙って除去しません。ユーザー設定YAML全体の同一マッピング内で明示キーが重複するとエラーです。アンカー、`<<`による通常のマージ、設定レイヤー間の上書きは利用できます。
+
 <a id="config-discovery"></a>
 
 `DEFAULT_CONFIG` は全 field にこの文書の default を持つ immutable `AppConfig` である。`ConfigurationLayer(role: str, path: Path | None, status: LayerStatus)` は一つの採用/未採用 layer、`ResolvedApplicationConfig(config, main_config_path, config_root, source, selected_profile, layers, origins)` は解決結果である。`source` は `defaults|user|explicit`、`origins` は effective dotted key から source label への read-only mapping である。
@@ -118,7 +120,8 @@ mapping は再帰 merge、scalar/list/`null` は高い layer が置換する。I
 | `image_processors.transport_metadata_access` | 画像処理プラグインIDから、有効な非組み込みサイトプラグインIDの空でなく重複しない一覧へのマッピング; `{}`。チェーンに含まれるプロセッサーと、列挙したサイトの組合せだけが生の画像通信メタデータを受け取る |
 | `plugin_settings.<id>.enabled` | 厳密な真偽値; `true` |
 | `plugin_settings.<id>.config` | マッピング。 `{}` |
-| `plugin_settings.<id>.secrets` | `lower_snake_case -> UPPERCASE_REFERENCE` マッピング。 `{}` |
+| `plugin_settings.<id>.host_groups` | ユーザー専用の名前→DNSホスト配列。`${host_groups.<name>}`の展開元。省略時`{}`、参照時は非空必須 |
+| `plugin_settings.<id>.auth_access.sites.<site>.secrets` | `lower_snake_case -> UPPERCASE_REFERENCE` マッピング。 `{}` |
 | `plugin_settings.<id>.download_policy.request_concurrency` | `null`または 厳密な整数 `>=1`; 選択した操作のHTTP通信上限。実効値は `network.request_concurrency` との最小値 |
 | `plugin_settings.<id>.download_policy.chapter_concurrency` | `null`または 厳密な整数 `>=1`; 実効値は `download.chapter_concurrency` との最小値 |
 | `plugin_settings.<id>.download_policy.image_concurrency_per_chapter` | `null`または 厳密な整数 `>=1`; 実効値は `download.image_concurrency_per_chapter` との最小値 |
@@ -291,7 +294,7 @@ Pillow非対応形式をORIGINALで保存する必要がある利用者は、こ
 
 <a id="config-secrets"></a>
 
-manifest `config_file` が指す author-default YAML（固定名ではない）、persistent `plugin_settings.<id>.config`、operation override はこの順に deep merge する。author-default file は必須の `config` と、任意の `authentication`・`endpoints` をルートに持つ。プラグイン固有の検証に渡すのは `config` だけで、接続先・認証方針はコアが扱う。[接続先と認証方針](#config-plugin-connections)を参照する。disabled site plugin は selection candidate ではない。chain 上の disabled processor は error でなく skip される。processor に `secrets` を置くことは 設定エラー である。
+manifest `config_file` が指す author-default YAML（固定名ではない）、persistent `plugin_settings.<id>.config`、operation override はこの順に deep merge する。author-default file は必須の `config` と、任意の `authentication`・`endpoints` をルートに持つ。プラグイン固有の検証に渡すのは `config` だけで、接続先・認証方針はコアが扱う。[接続先と認証方針](#config-plugin-connections)を参照する。disabled site plugin は selection candidate ではない。chain 上の disabled processor は error でなく skip される。processor に `auth_access`・`host_groups` を置くことは設定エラーである。
 
 `core.generic-html` は通常の site plugin ではなく、外部 plugin が一致しないときだけ選ばれる組み込み fallback である。この ID を `plugin_settings`、`--plugin-config`、`--plugin-config-file`、`--plugin`、`--force-plugin` の対象にはできず、指定は 設定エラー になる。generic fallback が自動選択された download operation に限り、core 所有の一回限りの `--plugin-download-policy core.generic-html=<JSON>` または `--plugin-download-policy-file` は利用できる。これは persistent 設定ではなく、画像抽出や request/auth の振る舞いを変更しない。fallback の有効/無効は `fallback.generic_html.enabled` または `--fallback-generic` で制御する。
 
@@ -310,8 +313,8 @@ image_processors:
 
 <!-- claim: TAX-CONFIG-SECRETS -->
 raw credentialをYAML、manifest、catalog、plugin source、log、exceptionへ書かない。
-`plugin_settings.<id>.secrets`にはlogical nameから参照名（大文字英数字・アンダースコア）への対応だけを書く。
-`context.secrets.get(name)`は現在のデータルート・プロファイルの暗号化保管庫から毎回取得する。
+`plugin_settings.<id>.auth_access.sites.<site>.secrets`にはlogical nameから参照名（大文字英数字・アンダースコア）への対応だけを書く。
+`auth_context.credentials.get(name)`は現在のデータルート・プロファイルの暗号化保管庫から毎回取得する。
 環境変数と旧keyring項目へのfallbackはない。未構成なら`SecretNotFoundError("required plugin secret is not configured")`、
 未登録なら`SecretNotFoundError("required plugin secret is unavailable")`となる。
 
@@ -546,3 +549,7 @@ plugin_settings:
 ```
 
 要求構築の例は[接続先から画像要求を作る](../how-to/dynamic-urls-and-auth.md#endpoint-image-requests)、Cookie共有と実装の移行は[認証APIの移行手順](../how-to/authentication-migration.md)を参照する。
+
+サイト別の提供・ログイン許可はユーザー専用の `plugin_settings.<id>.auth_access` で指定する。匿名モードは空のセッションで開始し、認証を許可すれば通常どおりCookieを利用するが、終了時に認証状態を保存しない。[サイト選択・既定値・承認・実行時上書きの仕様](../how-to/auth-access-and-ephemeral-sessions.md)。
+
+`auth_access.sites.<site>.origins`は文字列・配列・`${host_groups.<name>}`とHTTPSの左端1階層ワイルドカードを受理します。本体originは別指定し、異なるsite間の重複範囲を拒否します。ユーザー専用の`host_groups`は作者endpointからも参照できますが、プラグイン固有configへは展開しません。[変数・共有単位・展開後の表示](../how-to/auth-access-and-ephemeral-sessions.md#ユーザー管理のホスト変数とワイルドカード)を参照してください。

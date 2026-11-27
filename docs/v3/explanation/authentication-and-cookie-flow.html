@@ -71,7 +71,7 @@ footer { border-top:1px solid var(--line); margin-top:45px; padding-top:20px; co
         <p class="subtitle">読込み・ブラウザインポート・認証・通信・保存の関係を、図とAPI対応表で確認する。</p>
         <div class="formats"><a href="authentication-and-cookie-flow.md">Markdown版</a><a href="assets/authentication-cookie-lifecycle.svg">図1 SVG</a><a href="assets/authentication-request-sequence.svg">図2 SVG</a><a href="assets/authentication-inspection-isolation.svg">図3 SVG</a></div>
       </header>
-      <article><p><a id="authentication-and-cookie-flow"></a></p>
+      <article><p><a href="../how-to/auth-access-and-ephemeral-sessions.md">サイト別の認証許可と匿名セッション</a></p><p><a id="authentication-and-cookie-flow"></a></p>
 
 <p>既存Cookieの読込み、ブラウザからのインポート、認証、通信中の更新、終了時の保存を、実装上の処理位置①〜⑨で説明する。対象はAPI 3の標準的な <code>RuntimeComposer</code> / <code>DownloadService</code> の経路である。</p>
 <p><a href="authentication-and-cookie-flow.html">HTML版</a>でも同じ内容を読める。図はSVGとPNGで個別に参照できる。設定値・型・例外の正本は<a href="../reference/configuration.md#config-plugin-connections">設定リファレンス</a>と<a href="../reference/plugin-hooks.md#plugin-authentication">フックリファレンス</a>、呼出し順の正本は<a href="execution-lifecycle.md">実行ライフサイクル</a>である。</p>
@@ -93,7 +93,7 @@ footer { border-top:1px solid var(--line); margin-top:45px; padding-top:20px; co
 </tr>
 <tr>
 <td>通信中のCookie</td>
-<td>サービス単位の共有Cookie jar。メモリ上で更新する</td>
+<td>通常用とサイト別匿名用のCookie jar。メモリ上で更新する</td>
 <td>④⑥⑦</td>
 </tr>
 <tr>
@@ -263,7 +263,7 @@ footer { border-top:1px solid var(--line); margin-top:45px; padding-top:20px; co
   </g>
   <text font-size="18" font-weight="700" style="fill:#815f28" text-anchor="middle" x="595" y="1243">検査終了時に破棄（保存しない）</text>
 </svg></div><figcaption>図1  Cookieと認証の全体像</figcaption></figure>
-<p>図1を個別に開く：<a href="assets/authentication-cookie-lifecycle.svg">SVG</a> / <a href="assets/authentication-cookie-lifecycle.png">PNG</a>。図中の矢印はデータや処理の受渡しを示す。③のサービス構築と、その後の⑤のoperation開始は別のタイミングである。</p>
+<p>図1を個別に開く：<a href="assets/authentication-cookie-lifecycle.svg">SVG</a> / <a href="assets/authentication-cookie-lifecycle.png">PNG</a>。図中の矢印はデータや処理の受渡しを示す。図中の「構築時」は現行実装では初回の通常セッション選択時を指す。③は通常セッションを初めて選択した時の遅延読込みである。匿名セッションでは②を読み込まない。図の共有jarは選択セッションごとに区別する。</p>
 <p><a id="phase-legend"></a></p>
 <h2 id="topic-2">①〜⑨の凡例と解説</h2>
 <div aria-label="横方向にスクロールできる表" class="table-wrap" role="region" tabindex="0"><table>
@@ -283,12 +283,12 @@ footer { border-top:1px solid var(--line); margin-top:45px; padding-top:20px; co
 <tr>
 <td>②</td>
 <td>プロファイルの暗号化ファイル</td>
-<td>次のサービス構築時に読めるCookieの保管場所。通信中のjarそのものではない。</td>
+<td>通常セッションを初めて選択した時に読めるCookieの保管場所。通信中のjarそのものではない。</td>
 </tr>
 <tr>
 <td>③</td>
-<td>サービス構築</td>
-<td>②を読み、④へ渡す。後の差分保存に使う初期状態baselineも取得する。</td>
+<td>通常セッションの初回選択</td>
+<td>②を読み、④へ渡し、差分保存用baselineを取得する。匿名では読み込まない。</td>
 </tr>
 <tr>
 <td>④</td>
@@ -335,28 +335,29 @@ footer { border-top:1px solid var(--line); margin-top:45px; padding-top:20px; co
 <p>マスターキーはOSストアで管理し、Cookie本体は保管庫の暗号化形式で保存する。新ファイルがなければ空のjarから開始する。旧 <code>cookies.enc</code> は自動移行・読込みせず、該当時は警告する。壊れた保存内容を、インポートで無条件に上書きして復旧する動作にはしない。</p>
 <p><a id="phase-3"></a></p>
 <h3 id="topic-5">③ 既存Cookieの読込みとbaseline</h3>
-<p>標準のサービス構築では <code>CookieStore.load()</code> で②を読み、期限切れCookieを除いて⑥のHTTPクライアントへ渡す。さらに <code>CookieStore.snapshot()</code> で初期状態baselineを取得する。</p>
-<p>読込みはサービス構築時であり、各URLへのアクセスやoperation開始のたびにディスクを読み直さない。同じサービスで複数operationを行う場合は、更新済みの④を引き続き使う。各operationの⑤は別の認証セッションであり、④の共有期間とは異なる。</p>
+<p>通常セッションを初めて選択した時に <code>CookieStore.load()</code> で②を読み、期限切れCookieを除いて⑥のHTTPクライアントへ渡す。さらに <code>CookieStore.snapshot()</code> で初期状態baselineを取得する。匿名セッションは空のjarを作り、②へアクセスしない。</p>
+<p>読込みは最初の通常セッション選択時だけ行い、各URLへのアクセスやoperation開始のたびにディスクを読み直さない。同じサービスで複数operationを行う場合は、更新済みの④を引き続き使う。各operationの⑤は別の認証セッションであり、④の共有期間とは異なる。</p>
 <p><a id="phase-4"></a></p>
 <h3 id="topic-6">④ サービス単位の共有Cookie jar</h3>
-<p>通常のページ・API・画像・補助ファイル要求と、認証フックの専用要求は、同じサービス内では共有jarを使う。⑥は送信先のdomain・path・secure・有効期限等に従ってCookieを選択する。</p>
-<p><code>context.get_cookies()</code> はjarの現在値のコピーを返す読取りAPIで、送信や保存を行わない。<code>auth: none</code> / <code>AuthMode.NONE</code> は認証フローを通さない指定であり、jarを無効にする指定ではない。要求に明示した資格情報を全面的に除去する意味もない。</p>
+<p>通常のページ・API・画像・補助ファイル要求と、認証フックの専用要求は、選択セッションのjarを共有する。通常用と匿名用は分離し、匿名用は同じプラグイン・サイト・参照設定でコマンド中に共有する。⑥は送信先のdomain・path・secure・有効期限等に従ってCookieを選択する。</p>
+<p><code>context.get_cookies()</code> は選択セッションのうち、対象サイトのoriginへ適用可能なCookieのコピーを返す読取りAPIで、送信や保存を行わない。<code>auth: none</code> / <code>AuthMode.NONE</code> は認証フローを通さない指定であり、jarを無効にする指定ではない。要求に明示した資格情報を全面的に除去する意味もない。</p>
 <p><a id="phase-5"></a></p>
 <h3 id="topic-7">⑤ operation単位の認証処理</h3>
 <p>コア内部の <code>OperationAuthSession</code> は、準備済みか、無効化済みか、資格情報の世代、leaseの期限、最後の追加確認時刻を保持する。Cookieを別途保管する場所ではない。</p>
-<p>最初の認証対象要求前に <code>initialize()</code> を実行する。既存Cookieが存在しても、この呼出し自体は省略しない。Cookieを再利用するか、状態を確認するか、初回からログインするかはプラグインが決める。<code>authentication</code> と <code>endpoints</code> は省略できるが、省略は認証全体の無効化ではない。</p>
+<p>最初の認証対象要求前に <code>initialize()</code> を実行する。既存Cookieが存在しても、この呼出し自体は省略しない。<code>initialize()</code> は通信せず既存状態の準備だけを行う。新規ログインはコアがユーザーの <code>auth_access</code> を判定した後、<code>login()</code> で実行する。<code>authentication</code> と <code>endpoints</code> は省略できるが、省略は認証全体の無効化ではない。</p>
 <p>接続先の <code>auth: session</code> と要求の <code>AuthMode</code> で認証対象を判定する。認証対象では必要な初期化・確認・更新と <code>apply()</code> を行う。フローなしの <code>AUTO</code> は通常のHTTP処理で、④のCookieは利用できる。追加originやREQUIREDの条件は<a href="../reference/configuration.md#config-authentication-scope">適用範囲</a>を参照する。</p>
 <p><a id="phase-6"></a></p>
 <h3 id="topic-8">⑥ 通常通信と認証用通信</h3>
 <p>通常要求は⑤の認証準備・同期 <code>apply()</code> の後、⑥へ進む。認証フックの <code>AuthContext.requests.execute()</code> は⑤へ再入しない専用の入口から⑥へ進み、HTTPエラー応答も本文付きで返す。</p>
-<p>専用の入口でも④のjar、プール、タイムアウト、通信制限、transport再試行を共有する。ただし自動apply・応答分類・認証確認・認証更新は行わない。送信先はoperationの既定originを含む宣言済みoriginに限る。Bearerヘッダー等が必要なら認証フック側が明示する。</p>
+<p>専用の入口でも④のjar、プール、タイムアウト、通信制限、transport再試行を共有する。ただし自動apply・応答分類・認証確認・認証更新は行わない。送信先はoperationの既定originを含む作者の宣言と、ユーザーのサイトグループの両方に含まれるoriginに限る。initialize中の通信は禁止する。Bearerヘッダー等が必要なら認証フック側が明示する。</p>
 <p><a id="phase-7"></a></p>
 <h3 id="topic-9">⑦ 応答によるCookie更新と認証判定</h3>
 <p>HTTPXは受信した <code>Set-Cookie</code> を④へ反映する。その後、コアは認証対象応答へ <code>auth_receipt</code> を付け、<code>classify_response()</code> を呼ぶ。Cookie反映のために <code>response.set_cookies()</code> を呼んだり、応答オブジェクトをフローへ保持したりする必要はない。</p>
 <p>通常の認証不要応答、認証フックの応答、401/403等の失敗応答、リダイレクト途中の応答でもCookie変更は起こり得る。処理や認証の失敗によってCookie変更を自動ロールバックしない。分類・追加確認後もHTTPエラーが残れば、既存の画像URL回復等の通常処理へ進む。</p>
 <p><a id="phase-8"></a></p>
 <h3 id="topic-10">⑧ サービス終了時の差分保存</h3>
-<p>標準の自動保存タイミングはoperation終了ではなく、<code>DownloadService.close()</code> / 非同期コンテキスト終了時である。baselineと現在の④を比較し、このサービスで追加・変更・削除した分を、保存直前に読み直した最新②へ合成する。プロセス間ロック下で合成・保存し、暗号化ファイルを更新する。</p>
+<p>通常セッションの自動保存タイミングはoperation終了ではなく、<code>DownloadService.close()</code> / 非同期コンテキスト終了時である。baselineと現在の④を比較し、このサービスで追加・変更・削除した分を、保存直前に読み直した最新②へ合成する。プロセス間ロック下で合成・保存し、暗号化ファイルを更新する。</p>
+<p>匿名セッションは差分保存に含めず、終了時にCookie・取得トークン・フロー参照を破棄する。通常セッションを一度も選択しなければCookie保存処理も実行しない。ダウンロード結果・実行履歴・ログ・更新状態は通常どおり保存する。</p>
 <p>通常CLIは終了処理で保存する。ライブラリ利用では <code>async with service</code> または <code>await service.close()</code> を使う。後始末に到達しない強制終了等では、メモリ上の変更が保存されるとは限らない。通常経路は失敗時にもcloseするため、要求失敗だけを理由にCookie変更を破棄する処理ではない。</p>
 <p><code>CookieStore.save()</code> は明示的にjar全体を置換する別APIであり、標準の差分保存とは異なる。有効期限なしのセッションCookieも現行実装では保存対象に含まれるが、ブラウザの終了やサーバー側の失効と同期しているわけではない。</p>
 <p><a id="phase-9"></a></p>
@@ -366,7 +367,7 @@ footer { border-top:1px solid var(--line); margin-top:45px; padding-top:20px; co
 <p><a href="#inspection-diagram">検査セッションの分離図</a>は、認証対象要求の図2に続けて掲載する。</p>
 <p><a id="authentication-sequence"></a></p>
 <h2 id="topic-12">認証対象要求の順序</h2>
-<p>図2は⑤⑥⑦を展開している。認証フックの通信は必要な場合だけ行う。保存済みtokenをメモリへ読むだけの <code>initialize()</code> も実装できる。<code>AuthMode.NONE</code> 等の通常要求は、認証フローの部分を通らず⑥⑦へ進む。</p>
+<p>図2は⑤⑥⑦を展開している。図のinitialize/refresh枠のうち、通信は許可後のlogin/refreshとverifyだけが行う。認証フックの通信は必要な場合だけ行う。保存済みtokenをメモリへ読むだけの <code>initialize()</code> も実装できる。<code>AuthMode.NONE</code> 等の通常要求は、認証フローの部分を通らず⑥⑦へ進む。</p>
 <figure class="diagram-figure"><div aria-label="⑤の認証準備、⑥の認証用・通常通信、⑦のCookie更新と応答分類を示すシーケンス図" class="diagram-scroll" role="region" tabindex="0"><svg aria-labelledby="figure-2-diagram-title figure-2-diagram-desc" class="embedded-diagram" height="1655" lang="ja" role="img" viewBox="0 0 1240 1655" width="1240" xmlns="http://www.w3.org/2000/svg">
   <title id="figure-2-diagram-title">図2  認証対象要求の順序</title>
   <desc id="figure-2-diagram-desc">⑤の認証準備、⑥の通信、⑦のCookie更新を展開。④は両方の通信で共有する。</desc>
@@ -518,7 +519,7 @@ footer { border-top:1px solid var(--line); margin-top:45px; padding-top:20px; co
 <p>図2を個別に開く：<a href="assets/authentication-request-sequence.svg">SVG</a> / <a href="assets/authentication-request-sequence.png">PNG</a>。図中の④は⑥が使う共有jarで、通常通信と認証用通信で分かれていない。</p>
 <ol>
 <li>要求のoriginと <code>AuthMode</code> を解決する。<code>context.endpoints</code> から構築した要求も、絶対URLの要求も同じ解決を通る。</li>
-<li>初回なら <code>initialize()</code>、初期化済みで期限切れ・無効化済みなら <code>refresh()</code> を実行する。</li>
+<li>初回は通信なしの <code>initialize()</code> で既存状態を準備する。AUTOは準備できなければ認証付与なしで送信する。REQUIRED、認証失敗、期限切れ、明示要求では許可判定後に <code>login()</code> / <code>refresh()</code> を実行する。</li>
 <li>方針や明示操作で必要なら <code>verify()</code> を実行する。VALIDなら続行、INVALIDなら更新、UNKNOWNなら専用エラーで停止する。</li>
 <li>同期 <code>apply()</code> で資格情報を付け、使用する認証世代を記録する。⑥で適用可能な④のCookieを付けて送信する。</li>
 <li>⑦でCookieを更新した後、応答にreceiptを付けて分類する。AUTH_FAILUREなら必要な更新・回数制限付き再送へ進む。UNKNOWNなら追加verifyで判断する。</li>
@@ -615,7 +616,7 @@ footer { border-top:1px solid var(--line); margin-top:45px; padding-top:20px; co
 </tr>
 <tr>
 <td>サービス構築後に別コマンドでインポート</td>
-<td>②は変わるが、実行中の④へ自動反映しない。次のサービス構築時に読み込む。</td>
+<td>②は変わるが、実行中の④へ自動反映しない。次の未読込み通常セッションの初回選択時に読み込む。</td>
 </tr>
 <tr>
 <td>サービスが変更していないCookie</td>
@@ -642,9 +643,10 @@ footer { border-top:1px solid var(--line); margin-top:45px; padding-top:20px; co
 <p>Cookieキーのdomain/pathは保存属性の文字列を使う。同じ名前でもdomainやpathが異なれば別のCookieである。HTTP要求での送信条件は⑥が判断し、保存時のキー照合とは役割が異なる。</p>
 <p><a id="csrf-cookie-example"></a></p>
 <h2 id="topic-15">CSRFサンプルで既存Cookieはどう使われるか</h2>
-<p><code>csrf_login_gallery</code> の <code>initialize()</code> は <code>refresh()</code> を呼ぶ。そのため、既存Cookieを読み込んでいても初回にログイン用処理を実行する。インポート済みCookieがあることを根拠に、コアが自動的にログインを省略するわけではない。</p>
+<p><code>csrf_login_gallery</code> の <code>initialize()</code> は通信せず <code>AuthLease()</code> を返し、既存Cookieを先に試す。認証失敗が判明した時はコアがログイン許可を判定し、<code>login()</code> / <code>refresh()</code> がCSRF付きログインを実行する。匿名モードでもこの手順は同じだが、最初のCookieは空で終了時に保存しない。</p>
 <pre><code class="language-text">③ 保存済みCookieを読み、④へ保持
-⑤ initialize() → refresh()
+⑤ initialize() → 既存Cookieで通常要求
+⑤ 認証失敗 → 許可判定 → login() / refresh()
   ⑥ GET /login       : 適用可能な既存Cookieを送信
   ⑦ 応答Cookieを保存 : 事前セッションCookie等
   ⑥ POST /session    : 資格情報・CSRF token・適用可能なCookieを送信
@@ -677,12 +679,17 @@ footer { border-top:1px solid var(--line); margin-top:45px; padding-top:20px; co
 <tr>
 <td><code>AuthFlow</code> / <code>BaseAuthFlow</code></td>
 <td>⑤</td>
-<td>認証手順の契約と既定実装。initializeは実装必須。既定applyは要求をそのまま返す。</td>
+<td>認証手順の契約と既定実装。既定initializeはNone、既定applyは要求をそのまま返す。</td>
 </tr>
 <tr>
-<td><code>initialize(auth_context) -&gt; AuthLease</code></td>
+<td><code>initialize(auth_context) -&gt; AuthLease または None</code></td>
 <td>⑤初回</td>
-<td>保存tokenの読込み、Cookie再利用判断、初回ログイン等。</td>
+<td>通信なしで保存tokenの読込み・Cookie再利用の準備を行う。</td>
+</tr>
+<tr>
+<td><code>login(auth_context) -&gt; AuthLease</code></td>
+<td>⑤許可後</td>
+<td>新規ログインを行う。</td>
 </tr>
 <tr>
 <td><code>apply(request) -&gt; RequestSpec</code></td>
@@ -702,12 +709,12 @@ footer { border-top:1px solid var(--line); margin-top:45px; padding-top:20px; co
 <tr>
 <td><code>refresh(auth_context) -&gt; AuthLease</code></td>
 <td>⑤・認証再試行前</td>
-<td>再ログイン・token更新を行う。既定は更新未対応のAuthenticationError。</td>
+<td>再ログイン・token更新を行う。既定はloginへの委譲。</td>
 </tr>
 <tr>
 <td><code>AuthContext</code></td>
 <td>⑤のフック内</td>
-<td>固有config、secrets、endpoints、専用requestsを提供する。</td>
+<td>固有config、サイトに束縛したcredentials、endpoints、専用requestsを提供する。</td>
 </tr>
 <tr>
 <td><code>AuthContext.requests.execute()</code></td>
@@ -723,6 +730,11 @@ footer { border-top:1px solid var(--line); margin-top:45px; padding-top:20px; co
 <td><code>await context.auth.ensure_ready(check=False)</code></td>
 <td>⑤</td>
 <td>必要な初期化・期限更新・無効化後の更新。check=Trueなら追加確認も要求する。</td>
+</tr>
+<tr>
+<td><code>await context.auth.request_login(reason)</code></td>
+<td>⑤</td>
+<td>許可判定後にログインする。拒否はFalse、成功はTrue、失敗は例外。</td>
 </tr>
 <tr>
 <td><code>context.auth.invalidate(response)</code></td>
@@ -746,7 +758,7 @@ footer { border-top:1px solid var(--line); margin-top:45px; padding-top:20px; co
 </tr>
 </tbody>
 </table></div>
-<p><code>initialize()</code> / <code>verify()</code> / <code>refresh()</code> / <code>ensure_ready()</code> は非同期、<code>apply()</code> / <code>classify_response()</code> / <code>invalidate()</code> / <code>Endpoint.request()</code> は同期である。<code>.request()</code> を呼んだだけでは⑥へ進まない。通常の実行では <code>context.requests.execute()</code> へ渡すか、画像要求フックから返す。</p>
+<p><code>initialize()</code> / <code>login()</code> / <code>verify()</code> / <code>refresh()</code> / <code>ensure_ready()</code> / <code>request_login()</code> は非同期、<code>apply()</code> / <code>classify_response()</code> / <code>invalidate()</code> / <code>Endpoint.request()</code> は同期である。<code>.request()</code> を呼んだだけでは⑥へ進まない。通常の実行では <code>context.requests.execute()</code> へ渡すか、画像要求フックから返す。</p>
 <h3 id="topic-18">値型・応答情報</h3>
 <div aria-label="横方向にスクロールできる表" class="table-wrap" role="region" tabindex="0"><table>
 <thead>
@@ -809,6 +821,10 @@ footer { border-top:1px solid var(--line); margin-top:45px; padding-top:20px; co
 <tr>
 <td><code>PluginConnections</code></td>
 <td>作者設定と利用者設定をマージした接続先・認証方針の検証。</td>
+</tr>
+<tr>
+<td><code>PluginAuthAccess</code> / <code>SiteAuthAccess</code></td>
+<td>作者設定と分離したユーザー専用の資格情報提供・ログイン許可・セッション保存方針。</td>
 </tr>
 </tbody>
 </table></div>

@@ -15,12 +15,16 @@ fixtureは最初の画像要求に401を返します。コアの再認証で世�
 # リポジトリのルートで実行。実通信なしで取得・再認証・画像保存を試験する
 image-downloader-dev simulate .\examples\plugin-v3-auth-snapshot `
   https://auth-snapshot.example.test/gallery --mode replay `
-  --fixture .\examples\plugin-v3-auth-snapshot\fixture.yaml
+  --fixture .\examples\plugin-v3-auth-snapshot\fixture.yaml `
+  --app-config .\examples\plugin-v3-auth-snapshot\auth-access.yaml
 
 # inspectと画像要求構築を同じセッションで確認する
 image-downloader-dev check .\examples\plugin-v3-auth-snapshot `
-  --fixture .\examples\plugin-v3-auth-snapshot\fixture.yaml
+  --fixture .\examples\plugin-v3-auth-snapshot\fixture.yaml `
+  --app-config .\examples\plugin-v3-auth-snapshot\auth-access.yaml
 ```
+
+`auth-access.yaml`はこのモックだけの明示的なユーザー許可です。開発ツールは作者設定やfixtureから資格情報提供・ログインの許可を補完しません。
 
 fixture内の資格情報はダミーです。詳細ログと保存方針は既存仕様のままです。
 `snapshot()`は同期・通信なしで、その瞬間の世代を不変DTOとして返します。
@@ -28,6 +32,6 @@ fixture内の資格情報はダミーです。詳細ログと保存方針は既�
 サーバーでの追加確認が必要なら、実際の確認APIを使う`verify()`を実装してから
 `await context.auth.ensure_ready(check=True)`を使います。このサンプルの`verify()`は既定のUNKNOWNです。
 
-配布用の署名済みmanifestは含めていません。配布する場合は`plugin-metadata.json`を使って
+開発用の署名なしmanifestは、ユーザー許可設定と同じ固定IDで読み込むために含めています。配布用の署名済みmanifestは含めていません。配布する場合は`plugin-metadata.json`を使って
 通常どおり署名・インストールしてください。手順は[署名サンプル](../plugin-v3-metadata-bridge/README.md#sign-and-install)、
 APIと移行方針は[移行ガイド](../../docs/v3/how-to/structured-data-and-auth-snapshot-migration.md)を参照してください。

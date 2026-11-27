@@ -46,6 +46,7 @@ class _WorkflowExecution:
     def __init__(self, runtime: WorkflowRuntime, request: WorkflowRequest) -> None:
         self.runtime, self.url, self.scope = runtime, request.url, request.download_scope
         self.overrides = request.plugin_overrides
+        self.auth_access = request.plugin_auth_access_overrides
         self.fallback, self.plugin_id, self.force_plugin = (
             request.fallback_override,
             request.plugin_id,
@@ -187,6 +188,7 @@ class _WorkflowExecution:
                     UpdateCheckRequest(
                         url=self.url,
                         plugin_overrides=self.overrides,
+                        plugin_auth_access_overrides=self.auth_access,
                         fallback_override=self.fallback,
                         plugin_id=self.plugin_id,
                         force_plugin=self.force_plugin,
@@ -358,6 +360,7 @@ class _WorkflowExecution:
                             DownloadRequest(
                                 url=item.url,
                                 plugin_overrides=self.overrides,
+                                plugin_auth_access_overrides=self.auth_access,
                                 fallback_override=self.fallback,
                                 plugin_id=self.plugin_id,
                                 force_plugin=self.force_plugin,

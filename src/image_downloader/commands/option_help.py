@@ -49,6 +49,11 @@ OPTION_HELP = {
         "Override plugin verification for this invocation only.",
         "Uses configuration",
     ),
+    "plugin-auth-access": (
+        "Plugins",
+        "Override user authentication access using ID=<JSON-object> for this command.",
+        "",
+    ),
     "plugin-config": ("Plugins", "Override plugin settings using ID=<JSON-object>; inline values override files.", ""),
     "plugin-config-file": ("Plugins", "Read plugin settings from an absolute JSON file with plugin_id and config.", ""),
     "plugin-download-policy": (

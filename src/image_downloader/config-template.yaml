@@ -84,7 +84,17 @@
 #   com.example.plugin:
 #     enabled: true
 #     config: {}                     # plugin-defined; validate with doctor --host
-#     secrets: {}                    # lower_snake_case -> UPPERCASE_REFERENCE
+#     host_groups:                   # user-only names -> DNS hostname arrays
+#       default: []                  # referenced arrays must be non-empty
+#     auth_access:                  # user-owned credential/login permissions
+#       mode: standard              # anonymous: fresh command-only session
+#       sites:
+#         gallery:
+#           origins: [https://gallery.example.test]
+#           # origins: ["https://${host_groups.default}", "https://*.${host_groups.default}"]
+#           # One shared site; wildcard matches one label and excludes the apex.
+#           login: ask              # allow / ask / deny
+#           secrets: {}             # lower_snake_case -> UPPERCASE_REFERENCE
 #     authentication:
 #       verify_on_start: false
 #       verify_before_request: false
@@ -95,6 +105,7 @@
 #         origin: https://api.example.test
 #         # origin may also be an array of HTTP(S) origins or patterns:
 #         # origin: ["https://cdn.${operation.site_domain}", "https://*.images.${operation.site_domain}"]
+#         # user-owned array: origin: "https://viewer.${host_groups.default}"
 #         # config arrays expand explicitly, e.g. origin: "https://cdn.${config.supported_hosts}"
 #         auth: session              # session or none; one authentication session per operation
 #         verification:

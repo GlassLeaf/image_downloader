@@ -223,7 +223,7 @@ def _assert_released(resources):
 
 @pytest.mark.parametrize("method", METHODS)
 @pytest.mark.parametrize("active_loop", [False, True])
-@pytest.mark.parametrize("stage", ["cookie_load", "cookie_snapshot", "processor", "output_locks", "service"])
+@pytest.mark.parametrize("stage", ["processor", "output_locks", "service"])
 def test_failed_composition_releases_every_completed_resource(
     tmp_path, monkeypatch, resources, method, active_loop, stage
 ):
@@ -357,7 +357,7 @@ def test_repeated_failures_preserve_another_runtime_and_its_lazy_import(tmp_path
         for _ in range(4):
             before = _import_state()
             error = AuthenticationError("retry failed")
-            _fail_at("cookie_load", monkeypatch, error)
+            _fail_at("processor", monkeypatch, error)
             _expect_failure(composer, "compose", error, active_loop=True)
             assert _import_state() == before
             assert surviving.module_namespace(record) == namespace
@@ -391,7 +391,8 @@ def test_success_transfers_ownership_and_keeps_normal_close(tmp_path, resources,
         "logger": 1,
         **({"sink": 1} if method == "compose" else {}),
     }
-    assert resources.persist.call_count == (0 if method == "_compose_for_workflow_plan" else 1)
+    # An unused service never loads or persists a cookie session.
+    assert resources.persist.call_count == 0
     resources.notify.assert_not_called()
 
 

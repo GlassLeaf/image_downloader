@@ -289,32 +289,106 @@ class PluginConnections(StrictModel):
         return self
 
 
+class SiteAuthAccess(StrictModel):
+    """User-owned identity binding; author connection defaults cannot grant access."""
+
+    origins: tuple[StrictStr, ...]
+    secrets: Mapping[StrictStr, StrictStr] = Field(default_factory=dict)
+    credential_access: Literal["allow", "deny"] | None = None
+    login: Literal["allow", "ask", "deny"] | None = None
+    mode: Literal["standard", "anonymous"] = "standard"
+
+    def model_post_init(self, __context: Any) -> None:
+        object.__setattr__(self, "secrets", freeze_json(self.secrets))
+
+    @field_validator("origins", mode="before")
+    @classmethod
+    def exact_origins(cls, value: object) -> tuple[str, ...]:
+        from .auth_origins import validate_auth_origin
+
+        if isinstance(value, str):
+            value = (value,)
+        if not isinstance(value, (list, tuple)) or not value or any(not isinstance(item, str) for item in value):
+            raise ValueError("site origins must be a string or a non-empty string array")
+        return tuple(dict.fromkeys(validate_auth_origin(item) for item in value))
+
+    @field_validator("secrets")
+    @classmethod
+    def valid_references(cls, values: Mapping[str, str]) -> Mapping[str, str]:
+        for name, reference in values.items():
+            if not re.fullmatch(r"[a-z][a-z0-9_]*", name) or not re.fullmatch(r"[A-Z0-9_]+", reference):
+                raise ValueError("site secret names must be lower_snake_case and references uppercase")
+        return cast(Mapping[str, str], freeze_json(values))
+
+    @field_serializer("secrets")
+    def serialize_references(self, value: Mapping[str, str]) -> dict[str, str]:
+        return dict(value)
+
+    @property
+    def provides_credentials(self) -> bool:
+        return self.credential_access == "allow" if self.credential_access is not None else bool(self.secrets)
+
+    @property
+    def login_policy(self) -> Literal["allow", "ask", "deny"]:
+        return self.login if self.login is not None else "ask" if self.provides_credentials else "deny"
+
+
+class PluginAuthAccess(StrictModel):
+    mode: Literal["standard", "anonymous"] = "standard"
+    sites: Mapping[StrictStr, SiteAuthAccess] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def unique_origins(self) -> PluginAuthAccess:
+        for name in self.sites:
+            if not name or name != name.strip() or not all(char.isprintable() for char in name):
+                raise ValueError("site IDs must be non-empty printable names without surrounding whitespace")
+        object.__setattr__(self, "sites", MappingProxyType(dict(self.sites)))
+        return self
+
+    @field_serializer("sites")
+    def serialize_sites(self, value: Mapping[str, SiteAuthAccess]) -> dict[str, SiteAuthAccess]:
+        return dict(value)
+
+
 class PluginSettings(StrictModel):
+    @model_validator(mode="before")
+    @classmethod
+    def reject_legacy_secrets(cls, value: Any) -> Any:
+        if isinstance(value, Mapping) and "allowed_hosts" in value:
+            from .host_groups import HostGroupError
+
+            raise HostGroupError("legacy")
+        if isinstance(value, Mapping) and "secrets" in value:
+            raise ValueError("plugin secrets moved to auth_access.sites.<site>.secrets; migrate the user configuration")
+        return value
+
     enabled: StrictBool = True
     config: Mapping[str, Any] = Field(default_factory=dict)
-    secrets: Mapping[StrictStr, StrictStr] = Field(default_factory=dict)
+    host_groups: Mapping[StrictStr, tuple[StrictStr, ...]] = Field(default_factory=dict)
+    auth_access: PluginAuthAccess = Field(default_factory=PluginAuthAccess)
     download_policy: PluginDownloadPolicy = Field(default_factory=PluginDownloadPolicy)
     authentication: AuthenticationPolicy = Field(default_factory=AuthenticationPolicy)
     # Profile values are partial overrides: validate the complete declaration after merging author defaults.
     endpoints: Mapping[StrictStr, Mapping[str, Any]] = Field(default_factory=dict)
 
+    @field_validator("host_groups", mode="before")
+    @classmethod
+    def valid_host_groups(cls, value: object) -> Mapping[str, tuple[str, ...]]:
+        from .host_groups import normalize_host_groups
+
+        return normalize_host_groups(value)
+
+    @field_serializer("host_groups")
+    def serialize_host_groups(self, value: Mapping[str, tuple[str, ...]]) -> dict[str, tuple[str, ...]]:
+        return dict(value)
+
     @field_serializer("endpoints")
     def serialize_endpoints(self, value: Mapping[str, Mapping[str, Any]]) -> dict[str, dict[str, Any]]:
         return cast(dict[str, dict[str, Any]], thaw_json(value))
 
-    @field_validator("secrets")
-    @classmethod
-    def secret_references(cls, values: Mapping[str, str]) -> Mapping[str, str]:
-        for name, reference in values.items():
-            if not re.fullmatch(r"[a-z][a-z0-9_]*", str(name)):
-                raise ValueError("secret names must be lower_snake_case")
-            if not re.fullmatch(r"[A-Z0-9_]+", str(reference)):
-                raise ValueError("secret references must be uppercase environment references")
-        return values
-
     def model_post_init(self, __context: Any) -> None:
         object.__setattr__(self, "config", freeze_json(self.config))
-        object.__setattr__(self, "secrets", freeze_json(self.secrets))
+        object.__setattr__(self, "host_groups", freeze_json(self.host_groups))
         object.__setattr__(self, "endpoints", freeze_json(self.endpoints))
 
 

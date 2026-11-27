@@ -7,6 +7,7 @@ import io
 import json
 import re
 from collections.abc import Mapping
+from dataclasses import replace
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import urlsplit
@@ -33,7 +34,7 @@ from image_downloader import (
     RequestSpec,
     TransformContext,
 )
-from image_downloader.exceptions import PluginError, SecretNotFoundError
+from image_downloader.exceptions import PluginError
 
 
 def _user_id(value: object) -> int:
@@ -55,11 +56,9 @@ class LoginFlow(BaseAuthFlow):
         self.sessionPath = "/api/auth/session"
 
     async def initialize(self, auth_context: AuthContext) -> AuthLease:
-        if (await self.verify(auth_context)).status is AuthStatus.VALID:
-            return AuthLease()
-        return await self.refresh(auth_context)
+        return AuthLease()
 
-    async def login(self, auth_context: AuthContext) -> bool:
+    async def _login(self, auth_context: AuthContext) -> bool:
         response = await auth_context.requests.execute(RequestSpec(self.host + self.csrfApiPath, auth=AuthMode.NONE))
         if not 200 <= response.status < 300:
             return False
@@ -75,8 +74,8 @@ class LoginFlow(BaseAuthFlow):
                 self.host + self.loginPath,
                 method="POST",
                 json={
-                    "id": auth_context.secrets.get("id"),
-                    "password": auth_context.secrets.get("password"),
+                    "id": auth_context.credentials.get("id"),
+                    "password": auth_context.credentials.get("password"),
                     "csrfToken": token,
                     "json": True,
                     "redirect": False,
@@ -109,8 +108,8 @@ class LoginFlow(BaseAuthFlow):
         )
         return AuthVerification(AuthStatus.VALID if valid else AuthStatus.INVALID)
 
-    async def refresh(self, auth_context: AuthContext) -> AuthLease:
-        if not await self.login(auth_context) or (await self.verify(auth_context)).status is not AuthStatus.VALID:
+    async def login(self, auth_context: AuthContext) -> AuthLease:
+        if not await self._login(auth_context) or (await self.verify(auth_context)).status is not AuthStatus.VALID:
             raise AuthenticationError("login session request failed")
         return AuthLease()
 
@@ -222,7 +221,7 @@ class CDownloadPlugin:
     @staticmethod
     async def _legacy_metadata(request: RequestSpec, context: PluginExecutionContext) -> Any:
         try:
-            response = await context.requests.execute(request)
+            response = await context.requests.execute(replace(request, auth=AuthMode.NONE))
         except HttpStatusError as exc:
             if exc.status != 404:
                 raise
@@ -233,6 +232,12 @@ class CDownloadPlugin:
         content_title = ""
         chapter_title = ""
         soup = await self.get_params(url, context)
+        if self.userId == 0 and await context.auth.request_login("Load account-specific image access"):
+            response = await context.requests.execute(RequestSpec(f"{self.host}/api/auth/session"))
+            try:
+                self.userId = _user_id(json.loads(response.body).get("user"))
+            except (AttributeError, TypeError, ValueError) as exc:
+                raise PluginError("session response did not contain a valid user ID") from exc
         title = soup.select_one('meta[property="og:title"]')
         if title is not None:
             content_title = str(title.get("content", ""))
@@ -292,12 +297,6 @@ class CDownloadPlugin:
         return None
 
     def auth_flow(self, context: PluginExecutionContext) -> AuthFlow | None:
-        try:
-            for name in ("id", "password"):
-                if not context.secrets.get(name):
-                    return None
-        except SecretNotFoundError:
-            return None
         return LoginFlow(context.endpoints["operation"].origin)
 
     def transform_image(self, artifact: ImageArtifact, context: TransformContext) -> ImageArtifact:

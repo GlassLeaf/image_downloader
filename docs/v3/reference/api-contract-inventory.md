@@ -9,6 +9,13 @@
 ## image_downloader
 
 <!-- api-inventory:start image_downloader -->
+LoginApprovalRequest
+LoginApprover
+PluginAuthAccess
+SiteAuthAccess
+CredentialAccessDeniedError
+LoginDeniedError
+LoginApprovalRequiredError
 PLUGIN_API_FEATURES
 PluginDataView
 AuthSnapshot

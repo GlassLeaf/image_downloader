@@ -18,7 +18,8 @@ import yaml
 
 from ..configuration.endpoint_origins import OriginPattern
 from ..configuration.merging import deep_merge
-from ..configuration.models import PluginConnections, _valid_plugin_id
+from ..configuration.models import PluginConnections, PluginSettings, _valid_plugin_id
+from ..configuration.yaml_input import safe_load_unique
 from ..models import AdditionalFileHookPoint
 from ..plugins.plugin_files import canonical_jcs
 from ..transport.endpoint_rules import EndpointRules
@@ -252,7 +253,8 @@ def test_generated_contract():
     project = Path(__file__).resolve().parents[1]
     assert main(["load", str(project), "--json"]) == 0
 """
-    if not pending_features(spec):
+    user_auth = spec.get("application", {}).get("plugin_settings", {}).get(spec["id"], {}).get("auth_access")
+    if not pending_features(spec) and (not AUTH.intersection(spec["features"]) or user_auth):
         tests += (
             "\n\ndef test_generated_replay():\n"
             "    project = Path(__file__).resolve().parents[1]\n"
@@ -270,6 +272,9 @@ def test_generated_contract():
             name = f"authenticated_{index}"
         endpoints[name] = {"origin": additional_origins, "auth": "session"}
     if AUTH.intersection(spec["features"]):
+        user_settings = PluginSettings.model_validate(
+            spec.get("application", {}).get("plugin_settings", {}).get(spec["id"], {})
+        )
         rules = EndpointRules(
             PluginConnections.model_validate(
                 {
@@ -279,6 +284,7 @@ def test_generated_contract():
             ),
             spec["config"],
             spec["sample_url"],
+            host_groups=user_settings.host_groups,
         )
         for name in ("login", "token"):
             value = spec["config"].get(name + "_url")
@@ -314,7 +320,14 @@ def test_generated_contract():
         + "`image-downloader-dev load .`\n\n"
         + f"`image-downloader-dev simulate . {spec['sample_url']} --mode replay --fixture fixtures/replay.yaml`\n\n"
         + "`image-downloader-dev check .`\n\n"
-        + "未実装箇所は `image-downloader-dev check .` で確認できます。\n",
+        + "未実装箇所は `image-downloader-dev check .` で確認できます。\n\n"
+        + "認証許可はユーザー設定の `plugin_settings.<id>.auth_access` で明示します。\n"
+        + "開発用のsecret_referencesやfixtureから許可を生成しません。認証付きsimulateには\n"
+        + "`--app-config`でユーザー設定を渡すか、plugin-dev.yamlのapplicationへ明示してください。\n"
+        + "認証機能のreplayテストは、この明示設定がある場合に生成します。\n"
+        + "ユーザー専用の `host_groups` は認証originとendpointから `${host_groups.default}` で参照できます。\n"
+        + "一つのsiteが認証共有単位です。HTTPSのワイルドカードは左端1階層だけで、本体originは別に登録します。\n"
+        + "開発実行でも明示したユーザーの許可・拒否は保持し、作者のホスト一覧から許可を補完しません。\n",
     }
 
 
@@ -557,7 +570,7 @@ def extend_project(target: Path, updates: dict[str, Any], *, apply: bool = False
     config = existing_author.get("config", {})
     merged = deep_merge(spec["config"], config)
     merged = deep_merge(merged, updates.get("config", {}))
-    desired_author = yaml.safe_load(str(files["plugin/plugin.yaml"]))
+    desired_author = safe_load_unique(str(files["plugin/plugin.yaml"]))
     merged_author = deep_merge(desired_author, existing_author)
     merged_author = deep_merge(
         merged_author,

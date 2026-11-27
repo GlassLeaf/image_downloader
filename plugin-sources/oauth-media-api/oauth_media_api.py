@@ -44,7 +44,7 @@ def _json(body: bytes, message: str) -> Mapping[str, object]:
 
 class _OAuthFlow(BaseAuthFlow):
     async def initialize(self, auth_context: AuthContext) -> AuthLease:
-        self.access_token = auth_context.secrets.get("access_token")
+        self.access_token = auth_context.credentials.get("access_token")
         return AuthLease()
 
     def classify_response(self, request: RequestSpec, response: RequestResponse) -> AuthDecision:
@@ -55,21 +55,19 @@ class _OAuthFlow(BaseAuthFlow):
     def apply(self, request: RequestSpec) -> RequestSpec:
         return replace(request, headers={**request.headers, "Authorization": f"Bearer {self.access_token}"})
 
-    async def refresh(self, auth_context: AuthContext) -> AuthLease:
+    async def login(self, auth_context: AuthContext) -> AuthLease:
         origin = auth_context.endpoints["operation"].origin
         token = await auth_context.requests.execute(
             RequestSpec(
                 f"{origin}/oauth/token",
                 method="POST",
-                form={"grant_type": "refresh_token", "refresh_token": auth_context.secrets.get("refresh_token")},
+                form={"grant_type": "refresh_token", "refresh_token": auth_context.credentials.get("refresh_token")},
             )
         )
         if token.status >= 400:
             raise AuthenticationError("OAuth token refresh failed")
         data = _json(token.body, "OAuth token response is invalid")
-        self.access_token = _text(
-            data.get("access_token"), "OAuth token response is invalid"
-        )
+        self.access_token = _text(data.get("access_token"), "OAuth token response is invalid")
         return AuthLease(data.get("expires_in"))
 
 

@@ -1,0 +1,12 @@
+# Explicit user permission for this fictional, offline fixture service.
+# Pass this file with --app-config; the developer tools do not load it implicitly.
+plugin_settings:
+  local.image-downloader.auth-snapshot-gallery:
+    auth_access:
+      sites:
+        mock_service:
+          origins: https://auth-snapshot.example.test
+          secrets:
+            username: USERNAME
+            password: PASSWORD
+          login: allow

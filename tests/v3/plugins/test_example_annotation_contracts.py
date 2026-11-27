@@ -41,7 +41,8 @@ PROCESSOR_HOOKS: dict[str, tuple[bool, tuple[tuple[str, str], ...], str]] = {
 }
 
 AUTH_FLOW_HOOKS: dict[str, tuple[bool, tuple[tuple[str, str], ...], str]] = {
-    "initialize": (True, (("auth_context", "AuthContext"),), "AuthLease"),
+    "initialize": (True, (("auth_context", "AuthContext"),), "AuthLease | None"),
+    "login": (True, (("auth_context", "AuthContext"),), "AuthLease"),
     "apply": (False, (("request", "RequestSpec"),), "RequestSpec"),
     "classify_response": (False, (("request", "RequestSpec"), ("response", "RequestResponse")), "AuthDecision"),
     "verify": (True, (("auth_context", "AuthContext"),), "AuthVerification"),
@@ -110,7 +111,11 @@ def _assert_contract(
     is_async, parameters, return_type = expected
     assert isinstance(node, ast.AsyncFunctionDef) is is_async, location
     assert _parameters(node, location) == parameters, location
-    assert _annotation(node.returns, f"{location} return") == return_type, location
+    actual_return = _annotation(node.returns, f"{location} return")
+    if node.name == "initialize" and return_type == "AuthLease | None":
+        assert actual_return in {"AuthLease", "None", "AuthLease | None"}, location
+    else:
+        assert actual_return == return_type, location
 
 
 def test_current_v3_examples_have_complete_type_annotations(repository_root: Path) -> None:

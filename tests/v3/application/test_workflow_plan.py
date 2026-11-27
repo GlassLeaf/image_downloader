@@ -23,9 +23,9 @@ from image_downloader import (
     WorkflowPlanRequest,
     WorkflowRequest,
 )
-from image_downloader.application import workflow_plan
 from image_downloader.storage import FileSystem
 from image_downloader.storage.workflow import WorkflowState
+from image_downloader.transport.gateway import RequestGateway
 
 
 def persistent_files(root):
@@ -95,14 +95,14 @@ def test_plan_session_is_detached_and_never_records_or_notifies(tmp_path, monkey
         async with compose(tmp_path, gallery) as service:
             before = persistent_files(tmp_path)
             gateways = []
-            gateway_type = workflow_plan.RequestGateway
+            gateway_type = type(service.gateway)
 
             def gateway(*args, **kwargs):
                 value = gateway_type(*args, **kwargs)
                 gateways.append(value)
                 return value
 
-            monkeypatch.setattr(workflow_plan, "RequestGateway", gateway)
+            monkeypatch.setattr("image_downloader.transport.gateway.RequestGateway", gateway)
 
             async def check(url, context):
                 gateways[0].client.cookies.set("temporary", "secret", domain="example.test")
@@ -219,11 +219,11 @@ def test_plan_auth_refresh_uses_detached_cookie_session(tmp_path, monkeypatch):
                 headers={"Set-Cookie": "session=refreshed; Path=/"},
             )
 
-        base = workflow_plan.RequestGateway
+        base = RequestGateway
 
         class MockGateway(base):
-            def __init__(self, config, jar):
-                super().__init__(config, jar)
+            def __init__(self, config, jar=None, **kwargs):
+                super().__init__(config, jar, **kwargs)
                 self.original_client = self.client
                 self.client = httpx.AsyncClient(transport=httpx.MockTransport(respond), cookies=jar)
 
@@ -252,12 +252,21 @@ def test_plan_auth_refresh_uses_detached_cookie_session(tmp_path, monkeypatch):
             return snapshot(A)
 
         gallery.check_updates = check
-        monkeypatch.setattr(workflow_plan, "RequestGateway", MockGateway)
+        monkeypatch.setattr("image_downloader.transport.gateway.RequestGateway", MockGateway)
         async with compose(tmp_path, gallery) as service:
             service.gateway.client.cookies.set("session", "original", domain="example.test", path="/")
             service._cookie_baseline = service.cookie_store.snapshot(service.gateway.client.cookies.jar)
             before = persistent_files(tmp_path)
-            result = await service.plan_workflow(WorkflowPlanRequest(url=FEED))
+            result = await service.plan_workflow(
+                WorkflowPlanRequest(
+                    url=FEED,
+                    plugin_auth_access_overrides={
+                        "core.generic-html": {
+                            "sites": {"test": {"origins": ["https://example.test"], "login": "allow"}}
+                        },
+                    },
+                )
+            )
             assert result.selected_urls == (A.url,)
             assert [r.headers["Authorization"] for r in seen] == ["old", "new"]
             assert "session=original" in seen[0].headers["cookie"]

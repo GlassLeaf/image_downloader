@@ -321,3 +321,11 @@ preview = state.prune_history(dry_run=True)
 ## ワークフローの実行計画と進捗ファイル
 
 通常のCLI・APIのワークフロー呼び出しは、プロファイルの`logs/workflow`へ必須の周回別計画を書き込みます。`workflow_progress_log: bool | None = None`で`workflow_logging.progress_enabled`を上書きでき、JSONL・テキストの進捗記録だけを制御します。`WorkflowResult.workflow_log`は任意の不変な`WorkflowLogResult`で、`plan_files`、`progress_enabled`、`jsonl_path`、`text_path`、独立したnull許容の`jsonl_saved`・`text_saved`、固定の安全な`warnings`、`event_sequence`を持ちます。APIのパスは絶対パスで、CLIのJSONには既存のパス秘匿化を適用します。保存フラグがfalseなら記録が停止しており、ファイルには途中までしか残っていない可能性があります。無効な出力先はパスと状態がnullです。計画の失敗は`WorkflowPlanLogError`（`StorageError`、終了コード1）で、確定済みの部分`result`を保持します。その周回の完全な計画を保存する前には、対象manifestや画像を取得しません。進捗記録の失敗はワークフローの結果や履歴保存を変更しません。これらのファイルには元の取得元・対象URLを記録しますが、ヘッダー、Cookie、画像データ、任意の例外文字列は含めません。`plan_workflow()`はこれらを作りません。永続性、保持、キャンセル時の制限は[ログ](logging.md#workflow-execution-files)を参照してください。後日のAPIの`close()`は別操作であり、CLIの終了処理で失敗した場合は同じ実行の進捗ファイルへ訂正を追記します。
+
+サイト単位の許可制御では、次のエラーも返します。
+
+| 例外 | コード | 理由 |
+| --- | --- | --- |
+| `CredentialAccessDeniedError` | `credential_access_denied` | credential delivery is denied for this site |
+| `LoginDeniedError` | `login_denied` | login or credential renewal is denied for this site |
+| `LoginApprovalRequiredError` | `login_approval_required` | login requires approval; configure auth_access for unattended use |

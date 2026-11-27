@@ -6,10 +6,21 @@ import asyncio
 import time
 from collections.abc import Callable, Mapping
 from contextvars import ContextVar
+from dataclasses import dataclass
 from uuid import uuid4
 
-from ..configuration.models import PluginConnections, PluginSettings
-from ..exceptions import AuthReentryError, AuthScopeError, AuthStateUnknownError, PluginError
+from ..configuration.auth_origins import OriginMatcher
+from ..configuration.models import PluginAuthAccess, PluginConnections, PluginSettings
+from ..credentials.access import CommandAuthAccess, ResolvedAuthAccess, resolve_auth_access
+from ..diagnostics import auth_scope_error
+from ..exceptions import (
+    AuthReentryError,
+    AuthScopeError,
+    AuthStateUnknownError,
+    CredentialAccessDeniedError,
+    LoginDeniedError,
+    PluginError,
+)
 from ..models import (
     AuthDecision,
     AuthLease,
@@ -28,6 +39,12 @@ from .metadata import _request_origin
 _AUTH_HOOKS: ContextVar[frozenset[str]] = ContextVar("operation_auth_hooks", default=frozenset())
 
 
+@dataclass(slots=True)
+class _AuthPhase:
+    name: str
+    active: bool = True
+
+
 class OperationAuthSession:
     """One credential generation shared by all requests in an operation."""
 
@@ -39,6 +56,9 @@ class OperationAuthSession:
         *,
         plugin_config: Mapping[str, object] | None = None,
         clock: Callable[[], float] = time.monotonic,
+        access: ResolvedAuthAccess | None = None,
+        consent: CommandAuthAccess | None = None,
+        host_groups: Mapping[str, tuple[str, ...]] | None = None,
     ) -> None:
         config = (
             plugin_config
@@ -47,13 +67,26 @@ class OperationAuthSession:
             if isinstance(settings, PluginSettings)
             else {}
         )
+        user_access = settings.auth_access if isinstance(settings, PluginSettings) else PluginAuthAccess()
+        user_hosts = settings.host_groups if isinstance(settings, PluginSettings) else host_groups or {}
         settings = PluginConnections.model_validate(
             {"authentication": settings.authentication, "endpoints": settings.endpoints}
         )
         self.operation_id = uuid4().hex
+        self.access = access or resolve_auth_access(
+            invoker.plugin_id, operation_url, user_access, host_groups=user_hosts
+        )
+        self.consent = consent or CommandAuthAccess()
+        self._phase: ContextVar[_AuthPhase | None] = ContextVar("auth_phase", default=None)
         self.policy = settings.authentication
+        self._verify_on_start_pending = self.policy.verify_on_start
         self._origin = _request_origin(operation_url)
-        self.rules = EndpointRules(settings, config, operation_url)
+        self.rules = EndpointRules(settings, config, operation_url, host_groups=user_hosts)
+        self.cookie_origins = self.access.matcher.intersection(
+            OriginMatcher.compile(
+                (self._origin, *(origin for endpoint in self.rules.endpoints.values() for origin in endpoint.origins))
+            )
+        )
         if "operation" in self.rules.endpoints and self.rules.endpoints["operation"].origins != (self._origin,):
             raise AuthScopeError("endpoints.operation is reserved for the operation origin")
         self._invoker, self._clock = invoker, clock
@@ -63,6 +96,9 @@ class OperationAuthSession:
         self.endpoints.setdefault("operation", Endpoint(self._origin))
         self.generation = 0
         self._initialized = self._dirty = self._closed = False
+        self._ready = False
+        self._decision_lock = asyncio.Lock()
+        self._login_serial = 0
         self._expires: float | None = None
         self._verified_at: float | None = None
         self._verification_serial = 0
@@ -78,7 +114,7 @@ class OperationAuthSession:
         renewal_due = self._expires is not None and now >= self._expires - self.policy.refresh_skew_seconds
         ready = bool(
             self.flow is not None
-            and self._initialized
+            and self._ready
             and not (self._dirty or self._closed or self._failure is not None or renewal_due)
         )
         return AuthSnapshot(
@@ -109,6 +145,21 @@ class OperationAuthSession:
     def bind(self, config: Mapping[str, object], secrets: SecretProvider, requests: RequestPort) -> None:
         self.context = AuthContext(config, secrets, self.endpoints, requests)
 
+    def check_credentials(self) -> None:
+        phase = self._phase.get()
+        if (
+            self._closed
+            or phase is None
+            or not phase.active
+            or phase.name not in {"initialize", "login", "refresh", "verify"}
+        ):
+            raise AuthReentryError("credentials are available only inside asynchronous authentication hooks")
+
+    def check_auth_request(self) -> None:
+        phase = self._phase.get()
+        if self._closed or phase is None or not phase.active or phase.name not in {"login", "refresh", "verify"}:
+            raise AuthReentryError("initialize must not send requests; use login/refresh or verify")
+
     def lookup(self, origin: str) -> ResolvedEndpoint | None:
         item = self.rules.lookup(origin)
         if item is None and origin == self._origin:
@@ -117,10 +168,34 @@ class OperationAuthSession:
 
     def allows_authenticated_origin(self, origin: str) -> bool:
         item = self.lookup(origin)
-        return item is not None and item.auth == "session"
+        return item is not None and item.auth == "session" and self.access.matcher.matches(origin)
 
     def allows_declared_origin(self, origin: str) -> bool:
-        return self.lookup(origin) is not None
+        return self.lookup(origin) is not None and self.access.matcher.matches(origin)
+
+    def scope_error(self, kind: str) -> AuthScopeError:
+        user = kind == "user_origin_denied"
+        return auth_scope_error(
+            "request origin is outside the user's auth_access site group"
+            if user
+            else "request origin is undeclared or not declared for session authentication",
+            kind,
+            plugin_id=self.access.plugin_id,
+            field="auth_access.sites.<site>.origins" if user else "endpoints.<endpoint>.origin/auth",
+        )
+
+    def require_declared_origin(self, origin: str) -> bool:
+        if self.lookup(origin) is None:
+            raise self.scope_error("author_origin_undeclared")
+        if not self.access.matcher.matches(origin):
+            raise self.scope_error("user_origin_denied")
+        return True
+
+    def require_authenticated_origin(self, origin: str) -> bool:
+        item = self.lookup(origin)
+        if item is None or item.auth != "session":
+            raise self.scope_error("author_origin_undeclared")
+        return self.require_declared_origin(origin)
 
     def resolve(self, spec: RequestSpec) -> ResolvedEndpoint | None:
         self.guard()
@@ -132,38 +207,70 @@ class OperationAuthSession:
             return None
         item = self.lookup(_request_origin(spec.url))
         if item is None:
-            raise AuthScopeError("request origin is undeclared; add endpoints.<name>.origin/auth or use AuthMode.NONE")
+            raise self.scope_error("author_origin_undeclared")
         if item.auth == "none":
             if spec.auth is AuthMode.REQUIRED:
                 raise AuthScopeError("REQUIRED request targets an endpoint declared auth: none")
             return None
+        if not self.access.matcher.matches(_request_origin(spec.url)):
+            raise self.scope_error("user_origin_denied")
         return item
 
-    async def prepare(self, endpoint: ResolvedEndpoint) -> None:
+    async def prepare(self, endpoint: ResolvedEndpoint, *, required: bool = False) -> None:
         policy = endpoint.policy
         interval = policy.verify_interval_seconds
         check = policy.verify_before_request or (
             interval is not None and (self._verified_at is None or self._clock() - self._verified_at >= interval)
         )
-        await self.ensure_ready(check=check)
+        await self.ensure_ready(check=check, required=required)
 
-    async def ensure_ready(self, *, check: bool = False) -> None:
+    async def ensure_ready(self, *, check: bool = False, required: bool = True) -> None:
+        self.guard()
+        serial = self._verification_serial
+        async with self._decision_lock:
+            await self._ensure_ready(check=check, required=required, serial=serial)
+
+    async def _ensure_ready(self, *, check: bool, required: bool, serial: int) -> None:
         self.guard()
         if self.flow is None:
             if check:
                 raise AuthScopeError("authentication verification requires an AuthFlow")
             return
-        serial = self._verification_serial
         while self._task is not None and not self._task.done():
             await asyncio.shield(self._task)
         if self._failure is not None:
             raise self._failure
+        if not self._initialized:
+            await self._start("initialize", check or self.policy.verify_on_start)
         check = check and serial == self._verification_serial
         expired = self._expires is not None and self._clock() >= self._expires - self.policy.refresh_skew_seconds
-        action = "initialize" if not self._initialized else "refresh" if self._dirty or expired else "verify"
-        if action == "verify" and not check:
+        action = "refresh" if self._ready else "login"
+        if self._dirty or expired or (required and not self._ready):
+            await self._start(action, check)
             return
-        check = check or (action == "initialize" and self.policy.verify_on_start)
+        if self._ready and check:
+            await self._start("verify", True)
+
+    async def request_login(self, reason: str) -> bool:
+        self.guard()
+        serial = self._login_serial
+        if not isinstance(reason, str):
+            raise TypeError("login reason must be a string")
+        if not await self.consent.approve(self.access, reason):
+            return False
+        if self.flow is None:
+            raise AuthScopeError("login requires an AuthFlow")
+        await self.ensure_ready(required=False)
+        async with self._decision_lock:
+            while self._task is not None and not self._task.done():
+                await asyncio.shield(self._task)
+            if self._failure is not None:
+                raise self._failure
+            if self._login_serial == serial:
+                await self._start("login", False)
+        return True
+
+    async def _start(self, action: str, check: bool) -> None:
         self._task = asyncio.create_task(self._run(action, check))
         self._task.add_done_callback(self._observe_task)
         await asyncio.shield(self._task)
@@ -177,20 +284,49 @@ class OperationAuthSession:
     def _lease(self, lease: AuthLease) -> None:
         self._expires = None if lease.expires_in_seconds is None else self._clock() + lease.expires_in_seconds
 
-    async def _renew(self, *, initial: bool = False) -> None:
+    async def _renew(self, *, action: str = "refresh") -> None:
         assert self.flow is not None and self.context is not None
-        hook = self._invoker.initialize_auth if initial else self._invoker.refresh_auth
-        lease = await hook(self.flow, self.context)
+        if action != "initialize" and not await self.consent.approve(self.access, f"authentication {action} required"):
+            raise LoginDeniedError(LoginDeniedError.reason)
+        hook = {
+            "initialize": self._invoker.initialize_auth,
+            "login": self._invoker.login_auth,
+            "refresh": self._invoker.refresh_auth,
+        }[action]
+        capability = _AuthPhase(action)
+        phase = self._phase.set(capability)
+        try:
+            try:
+                lease = await hook(self.flow, self.context)
+            except CredentialAccessDeniedError:
+                if action != "initialize":
+                    raise
+                lease = None
+        finally:
+            capability.active = False
+            self._phase.reset(phase)
+        self._initialized = True
+        if lease is None:
+            self._ready = False
+            return
         self._lease(lease)
         self._public_data = lease.public_data if lease.public_data is not None else {}
         self._last_verified_status = AuthStatus.UNKNOWN
         self.generation += 1
-        self._initialized, self._dirty = True, False
+        if action != "initialize":
+            self._login_serial += 1
+        self._ready, self._dirty = True, False
         self._verified_at = None
 
     async def _verify(self) -> bool:
         assert self.flow is not None and self.context is not None
-        result = await self._invoker.verify_auth(self.flow, self.context)
+        capability = _AuthPhase("verify")
+        phase = self._phase.set(capability)
+        try:
+            result = await self._invoker.verify_auth(self.flow, self.context)
+        finally:
+            capability.active = False
+            self._phase.reset(phase)
         self._verification_serial += 1
         self._last_verified_status = result.status
         if result.status is AuthStatus.UNKNOWN:
@@ -209,9 +345,13 @@ class OperationAuthSession:
         token = _AUTH_HOOKS.set(_AUTH_HOOKS.get() | {self.operation_id})
         try:
             if action not in {"verify", "check_response"}:
-                await self._renew(initial=action == "initialize")
-            if check and not await self._verify() and action != "check_response":
-                await self._renew()
+                await self._renew(action=action)
+            check = check or (self._ready and self._verify_on_start_pending)
+            if check and (self._ready or action == "check_response"):
+                if self._ready:
+                    self._verify_on_start_pending = False
+                if not await self._verify() and action != "check_response":
+                    await self._renew(action="refresh" if self._ready else "login")
         except BaseException as exc:
             if not isinstance(exc, asyncio.CancelledError):
                 self._failure = exc
@@ -221,6 +361,8 @@ class OperationAuthSession:
 
     def apply(self, spec: RequestSpec) -> tuple[RequestSpec, AuthReceipt]:
         assert self.flow is not None
+        if not self._ready:
+            return spec, AuthReceipt(self.operation_id, self.generation)
         token = _AUTH_HOOKS.set(_AUTH_HOOKS.get() | {self.operation_id})
         try:
             result = self._invoker.apply_auth(self.flow, spec)
@@ -281,3 +423,8 @@ class OperationAuthSession:
             if not self._task.done():
                 self._task.cancel()
             await asyncio.gather(self._task, return_exceptions=True)
+        self.flow = self.context = None
+        self._public_data = {}
+        self._failure = None
+        self._task = None
+        self._ready = False

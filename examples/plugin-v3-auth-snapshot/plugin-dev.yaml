@@ -1,4 +1,4 @@
-target: plugin.py
+target: manifest.json
 sample_url: https://auth-snapshot.example.test/gallery
 secrets:
   username: mock-user

@@ -9,7 +9,7 @@ from .base import BaseGallery
 
 class TokenFlow(BaseAuthFlow):
     async def initialize(self, auth_context: AuthContext) -> AuthLease:
-        self.token = auth_context.secrets.get("api_token")
+        self.token = auth_context.credentials.get("api_token")
         return AuthLease()
 
     def apply(self, request: RequestSpec) -> RequestSpec:

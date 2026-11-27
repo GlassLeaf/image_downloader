@@ -16,7 +16,6 @@ from ..models import (
 )
 from ..storage.workflow import WorkflowState, finish_transaction
 from ..storage.workflow_targets import WorkflowTargetStore
-from ..transport.gateway import RequestGateway, closing_gateway
 from .requests import WorkflowPlanRequest
 from .workflow_runtime import WorkflowRuntime
 
@@ -45,48 +44,45 @@ async def _plan_workflow(
             try:
                 await finish_transaction(state.validate)
                 await finish_transaction(runtime.state.validate)
-                gateway = RequestGateway(
-                    runtime.config, runtime.cookie_store.clone_jar(runtime.gateway.client.cookies.jar)
-                )
-                async with closing_gateway(gateway):
-                    async with runtime.operations.open(
-                        url,
-                        overrides,
-                        fallback,
-                        plugin_id,
-                        force_plugin,
-                        policies,
-                        request_gateway=gateway,
-                        diagnostics_enabled=False,
-                        selected_plugin=selected,
-                    ) as operation:
-                        context, invoker = operation.context, operation.invoker
-                        snapshot = await runtime.updates.fetch_snapshot(plugin, url, context, invoker)
-                        result = replace(result, snapshot=snapshot)
-                        await finish_transaction(runtime.state.validate)
-                        first, changes, selected_urls = await finish_transaction(
-                            partial(state.preview, record.id, url, snapshot, scope)
-                        )
-                        result = replace(
-                            result,
-                            first_run=first,
-                            changes=changes,
-                            items=tuple(
-                                WorkflowPlanItem(c, c.url in selected_urls, selected_urls.get(c.url, ("completed",)))
-                                for c in snapshot.candidates
-                            ),
-                        )
-                        if target_selector is not None:
-                            target_plan = await finish_transaction(
-                                partial(
-                                    WorkflowTargetStore(state).plan_changes,
-                                    target_selector,
-                                    target_status,
-                                    snapshot=snapshot,
-                                    plugin_id=record.id,
-                                    download_scope=scope,
-                                )
+                async with runtime.operations.open(
+                    url,
+                    overrides,
+                    fallback,
+                    plugin_id,
+                    force_plugin,
+                    policies,
+                    detached=True,
+                    auth_access_overrides=request.plugin_auth_access_overrides,
+                    diagnostics_enabled=False,
+                    selected_plugin=selected,
+                ) as operation:
+                    context, invoker = operation.context, operation.invoker
+                    snapshot = await runtime.updates.fetch_snapshot(plugin, url, context, invoker)
+                    result = replace(result, snapshot=snapshot)
+                    await finish_transaction(runtime.state.validate)
+                    first, changes, selected_urls = await finish_transaction(
+                        partial(state.preview, record.id, url, snapshot, scope)
+                    )
+                    result = replace(
+                        result,
+                        first_run=first,
+                        changes=changes,
+                        items=tuple(
+                            WorkflowPlanItem(c, c.url in selected_urls, selected_urls.get(c.url, ("completed",)))
+                            for c in snapshot.candidates
+                        ),
+                    )
+                    if target_selector is not None:
+                        target_plan = await finish_transaction(
+                            partial(
+                                WorkflowTargetStore(state).plan_changes,
+                                target_selector,
+                                target_status,
+                                snapshot=snapshot,
+                                plugin_id=record.id,
+                                download_scope=scope,
                             )
+                        )
             except BaseException as primary:
                 await runtime.operations.release_selection(selected, primary, diagnostics_enabled=False)
                 raise

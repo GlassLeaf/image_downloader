@@ -62,7 +62,7 @@ def resolve_target(target: Path, *, class_name: str | None = None, kind: str | N
         directory = target if target.is_dir() else target.parent
         manifest = read_manifest(directory, mode="bypass-all")
         value = dict(manifest.value)
-        settings = author_settings(manifest)
+        settings = author_settings(manifest, read_yaml=read_document)
         defaults = settings["config"]
         connections = {key: item for key, item in settings.items() if key != "config"}
     else:
@@ -166,12 +166,15 @@ def traced_flow(flow: Any, output: RawOutput) -> Any:
         async def verify(self, auth_context: Any) -> Any:
             return await flow.verify(auth_context)
 
+        async def login(self, auth_context: Any) -> Any:
+            return await flow.login(auth_context)
+
         async def refresh(self, auth_context: Any) -> Any:
             return await flow.refresh(auth_context)
 
     attributes = {
         name: _trace_method(getattr(Flow, name), "auth." + name, output)
-        for name in ("initialize", "apply", "classify_response", "verify", "refresh")
+        for name in ("initialize", "login", "apply", "classify_response", "verify", "refresh")
     }
     return type("TracedAuthFlow", (Flow,), attributes)()
 

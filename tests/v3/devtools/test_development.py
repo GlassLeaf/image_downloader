@@ -26,7 +26,39 @@ from image_downloader.plugins.plugin_verification import verify_signed_plugin_so
 
 def project(tmp_path: Path, features=None, config=None, **extra) -> Path:
     directory = tmp_path / "project"
-    create_project(directory, {"features": features or ["json", "cleanup"], "config": config or {}, **extra})
+    user_auth = extra.pop("user_auth", True)
+    spec = {"features": features or ["json", "cleanup"], "config": config or {}, **extra}
+    if user_auth:
+        from urllib.parse import urlsplit
+
+        sample = urlsplit(extra.get("sample_url", "https://example.test/gallery"))
+        references = {
+            name: name.upper()
+            for name in {
+                "api_token",
+                "access_token",
+                "refresh_token",
+                "username",
+                "password",
+                *extra.get("secrets", {}),
+            }
+        }
+        spec["application"] = {
+            "plugin_settings": {
+                extra.get("id", "com.example.gallery"): {
+                    "auth_access": {
+                        "sites": {
+                            "development": {
+                                "origins": [f"{sample.scheme}://{sample.netloc}"],
+                                "secrets": references,
+                                "login": "allow",
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    create_project(directory, spec)
     return directory
 
 
@@ -64,6 +96,43 @@ def fixture(directory: Path, requests: list) -> Path:
     path = directory / "fixture.yaml"
     path.write_text(yaml.safe_dump({"requests": requests}), encoding="utf-8")
     return path
+
+
+def test_development_uses_the_users_existing_site_without_overriding_denials(tmp_path):
+    directory = project(tmp_path, ["json", "api-key"], secrets={"api_token": "fixture-token"}, user_auth=False)
+    record = resolve_target(directory)
+    user_config = tmp_path / "user.yaml"
+    user_config.write_text(
+        yaml.safe_dump(
+            {
+                "plugin_settings": {
+                    record.id: {
+                        "auth_access": {
+                            "sites": {
+                                "user_site": {
+                                    "origins": ["https://example.test"],
+                                    "mode": "anonymous",
+                                    "credential_access": "deny",
+                                    "login": "deny",
+                                },
+                            }
+                        }
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    async def scenario():
+        async with opened(directory, tmp_path, app_config=str(user_config)) as session:
+            access = session.config.plugin_settings[record.id].auth_access
+            assert set(access.sites) == {"user_site"}
+            assert not access.sites["user_site"].provides_credentials
+            assert access.sites["user_site"].login_policy == "deny"
+            assert access.sites["user_site"].mode == "anonymous"
+
+    asyncio.run(scenario())
 
 
 def image_entry(url="https://example.test/image.png", **extra):
@@ -244,7 +313,9 @@ def test_mock_auth_snapshot_sample_reauth_updates_identity_and_expiry(tmp_path):
     sample = Path(__file__).resolve().parents[3] / "examples" / "plugin-v3-auth-snapshot"
 
     async def scenario():
-        async with opened(sample, tmp_path, fixture=str(sample / "fixture.yaml")) as session:
+        async with opened(
+            sample, tmp_path, fixture=str(sample / "fixture.yaml"), app_config=str(sample / "auth-access.yaml")
+        ) as session:
             assert session.execution_context().auth.snapshot() == AuthSnapshot(flow_configured=True)
             work = await session.call("inspect", {"args": ["https://auth-snapshot.example.test/gallery"]})
             context = session.execution_context()
@@ -268,7 +339,9 @@ def test_mock_auth_sample_runs_with_development_tools(tmp_path, mode):
     sample = Path(__file__).resolve().parents[3] / "examples" / "plugin-v3-auth-snapshot"
 
     async def scenario():
-        async with opened(sample, tmp_path, fixture=str(sample / "fixture.yaml")) as session:
+        async with opened(
+            sample, tmp_path, fixture=str(sample / "fixture.yaml"), app_config=str(sample / "auth-access.yaml")
+        ) as session:
             if mode == "scenario":
                 report = await session.check()
                 assert report["valid"] and len(report["scenarios"]) == 1
@@ -889,3 +962,105 @@ def test_additional_file_failure_returns_failure_exit_code(tmp_path, capfd):
     )
     reply = json.loads(capfd.readouterr().out)
     assert any(item["status"] == "failed" for item in reply["result"]["additional_files"])
+
+
+@pytest.mark.parametrize("host", ["viewer.example.com", "example.com"])
+def test_development_preserves_user_host_templates_without_filling_unregistered_sites(tmp_path, host):
+    directory = project(
+        tmp_path,
+        ["json", "api-key"],
+        secrets={"api_token": "fixture-token"},
+        sample_url=f"https://{host}/gallery",
+        user_auth=False,
+    )
+    record = resolve_target(directory)
+    user_config = tmp_path / "user.yaml"
+    origin = "https://*." + "$" + "{host_groups.default}"
+    user_config.write_text(
+        yaml.safe_dump(
+            {
+                "plugin_settings": {
+                    record.id: {
+                        "host_groups": {"default": ["example.com"]},
+                        "auth_access": {
+                            "mode": "anonymous",
+                            "sites": {
+                                "user_site": {
+                                    "origins": origin,
+                                    "credential_access": "deny",
+                                    "login": "deny",
+                                }
+                            },
+                        },
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    async def scenario():
+        async with opened(directory, tmp_path, app_config=str(user_config)) as session:
+            setting = session.config.plugin_settings[record.id]
+            assert setting.host_groups == {"default": ("example.com",)}
+            assert set(setting.auth_access.sites) == {"user_site"}
+            site = setting.auth_access.sites["user_site"]
+            assert site.origins == (origin,) and not site.secrets
+            session.execution_context()
+            selected = session.service._operations.resolve_access(record.id, f"https://{host}/gallery")
+            assert selected.site_id == ("user_site" if host.startswith("viewer.") else "https://example.com:443")
+            assert not selected.site.provides_credentials and selected.site.login_policy == "deny"
+
+    asyncio.run(scenario())
+
+
+def test_development_never_generates_user_grants_from_author_or_fixture_settings(tmp_path):
+    directory = project(
+        tmp_path,
+        ["json", "api-key"],
+        {"host_groups": {"default": ["example.com"]}, "supported_hosts": ["example.com"]},
+        secrets={"api_token": "fixture-token"},
+        user_auth=False,
+    )
+    generated = yaml.safe_load((directory / "plugin-dev.yaml").read_text(encoding="utf-8"))
+    assert not generated.get("application", {}).get("plugin_settings")
+
+    async def scenario():
+        async with opened(directory, tmp_path) as session:
+            setting = session.config.plugin_settings[session.record.id]
+            assert not setting.host_groups and not setting.auth_access.sites
+            access = session.service._operations.resolve_access(session.record.id, "https://example.test")
+            assert not access.site.provides_credentials and access.site.login_policy == "deny"
+            assert not session.credentials.list_entries("plugin")
+
+    asyncio.run(scenario())
+
+
+def test_generator_endpoint_templates_use_only_explicit_user_hosts_without_adding_grants(tmp_path):
+    directory = tmp_path / "generated"
+    expression = "https://viewer." + "$" + "{host_groups.default}"
+    create_project(
+        directory,
+        {
+            "id": "com.example.gallery",
+            "features": ["json", "csrf"],
+            "sample_url": "https://example.com/gallery",
+            "config": {"login_url": "https://viewer.example.com/login", "supported_hosts": ["other.com"]},
+            "endpoints": {"viewer": {"origin": expression, "auth": "session"}},
+            "application": {"plugin_settings": {"com.example.gallery": {"host_groups": {"default": ["EXAMPLE.COM."]}}}},
+        },
+    )
+    author = yaml.safe_load((directory / "plugin/plugin.yaml").read_text(encoding="utf-8"))
+    assert author["endpoints"]["viewer"]["origin"] == expression
+    assert "host_groups" not in author and "host_groups" not in author["config"]
+    generated = yaml.safe_load((directory / "plugin-dev.yaml").read_text(encoding="utf-8"))
+    assert "auth_access" not in generated["application"]["plugin_settings"]["com.example.gallery"]
+
+    async def scenario():
+        async with opened(directory, tmp_path) as session:
+            setting = session.config.plugin_settings[session.record.id]
+            assert setting.host_groups == {"default": ("example.com",)} and not setting.auth_access.sites
+            context = session.execution_context()
+            assert context.endpoints["viewer"].origins == ("https://viewer.example.com:443",)
+
+    asyncio.run(scenario())

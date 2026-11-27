@@ -39,6 +39,8 @@ class ImageDownloaderError(Exception):
 
 
 class ConfigurationError(ImageDownloaderError, ValueError):
+    # Internal YAML lookup path; never included in public diagnostics.
+    _core_configuration_path: tuple[str, ...] = ()
     code = "configuration_error"
     reason = "configuration is invalid"
 
@@ -92,6 +94,21 @@ class AuthReentryError(PluginError):
 class AuthStateUnknownError(AuthenticationError):
     code = "auth_state_unknown"
     reason = "authentication state could not be verified"
+
+
+class CredentialAccessDeniedError(AuthenticationError):
+    code = "credential_access_denied"
+    reason = "credential delivery is denied for this site"
+
+
+class LoginDeniedError(AuthenticationError):
+    code = "login_denied"
+    reason = "login or credential renewal is denied for this site"
+
+
+class LoginApprovalRequiredError(AuthenticationError):
+    code = "login_approval_required"
+    reason = "login requires approval; configure auth_access for unattended use"
 
 
 class SecretNotFoundError(AuthenticationError):
@@ -380,6 +397,9 @@ ERROR_CATALOG: Final[tuple[ErrorCatalogEntry, ...]] = (
     ErrorCatalogEntry(AuthScopeError),
     ErrorCatalogEntry(AuthReentryError),
     ErrorCatalogEntry(AuthStateUnknownError),
+    ErrorCatalogEntry(CredentialAccessDeniedError),
+    ErrorCatalogEntry(LoginDeniedError),
+    ErrorCatalogEntry(LoginApprovalRequiredError),
     ErrorCatalogEntry(SecretNotFoundError),
     ErrorCatalogEntry(VaultError),
     ErrorCatalogEntry(RequestError),

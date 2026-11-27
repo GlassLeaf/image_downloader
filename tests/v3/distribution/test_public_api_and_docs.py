@@ -36,6 +36,8 @@ INVENTORY = re.compile(
 EXPECTED_EXPORTS = {
     "image_downloader": tuple(
         """
+        LoginApprovalRequest LoginApprover PluginAuthAccess SiteAuthAccess
+        CredentialAccessDeniedError LoginDeniedError LoginApprovalRequiredError
         PLUGIN_API_FEATURES PluginDataView AuthSnapshot
         WorkflowStateFormatError WorkflowStateConflictError WorkflowTargetStatus WorkflowTargetSelector
         WorkflowTargetRecord WorkflowTargetChange WorkflowTargetChangePlan WorkflowTargetChangeResult
@@ -226,6 +228,7 @@ def test_representative_signatures_and_result_dtos_are_stable() -> None:
         "plugin_root",
         "output_root",
         "plugin_verification_override",
+        "login_approver",
     )
     assert tuple(signature(DownloadService.download).parameters) == ("self", "request")
     assert tuple(signature(DownloadService.inspect).parameters) == ("self", "request")

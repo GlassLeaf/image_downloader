@@ -29,21 +29,18 @@ ORIGIN = "https://auth-snapshot.example.test"
 
 
 class LoginFlow(BaseAuthFlow):
-    async def initialize(self, auth_context: AuthContext) -> AuthLease:
-        return await self._login(auth_context)
-
     async def refresh(self, auth_context: AuthContext) -> AuthLease:
-        return await self._login(auth_context)
+        return await self.login(auth_context)
 
-    async def _login(self, auth_context: AuthContext) -> AuthLease:
+    async def login(self, auth_context: AuthContext) -> AuthLease:
         response = await auth_context.requests.execute(
             RequestSpec(
                 f"{ORIGIN}/api/login",
                 method="POST",
                 auth=AuthMode.NONE,
                 json={
-                    "username": auth_context.secrets.get("username"),
-                    "password": auth_context.secrets.get("password"),
+                    "username": auth_context.credentials.get("username"),
+                    "password": auth_context.credentials.get("password"),
                 },
             )
         )

@@ -58,6 +58,7 @@ class DownloadCommandHandler:
                         UpdateCheckRequest(
                             url=args.url,
                             plugin_overrides=overrides,
+                            plugin_auth_access_overrides=command.auth_access,
                             fallback_override=_fallback(args),
                             plugin_id=plugin_id,
                             force_plugin=force_plugin,
@@ -83,6 +84,7 @@ class DownloadCommandHandler:
                         DownloadRequest(
                             url=args.url,
                             plugin_overrides=overrides,
+                            plugin_auth_access_overrides=command.auth_access,
                             fallback_override=_fallback(args),
                             plugin_id=plugin_id,
                             force_plugin=force_plugin,

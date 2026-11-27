@@ -15,6 +15,8 @@ from .config import (
     load_application_config,
     resolve_application_config,
 )
+from .configuration.models import PluginAuthAccess, SiteAuthAccess
+from .credentials.access import LoginApprovalRequest, LoginApprover
 from .exceptions import (
     ArgumentError,
     AuthenticationError,
@@ -22,6 +24,7 @@ from .exceptions import (
     AuthScopeError,
     AuthStateUnknownError,
     ConfigurationError,
+    CredentialAccessDeniedError,
     ExistingFileConflictError,
     HttpStatusError,
     HttpTransportError,
@@ -34,6 +37,8 @@ from .exceptions import (
     ImageProcessorClosedError,
     ImageWorkerError,
     InterProcessLockError,
+    LoginApprovalRequiredError,
+    LoginDeniedError,
     OutputAllocationError,
     PluginError,
     RedirectPolicyError,
@@ -145,6 +150,13 @@ from .runtime import DownloadService, RuntimeComposer
 PLUGIN_API_FEATURES: frozenset[str] = frozenset({"structured_plugin_data", "auth_snapshot", "endpoint_patterns"})
 
 __all__ = [
+    "LoginApprovalRequest",
+    "LoginApprover",
+    "PluginAuthAccess",
+    "SiteAuthAccess",
+    "CredentialAccessDeniedError",
+    "LoginDeniedError",
+    "LoginApprovalRequiredError",
     "PLUGIN_API_FEATURES",
     "PluginDataView",
     "AuthSnapshot",

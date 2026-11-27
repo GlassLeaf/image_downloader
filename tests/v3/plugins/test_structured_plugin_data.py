@@ -96,7 +96,7 @@ def test_keyword_only_compatibility_views_and_contexts():
     assert inspect.signature(AuthLease).parameters["public_data"].kind is inspect.Parameter.KEYWORD_ONLY
     view = PluginDataView.from_resources(work, chapter, image)
     assert view.work is work.plugin_data and view.chapter is chapter.plugin_data and view.image is image.plugin_data
-    context = PluginExecutionContext({}, {}, {"id": "example.plugin"}, None, object(), object())
+    context = PluginExecutionContext({}, {}, {"id": "example.plugin"}, None, object())
     bound = context._with_plugin_data(view)
     assert context.plugin_data == PluginDataView()
     assert bound.requests is context.requests and bound.plugin_manifest is context.manifest

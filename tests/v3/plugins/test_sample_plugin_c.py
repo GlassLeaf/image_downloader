@@ -4,12 +4,14 @@ import asyncio
 import io
 import json
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import httpx
 import pytest
 from PIL import Image
+from support.auth import approved_operation
 
 from image_downloader import (
     AuthenticationError,
@@ -27,7 +29,7 @@ from image_downloader import (
 from image_downloader.config import AppConfig
 from image_downloader.configuration.models import PluginConnections
 from image_downloader.devtools.loading import resolve_target
-from image_downloader.exceptions import SecretNotFoundError, VaultError
+from image_downloader.exceptions import AuthScopeError, SecretNotFoundError, VaultError
 from image_downloader.plugins.lifecycle import PluginClassLoader
 from image_downloader.plugins.plugin_invoker import PluginInvoker
 from image_downloader.transport.gateway import RequestGateway
@@ -194,9 +196,8 @@ def operation(plugin_record, plugin_class):
                 {},
                 plugin_record.manifest.value,
                 None,
-                secrets,
                 session,
-                cookie_provider=gateway,
+                cookie_provider=session,
                 auth=session.auth,
                 endpoints=session.endpoints,
             )
@@ -206,8 +207,14 @@ def operation(plugin_record, plugin_class):
             {**plugin_record.connection_defaults, "authentication": authentication or {}}
         )
         try:
-            session = gateway.operation(
-                plugin_id=plugin_record.id, operation_url=url, auth_flow_factory=factory, settings=settings
+            session = approved_operation(
+                gateway,
+                origins=(),
+                login="allow" if credentials and set(CREDENTIALS).issubset(credentials) else "deny",
+                plugin_id=plugin_record.id,
+                operation_url=url,
+                auth_flow_factory=factory,
+                settings=settings,
             )
             yield plugin, context, gateway, session, secrets
         finally:
@@ -259,7 +266,7 @@ def test_anonymous_inspection_extracts_viewer_and_all_images(operation, attribut
         site.html = f'<div {attribute}="42"></div>' if attribute else "<html></html>"
         async with operation(site) as (plugin, context, _gateway, session, _secrets):
             manifest = await PluginInvoker("com.example.c").inspect(plugin, DOMAIN + EPISODE, context)
-            assert session.auth.flow is None
+            assert session.auth.flow is not None
             assert (plugin.viewerId, plugin.userId) == ("42", 0)
             assert (manifest.title, manifest.chapters[0].title) == ("API title", "Episode title")
             assert [image.index for image in manifest.chapters[0].images] == [1, 2]
@@ -305,7 +312,10 @@ def test_custom_api_path_uses_page_origin_and_fixed_episode_fallback(operation):
             assert all(call.url.host == "example.com" for call in site.calls)
             assert any(call.url.path == "/api/episodes/abc123" for call in site.calls)
             site.html = '<div data-cms-viewer-id="84"></div>'
-            await plugin.get_params("https://example.co.jp/episodes/second", context)
+            with pytest.raises(AuthScopeError):
+                await plugin.get_params("https://example.co.jp/episodes/second", context)
+            async with operation(site, url="https://example.co.jp/episodes/second") as (_, other_context, *_):
+                await plugin.get_params("https://example.co.jp/episodes/second", other_context)
             assert (plugin.host, plugin.apiPath, plugin.viewerId, plugin.userId) == (
                 "https://example.co.jp",
                 "/api",
@@ -322,7 +332,7 @@ def test_incomplete_credentials_keep_anonymous_access(operation, credentials):
         site = _Site()
         async with operation(site, credentials=credentials) as (plugin, context, _gateway, session, _secrets):
             await plugin.inspect(DOMAIN + EPISODE, context)
-            assert session.auth.flow is None
+            assert session.auth.flow is not None
             assert site.login_posts == 0
 
     asyncio.run(scenario())
@@ -332,9 +342,13 @@ def test_vault_failure_is_not_treated_as_anonymous_access(operation):
     async def scenario():
         site = _Site()
         with pytest.raises(VaultError):
-            async with operation(site, credentials={"id": VaultError("backend")}):
-                pytest.fail("operation must not hide a vault failure")
-        assert not site.calls
+            async with operation(site, credentials={"id": VaultError("backend"), "password": "unused"}) as (
+                plugin,
+                context,
+                *_,
+            ):
+                await plugin.inspect(DOMAIN + EPISODE, context)
+        assert site.login_posts == 0
 
     asyncio.run(scenario())
 
@@ -350,10 +364,10 @@ def test_credentials_prepare_session_before_page_and_use_session_user_id(operati
             assert plugin.userId == 7
             assert site.login_posts == (0 if existing_cookie else 1)
             paths = [call.url.path for call in site.calls]
-            assert paths[0] == "/api/auth/session"
-            assert paths.count("/api/auth/session") == (2 if existing_cookie else 3)
+            assert paths[0] == EPISODE
+            assert paths.count("/api/auth/session") == (1 if existing_cookie else 3)
             if not existing_cookie:
-                assert paths.index("/api/auth/callback/credentials") < paths.index(EPISODE)
+                assert paths.index(EPISODE) < paths.index("/api/auth/callback/credentials")
 
     asyncio.run(scenario())
 
@@ -364,7 +378,7 @@ def test_existing_cookie_without_credentials_still_supplies_user_id(operation):
         async with operation(site) as (plugin, context, gateway, session, _secrets):
             gateway.client.cookies.set("session", "active", domain="example.com", path="/")
             await plugin.inspect(DOMAIN + EPISODE, context)
-            assert session.auth.flow is None
+            assert session.auth.flow is not None
             assert plugin.userId == 7
             assert site.login_posts == 0
 
@@ -417,7 +431,7 @@ def test_failed_login_is_not_reported_as_success(operation, status):
             with pytest.raises(AuthenticationError, match="login session request failed"):
                 await plugin.inspect(DOMAIN + EPISODE, context)
             assert site.login_posts == 1
-            assert not any(call.url.path == EPISODE for call in site.calls)
+            assert not any(call.url.path.endswith("/contentsInfo") for call in site.calls)
 
     asyncio.run(scenario())
 
@@ -458,7 +472,7 @@ def test_session_verification_handles_empty_and_malformed_expiry(operation, sess
         site = _Site()
         site.session_response = session_data
         async with operation(site, credentials=CREDENTIALS) as (_plugin, _context, _gateway, session, _secrets):
-            verification = await session.auth.flow.verify(session.auth.context)
+            verification = await session.auth.flow.verify(replace(session.auth.context, requests=_gateway))
             assert verification.status is expected
 
     asyncio.run(scenario())
@@ -470,7 +484,7 @@ def test_non_json_session_response_is_an_authentication_error(operation):
         site.session_body = b"<html>not JSON</html>"
         async with operation(site, credentials=CREDENTIALS) as (plugin, context, _gateway, _session, _secrets):
             with pytest.raises(AuthenticationError, match="session response did not contain valid JSON"):
-                await plugin.inspect(DOMAIN + EPISODE, context)
+                await _session.auth.ensure_ready(check=True)
 
     asyncio.run(scenario())
 

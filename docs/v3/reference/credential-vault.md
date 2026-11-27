@@ -20,8 +20,12 @@ credential（plugin・smtp）のset/list/deleteとvaultの全操作では、`--p
 ```yaml
 plugin_settings:
   com.example.gallery:
-    secrets:
-      api_token: TOKEN
+    auth_access:
+      sites:
+        gallery:
+          origins: [https://gallery.example.test]
+          secrets:
+            api_token: TOKEN
 notification:
   email:
     credential_reference: MAIL
@@ -33,7 +37,7 @@ TLS失敗時に平文認証へ切り替えません。認証なしのローカ�
 
 秘密値は非表示で対話入力します。自動処理では`set --stdin`を明示します。サイト用は標準入力のUTF-8文字列全体を保存し、末尾改行も保持します。SMTP用は`{"username":"...","password":"..."}`というJSONを受け取ります。秘密値は引数・環境変数で渡せません。一覧・JSONは識別情報だけを返し、秘密値を表示するコマンドはありません。削除は対象を表示して確認し、`--yes`で確認を省略します。
 
-`context.secrets.get(name)`は設定された参照名を毎回取得します。値をキャッシュせず、プラグインからの登録・更新・削除は許可しません。OAuth更新トークンの自動保存はありません。
+`AuthContext.credentials.get(name)`は実行対象サイトの参照名を認証フック内で毎回取得します。提供拒否時は保管庫を読みません。一般のPluginExecutionContextから秘密値は取得できません。[サイト別認証アクセス](../how-to/auth-access-and-ephemeral-sessions.md)を参照してください。値をキャッシュせず、プラグインからの登録・更新・削除は許可しません。OAuth更新トークンの自動保存はありません。
 
 ## 保存・暗号化
 
@@ -117,4 +121,4 @@ cookies = CookieStore(FileSystem(data_root / "profiles" / "default" / "cookie"),
 
 `CredentialVault.profile(name)`が返す`ProfileCredentialStore`は`get_plugin(plugin_id, reference)`、`set_plugin(plugin_id, reference, value)`、`get_smtp(reference)`、`set_smtp(reference, username, password)`、`list_entries(kind)`、`delete(kind, reference, plugin_id=None)`を提供します。`set_*`は登録と更新を兼ねます。`get_smtp`の結果は`SmtpCredential`で、reprは秘密を伏せます。CLIと異なり管理APIでは秘密の取得もできます。
 
-`CredentialVault`の`initialize()`、`status()`、`backup(path, passphrase)`、`restore(path, passphrase)`、`rotate_key(resume=False)`は同期APIです。直接構築する`RuntimeSecrets`と`CookieStore`にはキーワード専用の`store`が必須になりました。`RuntimeComposer`の利用方法とプラグインの`get(name)`契約は維持します。
+`CredentialVault`の`initialize()`、`status()`、`backup(path, passphrase)`、`restore(path, passphrase)`、`rotate_key(resume=False)`は同期APIです。直接構築する`RuntimeSecrets`と`CookieStore`にはキーワード専用の`store`が必須になりました。`RuntimeComposer`は任意の`login_approver`を受け付けます。旧`context.secrets`とプラグイン共通`secrets`設定は廃止しました。

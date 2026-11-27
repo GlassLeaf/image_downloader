@@ -585,3 +585,7 @@ setは非表示対話入力または`--stdin`、deleteは確認または`--yes`�
 backup/restoreはパス引数と任意の`--passphrase-stdin`、rotate-keyは任意の`--resume`を受け付けます。
 いずれも`--json`に対応し、通常のexecution.resultへ状態・識別情報・操作結果だけを返します。秘密を表示するCLIはありません。
 詳しい構文、サイズ制限、状態と再開方法は[資格情報保管庫](credential-vault.md)を参照してください。
+
+## 認証アクセスの実行時上書き
+
+`--plugin-auth-access ID=<JSON>`はdownload・inspect・workflowでユーザーのサイト別認証設定を部分上書きします。設定には保存しません。`--yes`はログイン許可に使いません。[設定と承認・非保存の契約](../how-to/auth-access-and-ephemeral-sessions.md)。

@@ -5,6 +5,7 @@ from dataclasses import FrozenInstanceError
 
 import httpx
 import pytest
+from support.auth import approved_access
 
 from image_downloader import (
     AppConfig,
@@ -53,6 +54,7 @@ def operation(flow, *, skew=0):
     gateway = RequestGateway(AppConfig(), transport_factory=lambda: httpx.MockTransport(handler))
     session = gateway.operation(
         plugin_id="test.snapshot",
+        access=approved_access("https://example.test", plugin_id="test.snapshot"),
         operation_url="https://example.test/gallery",
         auth_flow_factory=lambda _: flow,
         settings=PluginConnections.model_validate({"authentication": {"refresh_skew_seconds": skew}}),

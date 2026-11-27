@@ -87,7 +87,7 @@ def _config_explain(args: ConfigArguments, outcome: CommandOutcome) -> int:
         "selected_profile": resolved.selected_profile,
         "target_host": site,
         "layers": layers,
-        "effective": _doctor_redact(resolved.config.model_dump(by_alias=True, warnings=False)),
+        "effective": _doctor_redact(resolved.config, origins=resolved.origins),
         "origins": origins,
         "runtime_overrides": _doctor_redact(runtime_overrides),
     }

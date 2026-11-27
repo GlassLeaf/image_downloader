@@ -1,6 +1,6 @@
 # プロファイル別保管庫の参照
 
-`context.secrets.get("api_token")`をAuthFlowでBearerヘッダーに設定します。登録・削除と未設定時の確認は[総合手順の保管庫への登録と参照](../README.md#保管庫への登録と参照)を参照してください。
+`auth_context.credentials.get("api_token")`をAuthFlowでBearerヘッダーに設定します。登録・削除と未設定時の確認は[総合手順の保管庫への登録と参照](../README.md#保管庫への登録と参照)を参照してください。
 
 試験用の`<work-dir>/data`、defaultプロファイルへ`credential plugin set`で登録します。OSストアには保管庫のマスターキーだけを置き、トークン本体は`profiles/default/credentials/credentials.enc`へ暗号化保存します。環境変数や旧keyring項目からは取得しません。
 
@@ -13,3 +13,5 @@ manifestは署名なしの最小形です。利用者の鍵で署名したコピ
 - 作者設定：`origin`と`asset_origin`。prepareが実際のポートで利用者設定を生成します。
 - 通常は2章・各2画像を保存します。実サイト／実アカウントは使用しません。
 - 秘密情報名：`api_token`、参照名：`LAB_TOKEN`。値は架空の`lab-token`だけを使用します。
+
+ユーザー設定は `auth_access.sites.<site>.secrets` へ参照を設定します。資格情報提供とログイン許可は独立しています。[新しい認証アクセス契約](../../../docs/v3/how-to/auth-access-and-ephemeral-sessions.md)。

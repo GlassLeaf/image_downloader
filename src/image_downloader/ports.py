@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import inspect
-from abc import ABC, abstractmethod
 from collections.abc import Mapping
 from copy import copy
 from dataclasses import dataclass
@@ -47,6 +46,7 @@ class RequestPort(Protocol):
 @runtime_checkable
 class AuthPort(Protocol):
     async def ensure_ready(self, *, check: bool = False) -> None: ...
+    async def request_login(self, reason: str) -> bool: ...
     def invalidate(self, response: RequestResponse) -> bool: ...
     def snapshot(self) -> AuthSnapshot: ...
 
@@ -83,7 +83,7 @@ class Endpoint:
 @dataclass(frozen=True, slots=True)
 class AuthContext:
     config: Mapping[str, object]
-    secrets: SecretProvider
+    credentials: SecretProvider
     endpoints: Mapping[str, Endpoint]
     requests: RequestPort
 
@@ -112,7 +112,6 @@ class PluginExecutionContext:
         "_app_settings",
         "_manifest",
         "_catalog",
-        "_secrets",
         "_requests",
         "_cookie_provider",
         "_auth",
@@ -126,7 +125,6 @@ class PluginExecutionContext:
         app_settings: Mapping[str, object],
         manifest: Mapping[str, object],
         catalog: Mapping[str, object] | None,
-        secrets: SecretProvider,
         requests: RequestPort,
         *,
         cookie_provider: CookieProvider | None = None,
@@ -138,7 +136,6 @@ class PluginExecutionContext:
         self._app_settings = _readonly_mapping(app_settings)
         self._manifest = _readonly_mapping(manifest)
         self._catalog = _readonly_mapping(catalog) if catalog is not None else None
-        self._secrets = secrets
         self._requests = requests
         self._cookie_provider = cookie_provider
         self._auth = auth
@@ -217,10 +214,6 @@ class PluginExecutionContext:
     @property
     def catalog(self) -> Mapping[str, object] | None:
         return self._catalog
-
-    @property
-    def secrets(self) -> SecretProvider:
-        return self._secrets
 
     @property
     def requests(self) -> RequestPort:
@@ -417,19 +410,22 @@ def _readonly_mapping(value: Mapping[str, object]) -> Mapping[str, object]:
 
 @runtime_checkable
 class AuthFlow(Protocol):
-    async def initialize(self, auth_context: AuthContext) -> AuthLease: ...
+    async def initialize(self, auth_context: AuthContext) -> AuthLease | None: ...
+    async def login(self, auth_context: AuthContext) -> AuthLease: ...
     def apply(self, request: RequestSpec) -> RequestSpec: ...
     def classify_response(self, request: RequestSpec, response: RequestResponse) -> AuthDecision: ...
     async def verify(self, auth_context: AuthContext) -> AuthVerification: ...
     async def refresh(self, auth_context: AuthContext) -> AuthLease: ...
 
 
-class BaseAuthFlow(ABC):
-    """Defaults for API 3 authentication; initialize must establish usable credentials."""
+class BaseAuthFlow:
+    """Prepare existing state without network; login and renewal require host approval."""
 
-    @abstractmethod
-    async def initialize(self, auth_context: AuthContext) -> AuthLease:
-        raise NotImplementedError
+    async def initialize(self, auth_context: AuthContext) -> AuthLease | None:
+        return None
+
+    async def login(self, auth_context: AuthContext) -> AuthLease:
+        raise AuthenticationError("login is not supported")
 
     def apply(self, request: RequestSpec) -> RequestSpec:
         return request
@@ -445,7 +441,7 @@ class BaseAuthFlow(ABC):
         return AuthVerification(AuthStatus.UNKNOWN)
 
     async def refresh(self, auth_context: AuthContext) -> AuthLease:
-        raise AuthenticationError("authentication refresh is not supported")
+        return await self.login(auth_context)
 
 
 @runtime_checkable
@@ -536,7 +532,9 @@ def is_auth_flow(value: object) -> TypeGuard[AuthFlow]:
         and not hasattr(value, "allowed_origins")
         and not inspect.iscoroutinefunction(value.apply)
         and not inspect.iscoroutinefunction(value.classify_response)
-        and all(inspect.iscoroutinefunction(getattr(value, name)) for name in ("initialize", "verify", "refresh"))
+        and all(
+            inspect.iscoroutinefunction(getattr(value, name)) for name in ("initialize", "login", "verify", "refresh")
+        )
         and len(inspect.signature(value.refresh).parameters) == 1
     )
 

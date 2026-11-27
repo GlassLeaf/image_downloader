@@ -15,6 +15,7 @@ from image_downloader.observability.notifications import NotificationService
 
 from ..configuration.models import AppConfig
 from ..configuration.paths import resolve_paths
+from ..credentials.access import LoginApprover
 from ..credentials.vault import CredentialVault
 from ..media.image_processor import ImageProcessor
 from ..media.transform_executor import TransformExecutor
@@ -42,6 +43,7 @@ class RuntimeComposer:
         plugin_root: Path,
         output_root: Path | None = None,
         plugin_verification_override: PluginVerificationOverride | None = None,
+        login_approver: LoginApprover | None = None,
     ) -> None:
         config_root = existing_directory(config_root, "configuration root", required=True)
         plugin_root = existing_directory(plugin_root, "plugin root")
@@ -51,6 +53,7 @@ class RuntimeComposer:
         self.plugin_root = plugin_root
         self.output_root = output_root
         self.plugin_verification_override = plugin_verification_override
+        self.login_approver = login_approver
 
     def compose(self) -> DownloadService:
         validate_notification_delivery(self.config.notification)
@@ -72,7 +75,7 @@ class RuntimeComposer:
             guard.async_callback("logging", dependencies.logger.close)
             guard.async_callback("http", dependencies.gateway.close)
             guard.callback("image", dependencies.image_processor.close)
-            service = DownloadService(self.config, registry, dependencies)
+            service = DownloadService(self.config, registry, dependencies, login_approver=self.login_approver)
             guard.release()
             return service
 
@@ -116,9 +119,9 @@ class RuntimeComposer:
             default_notification_senders(self.config.notification, credentials),
         )
         cookie_store = CookieStore(FileSystem(paths["cookie"]), store=credentials)
-        gateway = RequestGateway(self.config, cookie_store.load(), logger=logger)
+        gateway = RequestGateway(self.config, logger=logger, cookie_loader=cookie_store.load)
         guard.async_callback("http", gateway.close)
-        cookie_baseline = cookie_store.snapshot(gateway.client.cookies.jar)
+        cookie_baseline = gateway.cookie_baseline
         image_processor = ImageProcessor()
         guard.callback("image", image_processor.close)
         transform_executor = TransformExecutor(self.config.media.transform_workers)

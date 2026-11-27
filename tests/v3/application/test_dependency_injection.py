@@ -148,6 +148,9 @@ def test_two_services_preserve_each_others_cookie_changes(tmp_path: Path, monkey
         composer = _composer(tmp_path)
         first = composer.compose()
         second = composer.compose()
+        # Select both persistent sessions before directly modifying their jars.
+        first.gateway._ensure_cookies()
+        second.gateway._ensure_cookies()
         first.gateway.client.cookies.set("first", "one", domain="example.test")
         second.gateway.client.cookies.set("second", "two", domain="example.test")
         await first.close()
