@@ -8,9 +8,8 @@ from dataclasses import dataclass, field, replace
 
 from pydantic import ValidationError
 
-from ..configuration.merging import deep_merge
-from ..configuration.models import AppConfig, PluginAuthAccess, PluginConnections, PluginDownloadPolicy
-from ..credentials.access import CommandAuthAccess, LoginApprover, ResolvedAuthAccess, resolve_auth_access
+from ..configuration.models import AppConfig, PluginConnections, PluginDownloadPolicy
+from ..credentials.access import CommandAuthAccess, LoginApprover, ResolvedAuthAccess
 from ..credentials.plugin_secrets import RuntimeSecrets
 from ..credentials.profile_store import ProfileCredentialStore
 from ..diagnostics import validation_diagnostic
@@ -141,21 +140,21 @@ class SiteOperationFactory:
         plugin_id: str,
         url: str,
         overrides: PluginAuthAccessOverrides | None = None,
+        replacements: PluginAuthAccessOverrides | None = None,
+        patches: PluginAuthAccessOverrides | None = None,
     ) -> ResolvedAuthAccess:
         setting = self.config.plugin_settings.get(plugin_id)
         base = setting.auth_access.model_dump(exclude_unset=True) if setting else {}
-        if overrides:
-            if not isinstance(overrides, Mapping) or set(overrides) != {plugin_id}:
-                raise ConfigurationError("auth access override must target the selected site plugin")
-            incoming = overrides[plugin_id]
-            if not isinstance(incoming, Mapping):
-                raise ConfigurationError("auth access override must be a mapping")
-            base = deep_merge(base, incoming)
+        from ..credentials.overrides import operation_access
+
         try:
-            return resolve_auth_access(
+            return operation_access(
                 plugin_id,
                 url,
-                PluginAuthAccess.model_validate(base),
+                base,
+                legacy=overrides,
+                replacements=replacements,
+                patches=patches,
                 host_groups=setting.host_groups if setting else {},
             )
         except ConfigurationError:
@@ -262,6 +261,8 @@ class SiteOperationFactory:
         request_gateway: RequestGateway | None = None,
         auth_access_overrides: PluginAuthAccessOverrides | None = None,
         detached: bool = False,
+        auth_access_replacements: PluginAuthAccessOverrides | None = None,
+        auth_access_patches: PluginAuthAccessOverrides | None = None,
     ) -> tuple[PluginExecutionContext, OperationRequestGateway, _OperationDownloadPolicy]:
         self.registry.validate_operation_overrides(record, overrides)
         self.registry.validate_download_policy_overrides(record, download_policy_overrides)
@@ -269,7 +270,9 @@ class SiteOperationFactory:
             self.config,
             self.registry.effective_download_policy(record, download_policy_overrides),
         )
-        access = self.resolve_access(record.id, url, auth_access_overrides)
+        access = self.resolve_access(
+            record.id, url, auth_access_overrides, auth_access_replacements, auth_access_patches
+        )
         context: PluginExecutionContext | None = None
         plugin_config = self.registry.effective_config(record, overrides)
         connections = self._connections(url, record, plugin_config)
@@ -329,6 +332,8 @@ class SiteOperationFactory:
         selected_plugin: SiteSelection | None = None,
         auth_access_overrides: PluginAuthAccessOverrides | None = None,
         detached: bool = False,
+        auth_access_replacements: PluginAuthAccessOverrides | None = None,
+        auth_access_patches: PluginAuthAccessOverrides | None = None,
     ) -> AsyncIterator[SiteOperation]:
         record, plugin = (
             selected_plugin.claim()
@@ -343,7 +348,9 @@ class SiteOperationFactory:
                     self.registry.validate_operation_overrides(record, overrides)
                     self.registry.validate_download_policy_overrides(record, download_policy_overrides)
                     self._connections(url, record, self.registry.effective_config(record, overrides))
-                    access = self.resolve_access(record.id, url, auth_access_overrides)
+                    access = self.resolve_access(
+                        record.id, url, auth_access_overrides, auth_access_replacements, auth_access_patches
+                    )
                     temporary = (
                         self.session(access, detached=True)
                         if request_gateway is None
@@ -361,6 +368,8 @@ class SiteOperationFactory:
                     download_policy_overrides,
                     request_gateway,
                     auth_access_overrides,
+                    auth_access_replacements=auth_access_replacements,
+                    auth_access_patches=auth_access_patches,
                 )
             except BaseException as primary:
                 await self.cleanup_after_failure(invoker, plugin, primary, logger)

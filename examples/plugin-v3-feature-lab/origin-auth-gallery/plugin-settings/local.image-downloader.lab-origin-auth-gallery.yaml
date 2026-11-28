@@ -1,0 +1,3 @@
+config:
+  origin: https://example.com
+  asset_origin: https://viewer.example.com

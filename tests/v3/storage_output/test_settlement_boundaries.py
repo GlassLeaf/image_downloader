@@ -144,11 +144,11 @@ def test_command_close_waiter_interruption_remains_primary(monkeypatch, body_fai
     asyncio.run(scenario())
 
 
-@pytest.mark.parametrize("sources", ['{}', '{"test.review":{}}'])
+@pytest.mark.parametrize("sources", ["{}", '{"test.review":{}}'])
 def test_missing_workflow_source_is_classified_without_state_write(tmp_path, sources):
     filesystem = FileSystem(tmp_path.resolve())
     path = Path("workflow.json")
-    filesystem.write_bytes_atomic(path, ('{"schema_version":1,"sources":' + sources + '}').encode())
+    filesystem.write_bytes_atomic(path, ('{"schema_version":1,"sources":' + sources + "}").encode())
     before = (tmp_path / path).read_bytes()
     with pytest.raises(UpdateStateError, match="workflow target source not found"):
         WorkflowState(filesystem).set_status(

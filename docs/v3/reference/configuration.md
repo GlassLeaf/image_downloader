@@ -17,9 +17,17 @@ APIの`workflow_progress_log`が上書きする。falseでも周回ごとの実�
 `workflow_history`の期限・容量制御から独立し、自動削除しない。
 [記録内容・注意点](logging.md#workflow-execution-files)を参照する。
 
-この文書は YAML 設定、layer 解決、path safety、secret reference の正本である。完全なコメント付き雛形は [config-template.yaml](../../../src/image_downloader/config-template.yaml) である。`AppConfig` / `validate_config` への直接入力では unknown field を拒否する。user-managed YAML の layer 解決では obsolete/unknown static key を検証前に除外し、下記の rewrite 設定によってファイルから削除する場合がある。
-
-`plugin_settings.<id>`の共通設定項目、`auth_access`と各siteの未知キーは自動削除せず、正規化前にエラーにします。プラグイン独自`config`の任意キーは許容します。廃止した`allowed_hosts`も移行エラーにし、黙って除去しません。ユーザー設定YAML全体の同一マッピング内で明示キーが重複するとエラーです。アンカー、`<<`による通常のマージ、設定レイヤー間の上書きは利用できます。
+`AppConfig` / `validate_config` への直接入力では unknown field を拒否する。
+この文書は設定値と実行時モデルの正本です。ユーザー設定は形式v2へ分離しました。
+メインに整数`config_version: 2`が必須で、通常実行は旧形式を受理しません。
+[配置・認証設定・移行手順](../how-to/configuration-v2-migration.md)を参照してください。
+一般設定は`app.yaml`、`enabled/config/download_policy`は`plugin-settings/<id>.yaml`、
+利用者の認証方針は`auth.yaml`へ記述します。作者の認証実装・既定方針・endpoint宣言は従来どおりです。
+コメント付き雛形は[config-template.yaml](../../../src/image_downloader/config-template.yaml)、
+[auth-template.yaml](../../../src/image_downloader/auth-template.yaml)、
+[plugin-settings-template.yaml](../../../src/image_downloader/plugin-settings-template.yaml)です。
+未知・廃止キー、誤配置、同一マッピング内の明示キーの重複はエラーです。
+任意のプラグイン固有`config`キー、アンカーと通常の`<<`マージは利用できます。
 
 <a id="config-discovery"></a>
 
@@ -35,11 +43,10 @@ APIの`workflow_progress_log`が上書きする。falseでも周回ごとの実�
 2. 同梱の不変な基準設定
 3. メインの`app.yaml`
 4. `profiles/<profile>/app.yaml`
-5. `sites/global.yaml`
+5. `sites/global/app.yaml`
 6. プロファイル内のサイト共通レイヤー
-7. 登録可能ドメインから完全なホスト名までのサイトレイヤー
-8. 同じホストのプロファイル内サイトレイヤー
-9. CLIの初期設定・アプリケーション実行時の上書き
+7. 登録可能ドメインから完全なホスト名まで、各ホストの共通・プロファイル内サイトレイヤーを交互に適用
+8. CLIの初期設定・アプリケーション実行時の上書き
 
 mapping は再帰 merge、scalar/list/`null` は高い layer が置換する。IDNA、registrable domain、IPv4/IPv6 filename の正規化、検討した layer、値の origin は `config explain --json` で確認する。
 
@@ -47,7 +54,7 @@ mapping は再帰 merge、scalar/list/`null` は高い layer が置換する。I
 | --- | --- | --- | --- | --- |
 | 同梱の基準設定 / メインの`app.yaml` | 許可 | 許可 | 許可 | 許可 |
 | `profiles/<name>/app.yaml` | 禁止 | 禁止 | 禁止 | 許可 |
-| 全`sites/*.yaml`（共通・ホスト別、プロファイル内を含む） | 禁止 | 禁止 | 禁止 | 禁止 |
+| 全`sites/<host>/app.yaml`（共通・ホスト別、プロファイル内を含む） | 禁止 | 禁止 | 禁止 | 禁止 |
 
 違反は layer を黙って無視せず `ConfigurationError` にする。これは bootstrap root と verification policy を site ごとに切替えて security boundary を曖昧にしないためである。
 
@@ -60,7 +67,12 @@ mapping は再帰 merge、scalar/list/`null` は高い layer が置換する。I
 `config profile init NAME` の `NAME` は `[A-Za-z0-9_-]+` である。`--config` は main config の absolute path として受理し、存在しなければ main config も作成する。profile file は `<config-root>/profiles/NAME/app.yaml` に一回だけ作る。profile init では `--data-root`、`--plugin-root`、`--profile` は拒否され、`--yes` は no-op である。作成された profile layer には上表の profile-layer 制約が適用される。
 
 <!-- claim: TAX-CONFIG-REWRITE -->
-`resolve_application_config(..., rewrite_user_layers=True)` と `load_application_config(..., rewrite_user_layers=True)` は obsolete/unknown static key を user-managed YAML から atomic に削除し得る。default は `False` で read-only である。download、update listing、cookie operation、plugin mutation は initial config の作成と rewrite を試みる。initial config の作成に失敗しても root を解決済みなら主 operation の終了状態は維持し、safe warning を stderr に出す。`doctor`、`config path`、`config explain`、plugin list は file/directory を作成・書換えしない。
+`resolve_application_config(..., rewrite_user_layers=True)`と`load_application_config(..., rewrite_user_layers=True)`は
+呼び出し互換のため引数を受理しますが、既存ファイルを書き換えません。
+download、update listing、Cookie操作、plugin mutationの初回作成も、`config init`と同じ差分方式です。
+コメント・形式番号だけを保存し、CLI上書きや全既定値スナップショットを保存しません。
+認証・プラグイン設定ファイルは自動作成しません。初期作成に失敗しても主operationの終了状態は維持し、stderrへwarningを出します。
+`doctor`、`config path/explain/validate`、plugin listは設定を作成・変更しません。
 
 読み込み対象の既存 config、overlay、使用する data/plugin root、managed output は symlink または Windows reparse point を含められない。不安全な path を「欠落」として無視せず `ConfigurationError` または storage safety failure にする。
 
@@ -73,6 +85,11 @@ mapping は再帰 merge、scalar/list/`null` は高い layer が置換する。I
 <a id="schema"></a>
 
 ## 設定スキーマ
+
+以下の表は互換性を維持するPythonの`AppConfig`実行時フィールドです。ファイル形式とは分けて扱います。
+`network.auth_refresh_attempts`はファイルでは`auth.yaml`の`execution.auth_refresh_attempts`、
+`notification.email.credential_reference`は`smtp.credential_reference`へ移りました。
+`plugin_settings.<id>`以下のファイル上の名称・配置は[形式v2](../how-to/configuration-v2-migration.md)を参照してください。
 
 | キー | 型・既定値・制約 |
 | --- | --- |
@@ -174,6 +191,7 @@ mapping は再帰 merge、scalar/list/`null` は高い layer が置換する。I
 
 ```yaml
 # app.yaml（メインのレイヤー）
+config_version: 2
 profile: {default: comics}
 storage: {data_root: 'D:/image-data'}
 plugins: {root: 'D:/image-plugins'}
@@ -182,16 +200,18 @@ output:
   filename_format: '%IMAGE_INDEX%.%EXT%'
   existing_file: skip
 security: {plugin_verification: strict}
+```
 
+```yaml
 # profiles/comics/app.yaml（プロファイルのレイヤー。profile・storage・pluginsは指定不可）
 network: {max_attempts: 4}
+```
 
-# sites/example.test.yaml（サイトのレイヤー。profile・storage・plugins・securityは指定不可）
-plugin_settings:
-  com.example.gallery:
-    config: {page_size: 50}
-    download_policy:
-      image_concurrency_per_chapter: 1
+```yaml
+# sites/example.test/plugin-settings/com.example.gallery.yaml
+config: {page_size: 50}
+download_policy:
+  image_concurrency_per_chapter: 1
 ```
 
 YAMLは永続設定を指定します。CLIの実行時上書き（`--existing-file`、`--directory-format`、プラグイン設定・方針の上書きJSON、フォールバックモード）は、その操作のレイヤー解決後に適用し、ファイルへ書き戻しません。`--output-dir`も`AppConfig`のフィールドではなく、ダウンロード専用の依存構築時の上書きであり、保存しません。対応する設定上書きとその由来は`config explain --json`で確認できます。このコマンドは、ダウンロード専用の`--directory-format`・`--output-dir`・`--image-format`・`--image-quality`を受理しません。
@@ -320,8 +340,8 @@ raw credentialをYAML、manifest、catalog、plugin source、log、exceptionへ�
 
 `credential plugin set <plugin-id> <REFERENCE>`でプロファイルごとに登録する。SMTPは
 `credential smtp set <REFERENCE>`でユーザー名・パスワードを一組として登録し、
-`notification.email.credential_reference`で選択する。旧`username`・`credential_service`は
-非使用の互換項目として設定に残す。旧ユーザー名だけを指定した状態では再設定エラーになる。
+`auth.yaml`の`smtp.credential_reference`で選択する。Python APIの
+`notification.email.credential_reference`は維持する。旧`username/credential_service`は新形式で受理しない。
 
 SMTP認証を使う場合は`notification.email.use_tls: true`が必須である。
 ポート465は暗黙TLS、それ以外はSTARTTLSを使い、TLSの確立に失敗した場合は認証しない。
@@ -340,7 +360,12 @@ OSストアにはマスターキーだけを保存し、資格情報とCookieの
 
 ## 移行と互換性
 
-v3 は旧 descriptor/tree を discovery しない。network の旧 static key は current model の timeout、retry、pool、response-size fields に置き換え、`config explain --json` の `origins` と `layers` で移管結果を確認する。user-managed YAML の obsolete/unknown static key は `rewrite_user_layers=True` のときだけ削除候補になり、read-only resolve は書換えない。
+プラグインAPI v3と設定形式v2は別の版番号です。現在の未版付けv3設定は
+`config migrate --config ABSOLUTE_PATH --destination NEW_DIRECTORY`で静的な同値性を検査し、
+`--apply`で新しい別ディレクトリへ出力します。未知・廃止キーを新しい設定へ推測変換しません。
+元設定、資格情報保管庫、Cookieは変更せず、未完了の出力は通常ローダーが拒否します。
+[移行手順・中断と復帰・保証範囲](../how-to/configuration-v2-migration.md#移行手順と復帰)を確認してください。
+
 ## Workflow実行履歴の保持設定
 
 ```yaml
@@ -367,7 +392,7 @@ workflow_history:
 
 `authentication` は選択したサイトプラグインの認証確認・期限更新の共通方針、`endpoints` は接続先originごとの認証利用と確認方針を宣言する。ログイン方法、確認用URL、Bearer tokenの付与方法は設定から自動生成せず、プラグインの `AuthFlow` が実装する。ここでいう確認は `AuthFlow.verify()` の呼出しであり、HTTPの疎通確認や画像検査ではない。
 
-作者はmanifestの `config_file` が指すYAMLに `config` と並べて記述する。利用者はmain/profile/site設定の `plugin_settings.<id>.authentication` と `plugin_settings.<id>.endpoints` で部分的に上書きする。作者設定に利用者設定をdeep mergeしてから、接続先と方針の整合性を検証する。省略項目は作者設定を維持する。`--plugin-config` / `--plugin-config-file` とプラグインの `validate_config()` は固有の `config` だけを扱い、この共通設定の操作には使わない。
+作者はmanifestの`config_file`が指すYAMLに`config`と並べて記述する。利用者は共通・プロファイル・サイトの`auth.yaml`で、`plugins.<id>.connections.authentication/endpoints`を部分的に上書きする。Python APIの`plugin_settings.<id>.authentication/endpoints`は維持する。作者設定に利用者設定をdeep mergeしてから、接続先と方針の整合性を検証する。省略項目は作者設定を維持する。`--plugin-config` / `--plugin-config-file`とプラグインの`validate_config()`は固有の`config`だけを扱う。
 
 <a id="config-authentication-defaults"></a>
 
@@ -537,19 +562,21 @@ galleryは共通の300秒間隔、apiは毎要求確認を使う。loginとimage
 利用者がapiの毎要求・間隔確認を無効にし、共通の間隔を600秒へ変える場合は、利用者YAMLへ次を指定する。作者のorigin・auth・他の接続先は維持する。
 
 ```yaml
-plugin_settings:
+# auth.yaml (or sites/<input-host>/auth.yaml)
+plugins:
   com.example.gallery:
-    authentication:
-      verify_interval_seconds: 600
-    endpoints:
-      api:
-        verification:
-          before_request: false
-          interval_seconds: null
+    connections:
+      authentication:
+        verify_interval_seconds: 600
+      endpoints:
+        api:
+          verification:
+            before_request: false
+            interval_seconds: null
 ```
 
 要求構築の例は[接続先から画像要求を作る](../how-to/dynamic-urls-and-auth.md#endpoint-image-requests)、Cookie共有と実装の移行は[認証APIの移行手順](../how-to/authentication-migration.md)を参照する。
 
 サイト別の提供・ログイン許可はユーザー専用の `plugin_settings.<id>.auth_access` で指定する。匿名モードは空のセッションで開始し、認証を許可すれば通常どおりCookieを利用するが、終了時に認証状態を保存しない。[サイト選択・既定値・承認・実行時上書きの仕様](../how-to/auth-access-and-ephemeral-sessions.md)。
 
-`auth_access.sites.<site>.origins`は文字列・配列・`${host_groups.<name>}`とHTTPSの左端1階層ワイルドカードを受理します。本体originは別指定し、異なるsite間の重複範囲を拒否します。ユーザー専用の`host_groups`は作者endpointからも参照できますが、プラグイン固有configへは展開しません。[変数・共有単位・展開後の表示](../how-to/auth-access-and-ephemeral-sessions.md#ユーザー管理のホスト変数とワイルドカード)を参照してください。
+`auth_access.sites.<site>.origins`は文字列・配列・`${host_groups.<name>}`とHTTPSの左端1階層ワイルドカードを受理します。本体originは別指定し、異なるsite間の重複範囲を拒否します。新形式では認証用`host_groups`とendpoint用`connections.host_groups`を独立させ、暗黙の相互参照を認めません。プラグイン固有configへは展開しません。[変数・共有単位・展開後の表示](../how-to/auth-access-and-ephemeral-sessions.md#ユーザー管理のホスト変数とワイルドカード)を参照してください。

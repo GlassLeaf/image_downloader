@@ -10,6 +10,7 @@ from pathlib import Path
 import httpx
 import pytest
 import yaml
+from support.configuration import write_config
 
 from image_downloader.devtools.catalog import CATALOG, select_features
 from image_downloader.devtools.cli import main
@@ -102,26 +103,24 @@ def test_development_uses_the_users_existing_site_without_overriding_denials(tmp
     directory = project(tmp_path, ["json", "api-key"], secrets={"api_token": "fixture-token"}, user_auth=False)
     record = resolve_target(directory)
     user_config = tmp_path / "user.yaml"
-    user_config.write_text(
-        yaml.safe_dump(
-            {
-                "plugin_settings": {
-                    record.id: {
-                        "auth_access": {
-                            "sites": {
-                                "user_site": {
-                                    "origins": ["https://example.test"],
-                                    "mode": "anonymous",
-                                    "credential_access": "deny",
-                                    "login": "deny",
-                                },
-                            }
+    write_config(
+        user_config,
+        {
+            "plugin_settings": {
+                record.id: {
+                    "auth_access": {
+                        "sites": {
+                            "user_site": {
+                                "origins": ["https://example.test"],
+                                "mode": "anonymous",
+                                "credential_access": "deny",
+                                "login": "deny",
+                            },
                         }
                     }
                 }
             }
-        ),
-        encoding="utf-8",
+        },
     )
 
     async def scenario():
@@ -976,27 +975,25 @@ def test_development_preserves_user_host_templates_without_filling_unregistered_
     record = resolve_target(directory)
     user_config = tmp_path / "user.yaml"
     origin = "https://*." + "$" + "{host_groups.default}"
-    user_config.write_text(
-        yaml.safe_dump(
-            {
-                "plugin_settings": {
-                    record.id: {
-                        "host_groups": {"default": ["example.com"]},
-                        "auth_access": {
-                            "mode": "anonymous",
-                            "sites": {
-                                "user_site": {
-                                    "origins": origin,
-                                    "credential_access": "deny",
-                                    "login": "deny",
-                                }
-                            },
+    write_config(
+        user_config,
+        {
+            "plugin_settings": {
+                record.id: {
+                    "host_groups": {"default": ["example.com"]},
+                    "auth_access": {
+                        "mode": "anonymous",
+                        "sites": {
+                            "user_site": {
+                                "origins": origin,
+                                "credential_access": "deny",
+                                "login": "deny",
+                            }
                         },
-                    }
+                    },
                 }
             }
-        ),
-        encoding="utf-8",
+        },
     )
 
     async def scenario():

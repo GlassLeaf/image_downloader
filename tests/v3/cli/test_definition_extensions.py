@@ -16,7 +16,7 @@ import pytest
 from pydantic import Field, StrictInt
 
 from image_downloader.commands import argument_rules, dispatch, inspect, options, parser, setup, validation
-from image_downloader.configuration import layers, normalization
+from image_downloader.configuration import document_layers, documents, layers, normalization, resolution
 from image_downloader.configuration.models import AppConfig, Media, Network
 from image_downloader.diagnostics import diagnostic_for
 from image_downloader.exceptions import ArgumentError, ConfigurationError
@@ -273,8 +273,10 @@ def extended_config(monkeypatch):
         media: ExtendedMedia = Field(default_factory=ExtendedMedia)
 
     # Match the schema/defaults initialized by a fresh import of a changed model.
-    monkeypatch.setattr(layers, "AppConfig", ExtendedAppConfig)
-    monkeypatch.setattr(layers, "DEFAULT_CONFIG", ExtendedAppConfig())
+    monkeypatch.setattr(documents, "AppConfig", ExtendedAppConfig)
+    monkeypatch.setattr(resolution, "AppConfig", ExtendedAppConfig)
+    monkeypatch.setattr(resolution, "DEFAULT_CONFIG", ExtendedAppConfig())
+    monkeypatch.setattr(document_layers, "DEFAULT_CONFIG", ExtendedAppConfig())
     monkeypatch.setattr(normalization, "_APP_CONFIG_SHAPE", normalization._model_shape(ExtendedAppConfig))
 
 
@@ -313,7 +315,7 @@ def test_added_config_field_diagnostics_include_field_and_location(
     extended_config, tmp_path, name, value, condition, json_mode, capsys
 ):
     path = tmp_path / "app.yaml"
-    content = f"network:\n  {name}: {value}\n  headers: {{Authorization: private-secret}}\n"
+    content = f"config_version: 2\nnetwork:\n  {name}: {value}\n  headers: {{Authorization: private-secret}}\n"
     path.write_text(content, encoding="utf-8")
     assert dispatch.main(["config", "explain", "--config", str(path), *(["--json"] if json_mode else [])]) == 2
     output = capsys.readouterr()
@@ -327,7 +329,7 @@ def test_added_config_field_diagnostics_include_field_and_location(
         details = payload["details"]
         assert details["kind"] == "configuration_value"
         assert details["field"] == f"network.{name}"
-        assert details["source"] == "app:app.yaml" and details["line"] == 2
+        assert details["source"] == "app:app.yaml" and details["line"] == 3
         assert details["column"] >= 1
     assert path.read_text(encoding="utf-8") == content
 

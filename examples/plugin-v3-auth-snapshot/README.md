@@ -35,3 +35,5 @@ fixture内の資格情報はダミーです。詳細ログと保存方針は既�
 開発用の署名なしmanifestは、ユーザー許可設定と同じ固定IDで読み込むために含めています。配布用の署名済みmanifestは含めていません。配布する場合は`plugin-metadata.json`を使って
 通常どおり署名・インストールしてください。手順は[署名サンプル](../plugin-v3-metadata-bridge/README.md#sign-and-install)、
 APIと移行方針は[移行ガイド](../../docs/v3/how-to/structured-data-and-auth-snapshot-migration.md)を参照してください。
+
+ユーザー設定例は形式v2です。メインの形式番号に加え、隣接する`auth.yaml`と必要な`plugin-settings/`も一式として使用してください。認証用と接続先用のホスト変数は独立しています。

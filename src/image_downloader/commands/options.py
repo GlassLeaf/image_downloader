@@ -55,7 +55,9 @@ _PLUGIN = _PLUGIN_MUTATIONS | {"plugin list"}
 _TARGETS = frozenset("state workflow " + action for action in ("targets", "set", "reset"))
 _TARGET_MUTATIONS = frozenset({"state workflow set", "state workflow reset"})
 _STATE = frozenset("state workflow " + action for action in ("list", "show", "run", "history", "prune")) | _TARGETS
-_CONFIG = frozenset({"config path", "config explain", "config init", "config profile init"})
+_CONFIG = frozenset(
+    {"config path", "config explain", "config init", "config profile init", "config validate", "config migrate"}
+)
 _CREDENTIAL = frozenset(
     f"credential {kind} {action}" for kind in ("plugin", "smtp") for action in ("set", "list", "delete")
 )
@@ -71,7 +73,13 @@ _IMAGE_FORMATS = ("ORIGINAL", "JPEG", "PNG", "WEBP")
 
 OPTIONS: tuple[OptionDefinition, ...] = (
     OptionDefinition(
-        "config", _RUNTIME | _STATE | _VERIFY_WORKFLOW | {"config explain", "config profile init"} | _MANAGED, Path
+        "config",
+        _RUNTIME
+        | _STATE
+        | _VERIFY_WORKFLOW
+        | {"config explain", "config profile init", "config validate", "config migrate"}
+        | _MANAGED,
+        Path,
     ),
     OptionDefinition("profile", _RUNTIME | _STATE | _VERIFY_WORKFLOW | {"config explain"} | _CREDENTIAL),
     OptionDefinition("plugin-root", _RUNTIME | _TARGETS | {"config explain", "config init"} | _MANAGED, Path),
@@ -103,6 +111,12 @@ OPTIONS: tuple[OptionDefinition, ...] = (
     OptionDefinition("passphrase-stdin", frozenset({"vault backup", "vault restore"}), default=False, flag=True),
     OptionDefinition("resume", frozenset({"vault rotate-key"}), default=False, flag=True),
     OptionDefinition("plugin-auth-access", _DOWNLOAD | _INSPECT, repeat=True, metavar="ID=JSON"),
+    OptionDefinition("plugin-auth-access-replace", _DOWNLOAD | _INSPECT, repeat=True, metavar="ID=JSON"),
+    OptionDefinition("plugin-auth-access-replace-file", _DOWNLOAD | _INSPECT, Path, repeat=True),
+    OptionDefinition("plugin-auth-access-patch", _DOWNLOAD | _INSPECT, repeat=True, metavar="ID=JSON"),
+    OptionDefinition("plugin-auth-access-patch-file", _DOWNLOAD | _INSPECT, Path, repeat=True),
+    OptionDefinition("destination", frozenset({"config migrate"}), Path, help="New absolute configuration directory"),
+    OptionDefinition("apply", frozenset({"config migrate"}), default=False, flag=True, help="Write the migration"),
     OptionDefinition("plugin-config", _OVERRIDES, repeat=True, metavar="ID=JSON"),
     OptionDefinition("plugin-config-file", _OVERRIDES, Path, repeat=True, metavar="ABSOLUTE_PATH"),
     OptionDefinition("fallback-generic", _OVERRIDES, default="auto", choices=("auto", "enabled", "disabled")),

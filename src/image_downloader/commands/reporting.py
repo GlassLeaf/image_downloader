@@ -10,9 +10,10 @@ from importlib.metadata import version as distribution_version
 from pathlib import Path
 from typing import Any, cast
 
+from ..configuration.auth_origins import OriginMatcher
 from ..configuration.endpoint_origins import expand_origins, referenced_host_groups
 from ..configuration.models import AppConfig, PluginConnections, PluginSettings
-from ..credentials.access import compile_auth_access
+from ..credentials.access import compile_auth_access, resolve_auth_access
 from ..plugins.runtime import PluginRuntime
 from ..privacy.sensitive_values import REDACTED, redact_sensitive_values
 from ..transport.endpoint_rules import expand_connections
@@ -55,7 +56,29 @@ def _doctor_redact(
         access = settings.auth_access
         compiled = compile_auth_access(plugin_id, access, settings.host_groups)
         references = _host_group_references(settings, (connections or {}).get(plugin_id))
+        auth_groups = settings.host_groups if access.host_groups is None else access.host_groups
+        if access.host_groups is not None:
+            references = {}
+            for name, site in access.sites.items():
+                for group in referenced_host_groups(site.origins):
+                    references.setdefault(group, set()).add(f"auth_access.sites.{name}.origins")
         plugins[plugin_id]["host_groups"] = {name: list(hosts) for name, hosts in settings.host_groups.items()}
+        connection_references = _host_group_references(settings, (connections or {}).get(plugin_id))
+        plugins[plugin_id]["connection_variables"] = {
+            "host_groups": {
+                name: {
+                    "values": list(hosts),
+                    "source": (origins or {}).get(
+                        "plugin_settings." + plugin_id + ".host_groups." + name, "schema default"
+                    ),
+                    "referenced_by": sorted(
+                        field for field in connection_references.get(name, ()) if field.startswith("endpoints.")
+                    ),
+                    "usage_complete": plugin_id in (connections or {}),
+                }
+                for name, hosts in settings.host_groups.items()
+            }
+        }
         sites: dict[str, dict[str, Any]] = {}
         for name, site in access.sites.items():
             sites[name] = {
@@ -65,6 +88,7 @@ def _doctor_redact(
                 "credential_access": "allow" if site.provides_credentials else "deny",
                 "login": site.login_policy,
                 "secrets": {key: REDACTED for key in site.secrets},
+                "session_inheritance": "binding" if "mode" in site.model_fields_set else "defaults.session.persistence",
             }
         plugins[plugin_id]["auth_access"] = {
             "mode": access.mode,
@@ -72,19 +96,47 @@ def _doctor_redact(
             "variables": {
                 "host_groups": {
                     name: {
-                        "field": "plugin_settings." + plugin_id + ".host_groups." + name,
+                        "field": "plugin_settings."
+                        + plugin_id
+                        + (".host_groups." if access.host_groups is None else ".auth_access.host_groups.")
+                        + name,
                         "source": (origins or {}).get(
-                            "plugin_settings." + plugin_id + ".host_groups." + name, "user plugin_settings"
+                            "plugin_settings."
+                            + plugin_id
+                            + (".host_groups." if access.host_groups is None else ".auth_access.host_groups.")
+                            + name,
+                            "schema default",
                         ),
                         "values": list(hosts),
                         "referenced_by": sorted(references.get(name, ())),
                         "usage_complete": plugin_id in (connections or {}),
                     }
-                    for name, hosts in settings.host_groups.items()
+                    for name, hosts in auth_groups.items()
                 }
             },
         }
     return safe
+
+
+def _authentication_selection(config: AppConfig, url: str | None) -> dict[str, object]:
+    if url is None:
+        return {}
+    result: dict[str, object] = {}
+    for plugin_id, settings in config.plugin_settings.items():
+        selected = resolve_auth_access(plugin_id, url, settings.auth_access, host_groups=settings.host_groups)
+        declared = settings.auth_access.sites.get(selected.site_id)
+        result[plugin_id] = {
+            "binding": selected.site_id if declared is not None else None,
+            "reason": "matching input origin" if declared is not None else "unregistered input origin; default policy",
+            "origins": list(selected.site.origins),
+            "credential_access": "allow" if selected.site.provides_credentials else "deny",
+            "login": selected.site.login_policy,
+            "session": {"persistence": "ephemeral" if selected.site.mode == "anonymous" else "persistent"},
+            "session_inheritance": "binding"
+            if declared is not None and "mode" in declared.model_fields_set
+            else "defaults.session.persistence",
+        }
+    return result
 
 
 def _user_endpoint_previews(settings: PluginSettings) -> dict[str, object]:
@@ -145,6 +197,11 @@ def _unused_host_group_warnings(
         if plugin_id not in connections:
             continue
         references = _host_group_references(settings, connections[plugin_id])
+        if settings.auth_access.host_groups is not None:
+            references = {
+                name: {field for field in fields if field.startswith("endpoints.")}
+                for name, fields in references.items()
+            }
         warnings.extend(
             {
                 "kind": "unused_host_group",
@@ -153,7 +210,7 @@ def _unused_host_group_warnings(
                 "message": "host group is not referenced by the effective authentication or endpoint settings",
             }
             for name in settings.host_groups
-            if name not in references
+            if not references.get(name)
         )
     return warnings
 
@@ -220,14 +277,35 @@ def _endpoint_display(
         registry.effective_config(registry.records[plugin_id], overrides),
         host_groups=settings.host_groups if settings else {},
     )
-    return {
+    result: dict[str, object] = {
         name: {
             "origin": item.origin,
             "resolved_origins": expanded.endpoints[name].origin,
             "host_groups": sorted(referenced_host_groups(item.origin)),
+            "auth": item.auth,
         }
         for name, item in connections.endpoints.items()
     }
+    access = compile_auth_access(plugin_id, settings.auth_access, settings.host_groups) if settings else None
+    for name, preview in result.items():
+        assert isinstance(preview, dict)
+        try:
+            origins = expanded.endpoints[name].origin
+            matcher = OriginMatcher.compile((origins,) if isinstance(origins, str) else origins)
+            preview["permitted_bindings"] = (
+                [
+                    binding
+                    for binding, policy in access.sites.items()
+                    if matcher.overlaps(OriginMatcher.compile(policy.origins))
+                ]
+                if access
+                else []
+            )
+            preview["scope_complete"] = True
+        except ValueError:
+            preview["permitted_bindings"] = None
+            preview["scope_complete"] = False
+    return result
 
 
 def _print_json_block(label: str, value: object, *, indent: str = "") -> None:

@@ -17,7 +17,7 @@ URL = "https://example.test/feed?token=secret"
 def configuration(tmp_path):
     config_path = tmp_path / "app.yaml"
     config = AppConfig.model_validate({"storage": {"data_root": str(tmp_path / "data")}})
-    config_path.write_text(f"storage:\n  data_root: '{tmp_path / 'data'}'\n", encoding="utf-8")
+    config_path.write_text(f"config_version: 2\nstorage:\n  data_root: '{tmp_path / 'data'}'\n", encoding="utf-8")
     return config_path, config
 
 

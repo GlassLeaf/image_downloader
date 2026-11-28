@@ -1,0 +1,7 @@
+# Copy to plugin-settings/<reverse-DNS-plugin-id>.yaml at the chosen scope.
+# enabled: true
+# config: {}
+# download_policy: {request_concurrency: 2}
+# download_policy also accepts chapter_concurrency, image_concurrency_per_chapter
+# (null or positive integer) and preserve_image_start_order (boolean, default false).
+{}

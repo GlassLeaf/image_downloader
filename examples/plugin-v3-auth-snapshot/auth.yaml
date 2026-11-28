@@ -1,0 +1,10 @@
+plugins:
+  local.image-downloader.auth-snapshot-gallery:
+    bindings:
+      mock_service:
+        origins: https://auth-snapshot.example.test
+        credentials:
+          username: USERNAME
+          password: PASSWORD
+        credential_access: allow
+        login: allow

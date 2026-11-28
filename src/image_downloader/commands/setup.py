@@ -17,7 +17,6 @@ from ..configuration.paths import default_user_config_path, resolve_paths
 from ..configuration.paths import plugin_root as configured_plugin_root
 from ..diagnostics import argument_error, configuration_error, configuration_source
 from ..exceptions import ConfigurationError
-from ..immutable import thaw_json
 from ..storage.path_safety import canonical_path, existing_directory, existing_regular_file
 from .prepared import ConfigurationArguments, DoctorArguments, SiteArguments
 
@@ -32,7 +31,7 @@ def _user_config_path() -> Path:
 
 def _user_config_payload(data_root: Path | None = None, plugins_root: Path | None = None) -> dict[str, object]:
     """Persist only values explicitly chosen by the user, never a stale default snapshot."""
-    payload: dict[str, object] = {}
+    payload: dict[str, object] = {"config_version": 2}
     if data_root is not None:
         payload["storage"] = {"data_root": str(data_root.resolve())}
     if plugins_root is not None:
@@ -46,19 +45,15 @@ def _user_config_yaml(data_root: Path | None = None, plugins_root: Path | None =
         header = template.read_text(encoding="utf-8")
     except OSError as exc:
         raise ConfigurationError(f"could not read configuration template: {template}") from exc
-    payload = yaml.safe_dump(_user_config_payload(data_root, plugins_root), allow_unicode=True, sort_keys=False)
+    values = _user_config_payload(data_root, plugins_root)
+    values.pop("config_version")  # The distributable template already declares its required format.
+    payload = yaml.safe_dump(values, allow_unicode=True, sort_keys=False) if values else ""
     return header + str(payload)
 
 
 def _initial_user_config_yaml(config: AppConfig) -> str:
-    """Render a complete bundled-policy snapshot, never CLI runtime overrides."""
-    payload = thaw_json(config.model_dump(by_alias=True, warnings=False))
-    assert isinstance(payload, dict)
-    return (
-        "# Generated from the bundled app.yaml on the first state-changing run.\n"
-        "# Command-line overrides are intentionally not persisted.\n"
-        + yaml.safe_dump(payload, allow_unicode=True, sort_keys=False)
-    )
+    """First-run persistence has the same sparse form as explicit init."""
+    return _user_config_yaml()
 
 
 def _write_new_user_config(destination: Path, content: str) -> None:
@@ -84,9 +79,9 @@ def _write_initial_user_config(destination: Path, config: AppConfig) -> None:
 
 
 def _persist_initial_user_config(source: str) -> None:
-    """Persist bundled policy before a state-changing first run.
+    """Persist a sparse template before a state-changing first run.
 
-    The snapshot deliberately excludes every command-line override.  A
+    The template deliberately excludes every command-line override. A
     concurrent first run may win the create race; its regular file is retained
     without treating that as a failure.  Persistence is advisory once the
     operation's roots have been resolved.
@@ -140,6 +135,8 @@ def _plugin_option_overrides(
     args: argparse.Namespace,
     attribute: str,
     data_field: str,
+    *,
+    replace_entries: bool = False,
 ) -> dict[str, Mapping[str, object]]:
     """Read repeated file and inline overrides in their declared precedence order."""
     option = "--" + attribute.replace("_", "-")
@@ -167,7 +164,11 @@ def _plugin_option_overrides(
                 option=file_option,
             )
         plugin_id = raw["plugin_id"]
-        result[plugin_id] = _deep_merge_json(result.get(plugin_id, {}), raw[data_field])
+        result[plugin_id] = (
+            {**result.get(plugin_id, {}), **raw[data_field]}
+            if replace_entries
+            else _deep_merge_json(result.get(plugin_id, {}), raw[data_field])
+        )
     for item in getattr(args, attribute, []):
         if "=" not in item:
             raise argument_error(f"{option} must have ID=<JSON-object> form", "invalid_value", option=option)
@@ -178,7 +179,11 @@ def _plugin_option_overrides(
             raise argument_error(f"{option} JSON is invalid", "invalid_value", option=option) from exc
         if not plugin_id or not isinstance(value, dict):
             raise argument_error(f"{option} value must be a JSON object", "invalid_value", option=option)
-        result[plugin_id] = _deep_merge_json(result.get(plugin_id, {}), value)
+        result[plugin_id] = (
+            {**result.get(plugin_id, {}), **value}
+            if replace_entries
+            else _deep_merge_json(result.get(plugin_id, {}), value)
+        )
     return result
 
 

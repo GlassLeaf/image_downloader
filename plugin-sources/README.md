@@ -93,36 +93,46 @@ foreach ($unit in $units) {
 }
 ```
 
-認証情報はプラグインの外部で管理します。`plugin_settings`には資格情報そのものではなく、秘密情報への参照を設定してください。
-次のYAMLを利用者設定へ追加し、続くCLIで参照名に対応する値を登録します。`EXAMPLE_*`は環境変数名ではありません。
+認証情報はプラグインの外部で管理します。形式v2の`auth.yaml`には資格情報そのものではなく、秘密情報への参照を設定してください。
+メイン`app.yaml`と同じディレクトリへ次の`auth.yaml`を保存し、続くCLIで参照名に対応する値を登録します。`EXAMPLE_*`は環境変数名ではありません。
 
 ```yaml
-plugin_settings:
+# app.yaml
+config_version: 2
+```
+
+```yaml
+# auth.yaml (next to app.yaml)
+plugins:
   local.image-downloader.csrf-login-gallery:
-    auth_access:
-      sites:
-        gallery:
-          origins: [https://csrf-login.example.test]
-          login: ask
-          secrets:
-            username: EXAMPLE_GALLERY_USERNAME
-            password: EXAMPLE_GALLERY_PASSWORD
+    bindings:
+      gallery:
+        origins:
+        - https://csrf-login.example.test
+        login: ask
+        credentials:
+          username: EXAMPLE_GALLERY_USERNAME
+          password: EXAMPLE_GALLERY_PASSWORD
+        credential_access: allow
   local.image-downloader.cursor-api-gallery:
-    auth_access:
-      sites:
-        gallery:
-          origins: [https://cursor-api.example.test]
-          secrets:
-            api_token: EXAMPLE_GALLERY_API_TOKEN
+    bindings:
+      gallery:
+        origins:
+        - https://cursor-api.example.test
+        credentials:
+          api_token: EXAMPLE_GALLERY_API_TOKEN
+        credential_access: allow
+        login: ask
   local.image-downloader.oauth-media-api:
-    auth_access:
-      sites:
-        gallery:
-          origins: [https://oauth-media.example.test]
-          login: ask
-          secrets:
-            access_token: EXAMPLE_OAUTH_ACCESS_TOKEN
-            refresh_token: EXAMPLE_OAUTH_REFRESH_TOKEN
+    bindings:
+      gallery:
+        origins:
+        - https://oauth-media.example.test
+        login: ask
+        credentials:
+          access_token: EXAMPLE_OAUTH_ACCESS_TOKEN
+          refresh_token: EXAMPLE_OAUTH_REFRESH_TOKEN
+        credential_access: allow
 ```
 
 ```powershell

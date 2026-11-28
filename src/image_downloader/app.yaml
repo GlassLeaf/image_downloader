@@ -1,3 +1,4 @@
+config_version: 2
 profile:
   default: default
 storage:
@@ -33,7 +34,6 @@ network:
   pool_timeout_seconds: null
   max_attempts: 3
   retry_max_delay_seconds: 30
-  auth_refresh_attempts: 1
   global_request_interval_seconds: 0
   pool_max_connections: 8
   pool_max_idle_connections: 8
@@ -65,9 +65,6 @@ notification:
     use_tls: true
     from: ''
     to: []
-    credential_reference: null
-    username: ''
-    credential_service: image-downloader.smtp
 security:
   plugin_verification: strict
 download:
@@ -78,7 +75,6 @@ download:
 image_processors:
   chain: []
   transport_metadata_access: {}
-plugin_settings: {}
 workflow_logging:
   progress_enabled: true
 fallback:

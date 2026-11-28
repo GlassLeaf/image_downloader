@@ -336,6 +336,11 @@ def validate_arguments(args: argparse.Namespace) -> PreparedCommand:
         raise min(value_errors, key=priority)
     plugin_config, policies = _check_values(args, command)
     name = command.split(" ", 1)[0]
-    from .setup import _auth_access_overrides
+    from ..credentials.overrides import validate_auth_changes
+    from .setup import _auth_access_overrides, _plugin_option_overrides
 
-    return PreparedCommand(name, command_arguments(name, args), plugin_config, policies, _auth_access_overrides(args))
+    legacy = _auth_access_overrides(args)
+    replacements = _plugin_option_overrides(args, "plugin_auth_access_replace", "bindings", replace_entries=True)
+    patches = _plugin_option_overrides(args, "plugin_auth_access_patch", "patch")
+    validate_auth_changes(legacy, replacements, patches)
+    return PreparedCommand(name, command_arguments(name, args), plugin_config, policies, legacy, replacements, patches)

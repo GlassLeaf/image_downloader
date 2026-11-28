@@ -38,7 +38,8 @@ def test_failed_publication_restores_old_plugin_and_catalog(upgrade, monkeypatch
     original = Path.replace
     failure = (
         OSError(errno.EXDEV, "synthetic cross-device publication failure")
-        if failure_type is OSError else failure_type("publication failed")
+        if failure_type is OSError
+        else failure_type("publication failed")
     )
 
     def replace(path, destination):
@@ -202,8 +203,7 @@ install_plugin(Path(sys.argv[1]), Path(sys.argv[2]), mode='bypass-all')
 def test_parallel_preparations_merge_both_catalog_entries(tmp_path):
     root = (tmp_path / "plugins").resolve()
     sources = [
-        make_minimal_plugin((tmp_path / str(index)).resolve(), plugin_id=f"test.parallel{index}")
-        for index in range(2)
+        make_minimal_plugin((tmp_path / str(index)).resolve(), plugin_id=f"test.parallel{index}") for index in range(2)
     ]
     with ThreadPoolExecutor(max_workers=2) as pool:
         entries = list(pool.map(lambda source: management.install_plugin(root, source, mode="bypass-all"), sources))

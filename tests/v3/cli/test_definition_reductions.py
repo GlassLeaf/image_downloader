@@ -13,7 +13,7 @@ import pytest
 from pydantic import Field, StrictStr, ValidationError, create_model
 
 from image_downloader.commands import dispatch, options, parser, setup, validation
-from image_downloader.configuration import layers, normalization
+from image_downloader.configuration import document_layers, documents, layers, normalization, resolution
 from image_downloader.configuration.models import AppConfig, Media, Network, StrictModel
 from image_downloader.diagnostics import diagnostic_for
 from image_downloader.exceptions import ConfigurationError
@@ -190,8 +190,10 @@ def reduced_config(monkeypatch):
     class NarrowedConfig(AppConfig):
         media: NarrowedMedia = Field(default_factory=NarrowedMedia)
 
-    monkeypatch.setattr(layers, "AppConfig", NarrowedConfig)
-    monkeypatch.setattr(layers, "DEFAULT_CONFIG", NarrowedConfig())
+    monkeypatch.setattr(documents, "AppConfig", NarrowedConfig)
+    monkeypatch.setattr(resolution, "AppConfig", NarrowedConfig)
+    monkeypatch.setattr(resolution, "DEFAULT_CONFIG", NarrowedConfig())
+    monkeypatch.setattr(document_layers, "DEFAULT_CONFIG", NarrowedConfig())
     monkeypatch.setattr(normalization, "_APP_CONFIG_SHAPE", normalization._model_shape(NarrowedConfig))
 
 
@@ -201,7 +203,7 @@ def test_removed_or_renamed_configuration_choice_is_specific_and_does_not_rewrit
     reduced_config, tmp_path, field, old, json_mode, capsys
 ):
     path = tmp_path / "app.yaml"
-    content = f"media:\n  {field}: {old}\nnetwork:\n  headers: {{Authorization: private-secret}}\n"
+    content = f"config_version: 2\nmedia:\n  {field}: {old}\nnetwork:\n  headers: {{Authorization: private-secret}}\n"
     path.write_text(content, encoding="utf-8")
     assert dispatch.main(["config", "explain", "--config", str(path), *(["--json"] if json_mode else [])]) == 2
     output = capsys.readouterr()
@@ -210,7 +212,7 @@ def test_removed_or_renamed_configuration_choice_is_specific_and_does_not_rewrit
         payload = json.loads(output.out)["execution"]["error"]
         assert payload["code"] == "configuration_error"
         assert payload["details"]["field"] == f"media.{field}"
-        assert payload["details"]["line"] == 2 and payload["details"]["source"] == "app:app.yaml"
+        assert payload["details"]["line"] == 3 and payload["details"]["source"] == "app:app.yaml"
     else:
         assert f"media.{field} must use a supported choice" in output.err
     assert path.read_text(encoding="utf-8") == content
@@ -239,8 +241,10 @@ def test_removed_configuration_field_follows_existing_unknown_key_cleanup(tmp_pa
     reduced = create_model(
         "ReducedConfig", __base__=AppConfig, media=(reduced_media, Field(default_factory=reduced_media))
     )
-    monkeypatch.setattr(layers, "AppConfig", reduced)
-    monkeypatch.setattr(layers, "DEFAULT_CONFIG", reduced())
+    monkeypatch.setattr(documents, "AppConfig", reduced)
+    monkeypatch.setattr(resolution, "AppConfig", reduced)
+    monkeypatch.setattr(resolution, "DEFAULT_CONFIG", reduced())
+    monkeypatch.setattr(document_layers, "DEFAULT_CONFIG", reduced())
     monkeypatch.setattr(normalization, "_APP_CONFIG_SHAPE", normalization._model_shape(reduced))
     with pytest.raises(ConfigurationError):
         layers.validate_config({"media": {"max_image_pixels": 12345}})
@@ -263,7 +267,8 @@ def test_changing_configuration_type_rejects_old_valid_values(monkeypatch):
     class ChangedConfig(AppConfig):
         media: ChangedMedia = Field(default_factory=ChangedMedia)
 
-    monkeypatch.setattr(layers, "AppConfig", ChangedConfig)
+    monkeypatch.setattr(documents, "AppConfig", ChangedConfig)
+    monkeypatch.setattr(resolution, "AppConfig", ChangedConfig)
     with pytest.raises(ConfigurationError) as caught:
         layers.validate_config({"media": {"max_image_pixels": 12345}})
     diagnostic = diagnostic_for(caught.value)
@@ -278,7 +283,8 @@ def test_narrowed_configuration_bounds_reject_old_valid_values(monkeypatch, valu
     class NarrowedConfig(AppConfig):
         network: NarrowedNetwork = Field(default_factory=NarrowedNetwork)
 
-    monkeypatch.setattr(layers, "AppConfig", NarrowedConfig)
+    monkeypatch.setattr(documents, "AppConfig", NarrowedConfig)
+    monkeypatch.setattr(resolution, "AppConfig", NarrowedConfig)
     with pytest.raises(ConfigurationError) as caught:
         layers.validate_config({"network": {"request_concurrency": value}})
     diagnostic = diagnostic_for(caught.value)

@@ -32,7 +32,7 @@ def test_idr_034_structured_redaction_covers_the_shared_sensitive_vocabulary() -
         "nested": {"passwd": REDACTED, "mode": "visible"},
         "headers": {"User-Agent": REDACTED, "Authorization": REDACTED},
         "secrets": {"api_key": REDACTED},
-        "credential_service": "image-downloader.smtp",
+        "credential_service": REDACTED,
     }
     assert _doctor_redact(value) == redacted
 

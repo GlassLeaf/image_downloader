@@ -4,6 +4,7 @@ import json
 
 import pytest
 import yaml
+from support.configuration import write_config
 
 from image_downloader import AppConfig
 from image_downloader.commands import dispatch
@@ -54,11 +55,11 @@ def test_config_explain_preserves_user_template_and_reports_actual_layer_source(
     values = config()
     values["storage"] = {"data_root": str(tmp_path / "data")}
     values["plugins"] = {"root": str(tmp_path / "plugins")}
-    path.write_text(yaml.safe_dump(values), encoding="utf-8")
+    write_config(path, values)
     assert dispatch.main(["--config", str(path), "--json", "config", "explain"]) == 0
     result = json.loads(capsys.readouterr().out)
     access = result["execution"]["result"]["effective"]["plugin_settings"]["com.example.gallery"]["auth_access"]
-    assert access["variables"]["host_groups"]["default"]["source"] == str(path)
+    assert access["variables"]["host_groups"]["default"]["source"] == str(path.with_name("auth.yaml"))
     assert access["sites"]["shared"]["resolved_origins"] == ["https://example.com:443", "https://*.example.com:443"]
     assert "PRIVATE_REFERENCE_CANARY" not in json.dumps(result)
 
@@ -122,20 +123,23 @@ def test_doctor_counts_author_endpoint_references_and_warns_only_when_complete(t
     )
     values["plugin_settings"]["com.example.gallery"]["host_groups"].update(assets=["example.org"], future=[])
     path = tmp_path / "app.yaml"
-    path.write_text(yaml.safe_dump(values), encoding="utf-8")
+    write_config(path, values)
     exit_code = dispatch.main(["--config", str(path), "--json", "doctor"])
     result = json.loads(capsys.readouterr().out)["execution"]["result"]
     warnings = result["configuration"]["warnings"]
-    variables = result["configuration"]["effective"]["plugin_settings"]["com.example.gallery"]["auth_access"][
-        "variables"
-    ]["host_groups"]
+    variables = result["configuration"]["effective"]["plugin_settings"]["com.example.gallery"]["connection_variables"][
+        "host_groups"
+    ]
     assert variables["assets"]["usage_complete"] is not broken
     if broken:
         assert exit_code != 0 and not warnings
     else:
         assert exit_code == 0 and result["healthy"]
         assert variables["assets"]["referenced_by"] == ["endpoints.viewer.origin"]
-        assert [warning["field"] for warning in warnings] == ["plugin_settings.com.example.gallery.host_groups.future"]
+        assert [warning["field"] for warning in warnings] == [
+            "plugin_settings.com.example.gallery.host_groups.default",
+            "plugin_settings.com.example.gallery.host_groups.future",
+        ]
         detail = next(plugin for plugin in result["loaded_plugins"] if plugin["id"] == "com.example.gallery")
         assert detail["endpoints"]["viewer"]["resolved_origins"] == ["https://viewer.example.org:443"]
         from image_downloader.commands.reporting import _print_doctor_report

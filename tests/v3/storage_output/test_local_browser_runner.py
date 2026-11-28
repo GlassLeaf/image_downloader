@@ -85,7 +85,13 @@ def test_missing_alternate_profile_is_classified_before_any_cookie_read(runner, 
     profile.mkdir()
     config = tmp_path / "app.yaml"
     config.write_text(
-        json.dumps({"storage": {"data_root": str(tmp_path / "data")}, "plugins": {"root": str(tmp_path / "plugins")}}),
+        json.dumps(
+            {
+                "config_version": 2,
+                "storage": {"data_root": str(tmp_path / "data")},
+                "plugins": {"root": str(tmp_path / "plugins")},
+            }
+        ),
         encoding="utf-8",
     )
     # Reproduce the old runner's default/CLI mismatch. The default browser/keyring

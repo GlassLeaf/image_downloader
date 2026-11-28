@@ -107,9 +107,7 @@ def test_state_service_reads_history_inside_the_short_workflow_lock(tmp_path, mo
 @pytest.mark.parametrize("timestamp", ["not a date", "2026-10-01T00:00:00", "999999999999-10-01"])
 def test_read_feeds_preserves_timestamp_diagnostics_and_plugin_filter(tmp_path, timestamp):
     filesystem = FileSystem(tmp_path)
-    content = json.dumps(
-        {"schema_version": 1, "sources": {"bad": {"key": {"checked_at": timestamp, "records": {}}}}}
-    )
+    content = json.dumps({"schema_version": 1, "sources": {"bad": {"key": {"checked_at": timestamp, "records": {}}}}})
     filesystem.write_bytes_atomic("workflow.json", content.encode())
     state = WorkflowState(filesystem)
     with state.read_feeds(plugin_id="other") as feeds:

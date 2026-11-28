@@ -7,9 +7,10 @@ from pydantic import ValidationError
 
 from image_downloader import PluginAuthAccess
 from image_downloader.config import PluginSettings
+from image_downloader.configuration import legacy_layers
 from image_downloader.configuration.auth_origins import OriginMatcher
 from image_downloader.configuration.endpoint_origins import expand_origins
-from image_downloader.configuration.layers import apply_overrides, resolve_application_config
+from image_downloader.configuration.layers import apply_overrides
 from image_downloader.credentials.access import compile_auth_access, resolve_auth_access
 from image_downloader.diagnostics import diagnostic_for
 from image_downloader.exceptions import ConfigurationError
@@ -203,7 +204,7 @@ def test_overlap_is_checked_on_effective_expanded_sites_not_on_group_definitions
     )
 
 
-def test_layers_merge_groups_replace_arrays_and_validate_partial_auth_after_merge(tmp_path):
+def test_legacy_layers_merge_groups_replace_arrays_and_validate_partial_auth_after_merge(tmp_path):
     app = tmp_path / "app.yaml"
     app.write_text(
         yaml.safe_dump(
@@ -233,7 +234,7 @@ def test_layers_merge_groups_replace_arrays_and_validate_partial_auth_after_merg
         ),
         encoding="utf-8",
     )
-    resolved = resolve_application_config(app)
+    resolved = legacy_layers.resolve_application_config(app)
     setting = resolved.config.plugin_settings["a.b"]
     assert setting.host_groups == {"default": ("overlay.example.com",), "retained": ("other.com",)}
     assert setting.auth_access.sites["shared"].login_policy == "deny"
@@ -244,14 +245,14 @@ def test_layers_merge_groups_replace_arrays_and_validate_partial_auth_after_merg
         apply_overrides(resolved.config, {"plugin_settings": {"a.b": {"host_groups": {"default": []}}}})
 
 
-def test_undefined_group_stops_effective_configuration_and_user_file_is_unchanged(tmp_path):
+def test_legacy_undefined_group_stops_effective_configuration_and_user_file_is_unchanged(tmp_path):
     app = tmp_path / "app.yaml"
     source = yaml.safe_dump(
         {"plugin_settings": {"a.b": {"auth_access": {"sites": {"shared": {"origins": "https://" + HOSTS}}}}}}
     )
     app.write_text(source, encoding="utf-8")
     with pytest.raises(ConfigurationError, match="not defined"):
-        resolve_application_config(app, rewrite_user_layers=True)
+        legacy_layers.resolve_application_config(app, rewrite_user_layers=True)
     assert app.read_text(encoding="utf-8") == source
 
 
@@ -300,7 +301,7 @@ def test_cookie_snapshot_excludes_expired_and_incompatible_secure_cookies():
     assert not secure.accepts_cookie(cookie)
 
 
-def test_empty_group_mapping_overlay_preserves_value_provenance(tmp_path):
+def test_legacy_empty_group_mapping_overlay_preserves_value_provenance(tmp_path):
     app = tmp_path / "app.yaml"
     app.write_text(
         yaml.safe_dump({"plugin_settings": {"a.b": {"host_groups": {"sso": ["example.com"]}}}}), encoding="utf-8"
@@ -308,12 +309,12 @@ def test_empty_group_mapping_overlay_preserves_value_provenance(tmp_path):
     overlay = tmp_path / "profiles/default/app.yaml"
     overlay.parent.mkdir(parents=True)
     overlay.write_text(yaml.safe_dump({"plugin_settings": {"a.b": {"host_groups": {}}}}), encoding="utf-8")
-    resolved = resolve_application_config(app)
+    resolved = legacy_layers.resolve_application_config(app)
     assert resolved.config.plugin_settings["a.b"].host_groups["sso"] == ("example.com",)
     assert resolved.origins["plugin_settings.a.b.host_groups.sso"] == str(app)
 
 
-def test_merged_undefined_reference_reports_origin_location_without_site_name(tmp_path):
+def test_legacy_merged_undefined_reference_reports_origin_location_without_site_name(tmp_path):
     app = tmp_path / "app.yaml"
     source = (
         "plugin_settings:\n  a.b:\n    auth_access:\n      sites:\n"
@@ -321,7 +322,7 @@ def test_merged_undefined_reference_reports_origin_location_without_site_name(tm
     )
     app.write_text(source, encoding="utf-8")
     with pytest.raises(ConfigurationError) as captured:
-        resolve_application_config(app, rewrite_user_layers=True)
+        legacy_layers.resolve_application_config(app, rewrite_user_layers=True)
     diagnostic = diagnostic_for(captured.value)
     assert diagnostic.details["source"] == "app:app.yaml"
     assert diagnostic.details["line"] == 6 and diagnostic.details["column"] > 0
@@ -329,7 +330,7 @@ def test_merged_undefined_reference_reports_origin_location_without_site_name(tm
     assert app.read_text(encoding="utf-8") == source
 
 
-def test_referenced_empty_group_reports_the_overriding_layer_location(tmp_path):
+def test_legacy_referenced_empty_group_reports_the_overriding_layer_location(tmp_path):
     app = tmp_path / "app.yaml"
     app.write_text(
         yaml.safe_dump(
@@ -348,14 +349,14 @@ def test_referenced_empty_group_reports_the_overriding_layer_location(tmp_path):
     overlay.parent.mkdir(parents=True)
     overlay.write_text("plugin_settings:\n  a.b:\n    host_groups:\n      default: []\n", encoding="utf-8")
     with pytest.raises(ConfigurationError) as captured:
-        resolve_application_config(app)
+        legacy_layers.resolve_application_config(app)
     details = diagnostic_for(captured.value).details
     assert details["kind"] == "host_groups_empty"
     assert details["source"] == "profile_app:app.yaml"
     assert details["line"] == 4 and details["column"] > 0
 
 
-def test_invalid_endpoint_group_expansion_fails_before_cleanup_and_masks_rejected_port(tmp_path):
+def test_legacy_invalid_endpoint_group_expansion_fails_before_cleanup_and_masks_rejected_port(tmp_path):
     app = tmp_path / "app.yaml"
     source = yaml.safe_dump(
         {
@@ -370,7 +371,7 @@ def test_invalid_endpoint_group_expansion_fails_before_cleanup_and_masks_rejecte
     )
     app.write_text(source, encoding="utf-8")
     with pytest.raises(ConfigurationError) as captured:
-        resolve_application_config(app, rewrite_user_layers=True)
+        legacy_layers.resolve_application_config(app, rewrite_user_layers=True)
     diagnostic = diagnostic_for(captured.value)
     assert diagnostic.details["kind"] == "host_groups_expansion"
     assert diagnostic.details["plugin_id"] == "a.b"

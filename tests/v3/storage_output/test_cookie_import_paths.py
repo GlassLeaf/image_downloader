@@ -110,7 +110,9 @@ def test_cookie_import_cli_relative_path_and_storage_status(exported, tmp_path, 
     monkeypatch.setattr(command.getpass, "getpass", lambda _: "test-passphrase")
     monkeypatch.setattr(command, "_persist_initial_user_config", lambda _: None)
     config = tmp_path / "config.yaml"
-    config.write_text(json.dumps({"storage": {"data_root": str(tmp_path)}, "profile": {"default": "target"}}))
+    config.write_text(
+        json.dumps({"config_version": 2, "storage": {"data_root": str(tmp_path)}, "profile": {"default": "target"}})
+    )
     monkeypatch.chdir(tmp_path)
     code = main(
         ["cookie", "import", "missing.enc" if missing else "input/cookies.enc", "--config", str(config), "--json"]

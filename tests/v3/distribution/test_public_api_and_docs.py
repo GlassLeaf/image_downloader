@@ -129,7 +129,7 @@ def _documented_inventory(repository_root: Path) -> dict[str, tuple[str, ...]]:
 
 def test_public_configuration_helpers_are_available_from_package_root(tmp_path: Path) -> None:
     config_path = tmp_path / "app.yaml"
-    config_path.write_text("storage: {data_root: null}\nplugins: {root: null}\n", encoding="utf-8")
+    config_path.write_text("config_version: 2\nstorage: {data_root: null}\nplugins: {root: null}\n", encoding="utf-8")
 
     loaded = load_application_config(config_path, require_config=True)
     resolved = resolve_application_config(config_path, require_config=True)

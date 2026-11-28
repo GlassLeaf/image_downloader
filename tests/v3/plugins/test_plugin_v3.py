@@ -9,6 +9,8 @@ from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import pytest
+import yaml
+from support.configuration import write_config
 from support.operations import build_site
 from support.plugins import make_minimal_plugin, make_plugin
 
@@ -260,16 +262,16 @@ def test_typed_plugin_instance_boundaries_reject_incomplete_contracts(tmp_path: 
 
 def test_config_tree_profile_is_fixed_and_psl_layers(tmp_path: Path) -> None:
     (tmp_path / "app.yaml").write_text(
-        "profile: {default: alpha}\nnetwork: {request_timeout_seconds: 1}\n", encoding="utf-8"
+        "config_version: 2\nprofile: {default: alpha}\nnetwork: {request_timeout_seconds: 1}\n", encoding="utf-8"
     )
     for relative, timeout in (
         ("profiles/alpha/app.yaml", 2),
-        ("sites/global.yaml", 3),
-        ("profiles/alpha/sites/global.yaml", 4),
-        ("sites/example.co.uk.yaml", 5),
-        ("profiles/alpha/sites/example.co.uk.yaml", 6),
-        ("sites/book.example.co.uk.yaml", 7),
-        ("profiles/alpha/sites/book.example.co.uk.yaml", 8),
+        ("sites/global/app.yaml", 3),
+        ("profiles/alpha/sites/global/app.yaml", 4),
+        ("sites/example.co.uk/app.yaml", 5),
+        ("profiles/alpha/sites/example.co.uk/app.yaml", 6),
+        ("sites/book.example.co.uk/app.yaml", 7),
+        ("profiles/alpha/sites/book.example.co.uk/app.yaml", 8),
     ):
         path = tmp_path / relative
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -283,7 +285,7 @@ def test_config_tree_profile_is_fixed_and_psl_layers(tmp_path: Path) -> None:
     assert site_file_name("2001:db8::1") == "ipv6-20010db8000000000000000000000001.yaml"
 
     (tmp_path / "profiles" / "alpha" / "app.yaml").write_text("profile: {default: beta}\n", encoding="utf-8")
-    with pytest.raises(ConfigurationError, match="profile is only allowed"):
+    with pytest.raises(ConfigurationError, match="not allowed"):
         load_application_config(tmp_path / "app.yaml")
 
 
@@ -358,21 +360,23 @@ def test_doctor_uses_configured_matching_for_a_bare_host(tmp_path: Path, capsys:
     directory = make_plugin(root, configured_match=True)
     trust_plugin(root, directory)
     config = tmp_path / "app.yaml"
-    config.write_text(
-        "\n".join(
-            (
-                "storage:",
-                f"  data_root: {str((tmp_path / 'data').resolve())}",
-                "plugins:",
-                f"  root: {root}",
-                "plugin_settings:",
-                "  com.example.gallery:",
-                "    config:",
-                "      alternate_host: alternate.test",
+    write_config(
+        config,
+        yaml.safe_load(
+            "\n".join(
+                (
+                    "storage:",
+                    f"  data_root: {str((tmp_path / 'data').resolve())}",
+                    "plugins:",
+                    f"  root: {root}",
+                    "plugin_settings:",
+                    "  com.example.gallery:",
+                    "    config:",
+                    "      alternate_host: alternate.test",
+                )
             )
-        )
-        + "\n",
-        encoding="utf-8",
+            + "\n"
+        ),
     )
     args = build_parser().parse_args(["doctor", "--config", str(config), "--host", "alternate.test", "--json"])
 
@@ -458,7 +462,7 @@ def test_isolated_output_uses_canonical_host_then_plugin_id(tmp_path: Path) -> N
 
 def test_explicit_nondefault_profile_requires_an_overlay(tmp_path: Path) -> None:
     main = tmp_path / "app.yaml"
-    main.write_text("profile: {default: default}\n", encoding="utf-8")
+    main.write_text("config_version: 2\nprofile: {default: default}\n", encoding="utf-8")
 
     with pytest.raises(ConfigurationError, match="configuration file not found"):
         load_application_config(main, profile="work")
@@ -701,10 +705,7 @@ def test_doctor_reports_runtime_and_plugin_provenance(tmp_path: Path, capsys: py
             "",
         )
     )
-    config.write_text(
-        config_content,
-        encoding="utf-8",
-    )
+    write_config(config, yaml.safe_load(config_content))
     root = (tmp_path / "plugins").resolve()
     directory = make_plugin(root)
     trust_plugin(root, directory.resolve())
@@ -743,10 +744,7 @@ def test_doctor_human_output_includes_runtime_details(tmp_path: Path, capsys: py
             "",
         )
     )
-    config.write_text(
-        config_content,
-        encoding="utf-8",
-    )
+    write_config(config, yaml.safe_load(config_content))
     cookie = tmp_path / "data" / "profiles" / "default" / "cookie"
     cookie.mkdir(parents=True)
     (cookie / "cookies.enc").write_text("not a valid encrypted cookie file", encoding="utf-8")

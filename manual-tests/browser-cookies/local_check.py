@@ -287,6 +287,7 @@ def exercise(work: Path, chrome: Path) -> int:
     config.write_text(
         json.dumps(
             {
+                "config_version": 2,
                 "profile": {"default": "browser-lab"},
                 "storage": {"data_root": str(work / "data")},
                 "plugins": {"root": str(work / "plugins")},

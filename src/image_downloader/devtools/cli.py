@@ -54,16 +54,38 @@ def parser() -> argparse.ArgumentParser:
         command.add_argument("--timeout", type=float, default=120)
         command.add_argument("--run-root", type=Path)
         command.add_argument("--json", action="store_true", default=argparse.SUPPRESS)
-        command.add_argument("--log-view", choices=("summary", "all"), default="summary",
-                             help="診断表示: summaryはINFO以上の要点、allはDEBUG以上・全出力元")
-        command.add_argument("--log-level", choices=tuple(LEVELS), type=str.upper,
-                             help="最低表示レベル（通常INFO、--log-view allではDEBUG）。保存は全レベル")
-        command.add_argument("--log-source", dest="log_sources", choices=SOURCES, action="append",
-                             help="表示する出力元。繰り返し可。指定時は既定の出力元を置換")
-        for option, destination in (("event", "events"), ("exclude-event", "excluded_events"),
-                                    ("logger", "loggers"), ("exclude-logger", "excluded_loggers")):
-            command.add_argument("--" + option, dest=destination, action="append", type=nonempty_pattern,
-                                 help="表示条件のglobパターン（大文字小文字を区別、繰り返し可）")
+        command.add_argument(
+            "--log-view",
+            choices=("summary", "all"),
+            default="summary",
+            help="診断表示: summaryはINFO以上の要点、allはDEBUG以上・全出力元",
+        )
+        command.add_argument(
+            "--log-level",
+            choices=tuple(LEVELS),
+            type=str.upper,
+            help="最低表示レベル（通常INFO、--log-view allではDEBUG）。保存は全レベル",
+        )
+        command.add_argument(
+            "--log-source",
+            dest="log_sources",
+            choices=SOURCES,
+            action="append",
+            help="表示する出力元。繰り返し可。指定時は既定の出力元を置換",
+        )
+        for option, destination in (
+            ("event", "events"),
+            ("exclude-event", "excluded_events"),
+            ("logger", "loggers"),
+            ("exclude-logger", "excluded_loggers"),
+        ):
+            command.add_argument(
+                "--" + option,
+                dest=destination,
+                action="append",
+                type=nonempty_pattern,
+                help="表示条件のglobパターン（大文字小文字を区別、繰り返し可）",
+            )
         if name == "call":
             command.add_argument("method")
             command.add_argument("--input", dest="input_file", type=Path)
@@ -228,6 +250,9 @@ def execution_command(args: argparse.Namespace) -> int:
     if not math.isfinite(args.timeout) or args.timeout <= 0:
         raise ValueError("--timeout must be a finite positive duration")
     options = {key: str(value.resolve()) if isinstance(value, Path) else value for key, value in vars(args).items()}
+    if args.app_config is not None:
+        # Retain link/reparse components for the shared configuration safety check.
+        options["app_config"] = str(args.app_config.absolute())
     options["processors"] = [str(Path(path).resolve()) for path in args.processors]
     directory = (args.run_root or workspace_for(args.target) / ".plugin-dev/runs").resolve() / uuid.uuid4().hex
     client = WorkerClient(options, directory, args.timeout)

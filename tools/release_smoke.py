@@ -165,8 +165,44 @@ def verify(*, offline: bool) -> None:
         plugin_root.mkdir()
         config = base / "app.yaml"
         config.write_text(
+            json.dumps(
+                {"config_version": 2, "storage": {"data_root": str(data_root)}, "plugins": {"root": str(plugin_root)}}
+            ),
+            encoding="utf-8",
+        )
+        _run(str(python), "-m", "image_downloader", "config", "validate", "--config", str(config), "--json")
+        legacy = base / "old-conf" / "app.yaml"
+        legacy.parent.mkdir()
+        legacy.write_text(
             json.dumps({"storage": {"data_root": str(data_root)}, "plugins": {"root": str(plugin_root)}}),
             encoding="utf-8",
+        )
+        migrated = base / "new-conf"
+        migration = (
+            str(python),
+            "-m",
+            "image_downloader",
+            "config",
+            "migrate",
+            "--config",
+            str(legacy),
+            "--destination",
+            str(migrated),
+            "--json",
+        )
+        _run(*migration)
+        if migrated.exists():
+            raise RuntimeError("installed migration dry run created output")
+        _run(*migration, "--apply")
+        _run(
+            str(python),
+            "-m",
+            "image_downloader",
+            "config",
+            "validate",
+            "--config",
+            str(migrated / "app.yaml"),
+            "--json",
         )
         # Every invocation uses explicit temporary configuration; user settings
         # must never be created, normalized or consulted by a package smoke test.

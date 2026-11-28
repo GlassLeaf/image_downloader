@@ -17,6 +17,20 @@ GROUPS = (
 
 # name: (purpose group, meaning, behavior when omitted).
 OPTION_HELP = {
+    "destination": (
+        "Configuration and profile",
+        "Write migration output to a new, separate absolute directory.",
+        "required",
+    ),
+    "apply": ("Preview and confirmation", "Write the verified migration plan to the new directory.", "inspection only"),
+    "plugin-auth-access-replace": ("Plugins", "Replace/delete complete bindings using ID=<JSON-object>.", ""),
+    "plugin-auth-access-replace-file": ("Plugins", "Read an absolute JSON file with plugin_id and bindings.", ""),
+    "plugin-auth-access-patch": (
+        "Plugins",
+        "Patch the selected binding's credential_access, login or session using ID=<JSON-object>.",
+        "",
+    ),
+    "plugin-auth-access-patch-file": ("Plugins", "Read an absolute JSON file with plugin_id and patch.", ""),
     "host": (
         "Configuration and profile",
         "Resolve site-specific settings for a bare host or absolute HTTP(S) URL.",

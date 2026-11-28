@@ -12,7 +12,7 @@ import image_downloader.commands.config as cli_config
 import image_downloader.commands.download as cli_download
 from image_downloader.cli import EXIT_SUCCESS, build_parser, run
 from image_downloader.config import AppConfig, resolve_application_config
-from image_downloader.configuration import layers, normalization
+from image_downloader.configuration import layers, legacy_layers, legacy_normalization, normalization
 from image_downloader.exceptions import ConfigurationError
 
 
@@ -55,7 +55,7 @@ def test_output_name_format_defaults_match_model_bundled_config_and_template() -
 @pytest.mark.parametrize("token", ("%NUM%", "%TITLE%", "%SUBTITLE%"))
 def test_resolver_rejects_legacy_format_tokens(tmp_path: Path, field: str, token: str) -> None:
     main = tmp_path / "app.yaml"
-    main.write_text(f"output: {{{field}: '{token}'}}\n", encoding="utf-8")
+    main.write_text(f"config_version: 2\noutput: {{{field}: '{token}'}}\n", encoding="utf-8")
 
     with pytest.raises(ConfigurationError, match=rf"cannot contain {token}"):
         resolve_application_config(main, source="explicit")
@@ -63,12 +63,12 @@ def test_resolver_rejects_legacy_format_tokens(tmp_path: Path, field: str, token
 
 def test_resolver_records_effective_value_origin_in_layer_order(tmp_path: Path) -> None:
     main = tmp_path / "app.yaml"
-    main.write_text("network: {request_concurrency: 4}\n", encoding="utf-8")
+    main.write_text("config_version: 2\nnetwork: {request_concurrency: 4}\n", encoding="utf-8")
     profile = tmp_path / "profiles" / "default" / "app.yaml"
     profile.parent.mkdir(parents=True)
     profile.write_text("network: {max_attempts: 5}\n", encoding="utf-8")
-    site = tmp_path / "sites" / "example.test.yaml"
-    site.parent.mkdir()
+    site = tmp_path / "sites" / "example.test" / "app.yaml"
+    site.parent.mkdir(parents=True)
     site.write_text("network: {request_timeout_seconds: 9}\n", encoding="utf-8")
 
     resolved = resolve_application_config(
@@ -84,7 +84,7 @@ def test_resolver_records_effective_value_origin_in_layer_order(tmp_path: Path) 
     assert resolved.origins["network.request_concurrency"] == str(main)
     assert resolved.origins["network.request_timeout_seconds"] == str(site)
     assert resolved.origins["network.max_attempts"] == "runtime override"
-    assert [layer.status for layer in resolved.layers[:4]] == ["applied", "applied", "applied", "applied"]
+    assert [layer.status for layer in resolved.layers[:3]] == ["applied", "applied", "applied"]
 
 
 def test_explicit_package_baseline_is_not_merged_twice() -> None:
@@ -99,30 +99,30 @@ def test_explicit_package_baseline_is_not_merged_twice() -> None:
 
 def test_invalid_lower_layer_is_not_hidden_by_a_later_override(tmp_path: Path) -> None:
     main = tmp_path / "app.yaml"
-    main.write_text("network: {max_attempts: -1}\n", encoding="utf-8")
+    main.write_text("config_version: 2\nnetwork: {max_attempts: -1}\n", encoding="utf-8")
     profile = tmp_path / "profiles" / "default" / "app.yaml"
     profile.parent.mkdir(parents=True)
     profile.write_text("network: {max_attempts: 3}\n", encoding="utf-8")
 
-    with pytest.raises(ConfigurationError, match=r"app layer .*network\.max_attempts"):
+    with pytest.raises(ConfigurationError, match=r"network\.max_attempts"):
         resolve_application_config(main)
 
 
-def test_removed_setting_names_are_ignored_read_only_and_removed_when_rewriting(tmp_path: Path) -> None:
+def test_legacy_removed_setting_names_are_ignored_read_only_and_removed_when_rewriting(tmp_path: Path) -> None:
     main = tmp_path / "app.yaml"
     main.write_text("# Retain this comment.\nnetwork: {max_retries: 3}\n", encoding="utf-8")
 
-    assert resolve_application_config(main).config.network.max_attempts == 3
+    assert legacy_layers.resolve_application_config(main).config.network.max_attempts == 3
     assert "max_retries" in main.read_text(encoding="utf-8")
 
-    assert resolve_application_config(main, rewrite_user_layers=True).config.network.max_attempts == 3
+    assert legacy_layers.resolve_application_config(main, rewrite_user_layers=True).config.network.max_attempts == 3
     rewritten = main.read_text(encoding="utf-8")
     assert "max_retries" not in rewritten
     assert "Retain this comment." in rewritten
 
 
 @pytest.mark.parametrize("path", tuple(sorted(normalization._REMOVED_KEYS)))
-def test_every_known_removed_key_is_deleted_without_conversion(tmp_path: Path, path: tuple[str, ...]) -> None:
+def test_legacy_every_known_removed_key_is_deleted_without_conversion(tmp_path: Path, path: tuple[str, ...]) -> None:
     document: dict[str, object] = {}
     current = document
     for component in path[:-1]:
@@ -133,7 +133,7 @@ def test_every_known_removed_key_is_deleted_without_conversion(tmp_path: Path, p
     main = tmp_path / "app.yaml"
     main.write_text(yaml.safe_dump(document), encoding="utf-8")
 
-    resolve_application_config(main, rewrite_user_layers=True)
+    legacy_layers.resolve_application_config(main, rewrite_user_layers=True)
 
     rewritten = yaml.safe_load(main.read_text(encoding="utf-8"))
     assert isinstance(rewritten, dict)
@@ -145,7 +145,7 @@ def test_every_known_removed_key_is_deleted_without_conversion(tmp_path: Path, p
     assert path[-1] not in current_value
 
 
-def test_unknown_static_keys_are_removed_from_every_user_layer_but_free_form_mapping_is_retained(
+def test_legacy_unknown_static_keys_are_removed_from_every_user_layer_but_free_form_mapping_is_retained(
     tmp_path: Path,
 ) -> None:
     main = tmp_path / "app.yaml"
@@ -161,7 +161,7 @@ def test_unknown_static_keys_are_removed_from_every_user_layer_but_free_form_map
     site.parent.mkdir()
     site.write_text("network: {max_retries: 2, unknown_site: remove}\n", encoding="utf-8")
 
-    resolved = resolve_application_config(main, site="example.test", rewrite_user_layers=True)
+    resolved = legacy_layers.resolve_application_config(main, site="example.test", rewrite_user_layers=True)
 
     assert resolved.config.network.max_attempts == 3
     assert "unknown_root" not in main.read_text(encoding="utf-8")
@@ -173,7 +173,7 @@ def test_unknown_static_keys_are_removed_from_every_user_layer_but_free_form_map
     assert "unknown_site" not in site.read_text(encoding="utf-8")
 
 
-def test_layer_constraints_and_cleanup_write_failures_still_stop_resolution(
+def test_legacy_layer_constraints_and_cleanup_write_failures_still_stop_resolution(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     main = tmp_path / "app.yaml"
@@ -183,25 +183,27 @@ def test_layer_constraints_and_cleanup_write_failures_still_stop_resolution(
     profile.write_text("storage: {data_root: C:\\\\invalid}\n", encoding="utf-8")
 
     with pytest.raises(ConfigurationError, match=r"bootstrap settings"):
-        resolve_application_config(main, rewrite_user_layers=True)
+        legacy_layers.resolve_application_config(main, rewrite_user_layers=True)
     assert "unknown" in main.read_text(encoding="utf-8")
 
     profile.unlink()
-    monkeypatch.setattr(normalization, "_atomic_replace", lambda *_args: (_ for _ in ()).throw(OSError("denied")))
+    monkeypatch.setattr(
+        legacy_normalization, "_atomic_replace", lambda *_args: (_ for _ in ()).throw(OSError("denied"))
+    )
     with pytest.raises(ConfigurationError, match=r"could not normalize configuration"):
-        resolve_application_config(main, rewrite_user_layers=True)
+        legacy_layers.resolve_application_config(main, rewrite_user_layers=True)
 
 
 def test_cleanup_atomic_replace_rejects_a_content_change_without_overwriting(tmp_path: Path) -> None:
     main = tmp_path / "app.yaml"
-    main.write_text("unknown: old\n", encoding="utf-8")
+    main.write_text("config_version: 2\nunknown: old\n", encoding="utf-8")
     expected = main.read_bytes()
-    main.write_text("unknown: newer\n", encoding="utf-8")
+    main.write_text("config_version: 2\nunknown: newer\n", encoding="utf-8")
 
     with pytest.raises(ConfigurationError, match=r"configuration changed while normalizing"):
         normalization._atomic_replace(main, expected, b"{}\n")
 
-    assert main.read_text(encoding="utf-8") == "unknown: newer\n"
+    assert main.read_text(encoding="utf-8") == "config_version: 2\nunknown: newer\n"
 
 
 @pytest.mark.parametrize(
@@ -224,7 +226,7 @@ def test_config_explain_includes_layers_effective_values_and_origins(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     main = tmp_path / "app.yaml"
-    original = "network: {request_concurrency: 3, stale: ignored}\noutput: {image_format: PNG}\n"
+    original = "config_version: 2\nnetwork: {request_concurrency: 3}\noutput: {image_format: PNG}\n"
     main.write_text(original, encoding="utf-8")
     args = build_parser().parse_args(
         [
@@ -278,11 +280,9 @@ def test_config_path_is_read_only_and_reports_the_fixed_location(
     assert not data_root.exists()
 
 
-def test_state_changing_command_rewrites_user_layer_before_composing_service(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_state_changing_command_does_not_rewrite_user_layer(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     main = tmp_path / "app.yaml"
-    main.write_text("network: {max_retries: 4, misspelled: remove}\n", encoding="utf-8")
+    main.write_text("config_version: 2\nnetwork: {max_attempts: 4}\n", encoding="utf-8")
     composed = False
 
     class Service:
@@ -295,7 +295,7 @@ def test_state_changing_command_rewrites_user_layer_before_composing_service(
     class Composer:
         def __init__(self, *_args: object, **_kwargs: object) -> None:
             nonlocal composed
-            assert "max_retries" not in main.read_text(encoding="utf-8")
+            assert "max_attempts: 4" in main.read_text(encoding="utf-8")
             assert "misspelled" not in main.read_text(encoding="utf-8")
             composed = True
 
@@ -320,11 +320,11 @@ def test_state_changing_command_rewrites_user_layer_before_composing_service(
     assert composed
 
 
-def test_cleanup_failure_stops_state_changing_command_before_service_composition(
+def test_unknown_field_stops_state_changing_command_before_service_composition(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     main = tmp_path / "app.yaml"
-    main.write_text("unknown: remove\n", encoding="utf-8")
+    main.write_text("config_version: 2\nunknown: remove\n", encoding="utf-8")
     composed = False
 
     class Composer:
@@ -336,17 +336,17 @@ def test_cleanup_failure_stops_state_changing_command_before_service_composition
     monkeypatch.setattr(cli_download, "RuntimeComposer", Composer)
     args = build_parser().parse_args(["download", "https://example.test/item", "--config", str(main)])
 
-    with pytest.raises(ConfigurationError, match=r"could not normalize configuration"):
+    with pytest.raises(ConfigurationError, match=r"unsupported field"):
         asyncio.run(run(args))
     assert not composed
     assert "unknown" in main.read_text(encoding="utf-8")
 
 
-def test_image_format_survives_configuration_cleanup(tmp_path):
+def test_legacy_image_format_survives_configuration_cleanup(tmp_path):
     config_path = tmp_path / "app.yaml"
     original = "output: {image_format: PNG}\nnetwork: {stale: ignored}\n"
     config_path.write_text(original, encoding="utf-8")
-    resolved = resolve_application_config(config_path, rewrite_user_layers=True)
+    resolved = legacy_layers.resolve_application_config(config_path, rewrite_user_layers=True)
     assert resolved.config.output.image_format == "PNG"
     rewritten = yaml.safe_load(config_path.read_text(encoding="utf-8"))
     assert rewritten["output"]["image_format"] == "PNG"
@@ -355,14 +355,14 @@ def test_image_format_survives_configuration_cleanup(tmp_path):
 
 def test_image_format_layer_precedence_and_null_reset(tmp_path):
     main = tmp_path / "app.yaml"
-    main.write_text("output: {image_format: JPEG}\n", encoding="utf-8")
+    main.write_text("config_version: 2\noutput: {image_format: JPEG}\n", encoding="utf-8")
     assert resolve_application_config(main).config.output.image_format == "JPEG"
     profile = tmp_path / "profiles" / "default" / "app.yaml"
     profile.parent.mkdir(parents=True)
     profile.write_text("output: {image_format: WEBP}\n", encoding="utf-8")
     assert resolve_application_config(main).config.output.image_format == "WEBP"
-    site = tmp_path / "sites" / "example.test.yaml"
-    site.parent.mkdir()
+    site = tmp_path / "sites" / "example.test" / "app.yaml"
+    site.parent.mkdir(parents=True)
     site.write_text("output: {image_format: PNG}\n", encoding="utf-8")
     assert resolve_application_config(main, site="example.test").config.output.image_format == "PNG"
     site.write_text("output: {image_format: null}\n", encoding="utf-8")

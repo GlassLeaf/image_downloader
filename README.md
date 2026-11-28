@@ -40,7 +40,8 @@ image-downloader doctor --json
 ```
 
 通常実行では、作業ディレクトリの`app.yaml`は読みません。`--config`を省略すると、platformdirsで決まる固定のユーザー設定だけを読みます。未作成でも、パッケージ同梱の基本設定とOS標準のデータ・プラグインのルートで続行します。
-設定がない状態でdownload・update、Cookie操作、pluginのinstall・trust・revoke・uninstallを開始すると、主操作の前に、同梱の`app.yaml`に基づく全設定とOS標準の絶対パスのデータ・プラグインルートを、固定のユーザー設定へ自動保存します。CLIオプションは保存しません。完全なスナップショットを保存するため、以後の同梱既定値の更新は自動反映されません。利用者が管理する既存設定に旧キーや静的スキーマの未知キーがあれば、状態変更操作の前に無表示で削除します。`doctor`、`config path`、`config explain`、plugin listは読取り専用で、設定ファイルやディレクトリを作成・書換えしません。
+設定がない状態でdownload・update、Cookie操作、pluginのinstall・trust・revoke・uninstallを開始すると、主操作の前に、コメントと`config_version: 2`だけの設定を固定位置へ自動作成します。CLIオプションは保存しません。省略した値には同梱既定値の更新が反映されます。既存設定の未知・廃止キーや誤配置はエラーにし、自動削除しません。`doctor`、`config path`、`config explain`、`config validate`、plugin listは読取り専用です。
+一般設定は`app.yaml`、プラグイン別設定は`plugin-settings/<id>.yaml`、認証設定は`auth.yaml`へ分離しました。旧形式は通常実行で受理しません。[設定形式v2への移行](docs/v3/how-to/configuration-v2-migration.md)に従い、`config migrate`で新しい別ディレクトリへ変換してください。プラグインAPIの番号はv3のままです。
 固定の保存先は`config path`、最終値と各値の由来は`config explain`で確認できます。`storage.data_root`と`plugins.root`は`null`または絶対パス、CLIの`--data-root`と`--plugin-root`は絶対パスだけを指定できます。
 
 ```powershell

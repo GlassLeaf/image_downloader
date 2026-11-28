@@ -1,0 +1,26 @@
+# Copy to conf/auth.yaml or profiles/<profile>/auth.yaml and edit explicitly.
+# Site auth files allow only plugins.<id>.connections and execution.
+# plugins:
+#   com.example.gallery:
+#     defaults:
+#       session: {persistence: persistent}
+#     host_groups:
+#       identity: [example.com]
+#     bindings:
+#       personal:
+#         origins: ["https://${host_groups.identity}"]
+#         credentials: {password: GALLERY_PASSWORD}
+#         credential_access: allow
+#         login: ask
+#     connections:
+#       endpoints:
+#         api: {origin: https://api.example.com, auth: session}
+#       authentication:
+#         verify_on_start: false
+#         verify_before_request: false
+#         verify_interval_seconds: null
+#         refresh_skew_seconds: 0
+#       # Per-endpoint verification: {before_request: false, interval_seconds: null}
+# smtp: {credential_reference: MAIL_ACCOUNT}
+# execution: {auth_refresh_attempts: 1}
+{}

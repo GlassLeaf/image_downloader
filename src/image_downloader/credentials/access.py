@@ -52,6 +52,8 @@ def compile_auth_access(
     plugin_id: str, policy: PluginAuthAccess, host_groups: Mapping[str, tuple[str, ...]] = EMPTY_HOST_GROUPS
 ) -> PluginAuthAccess:
     """Validate effective permissions after layers/operation overrides are merged."""
+    if policy.host_groups is not None:
+        host_groups = policy.host_groups
     sites: dict[str, SiteAuthAccess] = {}
     seen: list[OriginMatcher] = []
     for name, site in policy.sites.items():
@@ -61,7 +63,12 @@ def compile_auth_access(
             if any(matcher.overlaps(previous) for previous in seen):
                 raise AuthOriginError("overlap")
         except HostGroupError as exc:
-            error = host_group_diagnostic(exc, plugin_id=plugin_id, reference_field="auth_access.sites.<site>.origins")
+            error = host_group_diagnostic(
+                exc,
+                plugin_id=plugin_id,
+                reference_field="auth_access.sites.<site>.origins",
+                auth_namespace=policy.host_groups is not None,
+            )
             error._core_configuration_path = ("plugin_settings", plugin_id, "auth_access", "sites", name, "origins")
             raise error from exc
         except AuthOriginError as exc:

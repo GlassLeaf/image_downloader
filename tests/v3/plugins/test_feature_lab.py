@@ -8,7 +8,6 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-import yaml
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from PIL import Image
 from support.vault import MemoryKeys
@@ -25,6 +24,7 @@ from image_downloader import (
     SecretNotFoundError,
     WorkflowPlanRequest,
     WorkflowRequest,
+    load_application_config,
 )
 from image_downloader.credentials import CredentialVault
 from image_downloader.credentials.keyring import MasterKeyStore
@@ -58,7 +58,9 @@ def artificial_stores(monkeypatch, tmp_path):
 
 
 def configuration(work):
-    return AppConfig.model_validate(yaml.safe_load((work / "app.yaml").read_text(encoding="utf-8")))
+    from image_downloader import load_application_config
+
+    return load_application_config(work / "app.yaml", require_config=True)
 
 
 def test_cookie_login_issuance_and_expiry_are_local_states(monkeypatch, capsys):
@@ -165,7 +167,7 @@ def test_configured_matcher_and_forced_output(lab, tmp_path, artificial_stores):
     async def scenario():
         with lab.LabSite() as site:
             lab.prepare(tmp_path, site.origin, site.asset_origin)
-            config = AppConfig.model_validate(yaml.safe_load((tmp_path / "output.yaml").read_text(encoding="utf-8")))
+            config = load_application_config(tmp_path / "output.yaml", require_config=True)
             async with RuntimeComposer(
                 config, config_root=tmp_path, plugin_root=tmp_path / "plugins"
             ).compose() as service:
@@ -203,7 +205,7 @@ def test_origin_allowlist_and_denied_redirect(lab, tmp_path, artificial_stores):
                         InspectRequest(url=f"{site.origin}/samples/origin-auth-gallery/redirect-denied")
                     )
                 assert not any(path == "/sink" for path, _ in site.authorization_seen)
-            values = yaml.safe_load((tmp_path / "app.yaml").read_text(encoding="utf-8"))
+            values = configuration(tmp_path).model_dump(by_alias=True, warnings=False)
             values["plugin_settings"][lab.plugin_id("origin-auth-gallery")]["endpoints"]["assets"]["origin"] = (
                 "http://127.0.0.1:1"
             )
@@ -307,7 +309,7 @@ def test_lab_notifications_use_injected_local_senders(lab, tmp_path, artificial_
     async def scenario():
         with lab.LabSite() as site:
             lab.prepare(tmp_path, site.origin, site.asset_origin)
-            values = yaml.safe_load((tmp_path / "app.yaml").read_text(encoding="utf-8"))
+            values = configuration(tmp_path).model_dump(by_alias=True, warnings=False)
             values["notification"] = {
                 "enabled": True,
                 "methods": ["desktop", "email"],

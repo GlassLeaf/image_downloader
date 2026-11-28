@@ -233,7 +233,13 @@ def result(root: Path, *, failed=False):
 def test_workflow_json_is_single_safe_document_and_keeps_partial_results(tmp_path, monkeypatch, capsys, stop):
     config_path = tmp_path / "app.yaml"
     config_path.write_text(
-        json.dumps({"storage": {"data_root": str(tmp_path / "data")}, "plugins": {"root": str(tmp_path / "plugins")}})
+        json.dumps(
+            {
+                "config_version": 2,
+                "storage": {"data_root": str(tmp_path / "data")},
+                "plugins": {"root": str(tmp_path / "plugins")},
+            }
+        )
     )
     captured = {}
     closed = []

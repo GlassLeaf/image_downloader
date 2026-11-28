@@ -9,6 +9,9 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from ..configuration.hosts import normalize_host
+from ..configuration.inventory import validate_tree
+from ..configuration.layers import resolve_application_config
+from ..configuration.migration import apply_migration, plan_migration
 from ..configuration.paths import default_data_root, default_plugin_root, default_user_config_path
 from ..exceptions import ConfigurationError
 from ..storage.path_safety import canonical_path, existing_directory, existing_regular_file
@@ -16,7 +19,7 @@ from . import setup as cli_setup
 from .constants import EXIT_SUCCESS
 from .outcome import CommandOutcome
 from .prepared import ConfigArguments, PreparedCommand
-from .reporting import _doctor_redact
+from .reporting import _authentication_selection, _doctor_redact
 from .setup import (
     _app_override,
     _bootstrap_override,
@@ -90,10 +93,25 @@ def _config_explain(args: ConfigArguments, outcome: CommandOutcome) -> int:
         "effective": _doctor_redact(resolved.config, origins=resolved.origins),
         "origins": origins,
         "runtime_overrides": _doctor_redact(runtime_overrides),
+        "authentication_selection": _authentication_selection(
+            resolved.config,
+            args.host
+            if args.host and "://" in args.host
+            else (f"https://[{site}]/" if site and ":" in site else f"https://{site}/")
+            if site
+            else None,
+        ),
+        "config_version": 2,
+        "completeness": {
+            "user_layers": True,
+            "author_defaults": False,
+            "reason": "Plugin author declarations are composed by doctor and execution.",
+        },
     }
 
     def render() -> None:
         print(f"source: {payload['source']}")
+        print("completeness: user layers only; use doctor to compose plugin author declarations")
         print(f"main configuration kind: {payload['main_config_kind']}")
         print(f"main configuration: {payload['main_config'] or '(none; package defaults only)'}")
         print(f"profile: {payload['selected_profile']}")
@@ -102,6 +120,9 @@ def _config_explain(args: ConfigArguments, outcome: CommandOutcome) -> int:
             print(f"  {layer['status']:14} {layer['role']:16} {layer['path'] or '-'}")
         print("effective configuration:")
         print(json.dumps(payload["effective"], ensure_ascii=False, indent=2))
+        if payload["authentication_selection"]:
+            print("authentication selection and inheritance:")
+            print(json.dumps(payload["authentication_selection"], ensure_ascii=False, indent=2))
         print("value origins:")
         for key, origin in origins.items():
             print(f"  {key}: {origin}")
@@ -154,6 +175,8 @@ def _profile_init(args: ConfigArguments, words: list[str], outcome: CommandOutco
     created_main_config = existing_regular_file(main, "configuration file", required=False) is None
     if created_main_config:
         _write_user_config(main, None, None)
+    else:
+        resolve_application_config(main, require_config=True)
     config_root = existing_directory(main.parent, "configuration root", required=True)
     destination = canonical_path(config_root / "profiles" / name / "app.yaml", "profile configuration path")
     if existing_regular_file(destination, "profile configuration file", required=False) is not None:
@@ -195,6 +218,20 @@ def _config_command(command: PreparedCommand, outcome: CommandOutcome) -> int:
         return _config_path(args, outcome)
     if words == ["explain"]:
         return _config_explain(args, outcome)
+    if words == ["validate"]:
+        main = args.config or cli_setup._user_config_path()
+        payload = validate_tree(canonical_path(main, "configuration path"))
+        return outcome.set_result(payload, EXIT_SUCCESS, text=lambda: print("configuration: valid (user layers)"))
+    if words == ["migrate"]:
+        if args.config is None or args.destination is None:
+            raise ConfigurationError("config migrate requires --config and --destination absolute paths")
+        plan = plan_migration(args.config, args.destination)
+        if args.apply:
+            apply_migration(plan)
+        payload = plan.report(applied=args.apply)
+        return outcome.set_result(
+            payload, EXIT_SUCCESS, text=lambda: print(json.dumps(payload, ensure_ascii=False, indent=2))
+        )
     if words and words[0] == "init":
         return _config_init(args, words, outcome)
     if words[:2] == ["profile", "init"]:

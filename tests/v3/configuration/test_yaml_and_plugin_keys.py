@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from image_downloader.configuration.layers import resolve_application_config
+from image_downloader.configuration.legacy_layers import resolve_application_config
 from image_downloader.configuration.yaml_input import DuplicateYamlKeyError, safe_load_unique
 from image_downloader.devtools.output import read_document
 from image_downloader.diagnostics import diagnostic_for
@@ -56,7 +56,7 @@ def test_anchors_merge_and_explicit_overrides_are_not_duplicate_definitions():
         ),
     ],
 )
-def test_unknown_plugin_core_keys_and_legacy_are_errors_before_normalization(tmp_path, field):
+def test_legacy_unknown_plugin_core_keys_and_legacy_are_errors_before_normalization(tmp_path, field):
     source = "plugin_settings:\n  a.b:\n" + field
     path = tmp_path / "app.yaml"
     path.write_text(source, encoding="utf-8")
@@ -68,7 +68,7 @@ def test_unknown_plugin_core_keys_and_legacy_are_errors_before_normalization(tmp
     assert path.read_text(encoding="utf-8") == source
 
 
-def test_plugin_defined_config_and_other_existing_cleanup_rules_remain(tmp_path):
+def test_legacy_plugin_defined_config_and_other_existing_cleanup_rules_remain(tmp_path):
     path = tmp_path / "app.yaml"
     path.write_text(
         "download:\n  unrelated_unknown: true\nplugin_settings:\n  a.b:\n    config:\n      custom_name: value\n",
@@ -79,7 +79,7 @@ def test_plugin_defined_config_and_other_existing_cleanup_rules_remain(tmp_path)
     assert "unrelated_unknown" not in path.read_text(encoding="utf-8")
 
 
-def test_old_reference_is_rejected_without_rewriting_user_configuration(tmp_path):
+def test_legacy_old_reference_is_rejected_without_rewriting_user_configuration(tmp_path):
     path = tmp_path / "app.yaml"
     source = (
         "plugin_settings:\n  a.b:\n    auth_access:\n      sites:\n        shared:\n          origins: 'https://"

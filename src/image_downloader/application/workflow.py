@@ -47,6 +47,8 @@ class _WorkflowExecution:
         self.runtime, self.url, self.scope = runtime, request.url, request.download_scope
         self.overrides = request.plugin_overrides
         self.auth_access = request.plugin_auth_access_overrides
+        self.auth_replacements = request.plugin_auth_access_replacements
+        self.auth_patches = request.plugin_auth_access_patches
         self.fallback, self.plugin_id, self.force_plugin = (
             request.fallback_override,
             request.plugin_id,
@@ -189,6 +191,8 @@ class _WorkflowExecution:
                         url=self.url,
                         plugin_overrides=self.overrides,
                         plugin_auth_access_overrides=self.auth_access,
+                        plugin_auth_access_replacements=self.auth_replacements,
+                        plugin_auth_access_patches=self.auth_patches,
                         fallback_override=self.fallback,
                         plugin_id=self.plugin_id,
                         force_plugin=self.force_plugin,
@@ -361,6 +365,8 @@ class _WorkflowExecution:
                                 url=item.url,
                                 plugin_overrides=self.overrides,
                                 plugin_auth_access_overrides=self.auth_access,
+                                plugin_auth_access_replacements=self.auth_replacements,
+                                plugin_auth_access_patches=self.auth_patches,
                                 fallback_override=self.fallback,
                                 plugin_id=self.plugin_id,
                                 force_plugin=self.force_plugin,

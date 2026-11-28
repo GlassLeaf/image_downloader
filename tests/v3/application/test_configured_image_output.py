@@ -54,6 +54,7 @@ def test_configured_original_quality_conflict_stops_before_plugins_and_network(t
     async def scenario():
         gallery = Gallery()
         async with compose(tmp_path, gallery, image_format="ORIGINAL") as service:
+
             def unexpected(*args, **kwargs):
                 pytest.fail("invalid output settings must stop before plugins, network, events, and retries")
 

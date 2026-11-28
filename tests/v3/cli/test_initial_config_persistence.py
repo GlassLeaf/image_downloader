@@ -14,9 +14,8 @@ import image_downloader.commands.download as cli_download
 import image_downloader.commands.plugin as cli_plugin
 import image_downloader.commands.setup as cli_setup
 from image_downloader.cli import EXIT_FAILURE, EXIT_PARTIAL, EXIT_SUCCESS, build_parser
-from image_downloader.config import AppConfig, resolve_application_config
+from image_downloader.config import AppConfig
 from image_downloader.exceptions import ConfigurationError
-from image_downloader.immutable import thaw_json
 
 
 def _config(tmp_path: Path) -> AppConfig:
@@ -29,13 +28,10 @@ def _config(tmp_path: Path) -> AppConfig:
 
 
 def _snapshot() -> dict[str, object]:
-    resolved = resolve_application_config(None, source="defaults")
-    value = thaw_json(resolved.config.model_dump(by_alias=True, warnings=False))
-    assert isinstance(value, dict)
-    return value
+    return {"config_version": 2}
 
 
-def test_persist_initial_user_config_writes_complete_bundled_snapshot(
+def test_persist_initial_user_config_writes_sparse_v2_template(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     user_config = tmp_path / "user" / "conf" / "app.yaml"
@@ -44,8 +40,8 @@ def test_persist_initial_user_config_writes_complete_bundled_snapshot(
     cli_setup._persist_initial_user_config("defaults")
 
     assert yaml.safe_load(user_config.read_text(encoding="utf-8")) == _snapshot()
-    assert yaml.safe_load(user_config.read_text(encoding="utf-8"))["output"]["image_format"] is None
-    assert "Generated from the bundled app.yaml" in user_config.read_text(encoding="utf-8")
+    assert yaml.safe_load(user_config.read_text(encoding="utf-8"))["config_version"] == 2
+    assert "image-downloader user configuration" in user_config.read_text(encoding="utf-8")
     assert "Created user configuration" in capsys.readouterr().err
 
 
@@ -238,8 +234,8 @@ def test_cookie_export_creates_initial_user_configuration(tmp_path: Path, monkey
     assert asyncio.run(cli.run(args)) == EXIT_SUCCESS
     snapshot = yaml.safe_load(user_config.read_text(encoding="utf-8"))
     assert snapshot == _snapshot()
-    assert snapshot["storage"]["data_root"] != str(data_root)
-    assert snapshot["plugins"]["root"] != str(plugin_root)
+    assert "storage" not in snapshot
+    assert "plugins" not in snapshot
 
 
 @pytest.mark.parametrize("command", ("install", "trust", "revoke", "uninstall"))

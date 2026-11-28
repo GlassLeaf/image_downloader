@@ -1,21 +1,2 @@
-# User configuration example for DNS-hosted copies of this fictional service.
-# Register LAB_TOKEN for this plugin separately; no secret values belong here.
-plugin_settings:
-  local.image-downloader.lab-origin-auth-gallery:
-    host_groups:
-      default: [example.com, example.co.jp]
-    config:
-      origin: https://example.com
-      asset_origin: https://viewer.example.com
-    endpoints:
-      assets:
-        origin: "https://viewer.${host_groups.default}"
-        auth: session
-    auth_access:
-      sites:
-        shared:
-          origins:
-            - "https://${host_groups.default}"
-            - "https://*.${host_groups.default}"
-          secrets: {api_token: LAB_TOKEN}
-          login: deny
+# Main v2 example. See auth.yaml and plugin-settings/. Register LAB_TOKEN separately.
+config_version: 2

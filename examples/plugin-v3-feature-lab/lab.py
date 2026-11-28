@@ -44,6 +44,7 @@ def prepare(work: Path, origin: str, asset_origin: str) -> Path:
         source = ROOT.parent / "plugin-v3-additional-files" if slug == "additional-files" else ROOT / slug
         shutil.copytree(source, sources / slug, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
     config = {
+        "config_version": 2,
         "storage": {"data_root": str(work / "data")},
         "plugins": {"root": str(work / "plugins")},
         "security": {"plugin_verification": "off"},
@@ -60,23 +61,30 @@ def prepare(work: Path, origin: str, asset_origin: str) -> Path:
             plugin_id(slug): {"config": {"origin": origin, "asset_origin": asset_origin}} for slug in SLUGS
         },
     }
+    auth = {"plugins": {}}
     for slug in SECRET_UNITS:
-        config["plugin_settings"][plugin_id(slug)]["auth_access"] = {
-            "sites": {
+        auth["plugins"][plugin_id(slug)] = {
+            "bindings": {
                 "lab": {
                     "origins": [origin, asset_origin] if slug == "origin-auth-gallery" else [origin],
-                    "secrets": {"api_token": "LAB_TOKEN"},
+                    "credentials": {"api_token": "LAB_TOKEN"},
+                    "credential_access": "allow",
                     "login": "deny",
                 }
             }
         }
-    config["plugin_settings"][plugin_id("origin-auth-gallery")]["endpoints"] = {
-        "assets": {"origin": asset_origin},
+    auth["plugins"][plugin_id("origin-auth-gallery")]["connections"] = {
+        "endpoints": {"assets": {"origin": asset_origin}}
     }
     config["plugin_settings"][plugin_id("short-lived-gallery")]["download_policy"] = {
         "preserve_image_start_order": True
     }
     target = work / "app.yaml"
+    private_root = work / "plugin-settings"
+    private_root.mkdir()
+    for identifier, settings in config.pop("plugin_settings").items():
+        (private_root / (identifier + ".yaml")).write_text(yaml.safe_dump(settings), encoding="utf-8")
+    (work / "auth.yaml").write_text(yaml.safe_dump(auth), encoding="utf-8")
     target.write_text(yaml.safe_dump(config, allow_unicode=True), encoding="utf-8")
     install(work, strict=False)
     config["output"]["filename_format"] = (

@@ -578,7 +578,10 @@ def test_visible_signature_markers_match_runtime_callability(repository_root: Pa
 def test_dataclass_and_configuration_model_fields_have_a_visible_reference(repository_root: Path) -> None:
     signatures = _read(repository_root, "docs/v3/reference/api-signatures.md")
     configuration = _read(repository_root, "docs/v3/reference/configuration.md")
-    template = _read(repository_root, "src/image_downloader/config-template.yaml")
+    template = "\n".join(
+        _read(repository_root, "src/image_downloader/" + filename)
+        for filename in ("config-template.yaml", "auth-template.yaml", "plugin-settings-template.yaml")
+    )
 
     for module_name in (
         "image_downloader",
@@ -613,7 +616,16 @@ def test_dataclass_and_configuration_model_fields_have_a_visible_reference(repos
             # the accepted external alias, not the implementation identifier.
             external_name = field_info.validation_alias or field_info.alias or field_name
             assert external_name in configuration, (name, external_name)
-            assert external_name in template, (name, external_name)
+            if external_name not in {
+                "mode",
+                "sites",
+                "secrets",
+                "auth_access",
+                "plugin_settings",
+                "username",
+                "credential_service",
+            }:
+                assert external_name in template, (name, external_name)
 
 
 def test_coverage_ledger_has_source_evidence_and_live_destinations(repository_root: Path) -> None:

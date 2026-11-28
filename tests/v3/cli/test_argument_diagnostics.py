@@ -272,7 +272,7 @@ def test_precedence_is_structure_then_scope_then_conflict_then_value(capsys, no_
 def test_configuration_diagnostics_are_specific_and_private(tmp_path, content, kind, fragment, json_mode, capsys):
     path = tmp_path / "app.yaml"
     if content is not None:
-        path.write_text(content, encoding="utf-8")
+        path.write_text("config_version: 2\n" + content, encoding="utf-8")
     words = ["config", "explain", "--config", str(path)] + (["--json"] if json_mode else [])
     assert dispatch.main(words) == 2
     captured = capsys.readouterr()
@@ -366,7 +366,7 @@ def test_override_file_is_validated_once_and_namespace_can_be_reused(tmp_path, m
 @pytest.mark.parametrize("content", ["[]", "false", "private-value", "network: {headers: {private-value: []}}"])
 def test_nonmapping_and_dynamic_field_diagnostics_do_not_expose_values(tmp_path, content, capsys):
     path = tmp_path / "app.yaml"
-    path.write_text(content, encoding="utf-8")
+    path.write_text("config_version: 2\n" + content, encoding="utf-8")
     assert dispatch.main(["config", "explain", "--config", str(path), "--json"]) == 2
     captured = capsys.readouterr()
     assert "private-value" not in captured.out + captured.err

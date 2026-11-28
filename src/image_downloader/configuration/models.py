@@ -336,6 +336,22 @@ class SiteAuthAccess(StrictModel):
 class PluginAuthAccess(StrictModel):
     mode: Literal["standard", "anonymous"] = "standard"
     sites: Mapping[StrictStr, SiteAuthAccess] = Field(default_factory=dict)
+    # None retains the legacy Python API's shared namespace. File-v2 always
+    # supplies an explicit mapping, including an empty one.
+    host_groups: Mapping[StrictStr, tuple[StrictStr, ...]] | None = None
+
+    @field_validator("host_groups", mode="before")
+    @classmethod
+    def valid_auth_host_groups(cls, value: object) -> Mapping[str, tuple[str, ...]] | None:
+        from .host_groups import normalize_host_groups
+
+        return None if value is None else normalize_host_groups(value)
+
+    @field_serializer("host_groups")
+    def serialize_auth_host_groups(
+        self, value: Mapping[str, tuple[str, ...]] | None
+    ) -> dict[str, tuple[str, ...]] | None:
+        return None if value is None else dict(value)
 
     @model_validator(mode="after")
     def unique_origins(self) -> PluginAuthAccess:
@@ -343,6 +359,8 @@ class PluginAuthAccess(StrictModel):
             if not name or name != name.strip() or not all(char.isprintable() for char in name):
                 raise ValueError("site IDs must be non-empty printable names without surrounding whitespace")
         object.__setattr__(self, "sites", MappingProxyType(dict(self.sites)))
+        if self.host_groups is not None:
+            object.__setattr__(self, "host_groups", freeze_json(self.host_groups))
         return self
 
     @field_serializer("sites")
@@ -495,6 +513,10 @@ class AppConfig(StrictModel):
         if any(not _valid_plugin_id(str(key)) for key in values):
             raise ValueError("plugin setting IDs must be reverse-DNS identifiers")
         return values
+
+    @field_serializer("plugin_settings")
+    def serialize_plugin_settings(self, value: Mapping[str, PluginSettings]) -> dict[str, PluginSettings]:
+        return dict(value)
 
     def model_post_init(self, __context: Any) -> None:
         object.__setattr__(self, "plugin_settings", freeze_json(self.plugin_settings))

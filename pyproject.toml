@@ -49,7 +49,7 @@ image-downloader-dev = "image_downloader.devtools.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-image_downloader = ["app.yaml", "config-template.yaml", "configuration/public_suffix_list.dat"]
+image_downloader = ["app.yaml", "config-template.yaml", "auth-template.yaml", "plugin-settings-template.yaml", "configuration/public_suffix_list.dat", "configuration/legacy-defaults.yaml"]
 "image_downloader.devtools" = ["templates/*.py.txt"]
 
 [tool.pytest.ini_options]

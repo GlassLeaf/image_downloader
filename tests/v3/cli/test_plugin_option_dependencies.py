@@ -12,6 +12,8 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
+import yaml
+from support.configuration import write_config
 from support.plugins import make_plugin
 from support.workflow import FEED, A, B, snapshot
 
@@ -64,7 +66,7 @@ def query_plugin(tmp_path):
     }
     config = AppConfig.model_validate(value)
     path = tmp_path / "app.yaml"
-    path.write_text(json.dumps(value), encoding="utf-8")
+    write_config(path, value)
     return path, config, root, directory
 
 
@@ -78,9 +80,9 @@ def test_query_loads_selected_plugin_and_applies_verification(
     if mode in {None, "bypass-signature"}:
         trust_plugin(root, directory)
     if not with_root:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        value = yaml.safe_load(path.read_text(encoding="utf-8"))
         value["plugins"]["root"] = str(root)
-        path.write_text(json.dumps(value), encoding="utf-8")
+        write_config(path, value)
     state = WorkflowState(FileSystem(resolve_paths(config)["state"]))
     if action == "reset":
         state.prepare(PLUGIN, FEED, snapshot(A, B), "updated")
@@ -214,6 +216,7 @@ def test_plugin_consumers_still_reject_unusable_configured_root(tmp_path, capsys
     path.write_text(
         json.dumps(
             {
+                "config_version": 2,
                 "storage": {"data_root": str(tmp_path / "data")},
                 "plugins": {"root": str(root)},
             }
@@ -230,6 +233,7 @@ def test_offline_configuration_still_validates_root_schema(tmp_path, capsys, val
     path.write_text(
         json.dumps(
             {
+                "config_version": 2,
                 "storage": {"data_root": str(tmp_path / "data")},
                 "plugins": {"root": value},
             }
@@ -345,7 +349,7 @@ def offline_config(tmp_path, monkeypatch, request):
     }
     config = AppConfig.model_validate(value)
     path = tmp_path / "app.yaml"
-    path.write_text(json.dumps(value), encoding="utf-8")
+    write_config(path, value)
     state = WorkflowState(FileSystem(resolve_paths(config)["state"]))
     state.prepare(PLUGIN, FEED, snapshot(A, B), "updated")
     state.complete(PLUGIN, FEED, A.url)

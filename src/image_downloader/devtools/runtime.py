@@ -13,6 +13,7 @@ import httpx
 from ..application.dependencies import _RuntimeDependencies
 from ..application.requests import DownloadRequest, InspectRequest
 from ..application.service import DownloadService
+from ..configuration.layers import load_application_config
 from ..configuration.merging import deep_merge
 from ..configuration.models import AppConfig
 from ..configuration.paths import default_data_root, resolve_paths
@@ -203,7 +204,14 @@ class DevelopmentSession:
     def _config(self) -> AppConfig:
         application = dict(self.settings.get("application", {}))
         if self.options.get("app_config"):
-            application = deep_merge(application, read_document(Path(self.options["app_config"])) or {})
+            from urllib.parse import urlparse
+
+            loaded = load_application_config(
+                Path(self.options["app_config"]),
+                site=urlparse(self.options.get("url") or self.settings.get("sample_url", "")).hostname,
+                require_config=True,
+            )
+            application = deep_merge(application, loaded.model_dump(by_alias=True, warnings=False))
         application = deep_merge(
             application,
             {

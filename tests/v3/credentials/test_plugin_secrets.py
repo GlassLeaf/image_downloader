@@ -215,17 +215,18 @@ def test_documented_registrations_and_yaml_feed_signed_auth_samples(
 
     readme = (repository_root / "plugin-sources/README.md").read_text(encoding="utf-8")
     settings = next(
-        yaml.safe_load(block)["plugin_settings"]
+        yaml.safe_load(block)["plugins"]
         for block in re.findall(r"```yaml\n(.*?)\n```", readme, re.DOTALL)
         if "EXAMPLE_GALLERY_USERNAME" in block
     )
     config = tmp_path / "app.yaml"
     data = tmp_path / "data"
-    config.write_text(yaml.safe_dump({"plugin_settings": settings}), encoding="utf-8")
+    config.write_text("config_version: 2\n", encoding="utf-8")
+    config.with_name("auth.yaml").write_text(yaml.safe_dump({"plugins": settings}), encoding="utf-8")
     values = {
         (
             "local.image-downloader." + unit,
-            settings["local.image-downloader." + unit]["auth_access"]["sites"]["gallery"]["secrets"][name],
+            settings["local.image-downloader." + unit]["bindings"]["gallery"]["credentials"][name],
         ): value
         for unit in UNIT_SECRETS
         for name, _, _, value in UNIT_SECRETS[unit]
@@ -245,7 +246,7 @@ def test_documented_registrations_and_yaml_feed_signed_auth_samples(
 
     async def scenario():
         for unit in UNIT_SECRETS:
-            references = settings["local.image-downloader." + unit]["auth_access"]["sites"]["gallery"]["secrets"]
+            references = settings["local.image-downloader." + unit]["bindings"]["gallery"]["credentials"]
             async with _compose(tmp_path, plugin_sources, unit, references=references) as service:
                 result = await service.download(DownloadRequest(url=f"https://{UNIT_HOST[unit]}.example.test/works/1"))
                 assert not result.failures

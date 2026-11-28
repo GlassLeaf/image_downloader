@@ -23,7 +23,11 @@ def cli_vault(tmp_path, monkeypatch, request):
     monkeypatch.setattr(MasterKeyStore, "delete", lambda self, v, k: keys.delete(v, k))
     config = tmp_path / "app.yaml"
     data = tmp_path / "data"
-    config.write_text(json.dumps({"storage": {"data_root": str(data)}, "logging": {"console": {"enabled": False}}}))
+    config.write_text(
+        json.dumps(
+            {"config_version": 2, "storage": {"data_root": str(data)}, "logging": {"console": {"enabled": False}}}
+        )
+    )
     for name in ("one", "two"):
         profile = tmp_path / "profiles" / name
         profile.mkdir(parents=True)
@@ -221,7 +225,7 @@ def test_manual_status_with_space_containing_file_paths_does_not_create_vault(tm
     config_root = tmp_path / "config root"
     config_root.mkdir()
     config_file = config_root / "app.yaml"
-    config_file.write_text("{}\n", encoding="utf-8")
+    config_file.write_text("config_version: 2\n", encoding="utf-8")
     data_root = tmp_path / "working test" / "data"
 
     def unexpected(*args, **kwargs):
@@ -233,7 +237,7 @@ def test_manual_status_with_space_containing_file_paths_does_not_create_vault(tm
     assert main(["vault", "status", "--data-root", str(data_root), "--config", str(config_file), "--json"]) == 0
     result = json.loads(capsys.readouterr().out)["execution"]["result"]
     assert result == {"state": "uninitialized"}
-    assert config_file.read_text(encoding="utf-8") == "{}\n"
+    assert config_file.read_text(encoding="utf-8") == "config_version: 2\n"
     assert not data_root.exists()
 
 

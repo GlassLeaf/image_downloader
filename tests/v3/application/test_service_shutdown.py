@@ -80,9 +80,7 @@ def test_context_exit_keeps_primary_exception_and_partial_result(tmp_path, monke
 
 @pytest.mark.parametrize("stage", ["cookies", "gateway", "worker", "logger"])
 @pytest.mark.parametrize("repeat_cancel", [False, True])
-def test_cancelled_close_settles_resources_and_concurrent_waiters(
-    tmp_path, monkeypatch, stage, repeat_cancel
-):
+def test_cancelled_close_settles_resources_and_concurrent_waiters(tmp_path, monkeypatch, stage, repeat_cancel):
     async def scenario():
         service = compose(tmp_path, Gallery())
         started, release = asyncio.Event(), asyncio.Event()

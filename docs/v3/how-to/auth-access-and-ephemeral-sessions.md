@@ -2,7 +2,14 @@
 
 資格情報の登録、プラグインへの提供、ログイン・更新の実行、セッションの保存は別の設定です。保管庫へ登録しても、それだけでプラグインへ提供したりログインを許可したりはしません。
 
-## サイトの設定
+この文書の`mode/sites/secrets`を使う例は、互換性を維持するPython APIと旧CLI上書きの形式です。
+設定ファイルでは[形式v2の配置と認証設定](configuration-v2-migration.md)を使います。
+`sites`は`bindings`、`secrets`は`credentials`、`mode`は`session.persistence`へ対応し、
+新形式のbindingは`credential_access/login`が必須で、同名bindingは全置換します。
+資格情報・許可・保存方針は共通・プロファイルだけに置き、認証用と接続先用のホスト変数は独立します。
+以下のAPI形式のYAML表現を`app.yaml`としてそのまま保存することはできません。
+
+## Python APIでのサイト設定
 
 ```yaml
 plugin_settings:
@@ -94,17 +101,17 @@ https://*.example.comはhttps://viewer.example.com:443に一致し、本体のex
 
 設定レイヤーはグループ名ごとにマージし、同名グループの配列を上位レイヤーで置換します。空のマッピングは下位のグループを削除しません。マージ後に展開し、未定義・参照された空配列は通信・保管庫読取り前に拒否します。未使用でも不正なホスト名は拒否します。部分的な認証設定の上書きも、必須項目とsite間の重複を最終設定で検証します。
 
-APIのplugin_auth_access_overridesとCLIの--plugin-auth-accessでもテンプレートを使用できます。展開元は選択済みユーザー設定で、この認証上書きにhost_groupsの定義を含めることはできません。汎用のアプリケーション設定上書きAPIでは変更可能です。
+APIのplugin_auth_access_overridesとCLIの--plugin-auth-accessでもテンプレートを使用できます。展開元は選択済みユーザー設定で、追加の認証用`host_groups`を明示すれば、接続先用の一覧から独立させられます。汎用のアプリケーション設定上書きAPIでは変更可能です。
 
 config explainとdoctorでは原文のorigins、展開済みのresolved_origins、auth_access.variables.host_groups内の各グループの値・出典・referenced_byを確認できます。doctorは作者とユーザーの有効endpointも表示し、未使用グループを警告します。警告だけでは失敗になりません。作者宣言の読込みに失敗した場合は未使用と断定せず、usage_completeをfalseにします。config explainでは作者側の参照を把握できないため未使用警告を出しません。保管庫参照は秘匿します。
 
-同じ変数をendpointと認証許可の両方が参照する場合、一覧の変更で両方の範囲が変わります。展開結果と利用箇所を確認してください。承認と匿名セッションの識別には展開後の範囲を使うため、名前変更や並べ替えだけでは識別を変えません。ワイルドカードを持つEndpointから要求を作る場合はfor_origin()で具体的なoriginを選択します。
+追加の`PluginAuthAccess.host_groups`が未指定の既存Python API入力だけは、従来の共有変数を使います。その場合、一覧の変更でendpointと認証許可の両方の範囲が変わります。展開結果と利用箇所を確認してください。承認と匿名セッションの識別には展開後の範囲を使うため、名前変更や並べ替えだけでは識別を変えません。ワイルドカードを持つEndpointから要求を作る場合はfor_origin()で具体的なoriginを選択します。
 
 ### 旧記法からの移行と誤記の検出
 
 旧`allowed_hosts`と`${allowed_hosts}`は廃止しました。配列を`host_groups.default`へ移し、参照を`${host_groups.default}`へ変更してください。自動変換やユーザーファイルの自動書換えは行いません。
 
-ユーザー設定と開発ツールが読み込むYAMLは、同じマッピング内の明示キー重複をエラーにします。アンカー、通常のマージ、別レイヤーの同名項目による上書きは利用できます。plugin_settingsの共通設定キー、auth_access、各siteの未知キーは自動削除せず拒否します。プラグイン独自configの任意キーと、その他の既存の自動整理方針は維持します。
+ユーザー設定と開発ツールが読み込むYAMLは、同じマッピング内の明示キー重複をエラーにします。アンカー、通常のマージ、別レイヤーの同名項目による上書きは利用できます。plugin_settingsの共通設定キー、auth_access、各siteの未知キーは自動削除せず拒否します。プラグイン独自configの任意キーと、新形式ではその他の未知・廃止キーもエラーになり、自動整理しません。
 
 ## ログインの承認
 

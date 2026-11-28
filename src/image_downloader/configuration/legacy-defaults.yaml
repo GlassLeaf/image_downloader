@@ -1,0 +1,89 @@
+profile:
+  default: default
+storage:
+  data_root: null
+plugins:
+  root: null
+output:
+  directory_format: '%CHAPTER_NUMBER%_%CONTENT_TITLE%_%CHAPTER_TITLE%'
+  filename_format: '%IMAGE_INDEX%.%EXT%'
+  existing_file: overwrite
+  image_format: null
+  isolate_by_plugin: false
+  max_component_length: null
+  lock_timeout_seconds: 30
+media:
+  transform_workers: 2
+  input_validation: both
+  content_type_mismatch: accept
+  max_image_pixels: null
+logging:
+  console:
+    enabled: true
+  safe_query_parameters: []
+  safe_fragment_parameters: []
+network:
+  request_concurrency: 8
+  origin_request_concurrency: null
+  registrable_domain_request_concurrency: null
+  request_timeout_seconds: 30
+  connect_timeout_seconds: null
+  read_timeout_seconds: null
+  write_timeout_seconds: null
+  pool_timeout_seconds: null
+  max_attempts: 3
+  retry_max_delay_seconds: 30
+  auth_refresh_attempts: 1
+  global_request_interval_seconds: 0
+  pool_max_connections: 8
+  pool_max_idle_connections: 8
+  max_response_bytes: 67108864
+  http2: true
+  follow_redirects: true
+  proxy: null
+  headers:
+    User-Agent: image-downloader/0.0.0.1b0
+notification:
+  enabled: false
+  methods:
+  - desktop
+  notify_on:
+  - fetch_error
+  - process_error
+  - save_error
+  - auth_error
+  - config_error
+  - plugin_error
+  - update_error
+  - storage_error
+  - runtime_error
+  routes: {}
+  desktop: {}
+  email:
+    smtp_host: ''
+    smtp_port: 465
+    use_tls: true
+    from: ''
+    to: []
+    username: ''
+    credential_service: image-downloader.smtp
+    credential_reference: null
+security:
+  plugin_verification: strict
+download:
+  chapter_concurrency: 3
+  image_concurrency_per_chapter: 8
+  continue_on_image_error: true
+  allow_empty_chapter_manifest: false
+image_processors:
+  chain: []
+  transport_metadata_access: {}
+plugin_settings: {}
+fallback:
+  generic_html:
+    enabled: true
+workflow_history:
+  max_age_days: 90
+  max_size_bytes: 104857600
+workflow_logging:
+  progress_enabled: true

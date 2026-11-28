@@ -74,7 +74,9 @@ def main() -> None:  # noqa: C901 - Keep the investigation cases and their instr
     plugin_root = root / "plugins"
     plugin_root.mkdir(exist_ok=True)
     # Bare invalid URL operands prevent fallback from issuing HTTP requests.
-    fixture = json.dumps({"storage": {"data_root": str(data_root)}, "plugins": {"root": str(plugin_root)}})
+    fixture = json.dumps(
+        {"config_version": 2, "storage": {"data_root": str(data_root)}, "plugins": {"root": str(plugin_root)}}
+    )
     user_config.write_text(fixture, encoding="utf-8")
     valid_config = root / "valid.yaml"
     valid_config.write_text(fixture, encoding="utf-8")

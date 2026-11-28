@@ -44,6 +44,7 @@ def install_service(
     config.write_text(
         json.dumps(
             {
+                "config_version": 2,
                 "storage": {"data_root": str(tmp_path / "data")},
                 "plugins": {"root": str(tmp_path / "plugins")},
             }
@@ -306,6 +307,7 @@ def test_offline_command_envelopes(tmp_path, capsys, words, shutdown, monkeypatc
     config.write_text(
         json.dumps(
             {
+                "config_version": 2,
                 "storage": {"data_root": str(tmp_path / "data")},
                 "plugins": {"root": str(tmp_path / "plugins")},
             }
@@ -447,6 +449,7 @@ assert closed == [True]
     config.write_text(
         json.dumps(
             {
+                "config_version": 2,
                 "storage": {"data_root": str(tmp_path / "data")},
                 "plugins": {"root": str(tmp_path / "plugins")},
             }

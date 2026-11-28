@@ -47,13 +47,16 @@ def host_group_diagnostic(
     plugin_id: str | None = None,
     reference_field: str | None = None,
     source: str | None = None,
+    auth_namespace: bool = False,
 ) -> ConfigurationError:
     from .configuration.host_groups import HostGroupError
 
     if not isinstance(error, HostGroupError):
         raise TypeError("host group diagnostic requires a host group error")
     prefix = "plugin_settings." + plugin_id + "." if plugin_id is not None else ""
-    field = prefix + ("allowed_hosts" if error.kind == "legacy" else "host_groups")
+    field = prefix + (
+        "allowed_hosts" if error.kind == "legacy" else "auth_access.host_groups" if auth_namespace else "host_groups"
+    )
     details: dict[str, object] = {"field": field}
     if error.group is not None:
         details.update(group=error.group, field=field + "." + error.group)

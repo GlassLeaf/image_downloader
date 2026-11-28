@@ -37,6 +37,8 @@ class InspectionExecutor:
             request.force_plugin,
             detached=True,
             auth_access_overrides=request.plugin_auth_access_overrides,
+            auth_access_replacements=request.plugin_auth_access_replacements,
+            auth_access_patches=request.plugin_auth_access_patches,
             diagnostics_enabled=False,
         ) as site:
             record, plugin, context = site.record, site.plugin, site.context

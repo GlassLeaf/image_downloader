@@ -69,7 +69,7 @@ def test_workflow_offline_history_without_rewrite(tmp_path, capsys, monkeypatch)
     (root / "log.log").write_text(HEADER + "done\n", encoding="utf-8")
     config_path = tmp_path / "config.yaml"
     data = tmp_path / "data"
-    config_path.write_text(f"storage:\n  data_root: '{data}'\n", encoding="utf-8")
+    config_path.write_text(f"config_version: 2\nstorage:\n  data_root: '{data}'\n", encoding="utf-8")
     config = AppConfig.model_validate({"storage": {"data_root": str(data)}})
     now = datetime.now(UTC)
     url = "https://example.test/feed"
@@ -98,7 +98,7 @@ def test_workflow_offline_history_without_rewrite(tmp_path, capsys, monkeypatch)
 def test_workflow_corrupt_history_is_indeterminate(tmp_path, capsys):
     config_path = tmp_path / "config.yaml"
     data = tmp_path / "data"
-    config_path.write_text(f"storage:\n  data_root: '{data}'\n", encoding="utf-8")
+    config_path.write_text(f"config_version: 2\nstorage:\n  data_root: '{data}'\n", encoding="utf-8")
     config = AppConfig.model_validate({"storage": {"data_root": str(data)}})
     fs = FileSystem(resolve_paths(config)["state"])
     fs.write_bytes_atomic("workflow-history.json", b"invalid")

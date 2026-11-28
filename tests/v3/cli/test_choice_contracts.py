@@ -82,4 +82,8 @@ def test_bundled_configuration_satisfies_current_schema():
     from image_downloader import configuration
 
     path = Path(configuration.__file__).resolve().parents[1] / "app.yaml"
-    AppConfig.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")))
+    from image_downloader.configuration.documents import validate_app_document
+
+    AppConfig.model_validate(
+        validate_app_document(yaml.safe_load(path.read_text(encoding="utf-8")), main=True, role="app")
+    )

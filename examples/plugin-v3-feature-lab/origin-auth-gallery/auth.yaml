@@ -1,0 +1,19 @@
+plugins:
+  local.image-downloader.lab-origin-auth-gallery:
+    host_groups:
+      default: [example.com, example.co.jp]
+    bindings:
+      shared:
+        origins:
+          - "https://${host_groups.default}"
+          - "https://*.${host_groups.default}"
+        credentials: {api_token: LAB_TOKEN}
+        credential_access: allow
+        login: deny
+    connections:
+      host_groups:
+        default: [example.com, example.co.jp]
+      endpoints:
+        assets:
+          origin: "https://viewer.${host_groups.default}"
+          auth: session

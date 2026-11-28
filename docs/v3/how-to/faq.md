@@ -47,14 +47,12 @@ workflow専用の画像ディレクトリは作らない。専用記録は`<prof
 
 ### Q2. plugin 固有のユーザー設定を渡すには？
 
-永続値は main/profile/site YAML の `plugin_settings.<plugin-id>.config` に置く。例えば host 固有の site layer では次のように書ける。
+永続値は共通・プロファイル・サイトの`plugin-settings/<plugin-id>.yaml`の`config`へ置く。例えば host 固有の site layer では次のように書ける。
 
 ```yaml
-# sites/example.test.yaml
-plugin_settings:
-  com.example.gallery:
-    config:
-      page_size: 50
+# sites/example.test/plugin-settings/com.example.gallery.yaml
+config:
+  page_size: 50
 ```
 
 一回だけの上書きには、repeatable な `--plugin-config ID=JSON` または JSON の `--plugin-config-file` を使う。
@@ -64,7 +62,7 @@ image-downloader download https://example.test/gallery `
   --plugin-config 'com.example.gallery={"page_size":50}'
 ```
 
-author default、永続設定、operation override の順に deep merge され、CLI override は YAML に保存されない。秘密値は `config` ではなく `secrets` の外部参照として指定する。[plugin settings and secrets](../reference/configuration.md#config-plugin-settings) と [CLI options](../reference/cli.md#cli-options) を参照する。
+author default、永続設定、operation override の順に deep merge され、CLI override は YAML に保存されない。秘密値は`config`へ置かず、`auth.yaml`の`bindings.<name>.credentials`に保管庫参照を指定する。[plugin settings and secrets](../reference/configuration.md#config-plugin-settings) と [CLI options](../reference/cli.md#cli-options) を参照する。
 
 ### Q3. plugin 側はユーザー設定をどう受け取るか？
 
@@ -83,10 +81,9 @@ author default、永続設定、operation override の順に deep merge され�
 全 plugin に影響させず、選択された plugin だけを manifest 順に直列化するには `download_policy.preserve_image_start_order: true` を設定する。
 
 ```yaml
-plugin_settings:
-  com.example.gallery:
-    download_policy:
-      preserve_image_start_order: true
+# plugin-settings/com.example.gallery.yaml
+download_policy:
+  preserve_image_start_order: true
 ```
 
 これは chapter/image job をともに `1` とし、実際の image request hook の開始順を保持する。global に適用する場合は従来どおり `download.chapter_concurrency: 1` と `download.image_concurrency_per_chapter: 1` を使う。[concurrency](../explanation/execution-lifecycle.md#lifecycle-concurrency) を参照する。

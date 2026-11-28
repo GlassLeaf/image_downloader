@@ -18,17 +18,17 @@ image-downloader credential smtp delete MAIL --profile default --yes
 credential（plugin・smtp）のset/list/deleteとvaultの全操作では、`--plugin-root PATH`と`--plugin-verification-override MODE`も受理します。`--plugin-root`は絶対パスで指定し、その実行の`plugins.root`を上書きします。資格情報の保存先は`--data-root`とプロファイルで決まります。これらの操作はプラグインの存在確認・読み込み・検証を行わないため、検証上書きは効果がありません。MODEは`bypass-all`、`bypass-catalog`、`bypass-signature`です。どちらの指定も永続設定には保存しません。
 
 ```yaml
-plugin_settings:
+# auth.yaml (main app.yaml declares config_version: 2)
+plugins:
   com.example.gallery:
-    auth_access:
-      sites:
-        gallery:
-          origins: [https://gallery.example.test]
-          secrets:
-            api_token: TOKEN
-notification:
-  email:
-    credential_reference: MAIL
+    bindings:
+      gallery:
+        origins: [https://gallery.example.test]
+        credentials: {api_token: TOKEN}
+        credential_access: allow
+        login: ask
+smtp:
+  credential_reference: MAIL
 ```
 
 SMTP認証では`notification.email.use_tls: true`（既定）が必須です。非TLS認証は

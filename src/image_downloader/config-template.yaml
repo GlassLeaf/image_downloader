@@ -1,8 +1,9 @@
 # image-downloader user configuration
 #
-# This file is optional. Every setting below is commented out, so new bundled
+# This file is optional. Every optional setting below is commented out, so new bundled
 # defaults continue to apply until you explicitly choose an override. Inspect
 # active values and their source with: image-downloader config explain --json
+config_version: 2
 #
 # `null` is meaningful only where documented: roots use the platform default,
 # optional limits are disabled, and optional network limits inherit their
@@ -50,7 +51,6 @@
 #   pool_timeout_seconds: null
 #   max_attempts: 3                  # initial request included; 1 disables retries
 #   retry_max_delay_seconds: 30      # finite number >= 0; 0 means no retry wait
-#   auth_refresh_attempts: 1         # integer >= 0
 #   global_request_interval_seconds: 0 # finite number >= 0; request-start interval across all origins
 #   pool_max_connections: 8          # integer >= 1
 #   pool_max_idle_connections: 8     # integer from 0 through pool_max_connections
@@ -72,57 +72,22 @@
 #     use_tls: true
 #     from: ''
 #     to: []
-#     credential_reference: null
-# Legacy SMTP fields username and credential_service are retained but unused.
 # security:
 #   plugin_verification: strict      # strict, warn, off
 # image_processors:
 #   chain: []
 #   # processor ID -> selected site plugin IDs allowed to see raw image transport metadata
 #   transport_metadata_access: {}
-# plugin_settings:
-#   com.example.plugin:
-#     enabled: true
-#     config: {}                     # plugin-defined; validate with doctor --host
-#     host_groups:                   # user-only names -> DNS hostname arrays
-#       default: []                  # referenced arrays must be non-empty
-#     auth_access:                  # user-owned credential/login permissions
-#       mode: standard              # anonymous: fresh command-only session
-#       sites:
-#         gallery:
-#           origins: [https://gallery.example.test]
-#           # origins: ["https://${host_groups.default}", "https://*.${host_groups.default}"]
-#           # One shared site; wildcard matches one label and excludes the apex.
-#           login: ask              # allow / ask / deny
-#           secrets: {}             # lower_snake_case -> UPPERCASE_REFERENCE
-#     authentication:
-#       verify_on_start: false
-#       verify_before_request: false
-#       verify_interval_seconds: null
-#       refresh_skew_seconds: 0
-#     endpoints:
-#       api:
-#         origin: https://api.example.test
-#         # origin may also be an array of HTTP(S) origins or patterns:
-#         # origin: ["https://cdn.${operation.site_domain}", "https://*.images.${operation.site_domain}"]
-#         # user-owned array: origin: "https://viewer.${host_groups.default}"
-#         # config arrays expand explicitly, e.g. origin: "https://cdn.${config.supported_hosts}"
-#         auth: session              # session or none; one authentication session per operation
-#         verification:
-#           before_request: false
-#           interval_seconds: null
-#     download_policy:               # core-owned limits for this selected site plugin
-#       request_concurrency: null    # null or integer >= 1; capped by network.request_concurrency
-#       chapter_concurrency: null    # null or integer >= 1; capped by download.chapter_concurrency
-#       image_concurrency_per_chapter: null # null or integer >= 1; capped by download setting
-#       preserve_image_start_order: false # force chapter/image concurrency to 1
-# fallback:
-#   generic_html:
-#     enabled: true
 
-# Profile-wide workflow execution summaries (positive integers).
+# Plugin overrides: plugin-settings/<id>.yaml.
+# User authentication: auth.yaml (common/profile); site auth files accept connections/execution only.
+# Unknown or obsolete fields are errors. Use config migrate for unversioned v3 files.
+
 # workflow_logging:
-#   progress_enabled: true  # JSONL/text only; per-round plan files are always required.
+#   progress_enabled: true
 # workflow_history:
 #   max_age_days: 90
 #   max_size_bytes: 104857600
+# fallback:
+#   generic_html:
+#     enabled: true

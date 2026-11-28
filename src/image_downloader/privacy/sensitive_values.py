@@ -30,8 +30,8 @@ SENSITIVE_TERM_PATTERN = "|".join(re.escape(term) for term in SENSITIVE_NAME_TER
 # These names contain a broad sensitive term but their values are documented,
 # non-secret application settings.  Keep this exception narrow: diagnostics
 # must still redact arbitrary plugin fields such as ``refresh_token``.
-_SAFE_REFERENCE_NAMES = frozenset(("auth_refresh_attempts", "credential_service", "credential_reference"))
-_SECRET_MAPPINGS = frozenset(("headers", "secrets"))
+_SAFE_REFERENCE_NAMES = frozenset(("auth_refresh_attempts",))
+_SECRET_MAPPINGS = frozenset(("headers", "secrets", "credentials"))
 
 
 def is_sensitive_field_name(value: object) -> bool:
@@ -55,7 +55,7 @@ def redact_sensitive_values(value: object) -> object:
                     str(child_name): REDACTED if child_value is not None else None
                     for child_name, child_value in item.items()
                 }
-            elif lowered not in _SAFE_REFERENCE_NAMES and is_sensitive_field_name(lowered):
+            elif lowered == "proxy" or (lowered not in _SAFE_REFERENCE_NAMES and is_sensitive_field_name(lowered)):
                 result[name] = REDACTED if item is not None else None
             else:
                 result[name] = redact_sensitive_values(item)

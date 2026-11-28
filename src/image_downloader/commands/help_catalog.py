@@ -92,6 +92,15 @@ COMMANDS = {
     ),
     "config": command("Locate, explain, or initialize application and profile configuration.", "config path"),
     "config path": command("Show standard configuration locations and automatic storage roots.", "config path"),
+    "config validate": command(
+        "Validate every user profile and site without loading plugins or accessing credentials.",
+        'config validate --config "C:\\Config\\app.yaml"',
+    ),
+    "config migrate": command(
+        "Inspect migration from current-v3 configuration; --apply writes a new, separate directory.",
+        'config migrate --config "C:\\OldConfig\\app.yaml" --destination "C:\\NewConfig"',
+        notes=("The source, credential store and cookies are never modified. An existing destination is rejected.",),
+    ),
     "config explain": command(
         "Show effective configuration, configuration layers, and where each value originated.",
         "config explain",

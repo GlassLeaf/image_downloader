@@ -71,17 +71,19 @@ def test_float_conversion_boundary_and_existing_lock_type_policy(tmp_path):
 @pytest.mark.parametrize("value", [10**400, -(10**400)], ids=["huge", "negative-huge"])
 def test_yaml_and_runtime_layers_keep_location_without_input_values(tmp_path, layer, value):
     main = tmp_path / "app.yaml"
-    main.write_text("{}\n", encoding="utf-8")
+    main.write_text("config_version: 2\n", encoding="utf-8")
     document = {"network": {"request_timeout_seconds": value}}
     paths = {
         "app": main,
         "profile_app": tmp_path / "profiles/default/app.yaml",
-        "site": tmp_path / "sites/example.test.yaml",
+        "site": tmp_path / "sites/example.test/app.yaml",
     }
     if layer != "runtime":
         path = paths[layer]
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(yaml.safe_dump(document), encoding="utf-8")
+        path.write_text(
+            yaml.safe_dump({"config_version": 2, **document} if layer == "app" else document), encoding="utf-8"
+        )
     with pytest.raises(ConfigurationError) as caught:
         resolve_application_config(
             main, site="example.test", source="explicit", runtime_override=document if layer == "runtime" else None
@@ -91,7 +93,7 @@ def test_yaml_and_runtime_layers_keep_location_without_input_values(tmp_path, la
     assert layer in diagnostic.details["source"]
     assert str(abs(value)) not in str(caught.value)
     if layer != "runtime":
-        assert diagnostic.details["line"] == 2
+        assert diagnostic.details["line"] == (3 if layer == "app" else 2)
         assert str(abs(value)) in paths[layer].read_text(encoding="utf-8")
 
 

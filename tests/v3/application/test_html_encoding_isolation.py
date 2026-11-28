@@ -109,7 +109,7 @@ def independent_runtime(tmp_path, monkeypatch):
     monkeypatch.setattr(httpx, "AsyncClient", client)
     config_path = tmp_path / "app.yaml"
     config_path.write_text(
-        f"storage:\n  data_root: '{tmp_path / 'data'}'\nplugins:\n  root: '{tmp_path / 'plugins'}'\n"
+        f"config_version: 2\nstorage:\n  data_root: '{tmp_path / 'data'}'\nplugins:\n  root: '{tmp_path / 'plugins'}'\n"
         "logging:\n  console:\n    enabled: false\n",
         encoding="utf-8",
     )

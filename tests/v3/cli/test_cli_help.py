@@ -162,7 +162,16 @@ def values(tmp_path):
     config.write_text(json.dumps({"plugin_id": "com.example.gallery", "config": {}}), encoding="utf-8")
     policy = tmp_path / "policy.json"
     policy.write_text(json.dumps({"plugin_id": "com.example.gallery", "download_policy": {}}), encoding="utf-8")
+    replace_file = tmp_path / "bindings.json"
+    replace_file.write_text(json.dumps({"plugin_id": "com.example.gallery", "bindings": {}}), encoding="utf-8")
+    patch_file = tmp_path / "patch.json"
+    patch_file.write_text(json.dumps({"plugin_id": "com.example.gallery", "patch": {}}), encoding="utf-8")
     result = {
+        "destination": str(tmp_path / "new"),
+        "plugin-auth-access-replace": "com.example.gallery={}",
+        "plugin-auth-access-replace-file": str(replace_file),
+        "plugin-auth-access-patch": "com.example.gallery={}",
+        "plugin-auth-access-patch-file": str(patch_file),
         "config": str(tmp_path / "app.yaml"),
         "profile": "default",
         "plugin-root": str(tmp_path),

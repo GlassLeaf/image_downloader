@@ -589,3 +589,14 @@ backup/restoreはパス引数と任意の`--passphrase-stdin`、rotate-keyは任
 ## 認証アクセスの実行時上書き
 
 `--plugin-auth-access ID=<JSON>`はdownload・inspect・workflowでユーザーのサイト別認証設定を部分上書きします。設定には保存しません。`--yes`はログイン許可に使いません。[設定と承認・非保存の契約](../how-to/auth-access-and-ephemeral-sessions.md)。
+
+
+## 設定形式v2の追加コマンド
+
+`config validate --config ABSOLUTE_PATH`は全利用者レイヤーを読み取り専用で検証します。
+`config migrate --config OLD_APP --destination NEW_DIRECTORY`は無書き込みで検査し、`--apply`で出力します。
+`--plugin-auth-access-replace`、`--plugin-auth-access-replace-file`はbindingの全置換・削除、
+`--plugin-auth-access-patch`、`--plugin-auth-access-patch-file`は選択した認証方針の限定変更です。
+ファイルはJSONのみで、`plugin_id`とそれぞれ`bindings`または`patch`を持つオブジェクトです。
+既存の`--plugin-auth-access`と同じプラグインで併用できません。
+[形式・順序・利用例](../how-to/configuration-v2-migration.md#一回限りの上書き)を参照してください。

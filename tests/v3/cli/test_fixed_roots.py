@@ -17,10 +17,9 @@ import image_downloader.commands.setup as cli_setup
 import image_downloader.configuration.paths as configuration_paths
 from image_downloader.cli import EXIT_CONFIGURATION, EXIT_SUCCESS, build_parser, doctor
 from image_downloader.commands.validation import validate_arguments
-from image_downloader.config import AppConfig, apply_overrides, load_application_config, resolve_application_config
+from image_downloader.config import AppConfig, apply_overrides, load_application_config
 from image_downloader.diagnostics import diagnostic_for
 from image_downloader.exceptions import ConfigurationError, StorageSafetyError
-from image_downloader.immutable import thaw_json
 from image_downloader.plugins.plugin_manifest import effective_verification_mode
 from image_downloader.plugins.runtime import PluginRuntime
 from image_downloader.storage import FileSystem
@@ -30,6 +29,7 @@ def _user_config(path: Path, *, verification: str = "strict") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     content = "\n".join(
         (
+            "config_version: 2",
             "storage:",
             f"  data_root: {(path.parent / 'data').resolve()}",
             "plugins:",
@@ -202,12 +202,8 @@ def test_successful_url_creates_roots_and_plugin_list_reuses_the_new_configurati
     assert asyncio.run(cli.run(build_parser().parse_args(["plugin", "list", *command]))) == EXIT_SUCCESS
     assert sources == ["defaults", "user"]
     snapshot = yaml.safe_load(user_config.read_text(encoding="utf-8"))
-    expected = thaw_json(
-        resolve_application_config(None, source="defaults").config.model_dump(by_alias=True, warnings=False)
-    )
-    assert snapshot == expected
-    assert snapshot["storage"]["data_root"] != str(data_root)
-    assert snapshot["plugins"]["root"] != str(plugin_root)
+    assert snapshot == {"config_version": 2}
+    assert "storage" not in snapshot and "plugins" not in snapshot
 
 
 def test_missing_user_config_uses_automatic_roots_without_prompting(
@@ -227,7 +223,8 @@ def test_invalid_user_root_is_rejected_without_repairing_file(tmp_path: Path, mo
     user_config = tmp_path / "user" / "conf" / "app.yaml"
     user_config.parent.mkdir(parents=True)
     user_config.write_text(
-        "storage: {data_root: relative-data}\nplugins: {root: relative-plugins}\nnetwork: {max_attempts: 9}\n",
+        "config_version: 2\nstorage: {data_root: relative-data}\n"
+        "plugins: {root: relative-plugins}\nnetwork: {max_attempts: 9}\n",
         encoding="utf-8",
     )
     monkeypatch.setattr(cli_setup, "_user_config_path", lambda: user_config)
@@ -250,7 +247,7 @@ def test_missing_user_config_never_reads_interactive_input(
 def test_profile_init_preserves_automatic_root_configuration(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     config = tmp_path / "user" / "conf" / "app.yaml"
     config.parent.mkdir(parents=True)
-    config.write_text("storage: {data_root: null}\nplugins: {root: null}\n", encoding="utf-8")
+    config.write_text("config_version: 2\nstorage: {data_root: null}\nplugins: {root: null}\n", encoding="utf-8")
     monkeypatch.setattr(cli_setup, "_user_config_path", lambda: config)
 
     assert asyncio.run(cli.run(build_parser().parse_args(["config", "profile", "init", "work"]))) == EXIT_SUCCESS
@@ -263,7 +260,7 @@ def test_profile_init_uses_explicit_configuration_without_rewriting_roots(
 ) -> None:
     config = (tmp_path / "custom" / "app.yaml").resolve()
     config.parent.mkdir()
-    config.write_text("storage: {data_root: null}\nplugins: {root: null}\n", encoding="utf-8")
+    config.write_text("config_version: 2\nstorage: {data_root: null}\nplugins: {root: null}\n", encoding="utf-8")
     args = build_parser().parse_args(["config", "profile", "init", "work", "--config", str(config)])
 
     assert asyncio.run(cli.run(args)) == EXIT_SUCCESS
@@ -290,7 +287,7 @@ def test_default_and_explicit_null_roots_work_noninteractively(
     assert not user_config.exists()
 
     explicit = tmp_path / "explicit.yaml"
-    explicit.write_text("storage: {data_root: null}\nplugins: {root: null}\n", encoding="utf-8")
+    explicit.write_text("config_version: 2\nstorage: {data_root: null}\nplugins: {root: null}\n", encoding="utf-8")
     assert asyncio.run(doctor(build_parser().parse_args(["doctor", "--config", str(explicit)]))) == EXIT_SUCCESS
     assert yaml.safe_load(explicit.read_text(encoding="utf-8"))["storage"]["data_root"] is None
 
@@ -310,7 +307,7 @@ def test_unsafe_absolute_root_is_not_replaced_by_interactive_setup(
     unsafe = tmp_path / "not-a-directory"
     unsafe.write_text("not a directory", encoding="utf-8")
     user_config.write_text(
-        f"storage:\n  data_root: {unsafe}\nplugins:\n  root: null\n",
+        f"config_version: 2\nstorage:\n  data_root: {unsafe}\nplugins:\n  root: null\n",
         encoding="utf-8",
     )
     monkeypatch.setattr(cli_setup, "_user_config_path", lambda: user_config)
@@ -349,7 +346,7 @@ def test_bootstrap_settings_are_rejected_in_overlays(tmp_path: Path) -> None:
     overlay.parent.mkdir(parents=True)
     overlay.write_text("storage:\n  data_root: C:\\\\other\n", encoding="utf-8")
 
-    with pytest.raises(ConfigurationError, match="bootstrap settings"):
+    with pytest.raises(ConfigurationError, match="not allowed"):
         load_application_config(main)
 
 
@@ -361,10 +358,10 @@ def test_security_is_allowed_in_profile_app_but_not_site_overlay(tmp_path: Path)
     profile.write_text("security: {plugin_verification: warn}\n", encoding="utf-8")
     assert load_application_config(main).security.plugin_verification == "warn"
 
-    site = tmp_path / "sites" / "global.yaml"
-    site.parent.mkdir()
+    site = tmp_path / "sites" / "global" / "app.yaml"
+    site.parent.mkdir(parents=True)
     site.write_text("security: {plugin_verification: off}\n", encoding="utf-8")
-    with pytest.raises(ConfigurationError, match="bootstrap settings"):
+    with pytest.raises(ConfigurationError, match="not allowed"):
         load_application_config(main)
 
 
@@ -474,7 +471,7 @@ def test_config_init_creates_sparse_explicit_configuration(tmp_path: Path) -> No
     value = load_application_config(config)
     assert value.storage.data_root == str(data)
     assert value.plugins.root == str(plugins)
-    assert set(yaml.safe_load(config.read_text(encoding="utf-8"))) == {"storage", "plugins"}
+    assert set(yaml.safe_load(config.read_text(encoding="utf-8"))) == {"config_version", "storage", "plugins"}
 
 
 def test_config_init_without_roots_creates_sparse_template(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -482,7 +479,7 @@ def test_config_init_without_roots_creates_sparse_template(tmp_path: Path, capsy
 
     assert asyncio.run(cli.run(build_parser().parse_args(["config", "init", str(config)]))) == EXIT_SUCCESS
     assert "created configuration" in capsys.readouterr().out
-    assert yaml.safe_load(config.read_text(encoding="utf-8")) == {}
+    assert yaml.safe_load(config.read_text(encoding="utf-8")) == {"config_version": 2}
 
 
 def test_config_init_without_path_uses_fixed_user_location(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -491,7 +488,7 @@ def test_config_init_without_path_uses_fixed_user_location(tmp_path: Path, monke
 
     assert asyncio.run(cli.run(build_parser().parse_args(["config", "init"]))) == EXIT_SUCCESS
     assert user_config.is_file()
-    assert yaml.safe_load(user_config.read_text(encoding="utf-8")) == {}
+    assert yaml.safe_load(user_config.read_text(encoding="utf-8")) == {"config_version": 2}
 
 
 def test_config_init_with_complete_options_persists_values_without_yes(tmp_path: Path) -> None:

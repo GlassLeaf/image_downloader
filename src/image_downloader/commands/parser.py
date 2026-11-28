@@ -365,6 +365,8 @@ def build_parser() -> argparse.ArgumentParser:
             actions = command.add_subparsers(dest="action", required=True, metavar=None)
             actions.add_parser("path")
             actions.add_parser("explain")
+            actions.add_parser("validate")
+            actions.add_parser("migrate")
             actions.add_parser("init").add_argument("destination", nargs="?")
             profiles = actions.add_parser("profile").add_subparsers(dest="profile_action", required=True, metavar=None)
             profiles.add_parser("init").add_argument("profile_name")

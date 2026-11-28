@@ -365,7 +365,13 @@ def test_cli_serializes_only_safe_outcomes(tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(httpx, "AsyncClient", client)
     config = tmp_path / "app.yaml"
     config.write_text(
-        json.dumps({"storage": {"data_root": str(tmp_path / "data")}, "plugins": {"root": str(tmp_path / "plugins")}})
+        json.dumps(
+            {
+                "config_version": 2,
+                "storage": {"data_root": str(tmp_path / "data")},
+                "plugins": {"root": str(tmp_path / "plugins")},
+            }
+        )
     )
     assert main(["download", URL, "--config", str(config), "--json"]) == 0
     output = capsys.readouterr()

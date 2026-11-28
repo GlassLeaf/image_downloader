@@ -80,6 +80,8 @@ class DoctorArguments(ConfigurationArguments):
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ConfigArguments(ConfigurationArguments):
+    destination: Path | None = None
+    apply: bool = False
     command_args: tuple[str, ...]
     host: str | None = None
     existing_file: Literal["overwrite", "skip", "rename", "error"] | None = None
@@ -197,9 +199,13 @@ class PreparedCommand:
     plugin_config: PluginConfigOverrides
     download_policy: PluginDownloadPolicyOverrides
     auth_access: PluginConfigOverrides = field(default_factory=dict)
+    auth_replacements: PluginConfigOverrides = field(default_factory=dict)
+    auth_patches: PluginConfigOverrides = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "auth_access", cast(PluginConfigOverrides, freeze_json(self.auth_access)))
+        object.__setattr__(self, "auth_replacements", cast(PluginConfigOverrides, freeze_json(self.auth_replacements)))
+        object.__setattr__(self, "auth_patches", cast(PluginConfigOverrides, freeze_json(self.auth_patches)))
         object.__setattr__(self, "plugin_config", cast(PluginConfigOverrides, freeze_json(self.plugin_config)))
         object.__setattr__(
             self, "download_policy", cast(PluginDownloadPolicyOverrides, freeze_json(self.download_policy))

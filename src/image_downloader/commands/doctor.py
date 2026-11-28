@@ -16,6 +16,7 @@ from .outcome import CommandOutcome
 from .prepared import DoctorArguments, PreparedCommand
 from .reporting import (
     _application_version,
+    _authentication_selection,
     _doctor_host_connections,
     _doctor_plugin_details,
     _doctor_redact,
@@ -109,6 +110,8 @@ def _doctor(command: PreparedCommand, outcome: CommandOutcome) -> int:
                 "selected_profile": config.profile.default,
                 "target_host": site,
                 "target_has_url_path": selection_url is not None,
+                "authentication_selection": _authentication_selection(config, selection_url),
+                "completeness": {"user_layers": True, "author_defaults": healthy},
                 "effective": _doctor_redact(config, origins=resolved.origins, connections=connections),
                 "warnings": _unused_host_group_warnings(config, connections),
                 "runtime": {

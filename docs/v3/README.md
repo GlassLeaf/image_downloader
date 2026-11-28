@@ -43,3 +43,5 @@
 [v3再編前のスナップショット](../../archive/docs/legacy/v3-pre-reorg/README.md)と[v3分類整理前のスナップショット](../../archive/docs/legacy/v3-pre-taxonomy/README.md)は、移管を監査するための履歴資料です。現行仕様や実装方法として引用せず、この索引からリンクした正本を使ってください。
 
 [サイト別の認証許可と匿名セッション](how-to/auth-access-and-ephemeral-sessions.md)
+
+設定ファイルは形式v2です。既存の未版付けv3設定は[設定形式v2への移行](how-to/configuration-v2-migration.md)を参照してください。一般・プラグイン別・認証の設定を分離し、通常実行では旧形式を拒否します。

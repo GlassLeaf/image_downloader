@@ -53,6 +53,8 @@ async def _plan_workflow(
                     policies,
                     detached=True,
                     auth_access_overrides=request.plugin_auth_access_overrides,
+                    auth_access_replacements=request.plugin_auth_access_replacements,
+                    auth_access_patches=request.plugin_auth_access_patches,
                     diagnostics_enabled=False,
                     selected_plugin=selected,
                 ) as operation:

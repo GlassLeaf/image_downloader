@@ -49,7 +49,7 @@ def test_default_validation_and_explicit_existing_configuration(tmp_path):
     assert AppConfig().media.input_validation == "both"
     assert resolve_application_config(None).config.media.input_validation == "both"
     path = tmp_path / "app.yaml"
-    contents = "media:\n  input_validation: content_type\n"
+    contents = "config_version: 2\nmedia:\n  input_validation: content_type\n"
     path.write_text(contents, encoding="utf-8")
     assert resolve_application_config(path).config.media.input_validation == "content_type"
     assert path.read_text(encoding="utf-8") == contents

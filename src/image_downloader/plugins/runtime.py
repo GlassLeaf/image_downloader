@@ -194,7 +194,11 @@ class PluginRuntime:
             if (
                 settings
                 and record.kind != "site_plugin"
-                and (settings.auth_access.model_dump(exclude_unset=True) or "host_groups" in settings.model_fields_set)
+                and (
+                    settings.auth_access.model_dump(exclude_unset=True, exclude={"host_groups"})
+                    or settings.auth_access.host_groups
+                    or "host_groups" in settings.model_fields_set
+                )
             ):
                 raise ConfigurationError(f"image processor {record.id} cannot declare auth_access or host_groups")
             if settings:

@@ -32,7 +32,7 @@ C = UpdateCandidate("https://example.test/c", "c", "1")
 
 def setup_cli(tmp_path, *candidates):
     config_path = tmp_path / "app.yaml"
-    config_path.write_text(f"storage:\n  data_root: '{tmp_path / 'data'}'\n", encoding="utf-8")
+    config_path.write_text(f"config_version: 2\nstorage:\n  data_root: '{tmp_path / 'data'}'\n", encoding="utf-8")
     config = AppConfig.model_validate({"storage": {"data_root": str(tmp_path / "data")}})
     state = WorkflowState(FileSystem(resolve_paths(config)["state"]))
     if candidates:
